@@ -23,6 +23,7 @@ export const DEFAULT_AVERAGES: AverageSpec[] = [
 ];
 
 interface ColumnPair {
+  rowIndex: number;
   numerator: number;
   denominator: number;
   factor: number;
@@ -36,14 +37,22 @@ function columnPairs(tri: Triangle, j: number): ColumnPair[] {
     const num = tri.values[i]![j + 1] ?? null;
     const factor = safeRatio(num, den);
     if (factor !== null && isNum(num) && isNum(den)) {
-      pairs.push({ numerator: num, denominator: den, factor });
+      pairs.push({ rowIndex: i, numerator: num, denominator: den, factor });
     }
   }
   return pairs;
 }
 
 function averageForColumn(pairs: ColumnPair[], spec: AverageSpec): number | null {
-  const window = spec.years !== undefined ? pairs.slice(-spec.years) : pairs;
+  // An "n-year" average covers the latest n ORIGIN PERIODS that can carry a
+  // factor in this column (ending at the last row with a valid factor) -- not
+  // the last n valid factors. With an interior missing factor the window must
+  // not silently reach further back in time.
+  let window = pairs;
+  if (spec.years !== undefined && pairs.length > 0) {
+    const lastRow = pairs[pairs.length - 1]!.rowIndex;
+    window = pairs.filter((p) => p.rowIndex > lastRow - spec.years!);
+  }
   if (window.length === 0) return null;
   switch (spec.kind) {
     case "straight": {

@@ -164,6 +164,8 @@ export interface WorkspacePatch {
 }
 
 export function patchWorkspace(projectId: string, patch: WorkspacePatch): WorkspaceView {
+  // Validate the ENTIRE patch against an in-memory copy first; persist once
+  // at the end. A rejected patch must leave the stored workspace untouched.
   const state = ensureWorkspaceState(projectId);
 
   if (patch.cadence && patch.cadence !== state.cadence) {
@@ -184,9 +186,9 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
       state.berquist.interpolation = patch.berquist.interpolation;
     }
   }
-  saveWorkspaceState(projectId, state);
 
-  // Selections and tails validate against the current triangle shape.
+  // Selections validate against the current triangle shape (also verifies the
+  // cadence/asOf combination can actually build triangles).
   if (patch.selections) {
     const triangles = buildProjectTriangles(projectId, state);
     const nCols = Math.max(0, triangles.paid.ages.length - 1);
@@ -203,7 +205,6 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
       }
     }
     state.selections[patch.selections.basis] = patch.selections.selected;
-    saveWorkspaceState(projectId, state);
   }
   if (patch.tail) {
     const basis = patch.tail.basis;
@@ -224,9 +225,9 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
       }
       state.tail[basis] = { source: patch.tail.source, value: fit.tailFactor };
     }
-    saveWorkspaceState(projectId, state);
   }
 
+  saveWorkspaceState(projectId, state);
   return getWorkspaceView(projectId);
 }
 

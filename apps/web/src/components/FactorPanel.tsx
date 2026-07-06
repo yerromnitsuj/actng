@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../state/store.js";
 import { Button, Section, fmtFactor } from "./ui.js";
 
@@ -14,6 +14,10 @@ export default function FactorPanel() {
   const [draft, setDraft] = useState<string[]>([]);
   const [manualTail, setManualTail] = useState("");
   const [showIndividual, setShowIndividual] = useState(true);
+  /** While the user is typing in a draft cell, workspace refreshes (e.g. from
+   * advisor actions) must not clobber the in-progress edit. */
+  const editingLdf = useRef(false);
+  const editingTail = useRef(false);
 
   const basis = workspace?.state.basis ?? "paid";
   const factors = workspace?.factors[basis] ?? null;
@@ -26,10 +30,12 @@ export default function FactorPanel() {
   const tailFits = workspace?.tailFits[basis] ?? null;
 
   useEffect(() => {
+    if (editingLdf.current) return;
     setDraft(selections.map((v) => (v === null ? "" : String(Math.round(v * 10000) / 10000))));
   }, [selections]);
 
   useEffect(() => {
+    if (editingTail.current) return;
     if (tail) setManualTail(String(Math.round(tail.value * 10000) / 10000));
   }, [tail]);
 
@@ -183,12 +189,18 @@ export default function FactorPanel() {
                 <td key={j} className="px-0.5 py-1">
                   <input
                     value={draft[j] ?? ""}
+                    onFocus={() => {
+                      editingLdf.current = true;
+                    }}
                     onChange={(e) => {
                       const next = [...draft];
                       next[j] = e.target.value;
                       setDraft(next);
                     }}
-                    onBlur={() => commitDraft(j)}
+                    onBlur={() => {
+                      editingLdf.current = false;
+                      commitDraft(j);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
@@ -282,6 +294,12 @@ export default function FactorPanel() {
             </p>
             <input
               value={manualTail}
+              onFocus={() => {
+                editingTail.current = true;
+              }}
+              onBlur={() => {
+                editingTail.current = false;
+              }}
               onChange={(e) => setManualTail(e.target.value)}
               className="num rounded-sm border border-hairline-strong bg-panel px-2 py-1.5 text-right text-[1rem] font-semibold text-ink outline-none focus:border-steel"
             />

@@ -79,10 +79,16 @@ export default function ResultsPanel() {
               <th className="px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
                 Ultimate
               </th>
-              <th className="px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              <th
+                className="cursor-help px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft"
+                title="IBNR = method ultimate minus reported incurred on the latest diagonal (for every method, including paid-basis ones)"
+              >
                 IBNR
               </th>
-              <th className="px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              <th
+                className="cursor-help px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft"
+                title="Unpaid = method ultimate minus paid on the latest diagonal (IBNR + case reserves)"
+              >
                 Unpaid
               </th>
             </tr>
@@ -112,22 +118,28 @@ export default function ResultsPanel() {
       {/* Mack standard errors */}
       {r.mack.paid ? (
         <p className="mt-3 border-l-2 border-steel pl-3 text-[0.8rem] leading-relaxed text-ink-soft">
-          <span className="font-semibold text-ink">Mack (1993) reserve variability:</span> paid
-          reserve <span className="num">{fmt0(r.mack.paid.totals.reserve)}</span> with standard
-          error <span className="num">{fmt0(r.mack.paid.totals.standardError)}</span> (
-          {fmtPct(r.mack.paid.totals.cv ?? null, 0)} of reserve)
+          <span className="font-semibold text-ink">
+            Mack (1993) reserve variability
+          </span>{" "}
+          <span className="text-[0.7rem] uppercase tracking-[0.1em] text-ink-faint">
+            own basis: all-year volume-weighted factors, no tail
+          </span>
+          : paid reserve <span className="num">{fmt0(r.mack.paid.totals.reserve)}</span>{" "}
+          <span className="text-ink-faint">(vol-wtd, no tail)</span> with standard error{" "}
+          <span className="num">{fmt0(r.mack.paid.totals.standardError)}</span> (
+          {fmtPct(r.mack.paid.totals.cv ?? null, 0)} of that reserve)
           {r.mack.incurred ? (
             <>
               ; incurred reserve <span className="num">{fmt0(r.mack.incurred.totals.reserve)}</span>{" "}
-              with standard error{" "}
+              <span className="text-ink-faint">(vol-wtd, no tail)</span> with standard error{" "}
               <span className="num">{fmt0(r.mack.incurred.totals.standardError)}</span> (
               {fmtPct(r.mack.incurred.totals.cv ?? null, 0)}).
             </>
           ) : (
             "."
           )}{" "}
-          Mack runs on volume-weighted factors with no tail, so it will differ from the selected
-          chain ladder when your selections depart from all-year volume-weighted.
+          These figures intentionally differ from the selected chain ladder above whenever your
+          selections or tail depart from all-year volume-weighted with no tail.
         </p>
       ) : null}
 
@@ -262,6 +274,13 @@ function BfDetail() {
   const bf = analysis.results.bornhuetterFerguson[basis];
   const override = workspace?.state.bf.aprioriLossRatio ?? null;
 
+  const applyApriori = async () => {
+    const v = aprioriDraft.trim() === "" ? null : Number(aprioriDraft);
+    if (v !== null && (!Number.isFinite(v) || v <= 0)) return;
+    await patchWorkspace({ bf: { aprioriLossRatio: v } });
+    await runAnalysis("BF a-priori update");
+  };
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -280,27 +299,27 @@ function BfDetail() {
         </div>
         <div className="flex items-center gap-2 text-[0.8rem] text-ink-soft">
           <span>
-            A-priori loss ratio:{" "}
+            A-priori ({basis} basis):{" "}
             <span className="num font-semibold text-ink">
-              {override !== null ? fmtPct(override) : "derived from mature CL ultimates"}
+              {override !== null
+                ? `${fmtPct(override)} (override)`
+                : bf
+                  ? `${fmtPct(bf.rows[0]?.aprioriLossRatio ?? null)} derived`
+                  : "derived"}
             </span>
           </span>
           <input
             value={aprioriDraft}
             onChange={(e) => setAprioriDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void applyApriori();
+            }}
             placeholder="e.g. 0.65"
+            title="Type a decimal loss ratio and press Enter (or the button) to override and rerun"
             className="num w-20 rounded-sm border border-hairline-strong bg-panel px-2 py-1 text-right text-[0.8rem] outline-none focus:border-steel"
           />
-          <Button
-            kind="secondary"
-            onClick={async () => {
-              const v = aprioriDraft.trim() === "" ? null : Number(aprioriDraft);
-              if (v !== null && (!Number.isFinite(v) || v <= 0)) return;
-              await patchWorkspace({ bf: { aprioriLossRatio: v } });
-              await runAnalysis("BF a-priori update");
-            }}
-          >
-            {aprioriDraft.trim() === "" ? "Reset to derived" : "Override + rerun"}
+          <Button kind="secondary" onClick={() => void applyApriori()}>
+            {aprioriDraft.trim() === "" ? "Reset to derived + rerun" : "Override + rerun"}
           </Button>
         </div>
       </div>

@@ -106,8 +106,9 @@ export default function AdvisorPanel() {
           {threads.length > 0 ? (
             <select
               value={activeThreadId ?? ""}
+              disabled={chatBusy}
               onChange={(e) => void selectThread(e.target.value)}
-              className="max-w-[150px] rounded-sm border border-hairline bg-panel px-1.5 py-1 text-[0.72rem] text-ink-soft outline-none focus:border-steel"
+              className="max-w-[150px] rounded-sm border border-hairline bg-panel px-1.5 py-1 text-[0.72rem] text-ink-soft outline-none focus:border-steel disabled:opacity-50"
             >
               {threads.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -118,7 +119,8 @@ export default function AdvisorPanel() {
           ) : null}
           <button
             onClick={() => void newThread()}
-            className="rounded-sm border border-hairline px-2 py-1 text-[0.72rem] font-medium text-ink-soft hover:border-steel hover:text-steel"
+            disabled={chatBusy}
+            className="rounded-sm border border-hairline px-2 py-1 text-[0.72rem] font-medium text-ink-soft hover:border-steel hover:text-steel disabled:opacity-50"
             title="Start a new conversation"
           >
             New
@@ -228,6 +230,7 @@ export default function AdvisorPanel() {
               }
             }}
             rows={2}
+            maxLength={8000}
             placeholder={chatBusy ? "The advisor is working..." : "Ask the advisor..."}
             disabled={chatBusy}
             className="flex-1 resize-none rounded-sm border border-hairline-strong bg-paper px-3 py-2 text-[0.85rem] text-ink outline-none focus:border-steel disabled:opacity-60"

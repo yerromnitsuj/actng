@@ -160,7 +160,10 @@ export const getWorkspaceOverview = createTool({
         },
         tails: view.state.tail,
         bfAprioriOverride: view.state.bf.aprioriLossRatio,
-        exposureYears: exposures.length,
+        exposures: exposures.map((e) => ({
+          origin: e.origin,
+          earnedPremium: round0(e.earnedPremium),
+        })),
         data: view.dataAsOf,
         diagnosticHeadlines: view.diagnostics.findings.map((f) => `${f.severity}: ${f.message}`),
         latestAnalysis: latest
@@ -478,6 +481,38 @@ export const runSensitivityTool = createTool({
   },
 });
 
+export const setBfApriori = createTool({
+  id: "set_bf_apriori",
+  description:
+    "Set (or clear) the Bornhuetter-Ferguson a-priori loss ratio override for this workspace. Pass a positive decimal (e.g. 0.65 for 65%) to override, or null to return to the default derived from mature chain ladder ultimates and earned premium. Rerun the analysis afterwards for it to take effect in results.",
+  inputSchema: z.object({
+    aprioriLossRatio: z
+      .number()
+      .positive()
+      .max(5)
+      .nullable()
+      .describe("A-priori expected loss ratio; null resets to the derived value"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, {
+        bf: { aprioriLossRatio: input.aprioriLossRatio },
+      });
+      return {
+        success: true,
+        applied: view.state.bf.aprioriLossRatio,
+        message:
+          view.state.bf.aprioriLossRatio === null
+            ? "BF a-priori override cleared; the derived loss ratio will be used on the next run."
+            : `BF a-priori loss ratio override set to ${(view.state.bf.aprioriLossRatio * 100).toFixed(1)}%. Run the analysis for it to take effect.`,
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -505,6 +540,7 @@ export const advisorTools = {
   get_analysis_results: getAnalysisResults,
   apply_ldf_selections: applyLdfSelections,
   set_tail_factor: setTailFactor,
+  set_bf_apriori: setBfApriori,
   run_analysis: runAnalysisTool,
   run_sensitivity: runSensitivityTool,
   save_note: saveNote,
@@ -514,6 +550,7 @@ export const advisorTools = {
 export const ACTION_TOOL_IDS = new Set([
   "apply_ldf_selections",
   "set_tail_factor",
+  "set_bf_apriori",
   "run_analysis",
   "save_note",
 ]);

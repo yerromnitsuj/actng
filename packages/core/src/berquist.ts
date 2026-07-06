@@ -306,11 +306,14 @@ export function berquistSettlement(
       if (isNum(c) && isNum(p)) points.push({ x: c, y: p });
     }
     points.sort((a, b) => a.x - b.x);
-    // Collapse duplicate closed counts (keep the latest paid at that count).
+    // Collapse duplicate closed counts, keeping the latest evaluation's paid
+    // (points sort stably by closed count, so for equal counts the later
+    // development age comes last; taking its value also handles the rare
+    // decreasing-paid case, e.g. recoveries).
     const dedup: Point[] = [];
     for (const p of points) {
       const last = dedup[dedup.length - 1];
-      if (last && Math.abs(last.x - p.x) < 1e-9) last.y = Math.max(last.y, p.y);
+      if (last && Math.abs(last.x - p.x) < 1e-9) last.y = p.y;
       else dedup.push({ ...p });
     }
 

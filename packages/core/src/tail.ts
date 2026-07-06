@@ -84,8 +84,23 @@ export function fitTail(options: FitTailOptions): TailFit {
     );
   }
 
-  // Extrapolate incremental factors beyond the last selected column.
-  const lastIdx = selectedLdfs.length; // 1-based index of the last fitted column
+  // Extrapolate incremental factors beyond the last SELECTED column. Trailing
+  // null selections carry no development of their own (chain ladder treats
+  // them as 1.000), so the extrapolation must start right after the last
+  // non-null selection or the curve's predicted factors for those columns
+  // would silently vanish from the tail.
+  let lastIdx = 0; // 1-based index of the last non-null selection
+  for (let j = selectedLdfs.length - 1; j >= 0; j--) {
+    if (isNum(selectedLdfs[j] ?? null)) {
+      lastIdx = j + 1;
+      break;
+    }
+  }
+  if (lastIdx < selectedLdfs.length) {
+    warnings.push(
+      `The last ${selectedLdfs.length - lastIdx} development column(s) have no selected factor; the fitted tail covers them via the curve (chain ladder would otherwise treat them as 1.000)`,
+    );
+  }
   const extrapolatedFactors: number[] = [];
   let tail = 1;
   let converged = false;

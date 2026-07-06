@@ -88,6 +88,24 @@ describe("age-to-age factors", () => {
     const threeStraight = dev.averages.find((a) => a.spec.key === "3-str")!.values[0];
     expect(threeStraight).toBeCloseTo((1.1 + 1.2 + 1.3) / 3, 10);
   });
+
+  it("n-year windows cover the latest n origin periods, not the last n valid factors", () => {
+    // Interior missing factor (zero denominator) in the third row: the 3-year
+    // window must NOT reach back to the 1.8 factor from four periods ago.
+    const t = tri([
+      [100, 200],
+      [100, 180],
+      [0, 90], // zero denominator -> no factor for this origin
+      [100, 150],
+      [100, 140],
+      [100, N],
+    ]);
+    const dev = computeDevelopmentFactors(t);
+    const threeStraight = dev.averages.find((a) => a.spec.key === "3-str")!.values[0];
+    // Latest 3 origin periods with observable development: rows 2,3,4 -> only
+    // rows 3 and 4 carry factors (1.5, 1.4).
+    expect(threeStraight).toBeCloseTo((1.5 + 1.4) / 2, 10);
+  });
 });
 
 describe("chain ladder", () => {
@@ -200,6 +218,18 @@ describe("tail fitting", () => {
     expect(fit.valid).toBe(false);
     expect(fit.warnings.join(" ")).toMatch(/divergent/);
   });
+
+  it("extrapolates from the last non-null selection, so trailing nulls do not shrink the tail", () => {
+    const ldfs = [1, 2, 3, 4, 5].map((j) => 1 + Math.exp(-j));
+    const bare = fitTail({ method: "exponentialDecay", selectedLdfs: ldfs });
+    const padded = fitTail({
+      method: "exponentialDecay",
+      selectedLdfs: [...ldfs, N, N, N],
+    });
+    expect(padded.valid).toBe(true);
+    expect(padded.tailFactor).toBeCloseTo(bare.tailFactor, 10);
+    expect(padded.warnings.join(" ")).toMatch(/no selected factor/);
+  });
 });
 
 describe("Berquist-Sherman case-reserve adequacy", () => {
@@ -276,6 +306,26 @@ describe("Berquist-Sherman settlement-rate adjustment", () => {
     expect(() => berquistSettlement(paid, closed, { ultimateCounts: [40, 40] })).toThrowError(
       ReservingError,
     );
+  });
+
+  it("keeps the latest evaluation's paid at a duplicate closed count", () => {
+    // Cumulative paid DECREASES (recovery) while closed counts stall: the
+    // interpolation points must carry the later (lower) paid, not the max.
+    const paid2 = tri([
+      [100, 90],
+      [80, N],
+    ]);
+    const closed2 = tri([
+      [10, 10],
+      [8, N],
+    ]);
+    const result = berquistSettlement(paid2, closed2, {
+      ultimateCounts: [20, 20],
+      interpolation: "linear",
+    });
+    // Row 0 selected disposal at age 24 is the actual diagonal (10/20), so the
+    // adjusted paid at the duplicate count must equal the LATEST paid, 90.
+    expect(result.adjustedPaid.values[0]![1]).toBeCloseTo(90, 8);
   });
 });
 

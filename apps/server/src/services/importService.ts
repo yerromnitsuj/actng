@@ -49,13 +49,38 @@ function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/\s+/g, "_");
 }
 
+/** Hard ceiling on data rows per import (guards decompression bombs too). */
+const MAX_IMPORT_ROWS = 250_000;
+
 async function parseUpload(filename: string, buffer: Buffer): Promise<RawTable> {
   const lower = filename.toLowerCase();
-  if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+  if (lower.endsWith(".xls") && !lower.endsWith(".xlsx")) {
+    throw new HttpError(
+      422,
+      "UNSUPPORTED_FORMAT",
+      "Legacy .xls workbooks are not supported; save the file as .xlsx or CSV and re-import",
+    );
+  }
+  if (lower.endsWith(".xlsx")) {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    try {
+      await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    } catch (err) {
+      throw new HttpError(
+        422,
+        "BAD_EXCEL",
+        `Could not read the workbook (${err instanceof Error ? err.message : "corrupt or unsupported file"}); save as .xlsx or CSV and re-import`,
+      );
+    }
     const sheet = workbook.worksheets[0];
     if (!sheet) throw new HttpError(422, "EMPTY_FILE", "The workbook has no worksheets");
+    if (sheet.rowCount > MAX_IMPORT_ROWS) {
+      throw new HttpError(
+        422,
+        "TOO_MANY_ROWS",
+        `The worksheet has ${sheet.rowCount.toLocaleString()} rows; the import limit is ${MAX_IMPORT_ROWS.toLocaleString()}`,
+      );
+    }
     const headerRow = sheet.getRow(1);
     const headers: string[] = [];
     headerRow.eachCell({ includeEmpty: false }, (cell, col) => {
@@ -99,6 +124,13 @@ async function parseUpload(filename: string, buffer: Buffer): Promise<RawTable> 
       422,
       "CSV_PARSE",
       `CSV parse error at row ${first.row !== undefined ? Number(first.row) + 2 : "?"}: ${first.message}`,
+    );
+  }
+  if (parsed.data.length > MAX_IMPORT_ROWS) {
+    throw new HttpError(
+      422,
+      "TOO_MANY_ROWS",
+      `The file has ${parsed.data.length.toLocaleString()} rows; the import limit is ${MAX_IMPORT_ROWS.toLocaleString()}`,
     );
   }
   return { headers: parsed.meta.fields ?? [], rows: parsed.data };

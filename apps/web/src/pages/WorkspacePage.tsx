@@ -14,10 +14,7 @@ export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const workspace = useStore((s) => s.workspace);
   const workspaceLoading = useStore((s) => s.workspaceLoading);
-  const loadWorkspace = useStore((s) => s.loadWorkspace);
-  const loadAnalyses = useStore((s) => s.loadAnalyses);
-  const loadNotes = useStore((s) => s.loadNotes);
-  const loadThreads = useStore((s) => s.loadThreads);
+  const openProject = useStore((s) => s.openProject);
   const patchWorkspace = useStore((s) => s.patchWorkspace);
   const runAnalysis = useStore((s) => s.runAnalysis);
   const runningAnalysis = useStore((s) => s.runningAnalysis);
@@ -27,12 +24,9 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     if (!projectId) return;
-    void loadWorkspace(projectId);
-    void loadAnalyses(projectId);
-    void loadNotes(projectId);
-    void loadThreads(projectId);
+    void openProject(projectId);
     if (projects.length === 0) void loadProjects();
-  }, [projectId, loadWorkspace, loadAnalyses, loadNotes, loadThreads, loadProjects, projects.length]);
+  }, [projectId, openProject, loadProjects, projects.length]);
 
   const project = useMemo(
     () => projects.find((p) => p.id === projectId) ?? null,

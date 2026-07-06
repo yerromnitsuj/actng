@@ -3,13 +3,14 @@ import multer from "multer";
 import { z } from "zod";
 import {
   createProject,
-  deleteClaims,
   deleteProject,
   getProject,
-  insertClaims,
   listProjects,
+  listThreads,
+  replaceClaims,
   replaceExposures,
 } from "../db/repo.js";
+import { advisorMemory } from "../mastra/advisor.js";
 import { parseClaimsUpload, parseExposuresUpload } from "../services/importService.js";
 import { HttpError } from "../services/workspaceService.js";
 
@@ -41,9 +42,20 @@ projectsRouter.get("/:id", (req, res) => {
   res.json({ project });
 });
 
-projectsRouter.delete("/:id", (req, res) => {
-  const removed = deleteProject(String(req.params.id));
+projectsRouter.delete("/:id", async (req, res) => {
+  const projectId = String(req.params.id);
+  // Collect thread ids first so the advisor's Mastra memory (a separate
+  // store) is cleaned up along with the app-side cascade.
+  const threads = listThreads(projectId);
+  const removed = deleteProject(projectId);
   if (!removed) throw new HttpError(404, "NOT_FOUND", "Project not found");
+  for (const thread of threads) {
+    try {
+      await advisorMemory.deleteThread(thread.id);
+    } catch (err) {
+      console.warn(`[projects] failed to delete advisor memory thread ${thread.id}:`, err);
+    }
+  }
   res.status(204).end();
 });
 
@@ -56,8 +68,7 @@ projectsRouter.post("/:id/import/claims", upload.single("file"), async (req, res
   if (!project) throw new HttpError(404, "NOT_FOUND", "Project not found");
   if (!req.file) throw new HttpError(400, "NO_FILE", "Attach a CSV or Excel file as 'file'");
   const claims = await parseClaimsUpload(req.file.originalname, req.file.buffer);
-  deleteClaims(project.id);
-  insertClaims(project.id, claims);
+  replaceClaims(project.id, claims);
   res.json({
     imported: claims.length,
     claimCount: new Set(claims.map((c) => c.claimId)).size,

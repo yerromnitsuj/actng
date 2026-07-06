@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 
 export function fmt0(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "-";
-  return Math.round(v).toLocaleString("en-US");
+  // `+ 0` folds negative zero back to zero so small negatives never render "-0".
+  return (Math.round(v) + 0 === 0 ? 0 : Math.round(v)).toLocaleString("en-US");
 }
 
 export function fmtK(v: number | null | undefined): string {

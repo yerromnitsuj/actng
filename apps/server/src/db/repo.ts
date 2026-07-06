@@ -157,6 +157,32 @@ export function deleteClaims(projectId: string): number {
   return db.prepare("DELETE FROM claims WHERE project_id = ?").run(projectId).changes;
 }
 
+/** Atomically replaces the project's loss run: delete + insert in ONE transaction. */
+export function replaceClaims(projectId: string, rows: ClaimSnapshot[]): number {
+  const del = db.prepare("DELETE FROM claims WHERE project_id = ?");
+  const stmt = db.prepare(
+    `INSERT INTO claims (project_id, claim_id, accident_date, report_date, evaluation_date, paid_to_date, case_reserve, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const tx = db.transaction((batch: ClaimSnapshot[]) => {
+    del.run(projectId);
+    for (const r of batch) {
+      stmt.run(
+        projectId,
+        r.claimId,
+        r.accidentDate,
+        r.reportDate,
+        r.evaluationDate,
+        r.paidToDate,
+        r.caseReserve,
+        r.status,
+      );
+    }
+  });
+  tx(rows);
+  return rows.length;
+}
+
 export function getClaims(projectId: string): ClaimSnapshot[] {
   return db
     .prepare(
