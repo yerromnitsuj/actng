@@ -301,11 +301,17 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   const { state, triangles } = view;
   const warnings: string[] = [];
 
-  const paidCl = runChainLadderOr422(triangles.paid, state.selections.paid, state.tail.paid.value);
+  const paidCl = runChainLadderOr422(
+    triangles.paid,
+    state.selections.paid,
+    state.tail.paid.value,
+    "paid",
+  );
   const incurredCl = runChainLadderOr422(
     triangles.incurred,
     state.selections.incurred,
     state.tail.incurred.value,
+    "incurred",
   );
   const paidAtDiagonal = latestDiagonalTotal(triangles.paid);
 
@@ -465,11 +471,18 @@ function runChainLadderOr422(
   tri: Triangle,
   selected: (number | null)[],
   tailFactor: number,
+  basisLabel?: string,
 ): ChainLadderResult {
   try {
     return runChainLadder(tri, { selected, tailFactor });
   } catch (err) {
-    if (err instanceof ReservingError) throw new HttpError(422, err.code, err.message);
+    if (err instanceof ReservingError) {
+      const message =
+        err.code === "NO_SELECTIONS" && basisLabel
+          ? `No LDFs are selected on the ${basisLabel} basis. Switch to that basis and select factors (or ask the advisor to apply them) before running the full analysis.`
+          : err.message;
+      throw new HttpError(422, err.code, message);
+    }
     throw err;
   }
 }

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, streamChat } from "../api/client.js";
+import { api, ApiError, streamChat } from "../api/client.js";
 import type {
   AnalysisListItem,
   AnalysisRecord,
@@ -109,7 +109,14 @@ export const useStore = create<AppState>((set, get) => ({
       const view = await api.getWorkspace(projectId);
       set({ workspace: view, workspaceLoading: false });
     } catch (err) {
-      set({ workspace: null, workspaceLoading: false, error: errorText(err) });
+      // A project without claims is a normal state the page renders as the
+      // import prompt; only unexpected failures surface as a global error.
+      const expected = err instanceof ApiError && err.code === "NO_CLAIMS";
+      set({
+        workspace: null,
+        workspaceLoading: false,
+        error: expected ? get().error : errorText(err),
+      });
     }
   },
 
