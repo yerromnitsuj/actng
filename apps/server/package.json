@@ -1,0 +1,40 @@
+{
+  "name": "@actng/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "start": "tsx src/index.ts",
+    "seed": "tsx src/seed/seed.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actng/core": "*",
+    "@ai-sdk/anthropic": "^3.0.58",
+    "@mastra/core": "^1.49.0",
+    "@mastra/libsql": "^1.15.0",
+    "@mastra/memory": "^1.22.1",
+    "ai": "^6.0.116",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "multer": "^2.0.1",
+    "papaparse": "^5.5.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.0",
+    "@types/papaparse": "^5.3.15",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

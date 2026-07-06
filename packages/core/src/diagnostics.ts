@@ -111,6 +111,45 @@ export function calendarYearTest(tri: Triangle): CalendarYearDiagnostic | null {
 }
 
 /**
+ * Median relative shift of the most recent origin periods against the prior
+ * ones, per development column, restricted to columns that are still
+ * developing (median value below the maturity cap). This is how an actuary
+ * reads a closure-rate exhibit: a step change in the recent rows at immature
+ * ages, not a smooth trend across saturated columns.
+ */
+function recentVsPriorShift(
+  grid: (number | null)[][],
+  options: { recent?: number; maturityCap?: number } = {},
+): number | null {
+  const recentN = options.recent ?? 3;
+  const maturityCap = options.maturityCap ?? Infinity;
+  if (grid.length === 0) return null;
+  const nCols = grid[0]!.length;
+  const shifts: number[] = [];
+  for (let j = 0; j < nCols; j++) {
+    const values: number[] = [];
+    for (let i = 0; i < grid.length; i++) {
+      const v = grid[i]![j] ?? null;
+      if (isNum(v)) values.push(v);
+    }
+    if (values.length < recentN + 2) continue;
+    const sorted = [...values].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)]!;
+    if (median >= maturityCap) continue; // column is saturated; no signal left
+    const recent = values.slice(-recentN);
+    const prior = values.slice(0, values.length - recentN);
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const priorAvg = avg(prior);
+    if (priorAvg === 0) continue;
+    shifts.push(avg(recent) / priorAvg - 1);
+  }
+  if (shifts.length === 0) return null;
+  shifts.sort((a, b) => a - b);
+  const mid = Math.floor(shifts.length / 2);
+  return shifts.length % 2 === 1 ? shifts[mid]! : (shifts[mid - 1]! + shifts[mid]!) / 2;
+}
+
+/**
  * Median relative per-period trend of a metric across development columns,
  * fitted down each column (same maturity across origin periods).
  */
@@ -164,12 +203,12 @@ export function runDiagnostics(input: DiagnosticsInput): DiagnosticsResult {
   const cyTest = calendarYearTest(paid);
 
   const findings: DiagnosticFinding[] = [];
-  const closureTrend = medianColumnTrend(closureRates);
-  if (closureTrend !== null && Math.abs(closureTrend) > 0.02) {
+  const closureShift = recentVsPriorShift(closureRates, { recent: 3, maturityCap: 0.95 });
+  if (closureShift !== null && Math.abs(closureShift) > 0.05) {
     findings.push({
       severity: "warning",
       code: "SETTLEMENT_RATE_SHIFT",
-      message: `Claim closure rates are ${closureTrend > 0 ? "speeding up" : "slowing down"} across accident periods (median ${(closureTrend * 100).toFixed(1)}% per period at the same maturity). Paid development factors are distorted; consider the Berquist-Sherman settlement-rate adjustment.`,
+      message: `Claim settlement is ${closureShift > 0 ? "speeding up" : "slowing down"}: at still-developing maturities, closure rates for the most recent origin periods run ${(Math.abs(closureShift) * 100).toFixed(0)}% ${closureShift > 0 ? "above" : "below"} the prior periods. Paid development factors are distorted; weigh the Berquist-Sherman settlement-rate adjustment.`,
     });
   }
   const caseTrend = medianColumnTrend(caseGrid);
