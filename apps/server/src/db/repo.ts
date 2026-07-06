@@ -153,10 +153,6 @@ export function insertClaims(projectId: string, rows: ClaimSnapshot[]): number {
   return rows.length;
 }
 
-export function deleteClaims(projectId: string): number {
-  return db.prepare("DELETE FROM claims WHERE project_id = ?").run(projectId).changes;
-}
-
 /** Atomically replaces the project's loss run: delete + insert in ONE transaction. */
 export function replaceClaims(projectId: string, rows: ClaimSnapshot[]): number {
   const del = db.prepare("DELETE FROM claims WHERE project_id = ?");
