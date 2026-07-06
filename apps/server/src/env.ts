@@ -23,7 +23,19 @@ export const env = {
   demoDir: path.join(dataDir, "demo"),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   advisorModel: process.env.ADVISOR_MODEL ?? "claude-opus-4-8",
+  anthropicBaseUrl: normalizeAnthropicBaseUrl(process.env.ANTHROPIC_BASE_URL),
 };
+
+/**
+ * The official Anthropic SDK convention sets ANTHROPIC_BASE_URL without /v1
+ * (the SDK appends it), while @ai-sdk/anthropic expects the base URL WITH
+ * /v1. Normalize so either convention works, and default to the public API.
+ */
+function normalizeAnthropicBaseUrl(raw: string | undefined): string {
+  if (!raw) return "https://api.anthropic.com/v1";
+  const trimmed = raw.replace(/\/+$/, "");
+  return /\/v\d+$/.test(trimmed) ? trimmed : `${trimmed}/v1`;
+}
 
 export function assertAdvisorConfigured(): void {
   if (!env.anthropicApiKey) {

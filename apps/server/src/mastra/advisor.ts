@@ -12,7 +12,10 @@ import { advisorTools } from "./tools.js";
  * service layer the UI uses.
  */
 
-const anthropic = createAnthropic({ apiKey: env.anthropicApiKey });
+const anthropic = createAnthropic({
+  apiKey: env.anthropicApiKey,
+  baseURL: env.anthropicBaseUrl,
+});
 
 const INSTRUCTIONS = `You are the reserving advisor inside ActNG, an actuarial reserving workbench for P&C unpaid claim estimation. You work alongside a credentialed actuary on one project at a time. You are expected to operate at the level of an experienced, credentialed reserving actuary yourself.
 
