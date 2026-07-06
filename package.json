@@ -1,0 +1,24 @@
+{
+  "name": "actng",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ActNG: an AI-native actuarial reserving workbench",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run seed --workspace @actng/server -- --if-empty && concurrently -n server,web -c blue,magenta \"npm run dev --workspace @actng/server\" \"npm run dev --workspace @actng/web\"",
+    "seed": "npm run seed --workspace @actng/server",
+    "test": "npm run test --workspace @actng/core && npm run test --workspace @actng/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspace @actng/core && npm run build --workspace @actng/server && npm run build --workspace @actng/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
