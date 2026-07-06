@@ -67,6 +67,7 @@ export default function WorkspacePage() {
                 {(["paid", "incurred"] as const).map((b) => (
                   <button
                     key={b}
+                    aria-pressed={basis === b}
                     onClick={() => void patchWorkspace({ basis: b })}
                     className={`px-3 py-1.5 text-[0.8rem] font-medium capitalize transition-colors ${
                       basis === b

@@ -226,7 +226,12 @@ export default function FactorPanel() {
       {/* Tail factor */}
       <div className="mt-5 border-t border-hairline pt-4">
         <div className="mb-3 flex items-baseline justify-between">
-          <h3 className="font-display text-[1rem] font-semibold text-ink">Tail factor</h3>
+          <h3 className="font-display text-[1rem] font-semibold text-ink">
+            Tail factor{" "}
+            <span className="text-[0.68rem] font-normal uppercase tracking-[0.12em] text-ink-faint">
+              cumulative, to ultimate
+            </span>
+          </h3>
           <p className="text-[0.8rem] text-ink-soft">
             Current:{" "}
             <span className="num font-semibold text-ink">{tail ? fmtFactor(tail.value, 4) : "-"}</span>{" "}
@@ -235,6 +240,20 @@ export default function FactorPanel() {
             </span>
           </p>
         </div>
+        {tail && tail.source !== "manual" && tailFits ? (
+          (() => {
+            const refit = tailFits[tail.source];
+            const drifted = refit.valid && Math.abs(refit.tailFactor - tail.value) > 5e-4;
+            return drifted ? (
+              <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.78rem] text-[#6b4f16]">
+                The applied tail ({fmtFactor(tail.value, 4)}) was fitted to earlier selections;
+                refitting the {tail.source === "exponentialDecay" ? "exponential decay" : "inverse power"}{" "}
+                curve to the current selections gives {fmtFactor(refit.tailFactor, 4)}. Press
+                &quot;Use this tail&quot; below to update it.
+              </p>
+            ) : null;
+          })()
+        ) : null}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {tailFits
             ? (
@@ -261,7 +280,7 @@ export default function FactorPanel() {
                       <p className="num text-[1.25rem] font-semibold text-ink">
                         {fmtFactor(fit.tailFactor, 4)}
                         <span className="ml-2 text-[0.72rem] font-normal text-ink-faint">
-                          R<sup>2</sup> {fmtFactor(fit.rSquared, 3)} - {fit.nPoints} pts
+                          to ultimate - R<sup>2</sup> {fmtFactor(fit.rSquared, 3)} - {fit.nPoints} pts
                         </span>
                       </p>
                     ) : (

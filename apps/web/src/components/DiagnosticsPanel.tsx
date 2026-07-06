@@ -65,6 +65,7 @@ export default function DiagnosticsPanel() {
         {(Object.keys(grids) as (keyof typeof grids)[]).map((key) => (
           <button
             key={key}
+            aria-pressed={tab === key}
             onClick={() => setTab(key)}
             className={`rounded-sm px-2.5 py-1 text-[0.78rem] font-medium transition-colors ${
               tab === key ? "bg-ink text-paper" : "text-ink-soft hover:bg-steel-soft"
@@ -74,6 +75,7 @@ export default function DiagnosticsPanel() {
           </button>
         ))}
         <button
+          aria-pressed={tab === "counts"}
           onClick={() => setTab("counts")}
           className={`rounded-sm px-2.5 py-1 text-[0.78rem] font-medium transition-colors ${
             tab === "counts" ? "bg-ink text-paper" : "text-ink-soft hover:bg-steel-soft"

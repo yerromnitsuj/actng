@@ -2,6 +2,32 @@ import { useState } from "react";
 import { useStore } from "../state/store.js";
 import { Button, EmptyState, Section, fmt0, fmtFactor, fmtPct } from "./ui.js";
 import type { ChainLadderResult } from "@actng/core";
+import type { WorkspaceState } from "../api/types.js";
+
+interface AnalysisInputs {
+  selections: WorkspaceState["selections"];
+  tail: WorkspaceState["tail"];
+  bf: WorkspaceState["bf"];
+  berquist: WorkspaceState["berquist"];
+  cadence: string;
+  asOfDate: string;
+}
+
+/** True when the workspace inputs no longer match what produced this run. */
+function resultsAreStale(inputs: unknown, state: WorkspaceState | undefined): boolean {
+  if (!inputs || !state) return false;
+  const run = inputs as Partial<AnalysisInputs>;
+  const pick = (s: Partial<AnalysisInputs> | WorkspaceState) =>
+    JSON.stringify({
+      selections: s.selections,
+      tail: s.tail,
+      bf: s.bf,
+      berquist: s.berquist,
+      cadence: s.cadence,
+      asOfDate: s.asOfDate,
+    });
+  return pick(run) !== pick(state);
+}
 
 /**
  * Method results: cross-method summary cards, then per-origin detail for the
@@ -11,7 +37,11 @@ export default function ResultsPanel() {
   const analysis = useStore((s) => s.currentAnalysis);
   const analyses = useStore((s) => s.analyses);
   const openAnalysis = useStore((s) => s.openAnalysis);
+  const workspace = useStore((s) => s.workspace);
+  const runAnalysis = useStore((s) => s.runAnalysis);
+  const runningAnalysis = useStore((s) => s.runningAnalysis);
   const [detail, setDetail] = useState<string>("cl-paid");
+  const stale = analysis ? resultsAreStale(analysis.inputs, workspace?.state) : false;
 
   if (!analysis) {
     return (
@@ -62,8 +92,20 @@ export default function ResultsPanel() {
         ) : undefined
       }
     >
+      {stale ? (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-sm border border-gold bg-gold-soft px-3 py-2">
+          <p className="text-[0.85rem] font-medium text-[#6b4f16]">
+            Inputs have changed since this run. The numbers below do not reflect the current
+            selections, tail, or assumptions.
+          </p>
+          <Button kind="primary" onClick={() => void runAnalysis()} disabled={runningAnalysis}>
+            {runningAnalysis ? "Rerunning..." : "Rerun now"}
+          </Button>
+        </div>
+      ) : null}
+
       {/* Cross-method summary */}
-      <div className="overflow-x-auto">
+      <div className={`overflow-x-auto ${stale ? "opacity-60" : ""}`}>
         <table className="ledger w-full min-w-[560px]">
           <caption className="pb-2 text-left text-[0.72rem] uppercase tracking-[0.14em] text-ink-faint">
             Cross-method summary (totals across origin periods)
@@ -140,6 +182,13 @@ export default function ResultsPanel() {
           )}{" "}
           These figures intentionally differ from the selected chain ladder above whenever your
           selections or tail depart from all-year volume-weighted with no tail.
+          {(r.mack.paid?.totals.cv ?? 0) > 1 || (r.mack.incurred?.totals.cv ?? 0) > 1 ? (
+            <>
+              {" "}
+              A standard error above 100% of reserve is expected when the reserve itself is small
+              relative to process variance; it signals an unstable ratio, not a calculation error.
+            </>
+          ) : null}
         </p>
       ) : null}
 
@@ -161,6 +210,7 @@ export default function ResultsPanel() {
             <button
               key={d.key}
               disabled={!d.cl}
+              aria-pressed={detail === d.key}
               onClick={() => setDetail(d.key)}
               className={`rounded-sm px-2.5 py-1 text-[0.78rem] font-medium transition-colors ${
                 detail === d.key
@@ -175,6 +225,7 @@ export default function ResultsPanel() {
           ))}
           <button
             disabled={!bf.paid && !bf.incurred}
+            aria-pressed={detail === "bf"}
             onClick={() => setDetail("bf")}
             className={`rounded-sm px-2.5 py-1 text-[0.78rem] font-medium transition-colors ${
               detail === "bf"
@@ -278,7 +329,11 @@ function BfDetail() {
     const v = aprioriDraft.trim() === "" ? null : Number(aprioriDraft);
     if (v !== null && (!Number.isFinite(v) || v <= 0)) return;
     await patchWorkspace({ bf: { aprioriLossRatio: v } });
-    await runAnalysis("BF a-priori update");
+    await runAnalysis(
+      v === null
+        ? "BF a-priori reset to derived"
+        : `BF a-priori override ${(v * 100).toFixed(1)}%`,
+    );
   };
 
   return (
