@@ -136,27 +136,27 @@ export default function ResultsPanel() {
       {r.mack.paid ? (
         <p className="mt-3 border-l-2 border-steel pl-3 text-[0.8rem] leading-relaxed text-ink-soft">
           <span className="font-semibold text-ink">
-            Mack (1993) reserve variability
+            Mack (1993/1999) reserve variability
           </span>{" "}
           <span className="text-[0.7rem] uppercase tracking-[0.1em] text-ink-faint">
-            own basis: all-year volume-weighted factors, no tail
+            selected basis: your LDF selections and tail
           </span>
-          : paid reserve <span className="num">{fmt0(r.mack.paid.totals.reserve)}</span>{" "}
-          <span className="text-ink-faint">(vol-wtd, no tail)</span> with standard error{" "}
-          <span className="num">{fmt0(r.mack.paid.totals.standardError)}</span> (
+          : paid reserve <span className="num">{fmt0(r.mack.paid.totals.reserve)}</span> with
+          standard error <span className="num">{fmt0(r.mack.paid.totals.standardError)}</span> (
           {fmtPct(r.mack.paid.totals.cv ?? null, 0)} of that reserve)
           {r.mack.incurred ? (
             <>
               ; incurred reserve <span className="num">{fmt0(r.mack.incurred.totals.reserve)}</span>{" "}
-              <span className="text-ink-faint">(vol-wtd, no tail)</span> with standard error{" "}
+              with standard error{" "}
               <span className="num">{fmt0(r.mack.incurred.totals.standardError)}</span> (
               {fmtPct(r.mack.incurred.totals.cv ?? null, 0)}).
             </>
           ) : (
             "."
           )}{" "}
-          These figures intentionally differ from the selected chain ladder above whenever your
-          selections or tail depart from all-year volume-weighted with no tail.
+          The central reserve matches the chain ladder above; sigma-squared stays estimated from
+          the data&apos;s volume-weighted factors, and a tail step&apos;s contribution to the
+          standard error is an approximation.
           {(r.mack.paid?.totals.cv ?? 0) > 1 || (r.mack.incurred?.totals.cv ?? 0) > 1 ? (
             <>
               {" "}

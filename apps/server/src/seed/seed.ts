@@ -3,6 +3,7 @@ import path from "node:path";
 import { env } from "../env.js";
 import { createProject, insertClaims, listProjects, replaceExposures } from "../db/repo.js";
 import {
+  autoFitTailsFromData,
   ensureWorkspaceState,
   getWorkspaceView,
   patchWorkspace,
@@ -38,15 +39,17 @@ insertClaims(project.id, claims);
 replaceExposures(project.id, exposures);
 ensureWorkspaceState(project.id);
 
-// Give the demo a sensible starting point: volume-weighted selections and a
-// unit tail, so the workspace renders a full picture immediately. The
-// walkthrough still exercises changing selections and fitting tails.
+// Give the demo a sensible starting point: volume-weighted selections and
+// fitted default tails per basis, so the workspace renders a full picture
+// immediately. The walkthrough still exercises changing selections and tails.
+const tails = autoFitTailsFromData(project.id);
+for (const w of tails.warnings) console.warn(`[seed] ${w}`);
 const view = getWorkspaceView(project.id);
 const allWtd = (basis: "paid" | "incurred") =>
   view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")?.values ?? [];
 patchWorkspace(project.id, { selections: { basis: "paid", selected: allWtd("paid") } });
 patchWorkspace(project.id, { selections: { basis: "incurred", selected: allWtd("incurred") } });
-runFullAnalysis(project.id, "Seed baseline (all-year volume-weighted, no tail)");
+runFullAnalysis(project.id, "Seed baseline (all-year volume-weighted, fitted tails)");
 
 fs.mkdirSync(env.demoDir, { recursive: true });
 const claimsPath = path.join(env.demoDir, "demo-loss-run.csv");

@@ -12,7 +12,7 @@ import {
 } from "../db/repo.js";
 import { advisorMemory } from "../mastra/advisor.js";
 import { parseClaimsUpload, parseExposuresUpload } from "../services/importService.js";
-import { HttpError } from "../services/workspaceService.js";
+import { autoFitTailsFromData, HttpError } from "../services/workspaceService.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -69,10 +69,14 @@ projectsRouter.post("/:id/import/claims", upload.single("file"), async (req, res
   if (!req.file) throw new HttpError(400, "NO_FILE", "Attach a CSV or Excel file as 'file'");
   const claims = await parseClaimsUpload(req.file.originalname, req.file.buffer);
   replaceClaims(project.id, claims);
+  // A new extract gets fresh default tails fitted from its own development.
+  const tails = autoFitTailsFromData(project.id);
   res.json({
     imported: claims.length,
     claimCount: new Set(claims.map((c) => c.claimId)).size,
     replaced: true,
+    tails: tails.applied,
+    warnings: tails.warnings,
   });
 });
 

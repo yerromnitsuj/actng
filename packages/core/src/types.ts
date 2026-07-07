@@ -157,8 +157,13 @@ export interface MackRow {
 
 export interface MackResult {
   method: "mack";
+  /** The projection factors: selected LDFs when supplied, else volume-weighted. */
   developmentFactors: number[];
   sigmaSquared: number[];
+  /** Tail factor the projection used (1 = none). */
+  tailFactor?: number;
+  /** Extrapolated sigma^2 for the tail step; present only when a tail was applied. */
+  sigmaSquaredTail?: number;
   rows: MackRow[];
   totals: {
     latest: number;

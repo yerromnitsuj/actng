@@ -38,9 +38,11 @@ npm run typecheck # all three workspaces
 1. `npm run dev` brings everything up seeded.
 2. Create a project, import `apps/server/data/demo/demo-loss-run.csv` and
    `demo-exposures.csv` - triangles build immediately.
-3. Click factors in the averages menu (or "use row"), pick a fitted tail, press
+3. Click factors in the averages menu (or "use row"), pick a tail (both bases
+   start on their best fitted tail from import; override per basis), press
    Run analysis - Chain Ladder, BF, and Berquist-Sherman render with ultimates,
-   IBNR, and unpaid by origin year, plus Mack standard errors and diagnostics.
+   IBNR, and unpaid by origin year, plus Mack standard errors (computed on
+   your selected LDFs and tail, per Mack 1999) and diagnostics.
    The Selection of ultimates exhibit then shows every method side by side per
    origin period with credibility weights BY PERIOD AND METHOD: each cell shows
    the indicated ultimate with its weight directly beside it, and weights
@@ -83,6 +85,16 @@ from the primary sources:
 One transcription note: the 1993 scan prints the extrapolated Taylor/Ashe
 sigma-squared as 0.477k, but Mack's own formula gives 0.447k and the R
 ChainLadder package agrees (sigma = 21.1); the tests pin the formula value.
+
+In the product, Mack runs on the selected basis - the same LDF selections and
+tail as the chain ladder (Mack 1999) - so its central reserve ties to the
+headline reserve. Sigma-squared stays estimated from the data around the
+volume-weighted factors, and the tail step extrapolates sigma-squared once
+more by Mack's rule (an approximation, flagged in the run warnings). The
+published-value tests pin the volume-weighted, no-tail case exactly as
+printed. Imports fit a default tail for each basis (the better of the two
+curve fits on the volume-weighted factors), so the incurred side never
+silently carries a flat 1.000 next to a fitted paid tail.
 
 ## Design decisions and tradeoffs
 

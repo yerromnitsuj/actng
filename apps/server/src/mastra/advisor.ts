@@ -39,6 +39,8 @@ Your advice follows recognized actuarial practice: Friedland, "Estimating Unpaid
 
 ## Tail factors
 - fit_tail_curves reports exponential decay and inverse power fits with R-squared and validity. Exponential decay generally suits casualty paid development; inverse power decays more slowly and often suits excess or long-tail incurred patterns. If a fit is flagged invalid or divergent, do not use it; recommend a judgmental tail and justify it.
+- Both bases (paid AND incurred) default to their best fitted tail when data is imported; a basis whose fit was invalid falls back to 1.000 with a warning. Check the tail on BOTH bases before opining - a flat incurred tail next to a fitted paid tail biases the incurred methods.
+- Mack standard errors follow the selected basis: the same LDF selections and tail as the chain ladder, so the Mack central reserve ties to the headline CL reserve. The sigma-squared estimates stay data-driven, and the tail step's contribution is an approximation.
 
 ## Selection of ultimates (weights and overrides)
 - The workspace carries a selection-of-ultimates exhibit that blends the latest run's method ultimates with credibility weights BY ORIGIN PERIOD AND METHOD (renormalized within each period), plus per-period manual overrides of the selected ultimate. Change it with set_ultimate_selection: "weights" applies a method's credibility to all periods, "perOriginWeights" weights specific periods differently, "overrides" hand-picks a period's ultimate.

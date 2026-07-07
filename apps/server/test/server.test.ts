@@ -290,3 +290,64 @@ describe("workspace service end to end", () => {
     expect(after).toEqual(before);
   });
 });
+
+describe("selected-basis Mack and default fitted tails", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("Mack basis test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 23,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+  });
+
+  it("auto-fits a default tail per basis from the data", () => {
+    const result = ws.autoFitTailsFromData(projectId);
+    const state = ws.ensureWorkspaceState(projectId);
+    for (const basis of ["paid", "incurred"] as const) {
+      if (result.applied[basis]) {
+        expect(state.tail[basis].source).not.toBe("manual");
+        expect(state.tail[basis].value).toBeGreaterThan(1);
+      } else {
+        // No valid fit: honest fallback to a unit tail, with a warning.
+        expect(state.tail[basis].value).toBe(1);
+        expect(result.warnings.some((w) => w.includes(basis))).toBe(true);
+      }
+    }
+    // The synthetic paid triangle develops steadily; its fit must succeed.
+    expect(result.applied.paid).toBeDefined();
+  });
+
+  it("Mack runs on the selected basis: central reserve ties to the chain ladder", () => {
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    // Perturb one selection so the basis genuinely differs from volume-weighted.
+    const paidSel = allWtd("paid").map((v, i) => (v !== null && i === 0 ? v * 1.02 : v));
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: paidSel } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+
+    const record = ws.runFullAnalysis(projectId, "mack basis run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.mack.paid).not.toBeNull();
+    expect(results.mack.paid!.totals.ultimate).toBeCloseTo(
+      results.chainLadder.paid.totals.ultimate,
+      4,
+    );
+    expect(results.mack.incurred!.totals.ultimate).toBeCloseTo(
+      results.chainLadder.incurred.totals.ultimate,
+      4,
+    );
+    // The state's fitted tail flowed into both.
+    const state = ws.ensureWorkspaceState(projectId);
+    expect(results.mack.paid!.tailFactor).toBeCloseTo(state.tail.paid.value, 9);
+  });
+});

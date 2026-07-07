@@ -140,3 +140,52 @@ describe("Mack (1999) Tables 1-2: mortgage data with a 1.05 tail", () => {
     ).toBeLessThanOrEqual(5);
   });
 });
+
+describe("Mack on the selected basis (selected factors + tail)", () => {
+  it("is identical to Mack (1993) when the selections ARE the volume-weighted factors and there is no tail", () => {
+    const base = runMack(taylorAshe);
+    const selected = runMack(taylorAshe, {
+      selected: base.developmentFactors,
+      tailFactor: 1,
+    });
+    base.rows.forEach((row, i) => {
+      expect(selected.rows[i]!.ultimate).toBeCloseTo(row.ultimate, 6);
+      expect(selected.rows[i]!.standardError).toBeCloseTo(row.standardError, 6);
+    });
+    expect(selected.totals.standardError).toBeCloseTo(base.totals.standardError, 6);
+  });
+
+  it("reproduces the Mack (1999) published ultimates through runMack with the 1.05 tail", () => {
+    const mack = runMack(mortgage, { tailFactor: mortgagePublished.tailFactor });
+    const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } = mortgagePublished;
+    ultimatesWithTailIn1000s.forEach((published, idx) => {
+      expect(Math.abs(mack.rows[idx]!.ultimate / 1000 - published)).toBeLessThanOrEqual(2);
+    });
+    expect(
+      Math.abs(mack.totals.ultimate / 1000 - totalUltimateWithTailIn1000s),
+    ).toBeLessThanOrEqual(5);
+  });
+
+  it("agrees with the chain ladder's ultimates row for row on the same selections and tail", () => {
+    const selections = volumeWeightedSelections(taylorAshe).map((v) =>
+      v === null ? null : v * 1.01,
+    );
+    const cl = runChainLadder(taylorAshe, { selected: selections, tailFactor: 1.03 });
+    const mack = runMack(taylorAshe, { selected: selections, tailFactor: 1.03 });
+    cl.rows.forEach((row, i) => {
+      expect(mack.rows[i]!.ultimate).toBeCloseTo(row.ultimate, 6);
+      expect(mack.rows[i]!.reserve).toBeCloseTo(row.unpaid, 6);
+    });
+    expect(mack.totals.ultimate).toBeCloseTo(cl.totals.ultimate, 6);
+  });
+
+  it("a tail strictly increases the total standard error and flags the approximation", () => {
+    const noTail = runMack(taylorAshe);
+    const withTail = runMack(taylorAshe, { tailFactor: 1.05 });
+    expect(withTail.totals.standardError).toBeGreaterThan(noTail.totals.standardError);
+    expect(withTail.totals.reserve).toBeGreaterThan(noTail.totals.reserve);
+    expect(withTail.tailFactor).toBe(1.05);
+    expect(withTail.sigmaSquaredTail).toBeGreaterThan(0);
+    expect(withTail.warnings.some((w) => w.includes("tail step"))).toBe(true);
+  });
+});

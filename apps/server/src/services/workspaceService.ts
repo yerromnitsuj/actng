@@ -504,6 +504,44 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
   return getWorkspaceView(projectId);
 }
 
+/**
+ * Fits a default tail per basis from the all-year volume-weighted factors of
+ * the current data and stores the better valid fit (by R^2). Runs when a
+ * dataset is established or replaced - import and seed - so BOTH bases start
+ * on a fitted tail instead of a silent flat 1.000 that quietly biases the
+ * incurred methods. A basis with no valid fit keeps a unit tail (reported in
+ * warnings). Tail choices the user makes afterwards win until the next
+ * import replaces the data, at which point refitting to the new extract is
+ * the correct default.
+ */
+export function autoFitTailsFromData(projectId: string): {
+  applied: Partial<Record<"paid" | "incurred", { source: string; value: number }>>;
+  warnings: string[];
+} {
+  const state = ensureWorkspaceState(projectId);
+  const triangles = buildProjectTriangles(projectId, state);
+  const applied: Partial<Record<"paid" | "incurred", { source: string; value: number }>> = {};
+  const warnings: string[] = [];
+  for (const basis of ["paid", "incurred"] as const) {
+    const dev = computeDevelopmentFactors(triangles[basis]);
+    const vw = dev.averages.find((a) => a.spec.key === "all-wtd")?.values ?? [];
+    const fits = fitAllTails(vw);
+    const candidates = [fits.exponentialDecay, fits.inversePower].filter((f) => f.valid);
+    if (candidates.length === 0) {
+      state.tail[basis] = { source: "manual", value: 1 };
+      warnings.push(
+        `No valid tail fit for the ${basis} basis (development already flat or too few usable factors); tail left at 1.000`,
+      );
+      continue;
+    }
+    const best = candidates.reduce((a, b) => (b.rSquared > a.rSquared ? b : a));
+    state.tail[basis] = { source: best.method, value: best.tailFactor };
+    applied[basis] = { source: best.method, value: best.tailFactor };
+  }
+  saveWorkspaceState(projectId, state);
+  return { applied, warnings };
+}
+
 // ---------------------------------------------------------------------------
 // Full analysis run
 
@@ -665,13 +703,21 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     warnings.push(bsSkipped);
   }
 
-  // Mack standard errors (volume-weighted factors by construction).
+  // Mack standard errors on the selected basis: the same LDF selections and
+  // tail the chain ladder uses, so the Mack central reserve agrees with the
+  // headline CL reserve (sigma^2 stays estimated from the data, Mack 1999).
   let mackPaid: MackResult | null = null;
   let mackIncurred: MackResult | null = null;
   let mackSkipped: string | undefined;
   try {
-    mackPaid = runMack(triangles.paid);
-    mackIncurred = runMack(triangles.incurred);
+    mackPaid = runMack(triangles.paid, {
+      selected: state.selections.paid,
+      tailFactor: state.tail.paid.value,
+    });
+    mackIncurred = runMack(triangles.incurred, {
+      selected: state.selections.incurred,
+      tailFactor: state.tail.incurred.value,
+    });
   } catch (err) {
     mackSkipped =
       err instanceof Error ? `Mack was skipped: ${err.message}` : "Mack was skipped";

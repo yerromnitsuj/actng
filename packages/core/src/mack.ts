@@ -2,19 +2,35 @@ import type { MackResult, MackRow, Triangle } from "./types.js";
 import { ReservingError } from "./types.js";
 import { isNum, lastObservedIndex } from "./util.js";
 
+export interface MackOptions {
+  /**
+   * Per-column selected LDFs (null = unselected, treated as 1.000 exactly
+   * like the chain ladder does). When omitted the projection uses the
+   * volume-weighted factors, which is Mack (1993) as published.
+   */
+  selected?: (number | null)[];
+  /** Multiplicative tail factor beyond the last observed age (1 = none). */
+  tailFactor?: number;
+}
+
 /**
- * Mack (1993) distribution-free chain ladder standard errors, alpha = 1
- * (volume-weighted factors), no tail.
+ * Mack (1993) distribution-free chain ladder standard errors, alpha = 1,
+ * extended per Mack (1999) to selected development factors and a tail:
  *
  * - f_k    = sum(C_{i,k+1}) / sum(C_{i,k}) over rows with both cells observed
- * - s^2_k  = 1/(n_k - 1) * sum C_{i,k} (F_{ik} - f_k)^2
+ * - s^2_k  = 1/(n_k - 1) * sum C_{i,k} (F_{ik} - f_k)^2, always estimated
+ *   around the volume-weighted f_k (the data-driven estimator) even when
+ *   the projection uses selected factors
  * - s^2 for the final column is extrapolated per Mack:
  *   min(s^4_{K-2}/s^2_{K-3}, min(s^2_{K-3}, s^2_{K-2}))
- * - se(R_i)^2 = C_iI^2 * sum_k (s^2_k / f_k^2) (1/C_ik + 1/sum_j C_jk)
- *   with projected C below the diagonal
+ * - se(R_i)^2 = C_ult^2 * sum_k (s^2_k / f*_k^2) (1/C_ik + 1/sum_j C_jk)
+ *   with f* the projection factors and projected C below the diagonal
+ * - a tail step (tailFactor > 1) extends the sum by one column, with s^2
+ *   extrapolated once more by the same rule and the final column's volume
+ *   as its denominator - an approximation, flagged in warnings
  * - the total includes Mack's cross-covariance term between accident years
  */
-export function runMack(tri: Triangle): MackResult {
+export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
   const n = tri.origins.length;
   const K = tri.ages.length;
   if (K < 2) {
@@ -44,6 +60,30 @@ export function runMack(tri: Triangle): MackResult {
     }
     f.push(num / den);
     denomSums.push(den);
+  }
+
+  // Projection factors: the caller's selections when provided (nulls and
+  // non-positive values become 1.000, mirroring the chain ladder), else the
+  // volume-weighted estimates - which reproduces Mack (1993) exactly.
+  let fEff: number[] = f;
+  if (options.selected !== undefined) {
+    if (options.selected.length !== K - 1) {
+      throw new ReservingError(
+        "SELECTION_SHAPE",
+        `Expected ${K - 1} LDF selections (one per development interval), got ${options.selected.length}`,
+      );
+    }
+    fEff = options.selected.map((s) => (isNum(s) && s > 0 ? s : 1));
+    const differs = fEff.some((v, k) => Math.abs(v - f[k]!) > 1e-9);
+    if (differs) {
+      warnings.push(
+        "Standard errors pair the selected development factors with sigma^2 estimated around the volume-weighted factors (Mack 1999)",
+      );
+    }
+  }
+  const tail = options.tailFactor ?? 1;
+  if (!isNum(tail) || tail <= 0) {
+    throw new ReservingError("BAD_TAIL", "Tail factor must be a positive number");
   }
 
   // sigma^2_k estimates.
@@ -86,12 +126,30 @@ export function runMack(tri: Triangle): MackResult {
     }
   }
 
-  // Project the full rectangle.
+  // Tail step variance: extrapolate sigma^2 one more column by Mack's rule
+  // and reuse the final column's volume as its denominator (approximation).
+  let sigma2Tail = 0;
+  let denomTail = 0;
+  if (tail !== 1) {
+    const s2a = K >= 3 ? sigma2[K - 3]! : NaN;
+    const s2b = sigma2[K - 2]!;
+    if (isNum(s2a) && isNum(s2b) && s2a > 0) {
+      sigma2Tail = Math.min((s2b * s2b) / s2a, Math.min(s2a, s2b));
+    } else if (isNum(s2b)) {
+      sigma2Tail = s2b;
+    }
+    denomTail = denomSums[K - 2]!;
+    warnings.push(
+      "The tail step's standard-error contribution extrapolates sigma^2 beyond the observed columns and reuses the final column's volume; treat it as approximate (Mack 1999)",
+    );
+  }
+
+  // Project the full rectangle with the projection factors.
   const projected: number[][] = tri.values.map((row) => {
     const out: number[] = new Array(K).fill(NaN);
     const last = lastObservedIndex(row);
     for (let j = 0; j <= last; j++) out[j] = row[j] ?? NaN;
-    for (let j = last + 1; j < K; j++) out[j] = out[j - 1]! * f[j - 1]!;
+    for (let j = last + 1; j < K; j++) out[j] = out[j - 1]! * fEff[j - 1]!;
     return out;
   });
 
@@ -101,13 +159,16 @@ export function runMack(tri: Triangle): MackResult {
     const last = lastObservedIndex(tri.values[i]!);
     if (last < 0) continue;
     const latest = tri.values[i]![last]!;
-    const ultimate = projected[i]![K - 1]!;
-    // mse(R_i) accumulated over the projected development range.
+    const ultimate = projected[i]![K - 1]! * tail;
+    // mse(R_i) accumulated over the projected development range plus tail.
     let mse = 0;
     for (let k = last; k < K - 1; k++) {
       const cik = projected[i]![k]!;
       if (!(cik > 0)) continue;
-      mse += ((sigma2[k]! / f[k]! ** 2) * (1 / cik + 1 / denomSums[k]!));
+      mse += ((sigma2[k]! / fEff[k]! ** 2) * (1 / cik + 1 / denomSums[k]!));
+    }
+    if (tail !== 1 && projected[i]![K - 1]! > 0) {
+      mse += (sigma2Tail / tail ** 2) * (1 / projected[i]![K - 1]! + 1 / denomTail);
     }
     mse *= ultimate ** 2;
     mseByRow[i] = mse;
@@ -122,22 +183,26 @@ export function runMack(tri: Triangle): MackResult {
     });
   }
 
-  // Total mse: sum of row mse plus cross terms (Mack 1993 corollary).
+  // Total mse: sum of row mse plus cross terms (Mack 1993 corollary). The
+  // tail step participates like one more development column.
   let totalMse = 0;
   for (let i = 0; i < n; i++) totalMse += mseByRow[i]!;
   for (let i = 0; i < n; i++) {
     const lastI = lastObservedIndex(tri.values[i]!);
-    if (lastI < 0 || lastI >= K - 1) continue;
+    if (lastI < 0 || (tail === 1 && lastI >= K - 1)) continue;
     let laterUltimates = 0;
     for (let j = i + 1; j < n; j++) {
-      if (lastObservedIndex(tri.values[j]!) >= 0) laterUltimates += projected[j]![K - 1]!;
+      if (lastObservedIndex(tri.values[j]!) >= 0) laterUltimates += projected[j]![K - 1]! * tail;
     }
     if (laterUltimates <= 0) continue;
     let inner = 0;
     for (let k = lastI; k < K - 1; k++) {
-      inner += (2 * sigma2[k]!) / f[k]! ** 2 / denomSums[k]!;
+      inner += (2 * sigma2[k]!) / fEff[k]! ** 2 / denomSums[k]!;
     }
-    totalMse += projected[i]![K - 1]! * laterUltimates * inner;
+    if (tail !== 1) {
+      inner += (2 * sigma2Tail) / tail ** 2 / denomTail;
+    }
+    totalMse += projected[i]![K - 1]! * tail * laterUltimates * inner;
   }
 
   const totals = rows.reduce(
@@ -152,8 +217,10 @@ export function runMack(tri: Triangle): MackResult {
 
   return {
     method: "mack",
-    developmentFactors: f,
+    developmentFactors: fEff,
     sigmaSquared: sigma2,
+    tailFactor: tail,
+    sigmaSquaredTail: tail !== 1 ? sigma2Tail : undefined,
     rows,
     totals: {
       ...totals,
