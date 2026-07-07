@@ -94,7 +94,9 @@ export default function AdvisorPanel() {
   };
 
   return (
-    <aside className="rise sticky top-6 flex h-[calc(100vh-6rem)] w-[400px] shrink-0 flex-col rounded-sm border border-hairline bg-panel shadow-[0_1px_2px_rgb(26_35_50/0.04)] max-xl:hidden">
+    // Height leaves ~120px of bottom clearance so the composer stays clear
+    // of an overlaying macOS dock / OS taskbar even when pinned.
+    <aside className="rise sticky top-6 flex h-[calc(100vh-9rem)] w-[400px] shrink-0 flex-col rounded-sm border border-hairline bg-panel shadow-[0_1px_2px_rgb(26_35_50/0.04)] max-xl:hidden">
       <header className="flex shrink-0 items-center justify-between border-b-2 border-ink px-4 py-2.5">
         <div className="flex items-baseline gap-2">
           <h2 className="font-display text-[1.1rem] font-semibold italic text-ink">Advisor</h2>
