@@ -42,10 +42,7 @@ export default function SelectionPanel() {
     setWeightDraft(drafts);
     setOverrideDraft(
       Object.fromEntries(
-        selection.rows.map((r) => [
-          r.origin,
-          r.override !== null ? String(Math.round(r.override)) : "",
-        ]),
+        selection.rows.map((r) => [r.origin, r.override !== null ? fmt0(r.override) : ""]),
       ),
     );
   }, [selection]);
@@ -111,12 +108,11 @@ export default function SelectionPanel() {
     }
     const parsed = Number(raw.replace(/,/g, ""));
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setOverrideDraft((d) => ({
-        ...d,
-        [origin]: current !== null ? String(Math.round(current)) : "",
-      }));
+      setOverrideDraft((d) => ({ ...d, [origin]: current !== null ? fmt0(current) : "" }));
       return;
     }
+    // Re-render the committed figure comma-grouped like every other cell.
+    setOverrideDraft((d) => ({ ...d, [origin]: fmt0(parsed) }));
     if (current !== null && Math.abs(parsed - current) < 0.5) return;
     void patchWorkspace({ ultimateSelection: { overrides: { [origin]: parsed } } });
   };
@@ -175,10 +171,15 @@ export default function SelectionPanel() {
       ) : null}
 
       <div className="overflow-x-auto">
-        <table className="ledger w-full min-w-[1360px]">
+        {/* Origin and the four outcome columns are frozen so the bottom line
+            never scrolls out of view; only the method matrix pans. Sticky
+            cells need opaque backgrounds, fixed widths (table-fixed) so the
+            right offsets stay exact, and border-separate because collapsed
+            and tr-level borders do not travel with sticky cells. */}
+        <table className="ledger w-full min-w-[1360px] table-fixed border-separate border-spacing-0">
           <thead>
             <tr>
-              <th className="px-2 py-1.5 text-left text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              <th className="sticky left-0 z-[1] w-14 border-r border-hairline bg-panel px-2 py-1.5 text-left text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
                 Origin
               </th>
               {METHOD_COLUMNS.map((m) => (
@@ -193,27 +194,27 @@ export default function SelectionPanel() {
                   </span>
                 </th>
               ))}
-              <th className="px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-steel">
+              <th className="sticky right-[328px] z-[1] w-[112px] border-l border-hairline bg-panel px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-steel">
                 Weighted
               </th>
               <th
-                className="cursor-help px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink"
+                className="sticky right-[208px] z-[1] w-[120px] cursor-help bg-panel px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink"
                 title="Type a value to override the weighted ultimate for that period; clear it to return to the weighted value"
               >
                 Selected
               </th>
-              <th className="px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              <th className="sticky right-[104px] z-[1] w-[104px] bg-panel px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
                 IBNR
               </th>
-              <th className="px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
+              <th className="sticky right-0 z-[1] w-[104px] bg-panel px-2 py-1.5 text-right text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">
                 Unpaid
               </th>
             </tr>
           </thead>
           <tbody>
             {selection.rows.map((row) => (
-              <tr key={row.origin} className="hover:bg-steel-soft/40">
-                <td className="px-2 py-1 text-[0.82rem] font-medium text-ink-soft">
+              <tr key={row.origin} className="group hover:bg-steel-soft/40">
+                <td className="sticky left-0 z-[1] border-r border-hairline bg-panel px-2 py-1 text-[0.82rem] font-medium text-ink-soft group-hover:bg-[#f6f7f7]">
                   {row.origin}
                 </td>
                 {METHOD_COLUMNS.map((m) => {
@@ -245,7 +246,8 @@ export default function SelectionPanel() {
                           }
                           onBlur={() => commitWeight(row.origin, m.key)}
                           onKeyDown={blurOnEnter}
-                          className={`num w-9 shrink-0 rounded-sm border px-1 py-0.5 text-right text-[0.72rem] outline-none focus:border-steel ${
+                          title="Credibility weight - type a number, Enter or click away to apply"
+                          className={`num w-9 shrink-0 cursor-text rounded-sm border px-1 py-0.5 text-right text-[0.72rem] outline-none focus:border-steel ${
                             isDirty(row.origin, m.key)
                               ? "border-gold bg-gold-soft text-ink"
                               : weight > 0
@@ -257,10 +259,10 @@ export default function SelectionPanel() {
                     </td>
                   );
                 })}
-                <td className="num px-2 py-1 text-right text-[0.8rem] font-medium text-steel">
+                <td className="num sticky right-[328px] z-[1] border-l border-hairline bg-panel px-2 py-1 text-right text-[0.8rem] font-medium text-steel group-hover:bg-[#f6f7f7]">
                   {row.weighted !== null ? fmt0(row.weighted) : "-"}
                 </td>
-                <td className="px-1 py-0.5">
+                <td className="sticky right-[208px] z-[1] bg-panel px-1 py-0.5 group-hover:bg-[#f6f7f7]">
                   <input
                     value={overrideDraft[row.origin] ?? ""}
                     placeholder={row.weighted !== null ? fmt0(row.weighted) : "-"}
@@ -286,19 +288,21 @@ export default function SelectionPanel() {
                   />
                 </td>
                 <td
-                  className={`num px-2 py-1 text-right text-[0.8rem] font-medium ${
+                  className={`num sticky right-[104px] z-[1] bg-panel px-2 py-1 text-right text-[0.8rem] font-medium group-hover:bg-[#f6f7f7] ${
                     (row.ibnr ?? 0) < 0 ? "text-verdigris" : "text-oxblood"
                   }`}
                 >
                   {row.ibnr !== null ? fmt0(row.ibnr) : "-"}
                 </td>
-                <td className="num px-2 py-1 text-right text-[0.8rem] text-ink">
+                <td className="num sticky right-0 z-[1] bg-panel px-2 py-1 text-right text-[0.8rem] text-ink group-hover:bg-[#f6f7f7]">
                   {row.unpaid !== null ? fmt0(row.unpaid) : "-"}
                 </td>
               </tr>
             ))}
-            <tr className="border-t-2 border-ink font-semibold">
-              <td className="px-2 py-1.5 text-[0.82rem] text-ink">Total</td>
+            <tr className="font-semibold">
+              <td className="sticky left-0 z-[1] border-r border-t-2 border-hairline border-t-ink bg-panel px-2 py-1.5 text-[0.82rem] text-ink">
+                Total
+              </td>
               {METHOD_COLUMNS.map((m) => {
                 const total = selection.rows.reduce(
                   (acc, r) => (r.ultimates[m.key] !== null ? acc + r.ultimates[m.key]! : acc),
@@ -306,7 +310,7 @@ export default function SelectionPanel() {
                 );
                 const any = selection.rows.some((r) => r.ultimates[m.key] !== null);
                 return (
-                  <td key={m.key} className="px-1 py-1.5">
+                  <td key={m.key} className="border-t-2 border-ink px-1 py-1.5">
                     <div className="flex items-center justify-end gap-1">
                       <span className="num text-right text-[0.8rem] text-ink-soft">
                         {any ? fmt0(total) : "-"}
@@ -316,16 +320,16 @@ export default function SelectionPanel() {
                   </td>
                 );
               })}
-              <td className="num px-2 py-1.5 text-right text-[0.8rem] text-steel">
+              <td className="num sticky right-[328px] z-[1] border-l border-t-2 border-hairline border-t-ink bg-panel px-2 py-1.5 text-right text-[0.8rem] text-steel">
                 {selection.totals.weighted !== null ? fmt0(selection.totals.weighted) : "-"}
               </td>
-              <td className="num px-2 py-1.5 pr-3 text-right text-[0.85rem] text-ink">
+              <td className="num sticky right-[208px] z-[1] border-t-2 border-ink bg-panel px-2 py-1.5 pr-3 text-right text-[0.85rem] text-ink">
                 {selection.totals.selected !== null ? fmt0(selection.totals.selected) : "-"}
               </td>
-              <td className="num px-2 py-1.5 text-right text-[0.85rem] text-oxblood">
+              <td className="num sticky right-[104px] z-[1] border-t-2 border-ink bg-panel px-2 py-1.5 text-right text-[0.85rem] text-oxblood">
                 {selection.totals.ibnr !== null ? fmt0(selection.totals.ibnr) : "-"}
               </td>
-              <td className="num px-2 py-1.5 text-right text-[0.85rem] text-ink">
+              <td className="num sticky right-0 z-[1] border-t-2 border-ink bg-panel px-2 py-1.5 text-right text-[0.85rem] text-ink">
                 {selection.totals.unpaid !== null ? fmt0(selection.totals.unpaid) : "-"}
               </td>
             </tr>

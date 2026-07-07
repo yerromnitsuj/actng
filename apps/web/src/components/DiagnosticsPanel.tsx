@@ -57,7 +57,11 @@ export default function DiagnosticsPanel() {
           <span className="num">
             {cy.confidenceInterval[0].toFixed(1)} to {cy.confidenceInterval[1].toFixed(1)}
           </span>
-          ) - {cy.significant ? "diagonal effects detected" : "no significant diagonal effects"}.
+          ) - {cy.significant ? "diagonal effects detected" : "no significant diagonal effects"}.{" "}
+          <span className="text-ink-faint">
+            This test detects correlated adjacent development factors along diagonals; a steady
+            settlement-rate or case-adequacy trend flagged above can be real without tripping it.
+          </span>
         </p>
       ) : null}
 
