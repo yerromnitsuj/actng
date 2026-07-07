@@ -95,7 +95,7 @@ export default function AdvisorPanel() {
 
   return (
     <aside className="rise sticky top-6 flex h-[calc(100vh-6rem)] w-[400px] shrink-0 flex-col rounded-sm border border-hairline bg-panel shadow-[0_1px_2px_rgb(26_35_50/0.04)] max-xl:hidden">
-      <header className="flex items-center justify-between border-b-2 border-ink px-4 py-2.5">
+      <header className="flex shrink-0 items-center justify-between border-b-2 border-ink px-4 py-2.5">
         <div className="flex items-baseline gap-2">
           <h2 className="font-display text-[1.1rem] font-semibold italic text-ink">Advisor</h2>
           <span className="text-[0.64rem] uppercase tracking-[0.2em] text-ink-faint">
@@ -128,7 +128,10 @@ export default function AdvisorPanel() {
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
+      {/* min-h-0 is load-bearing: without it this flex child refuses to
+          shrink below its content, and a long thread inflates the panel past
+          its fixed height, pushing the composer off-screen. */}
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {messages.length === 0 && !liveTurn ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <p className="font-display text-[1.05rem] italic text-ink-soft">
@@ -213,7 +216,7 @@ export default function AdvisorPanel() {
       </div>
 
       <form
-        className="border-t border-hairline p-3"
+        className="shrink-0 border-t border-hairline p-3"
         onSubmit={(e) => {
           e.preventDefault();
           submit();

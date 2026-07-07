@@ -46,7 +46,10 @@ export default function App() {
         </div>
       ) : null}
 
-      <main className="mx-auto w-full max-w-[1720px] flex-1 px-6 py-6">
+      {/* pb-24: the last panels must scroll clear of OS chrome (dock,
+          taskbar) - a page that ends flush at the viewport edge reads as
+          cut off on any machine with a bottom overlay. */}
+      <main className="mx-auto w-full max-w-[1720px] flex-1 px-6 pt-6 pb-24">
         <Routes>
           <Route path="/" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<WorkspacePage />} />
