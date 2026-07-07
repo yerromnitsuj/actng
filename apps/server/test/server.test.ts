@@ -162,6 +162,71 @@ describe("workspace service end to end", () => {
     expect(repo.getAnalysis(record.id)?.id).toBe(record.id);
   });
 
+  it("computes the selection-of-ultimates exhibit with renormalized weights and overrides", () => {
+    // Default weights: CL paid 1, CL incurred 1 -> weighted = mean of the two.
+    let view = ws.getWorkspaceView(projectId);
+    expect(view.ultimateSelection).not.toBeNull();
+    let sel = view.ultimateSelection!;
+    const firstRow = sel.rows[0]!;
+    const clP = firstRow.ultimates.clPaid!;
+    const clI = firstRow.ultimates.clIncurred!;
+    expect(firstRow.weighted).toBeCloseTo((clP + clI) / 2, 6);
+    expect(firstRow.selected).toBeCloseTo(firstRow.weighted!, 6);
+    expect(firstRow.ibnr).toBeCloseTo(firstRow.selected! - firstRow.latestIncurred, 6);
+    expect(firstRow.unpaid).toBeCloseTo(firstRow.selected! - firstRow.latestPaid, 6);
+
+    // Reweight: only B-S settlement -> weighted equals that method exactly.
+    view = ws.patchWorkspace(projectId, {
+      ultimateSelection: {
+        weights: {
+          clPaid: 0,
+          clIncurred: 0,
+          bfPaid: 0,
+          bfIncurred: 0,
+          bsCase: 0,
+          bsSettlement: 2,
+        },
+      },
+    });
+    sel = view.ultimateSelection!;
+    for (const row of sel.rows) {
+      if (row.ultimates.bsSettlement !== null) {
+        expect(row.weighted).toBeCloseTo(row.ultimates.bsSettlement, 6);
+      }
+    }
+
+    // Override one origin: it wins over the weighted value and drives IBNR/unpaid.
+    const origin = sel.rows[1]!.origin;
+    view = ws.patchWorkspace(projectId, {
+      ultimateSelection: { overrides: { [origin]: 1_234_567 } },
+    });
+    sel = view.ultimateSelection!;
+    const overridden = sel.rows.find((r) => r.origin === origin)!;
+    expect(overridden.override).toBe(1_234_567);
+    expect(overridden.selected).toBe(1_234_567);
+    expect(overridden.ibnr).toBeCloseTo(1_234_567 - overridden.latestIncurred, 6);
+    // Totals reflect the override.
+    const manualTotal = sel.rows.reduce((a, r) => a + (r.selected ?? 0), 0);
+    expect(sel.totals.selected).toBeCloseTo(manualTotal, 6);
+
+    // Clearing the override returns to the weighted value.
+    view = ws.patchWorkspace(projectId, {
+      ultimateSelection: { overrides: { [origin]: null } },
+    });
+    sel = view.ultimateSelection!;
+    const cleared = sel.rows.find((r) => r.origin === origin)!;
+    expect(cleared.override).toBeNull();
+    expect(cleared.selected).toBeCloseTo(cleared.weighted!, 6);
+
+    // Invalid inputs are rejected without mutating state.
+    expect(() =>
+      ws.patchWorkspace(projectId, { ultimateSelection: { weights: { clPaid: -1 } } }),
+    ).toThrowError(/non-negative/);
+    expect(() =>
+      ws.patchWorkspace(projectId, { ultimateSelection: { overrides: { "2021": -5 } } }),
+    ).toThrowError(/positive number/);
+  });
+
   it("runs sensitivities without mutating the workspace", () => {
     const before = ws.getWorkspaceView(projectId).state.selections.paid;
     const result = ws.runSensitivity(projectId, {

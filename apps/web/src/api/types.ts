@@ -21,6 +21,48 @@ export interface Project {
   exposureCount: number;
 }
 
+export type SelectionMethodKey =
+  | "clPaid"
+  | "clIncurred"
+  | "bfPaid"
+  | "bfIncurred"
+  | "bsCase"
+  | "bsSettlement";
+
+export interface UltimateSelectionState {
+  weights: Record<SelectionMethodKey, number>;
+  overrides: Record<string, number>;
+}
+
+export interface UltimateSelectionRow {
+  origin: string;
+  ultimates: Record<SelectionMethodKey, number | null>;
+  weighted: number | null;
+  override: number | null;
+  selected: number | null;
+  latestPaid: number;
+  latestIncurred: number;
+  ibnr: number | null;
+  unpaid: number | null;
+}
+
+export interface UltimateSelectionView {
+  analysisId: string;
+  analysisLabel: string;
+  analysisRanAt: string;
+  methods: { key: SelectionMethodKey; label: string; weight: number }[];
+  rows: UltimateSelectionRow[];
+  totals: {
+    latestPaid: number;
+    latestIncurred: number;
+    weighted: number | null;
+    selected: number | null;
+    ibnr: number | null;
+    unpaid: number | null;
+    unselectedOrigins: string[];
+  };
+}
+
 export interface WorkspaceState {
   cadence: "annual" | "quarterly";
   asOfDate: string;
@@ -32,6 +74,7 @@ export interface WorkspaceState {
   };
   bf: { aprioriLossRatio: number | null };
   berquist: { severityTrend: number | null; interpolation: "exponential" | "linear" };
+  ultimateSelection: UltimateSelectionState;
 }
 
 export interface TriangleSet {
@@ -55,6 +98,7 @@ export interface WorkspaceView {
   diagnostics: DiagnosticsResult;
   dataAsOf: { claimRows: number; claimCount: number };
   exposures: ExposureRecord[];
+  ultimateSelection: UltimateSelectionView | null;
 }
 
 export interface MethodSummary {

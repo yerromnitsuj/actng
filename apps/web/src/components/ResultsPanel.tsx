@@ -2,32 +2,7 @@ import { useState } from "react";
 import { useStore } from "../state/store.js";
 import { Button, EmptyState, Section, fmt0, fmtFactor, fmtPct } from "./ui.js";
 import type { ChainLadderResult } from "@actng/core";
-import type { WorkspaceState } from "../api/types.js";
-
-interface AnalysisInputs {
-  selections: WorkspaceState["selections"];
-  tail: WorkspaceState["tail"];
-  bf: WorkspaceState["bf"];
-  berquist: WorkspaceState["berquist"];
-  cadence: string;
-  asOfDate: string;
-}
-
-/** True when the workspace inputs no longer match what produced this run. */
-function resultsAreStale(inputs: unknown, state: WorkspaceState | undefined): boolean {
-  if (!inputs || !state) return false;
-  const run = inputs as Partial<AnalysisInputs>;
-  const pick = (s: Partial<AnalysisInputs> | WorkspaceState) =>
-    JSON.stringify({
-      selections: s.selections,
-      tail: s.tail,
-      bf: s.bf,
-      berquist: s.berquist,
-      cadence: s.cadence,
-      asOfDate: s.asOfDate,
-    });
-  return pick(run) !== pick(state);
-}
+import { resultsAreStale } from "../lib/staleness.js";
 
 /**
  * Method results: cross-method summary cards, then per-origin detail for the

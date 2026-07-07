@@ -14,6 +14,36 @@ export interface Project {
   exposureCount: number;
 }
 
+/** Method keys for the selection-of-ultimates exhibit. */
+export type SelectionMethodKey =
+  | "clPaid"
+  | "clIncurred"
+  | "bfPaid"
+  | "bfIncurred"
+  | "bsCase"
+  | "bsSettlement";
+
+export interface UltimateSelectionState {
+  /** Non-negative credibility weight per method; renormalized per origin row. */
+  weights: Record<SelectionMethodKey, number>;
+  /** Per-origin manual override of the selected ultimate (takes precedence). */
+  overrides: Record<string, number>;
+}
+
+export function defaultUltimateSelection(): UltimateSelectionState {
+  return {
+    weights: {
+      clPaid: 1,
+      clIncurred: 1,
+      bfPaid: 0,
+      bfIncurred: 0,
+      bsCase: 0,
+      bsSettlement: 0,
+    },
+    overrides: {},
+  };
+}
+
 export interface WorkspaceState {
   cadence: OriginCadence;
   asOfDate: string;
@@ -32,6 +62,7 @@ export interface WorkspaceState {
     severityTrend: number | null;
     interpolation: "exponential" | "linear";
   };
+  ultimateSelection: UltimateSelectionState;
 }
 
 export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
@@ -46,6 +77,7 @@ export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
     },
     bf: { aprioriLossRatio: null },
     berquist: { severityTrend: null, interpolation: "exponential" },
+    ultimateSelection: defaultUltimateSelection(),
   };
 }
 
@@ -218,7 +250,11 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
   const row = db.prepare("SELECT state FROM workspaces WHERE project_id = ?").get(projectId) as
     | { state: string }
     | undefined;
-  return row ? (JSON.parse(row.state) as WorkspaceState) : null;
+  if (!row) return null;
+  const state = JSON.parse(row.state) as WorkspaceState;
+  // Backfill for workspaces persisted before the selection exhibit existed.
+  if (!state.ultimateSelection) state.ultimateSelection = defaultUltimateSelection();
+  return state;
 }
 
 export function saveWorkspaceState(projectId: string, state: WorkspaceState): void {

@@ -169,6 +169,31 @@ export const getWorkspaceOverview = createTool({
         latestAnalysis: latest
           ? { id: latest.id, label: latest.label, createdAt: latest.createdAt }
           : null,
+        ultimateSelection: view.ultimateSelection
+          ? {
+              methodWeights: Object.fromEntries(
+                view.ultimateSelection.methods.map((m) => [m.key, m.weight]),
+              ),
+              overriddenOrigins: view.ultimateSelection.rows
+                .filter((r) => r.override !== null)
+                .map((r) => ({ origin: r.origin, override: round0(r.override!) })),
+              totals: {
+                selectedUltimate:
+                  view.ultimateSelection.totals.selected !== null
+                    ? round0(view.ultimateSelection.totals.selected)
+                    : null,
+                selectedIbnr:
+                  view.ultimateSelection.totals.ibnr !== null
+                    ? round0(view.ultimateSelection.totals.ibnr)
+                    : null,
+                selectedUnpaid:
+                  view.ultimateSelection.totals.unpaid !== null
+                    ? round0(view.ultimateSelection.totals.unpaid)
+                    : null,
+              },
+              unselectedOrigins: view.ultimateSelection.totals.unselectedOrigins,
+            }
+          : null,
       };
     } catch (err) {
       return failure(err);
@@ -513,6 +538,89 @@ export const setBfApriori = createTool({
   },
 });
 
+export const setUltimateSelection = createTool({
+  id: "set_ultimate_selection",
+  description:
+    "Update the selection-of-ultimates exhibit: set per-method credibility weights (non-negative; renormalized per origin over methods with values) and/or per-origin manual overrides of the selected ultimate (a positive number, or null to clear an override back to the weighted value). Only provide the fields you want to change; existing values are kept. The exhibit blends the LATEST analysis run's method ultimates.",
+  inputSchema: z.object({
+    weights: z
+      .object({
+        clPaid: z.number().min(0).nullable().describe("Chain Ladder paid weight"),
+        clIncurred: z.number().min(0).nullable().describe("Chain Ladder incurred weight"),
+        bfPaid: z.number().min(0).nullable().describe("Bornhuetter-Ferguson paid weight"),
+        bfIncurred: z.number().min(0).nullable().describe("Bornhuetter-Ferguson incurred weight"),
+        bsCase: z.number().min(0).nullable().describe("B-S case adequacy weight"),
+        bsSettlement: z.number().min(0).nullable().describe("B-S settlement rate weight"),
+      })
+      .nullable()
+      .describe("Per-method weights to change; null entries and omissions keep current values"),
+    overrides: z
+      .array(
+        z.object({
+          origin: z.string().describe("Origin period label, e.g. '2023'"),
+          ultimate: z
+            .number()
+            .positive()
+            .nullable()
+            .describe("Manual selected ultimate; null clears the override"),
+        }),
+      )
+      .nullable()
+      .describe("Per-origin selected-ultimate overrides to change"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const weights: Record<string, number> = {};
+      if (input.weights) {
+        for (const [key, value] of Object.entries(input.weights)) {
+          if (value !== null && value !== undefined) weights[key] = value;
+        }
+      }
+      const overrides: Record<string, number | null> = {};
+      for (const entry of input.overrides ?? []) {
+        overrides[entry.origin] = entry.ultimate ?? null;
+      }
+      const view = patchWorkspace(projectId, {
+        ultimateSelection: {
+          weights: Object.keys(weights).length > 0 ? weights : undefined,
+          overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
+        },
+      });
+      const sel = view.ultimateSelection;
+      if (!sel) {
+        return {
+          success: true,
+          message:
+            "Selection settings saved, but there is no analysis run yet to blend; run_analysis first.",
+        };
+      }
+      return {
+        success: true,
+        weights: Object.fromEntries(sel.methods.map((m) => [m.key, m.weight])),
+        rows: sel.rows.map((r) => ({
+          origin: r.origin,
+          weighted: r.weighted !== null ? round0(r.weighted) : null,
+          override: r.override !== null ? round0(r.override) : null,
+          selected: r.selected !== null ? round0(r.selected) : null,
+          ibnr: r.ibnr !== null ? round0(r.ibnr) : null,
+          unpaid: r.unpaid !== null ? round0(r.unpaid) : null,
+        })),
+        totals: {
+          selected: sel.totals.selected !== null ? round0(sel.totals.selected) : null,
+          ibnr: sel.totals.ibnr !== null ? round0(sel.totals.ibnr) : null,
+          unpaid: sel.totals.unpaid !== null ? round0(sel.totals.unpaid) : null,
+          unselectedOrigins: sel.totals.unselectedOrigins,
+        },
+        message:
+          "Selection updated. The UI's Selection of ultimates exhibit now reflects it; do not recite the whole table.",
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -541,6 +649,7 @@ export const advisorTools = {
   apply_ldf_selections: applyLdfSelections,
   set_tail_factor: setTailFactor,
   set_bf_apriori: setBfApriori,
+  set_ultimate_selection: setUltimateSelection,
   run_analysis: runAnalysisTool,
   run_sensitivity: runSensitivityTool,
   save_note: saveNote,
@@ -551,6 +660,7 @@ export const ACTION_TOOL_IDS = new Set([
   "apply_ldf_selections",
   "set_tail_factor",
   "set_bf_apriori",
+  "set_ultimate_selection",
   "run_analysis",
   "save_note",
 ]);

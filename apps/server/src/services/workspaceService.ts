@@ -25,8 +25,11 @@ import {
   getExposures,
   getWorkspaceState,
   insertAnalysis,
+  latestAnalysis,
   saveWorkspaceState,
   type AnalysisRecord,
+  type SelectionMethodKey,
+  type UltimateSelectionState,
   type WorkspaceState,
 } from "../db/repo.js";
 
@@ -58,6 +61,172 @@ export interface WorkspaceView {
   };
   diagnostics: DiagnosticsResult;
   dataAsOf: { claimRows: number; claimCount: number };
+  /** Selection-of-ultimates exhibit over the latest analysis; null before any run. */
+  ultimateSelection: UltimateSelectionView | null;
+}
+
+// ---------------------------------------------------------------------------
+// Selection of ultimates
+
+export const SELECTION_METHODS: { key: SelectionMethodKey; label: string }[] = [
+  { key: "clPaid", label: "Chain Ladder - paid" },
+  { key: "clIncurred", label: "Chain Ladder - incurred" },
+  { key: "bfPaid", label: "Bornhuetter-Ferguson - paid" },
+  { key: "bfIncurred", label: "Bornhuetter-Ferguson - incurred" },
+  { key: "bsCase", label: "Berquist-Sherman case adequacy - incurred" },
+  { key: "bsSettlement", label: "Berquist-Sherman settlement rate - paid" },
+];
+
+export interface UltimateSelectionRow {
+  origin: string;
+  /** Indicated ultimate per method; null where the method has no value. */
+  ultimates: Record<SelectionMethodKey, number | null>;
+  /** Weight-blended ultimate (weights renormalized over available methods). */
+  weighted: number | null;
+  /** Manual override, when set. */
+  override: number | null;
+  /** override ?? weighted. */
+  selected: number | null;
+  latestPaid: number;
+  latestIncurred: number;
+  ibnr: number | null;
+  unpaid: number | null;
+}
+
+export interface UltimateSelectionView {
+  analysisId: string;
+  analysisLabel: string;
+  analysisRanAt: string;
+  methods: { key: SelectionMethodKey; label: string; weight: number }[];
+  rows: UltimateSelectionRow[];
+  totals: {
+    latestPaid: number;
+    latestIncurred: number;
+    weighted: number | null;
+    selected: number | null;
+    ibnr: number | null;
+    unpaid: number | null;
+    /** Origins with no weighted value and no override (excluded from totals). */
+    unselectedOrigins: string[];
+  };
+}
+
+/**
+ * Blends each origin period's method ultimates using the workspace's method
+ * weights (renormalized over the methods that produced a value for that
+ * period), then applies any per-period manual override. IBNR and unpaid
+ * derive from the selected ultimate against that period's latest diagonals.
+ */
+export function computeUltimateSelection(
+  record: AnalysisRecord,
+  selection: UltimateSelectionState,
+): UltimateSelectionView {
+  const results = record.results as AnalysisResults;
+  const byOrigin = new Map<
+    string,
+    { ultimates: Partial<Record<SelectionMethodKey, number>>; latestPaid: number; latestIncurred: number }
+  >();
+  const ensure = (origin: string) => {
+    let entry = byOrigin.get(origin);
+    if (!entry) {
+      entry = { ultimates: {}, latestPaid: 0, latestIncurred: 0 };
+      byOrigin.set(origin, entry);
+    }
+    return entry;
+  };
+
+  const originOrder: string[] = [];
+  for (const row of results.chainLadder.paid.rows) {
+    originOrder.push(row.origin);
+    const entry = ensure(row.origin);
+    entry.ultimates.clPaid = row.ultimate;
+    entry.latestPaid = row.latestValue;
+  }
+  for (const row of results.chainLadder.incurred.rows) {
+    if (!byOrigin.has(row.origin)) originOrder.push(row.origin);
+    const entry = ensure(row.origin);
+    entry.ultimates.clIncurred = row.ultimate;
+    entry.latestIncurred = row.latestValue;
+  }
+  for (const row of results.bornhuetterFerguson.paid?.rows ?? []) {
+    ensure(row.origin).ultimates.bfPaid = row.ultimate;
+  }
+  for (const row of results.bornhuetterFerguson.incurred?.rows ?? []) {
+    ensure(row.origin).ultimates.bfIncurred = row.ultimate;
+  }
+  for (const row of results.berquistSherman.caseAdequacy?.chainLadder.rows ?? []) {
+    ensure(row.origin).ultimates.bsCase = row.ultimate;
+  }
+  for (const row of results.berquistSherman.settlement?.chainLadder.rows ?? []) {
+    ensure(row.origin).ultimates.bsSettlement = row.ultimate;
+  }
+
+  const rows: UltimateSelectionRow[] = originOrder.map((origin) => {
+    const entry = byOrigin.get(origin)!;
+    const ultimates = Object.fromEntries(
+      SELECTION_METHODS.map((m) => [m.key, entry.ultimates[m.key] ?? null]),
+    ) as Record<SelectionMethodKey, number | null>;
+
+    let weightSum = 0;
+    let blend = 0;
+    for (const m of SELECTION_METHODS) {
+      const w = selection.weights[m.key] ?? 0;
+      const u = ultimates[m.key];
+      if (w > 0 && u !== null && Number.isFinite(u)) {
+        weightSum += w;
+        blend += w * u;
+      }
+    }
+    const weighted = weightSum > 0 ? blend / weightSum : null;
+    const rawOverride = selection.overrides[origin];
+    const override =
+      typeof rawOverride === "number" && Number.isFinite(rawOverride) && rawOverride > 0
+        ? rawOverride
+        : null;
+    const selected = override ?? weighted;
+    return {
+      origin,
+      ultimates,
+      weighted,
+      override,
+      selected,
+      latestPaid: entry.latestPaid,
+      latestIncurred: entry.latestIncurred,
+      ibnr: selected !== null ? selected - entry.latestIncurred : null,
+      unpaid: selected !== null ? selected - entry.latestPaid : null,
+    };
+  });
+
+  const unselectedOrigins = rows.filter((r) => r.selected === null).map((r) => r.origin);
+  const sum = (pick: (r: UltimateSelectionRow) => number | null): number | null => {
+    let total = 0;
+    let any = false;
+    for (const r of rows) {
+      const v = pick(r);
+      if (v !== null) {
+        total += v;
+        any = true;
+      }
+    }
+    return any ? total : null;
+  };
+
+  return {
+    analysisId: record.id,
+    analysisLabel: record.label,
+    analysisRanAt: results.ranAt,
+    methods: SELECTION_METHODS.map((m) => ({ ...m, weight: selection.weights[m.key] ?? 0 })),
+    rows,
+    totals: {
+      latestPaid: rows.reduce((a, r) => a + r.latestPaid, 0),
+      latestIncurred: rows.reduce((a, r) => a + r.latestIncurred, 0),
+      weighted: sum((r) => r.weighted),
+      selected: sum((r) => r.selected),
+      ibnr: sum((r) => r.ibnr),
+      unpaid: sum((r) => r.unpaid),
+      unselectedOrigins,
+    },
+  };
 }
 
 function latestEvaluationDate(projectId: string): string | null {
@@ -124,9 +293,11 @@ export function getWorkspaceView(projectId: string): WorkspaceView {
   }
 
   const claims = getClaims(projectId);
+  const latest = latestAnalysis(projectId);
   return {
     state,
     triangles,
+    ultimateSelection: latest ? computeUltimateSelection(latest, state.ultimateSelection) : null,
     factors: {
       paid: computeDevelopmentFactors(triangles.paid),
       incurred: computeDevelopmentFactors(triangles.incurred),
@@ -161,6 +332,12 @@ export interface WorkspacePatch {
   };
   bf?: { aprioriLossRatio: number | null };
   berquist?: { severityTrend?: number | null; interpolation?: "exponential" | "linear" };
+  ultimateSelection?: {
+    /** Partial per-method weight updates (non-negative). */
+    weights?: Partial<Record<SelectionMethodKey, number>>;
+    /** Per-origin override updates; null clears the override for that origin. */
+    overrides?: Record<string, number | null>;
+  };
 }
 
 export function patchWorkspace(projectId: string, patch: WorkspacePatch): WorkspaceView {
@@ -184,6 +361,38 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
     }
     if (patch.berquist.interpolation) {
       state.berquist.interpolation = patch.berquist.interpolation;
+    }
+  }
+  if (patch.ultimateSelection) {
+    const { weights, overrides } = patch.ultimateSelection;
+    if (weights) {
+      for (const method of SELECTION_METHODS) {
+        const w = weights[method.key];
+        if (w === undefined) continue;
+        if (!isNum(w) || w < 0) {
+          throw new HttpError(
+            422,
+            "BAD_WEIGHT",
+            `Weight for ${method.label} must be a non-negative number`,
+          );
+        }
+        state.ultimateSelection.weights[method.key] = w;
+      }
+    }
+    if (overrides) {
+      for (const [origin, value] of Object.entries(overrides)) {
+        if (value === null) {
+          delete state.ultimateSelection.overrides[origin];
+        } else if (isNum(value) && value > 0) {
+          state.ultimateSelection.overrides[origin] = value;
+        } else {
+          throw new HttpError(
+            422,
+            "BAD_OVERRIDE",
+            `Override for origin ${origin} must be a positive number (or null to clear)`,
+          );
+        }
+      }
     }
   }
 

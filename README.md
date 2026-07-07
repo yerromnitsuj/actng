@@ -41,6 +41,11 @@ npm run typecheck # all three workspaces
 3. Click factors in the averages menu (or "use row"), pick a fitted tail, press
    Run analysis - Chain Ladder, BF, and Berquist-Sherman render with ultimates,
    IBNR, and unpaid by origin year, plus Mack standard errors and diagnostics.
+   The Selection of ultimates exhibit then shows every method side by side per
+   origin period; set per-method credibility weights (renormalized per period
+   over the methods with values) and type per-period overrides to land the
+   final selected ultimates, IBNR, and unpaid. The advisor can read and set
+   the same weights and overrides through its tools.
 4. Ask the advisor: "Review this triangle and recommend LDF selections, then
    apply them and rerun." It reads the data through its tools, explains its
    selections against the actual factors, applies them, reruns, and the

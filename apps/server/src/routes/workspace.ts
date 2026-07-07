@@ -48,6 +48,21 @@ const patchSchema = z.object({
       interpolation: z.enum(["exponential", "linear"]).optional(),
     })
     .optional(),
+  ultimateSelection: z
+    .object({
+      weights: z
+        .object({
+          clPaid: z.number().min(0).optional(),
+          clIncurred: z.number().min(0).optional(),
+          bfPaid: z.number().min(0).optional(),
+          bfIncurred: z.number().min(0).optional(),
+          bsCase: z.number().min(0).optional(),
+          bsSettlement: z.number().min(0).optional(),
+        })
+        .optional(),
+      overrides: z.record(z.string(), z.number().positive().nullable()).optional(),
+    })
+    .optional(),
 });
 
 workspaceRouter.patch("/", (req, res) => {

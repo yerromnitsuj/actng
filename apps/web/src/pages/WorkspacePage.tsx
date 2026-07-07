@@ -5,6 +5,7 @@ import { Button, EmptyState, Section } from "../components/ui.js";
 import TriangleGrid from "../components/TriangleGrid.js";
 import FactorPanel from "../components/FactorPanel.js";
 import ResultsPanel from "../components/ResultsPanel.js";
+import SelectionPanel from "../components/SelectionPanel.js";
 import DiagnosticsPanel from "../components/DiagnosticsPanel.js";
 import AdvisorPanel from "../components/AdvisorPanel.js";
 import ImportPanel from "../components/ImportPanel.js";
@@ -117,6 +118,8 @@ export default function WorkspacePage() {
             <FactorPanel />
 
             <ResultsPanel />
+
+            <SelectionPanel />
 
             <DiagnosticsPanel />
 

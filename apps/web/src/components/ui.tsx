@@ -49,7 +49,7 @@ export function Section({
             {title}
           </h2>
           {kicker ? (
-            <span className="text-[0.72rem] uppercase tracking-[0.14em] text-ink-faint">
+            <span className="text-[0.72rem] uppercase tracking-[0.14em] text-ink-faint max-sm:hidden">
               {kicker}
             </span>
           ) : null}
