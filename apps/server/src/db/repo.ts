@@ -24,15 +24,21 @@ export type SelectionMethodKey =
   | "bsSettlement";
 
 export interface UltimateSelectionState {
-  /** Non-negative credibility weight per method; renormalized per origin row. */
-  weights: Record<SelectionMethodKey, number>;
+  /**
+   * Method weights applied to every origin period that has no per-period
+   * entry. Setting one of these "all periods" weights also overwrites the
+   * per-period entries for that method.
+   */
+  defaultWeights: Record<SelectionMethodKey, number>;
+  /** Per-origin-period method weights; a full row of weights when present. */
+  weightsByOrigin: Record<string, Record<SelectionMethodKey, number>>;
   /** Per-origin manual override of the selected ultimate (takes precedence). */
   overrides: Record<string, number>;
 }
 
 export function defaultUltimateSelection(): UltimateSelectionState {
   return {
-    weights: {
+    defaultWeights: {
       clPaid: 1,
       clIncurred: 1,
       bfPaid: 0,
@@ -40,6 +46,7 @@ export function defaultUltimateSelection(): UltimateSelectionState {
       bsCase: 0,
       bsSettlement: 0,
     },
+    weightsByOrigin: {},
     overrides: {},
   };
 }
@@ -252,8 +259,22 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
     | undefined;
   if (!row) return null;
   const state = JSON.parse(row.state) as WorkspaceState;
-  // Backfill for workspaces persisted before the selection exhibit existed.
-  if (!state.ultimateSelection) state.ultimateSelection = defaultUltimateSelection();
+  // Backfill for workspaces persisted before the selection exhibit existed,
+  // and migrate the pre-matrix shape (a single global `weights` record).
+  if (!state.ultimateSelection) {
+    state.ultimateSelection = defaultUltimateSelection();
+  } else {
+    const legacy = state.ultimateSelection as unknown as {
+      weights?: Record<SelectionMethodKey, number>;
+    };
+    if (!state.ultimateSelection.defaultWeights) {
+      state.ultimateSelection.defaultWeights =
+        legacy.weights ?? defaultUltimateSelection().defaultWeights;
+      delete legacy.weights;
+    }
+    if (!state.ultimateSelection.weightsByOrigin) state.ultimateSelection.weightsByOrigin = {};
+    if (!state.ultimateSelection.overrides) state.ultimateSelection.overrides = {};
+  }
   return state;
 }
 

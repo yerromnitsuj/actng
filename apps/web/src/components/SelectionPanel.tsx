@@ -15,9 +15,11 @@ const METHOD_COLUMNS: { key: SelectionMethodKey; short: string; full: string }[]
 
 /**
  * The selection-of-ultimates exhibit: every method's indicated ultimate side
- * by side per origin period, a credibility-weight row that drives the blended
- * column, and a manually overridable final selection. This is the exhibit a
- * reserve review actually signs.
+ * by side per origin period, credibility weights BY PERIOD AND METHOD (each
+ * cell shows the ultimate with its weight beneath; weights renormalize within
+ * the period), an all-periods row for setting a whole method column at once,
+ * and a manually overridable final selection. This is the exhibit a reserve
+ * review actually signs.
  */
 export default function SelectionPanel() {
   const workspace = useStore((s) => s.workspace);
@@ -25,15 +27,21 @@ export default function SelectionPanel() {
   const patchWorkspace = useStore((s) => s.patchWorkspace);
 
   const selection = workspace?.ultimateSelection ?? null;
+  /** Drafts keyed "all:<method>" and "<origin>:<method>" plus override drafts. */
   const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
   const [overrideDraft, setOverrideDraft] = useState<Record<string, string>>({});
   const editing = useRef(false);
 
   useEffect(() => {
     if (editing.current || !selection) return;
-    setWeightDraft(
-      Object.fromEntries(selection.methods.map((m) => [m.key, String(m.weight)])),
-    );
+    const drafts: Record<string, string> = {};
+    for (const m of selection.methods) drafts[`all:${m.key}`] = String(m.weight);
+    for (const row of selection.rows) {
+      for (const m of METHOD_COLUMNS) {
+        drafts[`${row.origin}:${m.key}`] = String(row.weights[m.key] ?? 0);
+      }
+    }
+    setWeightDraft(drafts);
     setOverrideDraft(
       Object.fromEntries(
         selection.rows.map((r) => [
@@ -56,44 +64,46 @@ export default function SelectionPanel() {
 
   const stale = analysis ? resultsAreStale(analysis.inputs, workspace?.state) : false;
 
-  /** Weight inputs whose draft differs from the committed weight (pending). */
-  const dirtyWeights = METHOD_COLUMNS.filter((m) => {
-    const committed = selection.methods.find((x) => x.key === m.key)?.weight ?? 0;
-    const draft = (weightDraft[m.key] ?? "").trim();
+  const committedFor = (key: string): number => {
+    const [scope, method] = key.split(":") as [string, SelectionMethodKey];
+    if (scope === "all") {
+      return selection.methods.find((m) => m.key === method)?.weight ?? 0;
+    }
+    const row = selection.rows.find((r) => r.origin === scope);
+    return row?.weights[method] ?? 0;
+  };
+
+  const isDirty = (key: string): boolean => {
+    const draft = (weightDraft[key] ?? "").trim();
+    const committed = committedFor(key);
     if (draft === "") return committed !== 0;
     const parsed = Number(draft);
     return Number.isFinite(parsed) ? parsed !== committed : true;
-  }).map((m) => m.key);
+  };
 
-  const allWeightsZero = selection.methods.every((m) => m.weight === 0);
-  const anyOverride = selection.rows.some((r) => r.override !== null);
+  const anyDirty = Object.keys(weightDraft).some((k) => isDirty(k));
 
-  // The tool's own diagnostics vs the current weighting: warn when all the
-  // weight sits on unadjusted methods the diagnostics flag as distorted.
-  const findings = workspace?.diagnostics.findings ?? [];
-  const settlementFlagged = findings.some((f) => f.code === "SETTLEMENT_RATE_SHIFT");
-  const caseFlagged = findings.some((f) => f.code === "CASE_ADEQUACY_SHIFT");
-  const weightOf = (key: SelectionMethodKey) =>
-    selection.methods.find((m) => m.key === key)?.weight ?? 0;
-  const adjustedWeight = weightOf("bsCase") + weightOf("bsSettlement") + weightOf("bfPaid") + weightOf("bfIncurred");
-  const distortedCarryWeight =
-    (settlementFlagged && weightOf("clPaid") > 0) || (caseFlagged && weightOf("clIncurred") > 0);
-  const diagnosticsTension = distortedCarryWeight && adjustedWeight === 0;
-
-  const commitWeight = (key: SelectionMethodKey) => {
+  const commitWeight = (key: string) => {
     editing.current = false;
+    const [scope, method] = key.split(":") as [string, SelectionMethodKey];
     const raw = (weightDraft[key] ?? "").trim();
-    const current = selection.methods.find((m) => m.key === key)?.weight ?? 0;
+    const committed = committedFor(key);
     const parsed = raw === "" ? 0 : Number(raw);
     if (!Number.isFinite(parsed) || parsed < 0) {
-      setWeightDraft((d) => ({ ...d, [key]: String(current) }));
+      setWeightDraft((d) => ({ ...d, [key]: String(committed) }));
       return;
     }
-    if (parsed === current) {
+    if (parsed === committed) {
       setWeightDraft((d) => ({ ...d, [key]: String(parsed) }));
       return;
     }
-    void patchWorkspace({ ultimateSelection: { weights: { [key]: parsed } } });
+    if (scope === "all") {
+      void patchWorkspace({ ultimateSelection: { weights: { [method]: parsed } } });
+    } else {
+      void patchWorkspace({
+        ultimateSelection: { weightsByOrigin: { [scope]: { [method]: parsed } } },
+      });
+    }
   };
 
   const commitOverride = (origin: string) => {
@@ -123,10 +133,53 @@ export default function SelectionPanel() {
     if (e.key === "Enter") (e.target as HTMLInputElement).blur();
   };
 
+  const allWeightsZero = selection.rows.every((r) =>
+    METHOD_COLUMNS.every((m) => (r.weights[m.key] ?? 0) === 0),
+  );
+  const anyOverride = selection.rows.some((r) => r.override !== null);
+
+  // The tool's own diagnostics vs the weighting: warn when across every
+  // period the weight sits solely on unadjusted methods flagged as distorted.
+  const findings = workspace?.diagnostics.findings ?? [];
+  const settlementFlagged = findings.some((f) => f.code === "SETTLEMENT_RATE_SHIFT");
+  const caseFlagged = findings.some((f) => f.code === "CASE_ADEQUACY_SHIFT");
+  const totalWeight = (key: SelectionMethodKey) =>
+    selection.rows.reduce((a, r) => a + (r.weights[key] ?? 0), 0);
+  const adjustedWeight =
+    totalWeight("bsCase") + totalWeight("bsSettlement") + totalWeight("bfPaid") + totalWeight("bfIncurred");
+  const distortedCarryWeight =
+    (settlementFlagged && totalWeight("clPaid") > 0) ||
+    (caseFlagged && totalWeight("clIncurred") > 0);
+  const diagnosticsTension = distortedCarryWeight && adjustedWeight === 0;
+
+  const weightInput = (key: string, ariaLabel: string, subtle: boolean) => (
+    <input
+      value={weightDraft[key] ?? ""}
+      aria-label={ariaLabel}
+      onFocus={() => {
+        editing.current = true;
+      }}
+      onChange={(e) => setWeightDraft((d) => ({ ...d, [key]: e.target.value }))}
+      onBlur={() => commitWeight(key)}
+      onKeyDown={blurOnEnter}
+      className={`num w-full rounded-sm border px-1 py-0.5 text-right outline-none focus:border-steel ${
+        subtle ? "text-[0.7rem]" : "text-[0.78rem] font-medium"
+      } ${
+        isDirty(key)
+          ? "border-gold bg-gold-soft text-ink"
+          : subtle
+            ? `border-transparent bg-transparent ${
+                Number(weightDraft[key] ?? 0) > 0 ? "text-steel" : "text-ink-faint"
+              } hover:border-hairline-strong focus:bg-panel`
+            : "border-hairline-strong bg-panel text-steel"
+      }`}
+    />
+  );
+
   return (
     <Section
       title="Selection of ultimates"
-      kicker={`blends the run "${selection.analysisLabel}" - weights renormalize per period over available methods - overrides win`}
+      kicker={`blends the run "${selection.analysisLabel}" - weights are per period and method, renormalized within each period - overrides win`}
     >
       {stale ? (
         <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.8rem] font-medium text-[#6b4f16]">
@@ -136,8 +189,8 @@ export default function SelectionPanel() {
       ) : null}
       {allWeightsZero && !anyOverride ? (
         <p className="mb-3 rounded-sm border border-oxblood/50 bg-oxblood-soft px-3 py-1.5 text-[0.8rem] font-medium text-oxblood">
-          All method weights are zero, so there is no weighted blend and no selection. Set at
-          least one weight, or type Selected values directly.
+          All method weights are zero in every period, so there is no weighted blend and no
+          selection. Set weights, or type Selected values directly.
         </p>
       ) : null}
       {diagnosticsTension ? (
@@ -180,58 +233,77 @@ export default function SelectionPanel() {
                 Unpaid
               </th>
             </tr>
-            {/* Credibility weights row */}
+            {/* All-periods weights: sets the whole method column at once */}
             <tr className="bg-steel-soft/50">
-              <th className="px-2 py-1 text-left text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-steel">
-                Weights
+              <th
+                className="cursor-help px-2 py-1 text-left text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-steel"
+                title="Sets this method's weight for every origin period, overwriting per-period tweaks"
+              >
+                All periods
               </th>
               {METHOD_COLUMNS.map((m) => (
                 <th key={m.key} className="px-1 py-1">
-                  <input
-                    value={weightDraft[m.key] ?? ""}
-                    aria-label={`Weight for ${m.full}`}
-                    onFocus={() => {
-                      editing.current = true;
-                    }}
-                    onChange={(e) =>
-                      setWeightDraft((d) => ({ ...d, [m.key]: e.target.value }))
-                    }
-                    onBlur={() => commitWeight(m.key)}
-                    onKeyDown={blurOnEnter}
-                    className={`num w-full rounded-sm border bg-panel px-1.5 py-0.5 text-right text-[0.78rem] font-medium text-steel outline-none focus:border-steel ${
-                      dirtyWeights.includes(m.key)
-                        ? "border-gold bg-gold-soft"
-                        : "border-hairline-strong"
-                    }`}
-                  />
+                  {weightInput(`all:${m.key}`, `All-periods weight for ${m.full}`, false)}
                 </th>
               ))}
-              <th colSpan={4} className="px-2 py-1 text-left text-[0.7rem] font-normal normal-case tracking-normal text-ink-faint">
-                {dirtyWeights.length > 0 ? (
+              <th
+                colSpan={4}
+                className="px-2 py-1 text-left text-[0.7rem] font-normal normal-case tracking-normal text-ink-faint"
+              >
+                {anyDirty ? (
                   <span className="font-medium text-[#6b4f16]">
                     pending edit - press Enter or click away to apply
                   </span>
                 ) : (
-                  "non-negative credibility; renormalized per period"
+                  "each period also carries its own editable weights below"
                 )}
               </th>
             </tr>
           </thead>
           <tbody>
             {selection.rows.map((row) => (
-              <tr key={row.origin} className="hover:bg-steel-soft/40">
-                <td className="px-2 py-1 text-[0.82rem] font-medium text-ink-soft">
+              <tr key={row.origin} className="align-top hover:bg-steel-soft/40">
+                <td className="px-2 py-1.5 text-[0.82rem] font-medium text-ink-soft">
                   {row.origin}
+                  {row.customWeights ? (
+                    <span
+                      className="ml-1 cursor-help align-super text-[0.65rem] font-semibold text-gold"
+                      title="This period's weights differ from the all-periods row"
+                    >
+                      *
+                    </span>
+                  ) : null}
                 </td>
-                {METHOD_COLUMNS.map((m) => (
-                  <td key={m.key} className="num px-2 py-1 text-right text-[0.8rem] text-ink">
-                    {row.ultimates[m.key] !== null ? fmt0(row.ultimates[m.key]) : "-"}
-                  </td>
-                ))}
-                <td className="num px-2 py-1 text-right text-[0.8rem] font-medium text-steel">
+                {METHOD_COLUMNS.map((m) => {
+                  const weight = row.weights[m.key] ?? 0;
+                  const value = row.ultimates[m.key];
+                  return (
+                    <td key={m.key} className="px-1 py-1">
+                      <div
+                        className={`num pr-1 text-right text-[0.8rem] ${
+                          value === null
+                            ? "text-ink-faint"
+                            : weight > 0
+                              ? "font-medium text-ink"
+                              : "text-ink-faint"
+                        }`}
+                      >
+                        {value !== null ? fmt0(value) : "-"}
+                      </div>
+                      <div className="mt-0.5">
+                        {weightInput(
+                          `${row.origin}:${m.key}`,
+                          `Weight for ${m.full} in ${row.origin}`,
+                          true,
+                        )}
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className="num px-2 py-1.5 text-right text-[0.8rem] font-medium text-steel">
                   {row.weighted !== null ? fmt0(row.weighted) : "-"}
                 </td>
-                <td className="px-1 py-0.5">
+                <td className="px-1 py-1">
                   <input
                     value={overrideDraft[row.origin] ?? ""}
                     placeholder={row.weighted !== null ? fmt0(row.weighted) : "-"}
@@ -257,13 +329,13 @@ export default function SelectionPanel() {
                   />
                 </td>
                 <td
-                  className={`num px-2 py-1 text-right text-[0.8rem] font-medium ${
+                  className={`num px-2 py-1.5 text-right text-[0.8rem] font-medium ${
                     (row.ibnr ?? 0) < 0 ? "text-verdigris" : "text-oxblood"
                   }`}
                 >
                   {row.ibnr !== null ? fmt0(row.ibnr) : "-"}
                 </td>
-                <td className="num px-2 py-1 text-right text-[0.8rem] text-ink">
+                <td className="num px-2 py-1.5 text-right text-[0.8rem] text-ink">
                   {row.unpaid !== null ? fmt0(row.unpaid) : "-"}
                 </td>
               </tr>
@@ -306,8 +378,11 @@ export default function SelectionPanel() {
         </p>
       ) : null}
       <p className="mt-2 text-[0.75rem] leading-relaxed text-ink-faint">
-        Weighted = sum of weight x method ultimate over the methods with a value for that period,
-        divided by the sum of those weights. A typed Selected value overrides the weighted blend
+        Each method cell shows the indicated ultimate with that period&apos;s credibility weight
+        beneath it. Weighted = sum of weight x method ultimate over the methods with a value for
+        that period, divided by the sum of those weights (weights renormalize within the period).
+        The All-periods row sets a method&apos;s weight for every period at once; a * next to an
+        origin marks custom period weights. A typed Selected value overrides the weighted blend
         for that period only. IBNR = selected minus reported incurred; Unpaid = selected minus
         paid, both on the latest diagonal.
       </p>

@@ -21,6 +21,15 @@ workspaceRouter.get("/", (req, res) => {
   res.json({ ...view, exposures: getExposures(project.id) });
 });
 
+const weightRecordSchema = z.object({
+  clPaid: z.number().min(0).optional(),
+  clIncurred: z.number().min(0).optional(),
+  bfPaid: z.number().min(0).optional(),
+  bfIncurred: z.number().min(0).optional(),
+  bsCase: z.number().min(0).optional(),
+  bsSettlement: z.number().min(0).optional(),
+});
+
 const patchSchema = z.object({
   cadence: z.enum(["annual", "quarterly"]).optional(),
   asOfDate: z
@@ -50,16 +59,8 @@ const patchSchema = z.object({
     .optional(),
   ultimateSelection: z
     .object({
-      weights: z
-        .object({
-          clPaid: z.number().min(0).optional(),
-          clIncurred: z.number().min(0).optional(),
-          bfPaid: z.number().min(0).optional(),
-          bfIncurred: z.number().min(0).optional(),
-          bsCase: z.number().min(0).optional(),
-          bsSettlement: z.number().min(0).optional(),
-        })
-        .optional(),
+      weights: weightRecordSchema.optional(),
+      weightsByOrigin: z.record(z.string(), weightRecordSchema).optional(),
       overrides: z.record(z.string(), z.number().positive().nullable()).optional(),
     })
     .optional(),

@@ -227,6 +227,58 @@ describe("workspace service end to end", () => {
     ).toThrowError(/positive number/);
   });
 
+  it("supports per-origin-period weights that renormalize within their own period", () => {
+    // Reset all-periods weights to the CL pair.
+    let view = ws.patchWorkspace(projectId, {
+      ultimateSelection: {
+        weights: {
+          clPaid: 1,
+          clIncurred: 1,
+          bfPaid: 0,
+          bfIncurred: 0,
+          bsCase: 0,
+          bsSettlement: 0,
+        },
+      },
+    });
+    let sel = view.ultimateSelection!;
+    const target = sel.rows[sel.rows.length - 1]!.origin; // greenest period
+    const other = sel.rows[0]!.origin;
+
+    // Give ONLY the greenest period full BF-incurred credibility.
+    view = ws.patchWorkspace(projectId, {
+      ultimateSelection: {
+        weightsByOrigin: {
+          [target]: { clPaid: 0, clIncurred: 0, bfIncurred: 1 },
+        },
+      },
+    });
+    sel = view.ultimateSelection!;
+    const custom = sel.rows.find((r) => r.origin === target)!;
+    const untouched = sel.rows.find((r) => r.origin === other)!;
+    expect(custom.customWeights).toBe(true);
+    expect(custom.weights.bfIncurred).toBe(1);
+    expect(custom.weighted).toBeCloseTo(custom.ultimates.bfIncurred!, 6);
+    // Other periods still blend the CL pair from the defaults.
+    expect(untouched.customWeights).toBe(false);
+    expect(untouched.weighted).toBeCloseTo(
+      (untouched.ultimates.clPaid! + untouched.ultimates.clIncurred!) / 2,
+      6,
+    );
+
+    // An all-periods weight change overwrites the per-period tweak.
+    view = ws.patchWorkspace(projectId, {
+      ultimateSelection: { weights: { clPaid: 1, clIncurred: 1, bfIncurred: 0 } },
+    });
+    sel = view.ultimateSelection!;
+    const flattened = sel.rows.find((r) => r.origin === target)!;
+    expect(flattened.customWeights).toBe(false);
+    expect(flattened.weighted).toBeCloseTo(
+      (flattened.ultimates.clPaid! + flattened.ultimates.clIncurred!) / 2,
+      6,
+    );
+  });
+
   it("runs sensitivities without mutating the workspace", () => {
     const before = ws.getWorkspaceView(projectId).state.selections.paid;
     const result = ws.runSensitivity(projectId, {

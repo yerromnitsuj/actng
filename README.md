@@ -42,10 +42,11 @@ npm run typecheck # all three workspaces
    Run analysis - Chain Ladder, BF, and Berquist-Sherman render with ultimates,
    IBNR, and unpaid by origin year, plus Mack standard errors and diagnostics.
    The Selection of ultimates exhibit then shows every method side by side per
-   origin period; set per-method credibility weights (renormalized per period
-   over the methods with values) and type per-period overrides to land the
-   final selected ultimates, IBNR, and unpaid. The advisor can read and set
-   the same weights and overrides through its tools.
+   origin period with credibility weights BY PERIOD AND METHOD (each cell
+   carries its weight; weights renormalize within the period). An All-periods
+   row sets a whole method column at once, and typed per-period overrides
+   hand-pick the final selected ultimates, IBNR, and unpaid. The advisor can
+   read and set the same weights and overrides through its tools.
 4. Ask the advisor: "Review this triangle and recommend LDF selections, then
    apply them and rerun." It reads the data through its tools, explains its
    selections against the actual factors, applies them, reruns, and the

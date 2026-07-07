@@ -171,9 +171,12 @@ export const getWorkspaceOverview = createTool({
           : null,
         ultimateSelection: view.ultimateSelection
           ? {
-              methodWeights: Object.fromEntries(
+              defaultMethodWeights: Object.fromEntries(
                 view.ultimateSelection.methods.map((m) => [m.key, m.weight]),
               ),
+              customWeightOrigins: view.ultimateSelection.rows
+                .filter((r) => r.customWeights)
+                .map((r) => ({ origin: r.origin, weights: r.weights })),
               overriddenOrigins: view.ultimateSelection.rows
                 .filter((r) => r.override !== null)
                 .map((r) => ({ origin: r.origin, override: round0(r.override!) })),
@@ -538,22 +541,45 @@ export const setBfApriori = createTool({
   },
 });
 
+const toolWeightsSchema = z
+  .object({
+    clPaid: z.number().min(0).nullable().describe("Chain Ladder paid weight"),
+    clIncurred: z.number().min(0).nullable().describe("Chain Ladder incurred weight"),
+    bfPaid: z.number().min(0).nullable().describe("Bornhuetter-Ferguson paid weight"),
+    bfIncurred: z.number().min(0).nullable().describe("Bornhuetter-Ferguson incurred weight"),
+    bsCase: z.number().min(0).nullable().describe("B-S case adequacy weight"),
+    bsSettlement: z.number().min(0).nullable().describe("B-S settlement rate weight"),
+  })
+  .describe("Method weights; null entries and omissions keep current values");
+
+function compactWeights(
+  input: Record<string, number | null | undefined> | null | undefined,
+): Record<string, number> | undefined {
+  if (!input) return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== null && value !== undefined) out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export const setUltimateSelection = createTool({
   id: "set_ultimate_selection",
   description:
-    "Update the selection-of-ultimates exhibit: set per-method credibility weights (non-negative; renormalized per origin over methods with values) and/or per-origin manual overrides of the selected ultimate (a positive number, or null to clear an override back to the weighted value). Only provide the fields you want to change; existing values are kept. The exhibit blends the LATEST analysis run's method ultimates.",
+    "Update the selection-of-ultimates exhibit. Weights are per ORIGIN PERIOD and method, renormalized within each period over the methods with values. Set `weights` to apply a method's credibility across ALL periods (overwrites per-period tweaks for that method), `perOriginWeights` to weight specific periods differently (e.g. BF on green years only), and/or `overrides` to hand-pick a period's selected ultimate (null clears back to the weighted value). Only provide what you want to change. The exhibit blends the LATEST analysis run's method ultimates.",
   inputSchema: z.object({
-    weights: z
-      .object({
-        clPaid: z.number().min(0).nullable().describe("Chain Ladder paid weight"),
-        clIncurred: z.number().min(0).nullable().describe("Chain Ladder incurred weight"),
-        bfPaid: z.number().min(0).nullable().describe("Bornhuetter-Ferguson paid weight"),
-        bfIncurred: z.number().min(0).nullable().describe("Bornhuetter-Ferguson incurred weight"),
-        bsCase: z.number().min(0).nullable().describe("B-S case adequacy weight"),
-        bsSettlement: z.number().min(0).nullable().describe("B-S settlement rate weight"),
-      })
+    weights: toolWeightsSchema
       .nullable()
-      .describe("Per-method weights to change; null entries and omissions keep current values"),
+      .describe("All-periods weight changes (also overwrite per-period entries for that method)"),
+    perOriginWeights: z
+      .array(
+        z.object({
+          origin: z.string().describe("Origin period label, e.g. '2023'"),
+          weights: toolWeightsSchema,
+        }),
+      )
+      .nullable()
+      .describe("Per-origin-period weight changes, merged onto that period's current weights"),
     overrides: z
       .array(
         z.object({
@@ -571,11 +597,11 @@ export const setUltimateSelection = createTool({
   execute: async (input, context) => {
     try {
       const projectId = projectIdOf(context as ToolCtx);
-      const weights: Record<string, number> = {};
-      if (input.weights) {
-        for (const [key, value] of Object.entries(input.weights)) {
-          if (value !== null && value !== undefined) weights[key] = value;
-        }
+      const weights = compactWeights(input.weights);
+      const weightsByOrigin: Record<string, Record<string, number>> = {};
+      for (const entry of input.perOriginWeights ?? []) {
+        const compact = compactWeights(entry.weights);
+        if (compact) weightsByOrigin[entry.origin] = compact;
       }
       const overrides: Record<string, number | null> = {};
       for (const entry of input.overrides ?? []) {
@@ -583,7 +609,9 @@ export const setUltimateSelection = createTool({
       }
       const view = patchWorkspace(projectId, {
         ultimateSelection: {
-          weights: Object.keys(weights).length > 0 ? weights : undefined,
+          weights,
+          weightsByOrigin:
+            Object.keys(weightsByOrigin).length > 0 ? weightsByOrigin : undefined,
           overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
         },
       });
@@ -597,9 +625,10 @@ export const setUltimateSelection = createTool({
       }
       return {
         success: true,
-        weights: Object.fromEntries(sel.methods.map((m) => [m.key, m.weight])),
+        defaultWeights: Object.fromEntries(sel.methods.map((m) => [m.key, m.weight])),
         rows: sel.rows.map((r) => ({
           origin: r.origin,
+          weights: r.customWeights ? r.weights : "defaults",
           weighted: r.weighted !== null ? round0(r.weighted) : null,
           override: r.override !== null ? round0(r.override) : null,
           selected: r.selected !== null ? round0(r.selected) : null,

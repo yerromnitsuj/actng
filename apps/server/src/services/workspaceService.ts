@@ -81,7 +81,11 @@ export interface UltimateSelectionRow {
   origin: string;
   /** Indicated ultimate per method; null where the method has no value. */
   ultimates: Record<SelectionMethodKey, number | null>;
-  /** Weight-blended ultimate (weights renormalized over available methods). */
+  /** The method weights in force for THIS origin period. */
+  weights: Record<SelectionMethodKey, number>;
+  /** True when this period's weights differ from the all-periods defaults. */
+  customWeights: boolean;
+  /** Weight-blended ultimate (this period's weights, renormalized over available methods). */
   weighted: number | null;
   /** Manual override, when set. */
   override: number | null;
@@ -97,6 +101,7 @@ export interface UltimateSelectionView {
   analysisId: string;
   analysisLabel: string;
   analysisRanAt: string;
+  /** The all-periods default weight per method. */
   methods: { key: SelectionMethodKey; label: string; weight: number }[];
   rows: UltimateSelectionRow[];
   totals: {
@@ -112,9 +117,10 @@ export interface UltimateSelectionView {
 }
 
 /**
- * Blends each origin period's method ultimates using the workspace's method
- * weights (renormalized over the methods that produced a value for that
- * period), then applies any per-period manual override. IBNR and unpaid
+ * Blends each origin period's method ultimates using that PERIOD's method
+ * weights (per-origin entries where present, the all-periods defaults
+ * otherwise), renormalized over the methods that produced a value for the
+ * period, then applies any per-period manual override. IBNR and unpaid
  * derive from the selected ultimate against that period's latest diagonals.
  */
 export function computeUltimateSelection(
@@ -167,10 +173,21 @@ export function computeUltimateSelection(
       SELECTION_METHODS.map((m) => [m.key, entry.ultimates[m.key] ?? null]),
     ) as Record<SelectionMethodKey, number | null>;
 
+    const perOrigin = selection.weightsByOrigin[origin];
+    const weights = Object.fromEntries(
+      SELECTION_METHODS.map((m) => [
+        m.key,
+        perOrigin?.[m.key] ?? selection.defaultWeights[m.key] ?? 0,
+      ]),
+    ) as Record<SelectionMethodKey, number>;
+    const customWeights = SELECTION_METHODS.some(
+      (m) => weights[m.key] !== (selection.defaultWeights[m.key] ?? 0),
+    );
+
     let weightSum = 0;
     let blend = 0;
     for (const m of SELECTION_METHODS) {
-      const w = selection.weights[m.key] ?? 0;
+      const w = weights[m.key];
       const u = ultimates[m.key];
       if (w > 0 && u !== null && Number.isFinite(u)) {
         weightSum += w;
@@ -187,6 +204,8 @@ export function computeUltimateSelection(
     return {
       origin,
       ultimates,
+      weights,
+      customWeights,
       weighted,
       override,
       selected,
@@ -215,7 +234,10 @@ export function computeUltimateSelection(
     analysisId: record.id,
     analysisLabel: record.label,
     analysisRanAt: results.ranAt,
-    methods: SELECTION_METHODS.map((m) => ({ ...m, weight: selection.weights[m.key] ?? 0 })),
+    methods: SELECTION_METHODS.map((m) => ({
+      ...m,
+      weight: selection.defaultWeights[m.key] ?? 0,
+    })),
     rows,
     totals: {
       latestPaid: rows.reduce((a, r) => a + r.latestPaid, 0),
@@ -333,8 +355,13 @@ export interface WorkspacePatch {
   bf?: { aprioriLossRatio: number | null };
   berquist?: { severityTrend?: number | null; interpolation?: "exponential" | "linear" };
   ultimateSelection?: {
-    /** Partial per-method weight updates (non-negative). */
+    /**
+     * "All periods" weight updates (non-negative): sets the default AND
+     * overwrites any per-period entry for that method.
+     */
     weights?: Partial<Record<SelectionMethodKey, number>>;
+    /** Per-origin-period weight updates, merged onto that period's weights. */
+    weightsByOrigin?: Record<string, Partial<Record<SelectionMethodKey, number>>>;
     /** Per-origin override updates; null clears the override for that origin. */
     overrides?: Record<string, number | null>;
   };
@@ -364,19 +391,56 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
     }
   }
   if (patch.ultimateSelection) {
-    const { weights, overrides } = patch.ultimateSelection;
+    const { weights, weightsByOrigin, overrides } = patch.ultimateSelection;
+    const validateWeight = (w: number | null | undefined, label: string): number => {
+      if (!isNum(w) || w < 0) {
+        throw new HttpError(
+          422,
+          "BAD_WEIGHT",
+          `Weight for ${label} must be a non-negative number`,
+        );
+      }
+      return w;
+    };
     if (weights) {
       for (const method of SELECTION_METHODS) {
         const w = weights[method.key];
         if (w === undefined) continue;
-        if (!isNum(w) || w < 0) {
-          throw new HttpError(
-            422,
-            "BAD_WEIGHT",
-            `Weight for ${method.label} must be a non-negative number`,
-          );
+        const value = validateWeight(w, method.label);
+        // "All periods" is literal: update the default and every per-period entry.
+        state.ultimateSelection.defaultWeights[method.key] = value;
+        for (const entry of Object.values(state.ultimateSelection.weightsByOrigin)) {
+          entry[method.key] = value;
         }
-        state.ultimateSelection.weights[method.key] = w;
+      }
+      // Per-period entries that now match the defaults are redundant; drop them.
+      for (const [origin, entry] of Object.entries(state.ultimateSelection.weightsByOrigin)) {
+        const matchesDefault = SELECTION_METHODS.every(
+          (m) => (entry[m.key] ?? 0) === (state.ultimateSelection.defaultWeights[m.key] ?? 0),
+        );
+        if (matchesDefault) delete state.ultimateSelection.weightsByOrigin[origin];
+      }
+    }
+    if (weightsByOrigin) {
+      for (const [origin, partial] of Object.entries(weightsByOrigin)) {
+        // Start from the period's effective weights so a partial update
+        // never silently zeroes the untouched methods.
+        const base =
+          state.ultimateSelection.weightsByOrigin[origin] ??
+          ({ ...state.ultimateSelection.defaultWeights } as Record<SelectionMethodKey, number>);
+        for (const method of SELECTION_METHODS) {
+          const w = partial[method.key];
+          if (w === undefined) continue;
+          base[method.key] = validateWeight(w, `${method.label} (origin ${origin})`);
+        }
+        const matchesDefault = SELECTION_METHODS.every(
+          (m) => (base[m.key] ?? 0) === (state.ultimateSelection.defaultWeights[m.key] ?? 0),
+        );
+        if (matchesDefault) {
+          delete state.ultimateSelection.weightsByOrigin[origin];
+        } else {
+          state.ultimateSelection.weightsByOrigin[origin] = base;
+        }
       }
     }
     if (overrides) {

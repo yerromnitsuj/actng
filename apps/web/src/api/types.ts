@@ -30,13 +30,16 @@ export type SelectionMethodKey =
   | "bsSettlement";
 
 export interface UltimateSelectionState {
-  weights: Record<SelectionMethodKey, number>;
+  defaultWeights: Record<SelectionMethodKey, number>;
+  weightsByOrigin: Record<string, Record<SelectionMethodKey, number>>;
   overrides: Record<string, number>;
 }
 
 export interface UltimateSelectionRow {
   origin: string;
   ultimates: Record<SelectionMethodKey, number | null>;
+  weights: Record<SelectionMethodKey, number>;
+  customWeights: boolean;
   weighted: number | null;
   override: number | null;
   selected: number | null;
