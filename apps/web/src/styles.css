@@ -55,11 +55,17 @@ body {
   color: var(--color-ink);
 }
 
-/* Numeric cells: tabular, consistent */
+/* Numeric cells: tabular lining figures, locked so alignment can never
+   regress on a font swap */
 .num {
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
   letter-spacing: -0.01em;
+}
+table.ledger td,
+table.ledger th,
+table.ledger input {
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 /* Panel entrance: quiet staggered rise on load */

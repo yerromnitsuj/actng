@@ -56,6 +56,30 @@ export default function SelectionPanel() {
 
   const stale = analysis ? resultsAreStale(analysis.inputs, workspace?.state) : false;
 
+  /** Weight inputs whose draft differs from the committed weight (pending). */
+  const dirtyWeights = METHOD_COLUMNS.filter((m) => {
+    const committed = selection.methods.find((x) => x.key === m.key)?.weight ?? 0;
+    const draft = (weightDraft[m.key] ?? "").trim();
+    if (draft === "") return committed !== 0;
+    const parsed = Number(draft);
+    return Number.isFinite(parsed) ? parsed !== committed : true;
+  }).map((m) => m.key);
+
+  const allWeightsZero = selection.methods.every((m) => m.weight === 0);
+  const anyOverride = selection.rows.some((r) => r.override !== null);
+
+  // The tool's own diagnostics vs the current weighting: warn when all the
+  // weight sits on unadjusted methods the diagnostics flag as distorted.
+  const findings = workspace?.diagnostics.findings ?? [];
+  const settlementFlagged = findings.some((f) => f.code === "SETTLEMENT_RATE_SHIFT");
+  const caseFlagged = findings.some((f) => f.code === "CASE_ADEQUACY_SHIFT");
+  const weightOf = (key: SelectionMethodKey) =>
+    selection.methods.find((m) => m.key === key)?.weight ?? 0;
+  const adjustedWeight = weightOf("bsCase") + weightOf("bsSettlement") + weightOf("bfPaid") + weightOf("bfIncurred");
+  const distortedCarryWeight =
+    (settlementFlagged && weightOf("clPaid") > 0) || (caseFlagged && weightOf("clIncurred") > 0);
+  const diagnosticsTension = distortedCarryWeight && adjustedWeight === 0;
+
   const commitWeight = (key: SelectionMethodKey) => {
     editing.current = false;
     const raw = (weightDraft[key] ?? "").trim();
@@ -110,6 +134,19 @@ export default function SelectionPanel() {
           method ultimates below.
         </p>
       ) : null}
+      {allWeightsZero && !anyOverride ? (
+        <p className="mb-3 rounded-sm border border-oxblood/50 bg-oxblood-soft px-3 py-1.5 text-[0.8rem] font-medium text-oxblood">
+          All method weights are zero, so there is no weighted blend and no selection. Set at
+          least one weight, or type Selected values directly.
+        </p>
+      ) : null}
+      {diagnosticsTension ? (
+        <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.8rem] text-[#6b4f16]">
+          Heads up: the diagnostics below flag distortions in the unadjusted chain ladder methods
+          that currently carry all of the weight. Consider weighting the Berquist-Sherman
+          (or BF) columns, or ask the advisor to set diagnostics-aware weights.
+        </p>
+      ) : null}
 
       <div className="overflow-x-auto">
         <table className="ledger w-full min-w-[1080px]">
@@ -161,12 +198,22 @@ export default function SelectionPanel() {
                     }
                     onBlur={() => commitWeight(m.key)}
                     onKeyDown={blurOnEnter}
-                    className="num w-full rounded-sm border border-hairline-strong bg-panel px-1.5 py-0.5 text-right text-[0.78rem] font-medium text-steel outline-none focus:border-steel"
+                    className={`num w-full rounded-sm border bg-panel px-1.5 py-0.5 text-right text-[0.78rem] font-medium text-steel outline-none focus:border-steel ${
+                      dirtyWeights.includes(m.key)
+                        ? "border-gold bg-gold-soft"
+                        : "border-hairline-strong"
+                    }`}
                   />
                 </th>
               ))}
               <th colSpan={4} className="px-2 py-1 text-left text-[0.7rem] font-normal normal-case tracking-normal text-ink-faint">
-                non-negative credibility; renormalized per period
+                {dirtyWeights.length > 0 ? (
+                  <span className="font-medium text-[#6b4f16]">
+                    pending edit - press Enter or click away to apply
+                  </span>
+                ) : (
+                  "non-negative credibility; renormalized per period"
+                )}
               </th>
             </tr>
           </thead>

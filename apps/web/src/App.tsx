@@ -33,7 +33,10 @@ export default function App() {
       </header>
 
       {error ? (
-        <div className="border-b border-oxblood bg-oxblood-soft px-6 py-2 text-[0.85rem] text-oxblood">
+        <div
+          role="alert"
+          className="sticky top-0 z-50 border-b border-oxblood bg-oxblood-soft px-6 py-2 text-[0.85rem] text-oxblood shadow-[0_2px_6px_rgb(163_46_46/0.15)]"
+        >
           <div className="mx-auto flex w-full max-w-[1720px] items-center justify-between">
             <span>{error}</span>
             <button onClick={clearError} className="font-semibold hover:underline">
