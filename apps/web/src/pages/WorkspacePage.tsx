@@ -8,6 +8,7 @@ import ResultsPanel from "../components/ResultsPanel.js";
 import SelectionPanel from "../components/SelectionPanel.js";
 import DiagnosticsPanel from "../components/DiagnosticsPanel.js";
 import AdvisorPanel from "../components/AdvisorPanel.js";
+import LayerPanel from "../components/LayerPanel.js";
 import ImportPanel from "../components/ImportPanel.js";
 import NotesPanel from "../components/NotesPanel.js";
 
@@ -80,6 +81,34 @@ export default function WorkspacePage() {
                   </button>
                 ))}
               </div>
+              <div className="flex overflow-hidden rounded-sm border border-hairline-strong">
+                {(["unlimited", "capped"] as const).map((l) => {
+                  const active = workspace.state.layer.active === l;
+                  const disabled = l === "capped" && workspace.state.layer.cap === null;
+                  return (
+                    <button
+                      key={l}
+                      aria-pressed={active}
+                      disabled={disabled}
+                      title={
+                        disabled
+                          ? "Set a per-occurrence cap in the Development layer exhibit first"
+                          : l === "capped"
+                            ? "Develop losses capped at the per-occurrence limit (own selections and tails)"
+                            : "Develop unlimited losses"
+                      }
+                      onClick={() => void patchWorkspace({ layer: { active: l } })}
+                      className={`px-3 py-1.5 text-[0.8rem] font-medium capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        active
+                          ? "bg-steel text-paper"
+                          : "bg-transparent text-ink-soft hover:bg-steel-soft"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  );
+                })}
+              </div>
               <select
                 value={workspace.state.cadence}
                 onChange={(e) => void patchWorkspace({ cadence: e.target.value })}
@@ -114,6 +143,8 @@ export default function WorkspacePage() {
             >
               {activeTriangle ? <TriangleGrid triangle={activeTriangle} /> : null}
             </Section>
+
+            <LayerPanel />
 
             <FactorPanel />
 

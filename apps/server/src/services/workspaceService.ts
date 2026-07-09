@@ -2,9 +2,13 @@ import {
   berquistCaseAdequacy,
   berquistSettlement,
   buildTriangles,
+  capClaims,
+  claimSizeDiagnostics,
   computeDevelopmentFactors,
+  factorVolatility,
   fitAllTails,
   isNum,
+  latestAccidentYear,
   ReservingError,
   runBornhuetterFerguson,
   runChainLadder,
@@ -12,6 +16,7 @@ import {
   runMack,
   type BornhuetterFergusonResult,
   type ChainLadderResult,
+  type ClaimSizeDiagnostics,
   type DevelopmentFactors,
   type DiagnosticsResult,
   type MackResult,
@@ -21,6 +26,7 @@ import {
 } from "@actng/core";
 import {
   defaultWorkspaceState,
+  emptyLayerSelections,
   getClaims,
   getExposures,
   getWorkspaceState,
@@ -28,6 +34,8 @@ import {
   latestAnalysis,
   saveWorkspaceState,
   type AnalysisRecord,
+  type LayerKey,
+  type LayerState,
   type SelectionMethodKey,
   type UltimateSelectionState,
   type WorkspaceState,
@@ -63,6 +71,18 @@ export interface WorkspaceView {
   dataAsOf: { claimRows: number; claimCount: number };
   /** Selection-of-ultimates exhibit over the latest analysis; null before any run. */
   ultimateSelection: UltimateSelectionView | null;
+  /** Cap-selection evidence: claim-size distribution + layer stability comparison. */
+  layerReview: LayerReview;
+}
+
+export interface LayerReview {
+  diagnostics: ClaimSizeDiagnostics;
+  /** Per-column CV of individual age-to-age factors, per basis, per layer. */
+  volatility: {
+    unlimited: { paid: (number | null)[]; incurred: (number | null)[] };
+    /** null until a cap is set. */
+    capped: { paid: (number | null)[]; incurred: (number | null)[] } | null;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -101,6 +121,8 @@ export interface UltimateSelectionView {
   analysisId: string;
   analysisLabel: string;
   analysisRanAt: string;
+  /** The development layer the blended run was built on. */
+  layer: LayerState;
   /** The all-periods default weight per method. */
   methods: { key: SelectionMethodKey; label: string; weight: number }[];
   rows: UltimateSelectionRow[];
@@ -233,6 +255,7 @@ export function computeUltimateSelection(
   return {
     analysisId: record.id,
     analysisLabel: record.label,
+    layer: results.layer ?? { active: "unlimited", cap: null, indexRate: 0, baseYear: null },
     analysisRanAt: results.ranAt,
     methods: SELECTION_METHODS.map((m) => ({
       ...m,
@@ -268,6 +291,67 @@ export function ensureWorkspaceState(projectId: string): WorkspaceState {
   return state;
 }
 
+/** The active layer's selections; capped and unlimited are independent. */
+export function activeSelections(state: WorkspaceState) {
+  return state.selections[state.layer.active];
+}
+
+/** The active layer's tail choices. */
+export function activeTail(state: WorkspaceState) {
+  return state.tail[state.layer.active];
+}
+
+/** The active layer's BF a-priori override. */
+export function activeBf(state: WorkspaceState) {
+  return state.bf[state.layer.active];
+}
+
+/** The active layer's Berquist-Sherman assumptions. */
+export function activeBerquist(state: WorkspaceState) {
+  return state.berquist[state.layer.active];
+}
+
+/** Caps the claim set at the workspace's per-occurrence limit. */
+function capProjectClaims(claims: Parameters<typeof capClaims>[0], state: WorkspaceState) {
+  if (state.layer.cap === null || state.layer.cap <= 0) {
+    throw new HttpError(
+      422,
+      "CAP_REQUIRED",
+      "The capped layer is active but no per-occurrence cap is set",
+    );
+  }
+  return capClaims(claims, {
+    cap: state.layer.cap,
+    indexRate: state.layer.indexRate,
+    // Resolve the default base year with the SAME convention the exhibits
+    // use (latest accident year evaluated on or before asOfDate) - a
+    // divergent default silently shifts every applied cap.
+    baseYear: state.layer.baseYear ?? latestAccidentYear(claims, state.asOfDate),
+  });
+}
+
+/** Builds one layer's triangle set from raw claims. */
+function buildLayerTriangles(
+  claims: Parameters<typeof buildTriangles>[0],
+  state: WorkspaceState,
+  layer: LayerKey,
+): TriangleSet {
+  const input = layer === "capped" ? capProjectClaims(claims, state) : claims;
+  try {
+    return buildTriangles(input, { cadence: state.cadence, asOfDate: state.asOfDate });
+  } catch (err) {
+    if (err instanceof ReservingError) {
+      throw new HttpError(422, err.code, err.message);
+    }
+    throw err;
+  }
+}
+
+/**
+ * The ACTIVE layer's triangles: the one seam where the layer dial is
+ * resolved. Everything downstream (factors, tails, methods, Mack,
+ * diagnostics) consumes triangles unchanged.
+ */
 export function buildProjectTriangles(projectId: string, state: WorkspaceState): TriangleSet {
   const claims = getClaims(projectId);
   if (claims.length === 0) {
@@ -277,14 +361,7 @@ export function buildProjectTriangles(projectId: string, state: WorkspaceState):
       "This project has no claim data yet; import a loss run first",
     );
   }
-  try {
-    return buildTriangles(claims, { cadence: state.cadence, asOfDate: state.asOfDate });
-  } catch (err) {
-    if (err instanceof ReservingError) {
-      throw new HttpError(422, err.code, err.message);
-    }
-    throw err;
-  }
+  return buildLayerTriangles(claims, state, state.layer.active);
 }
 
 /** Resizes a selections vector to the triangle's column count, preserving overlap. */
@@ -296,37 +373,67 @@ function fitSelections(selected: (number | null)[], nColumns: number): (number |
 
 export function getWorkspaceView(projectId: string): WorkspaceView {
   const state = ensureWorkspaceState(projectId);
-  const triangles = buildProjectTriangles(projectId, state);
+  const claims = getClaims(projectId);
+  if (claims.length === 0) {
+    throw new HttpError(
+      422,
+      "NO_CLAIMS",
+      "This project has no claim data yet; import a loss run first",
+    );
+  }
+  const capSet = state.layer.cap !== null && state.layer.cap > 0;
+  const unlimitedSet = buildLayerTriangles(claims, state, "unlimited");
+  const cappedSet = capSet ? buildLayerTriangles(claims, state, "capped") : null;
+  const triangles = state.layer.active === "capped" ? cappedSet! : unlimitedSet;
   const nCols = Math.max(0, triangles.paid.ages.length - 1);
 
-  // Keep stored selections consistent with the current triangle shape.
-  const fittedPaid = fitSelections(state.selections.paid, nCols);
-  const fittedIncurred = fitSelections(state.selections.incurred, nCols);
-  if (
-    fittedPaid.length !== state.selections.paid.length ||
-    fittedIncurred.length !== state.selections.incurred.length
-  ) {
-    state.selections.paid = fittedPaid;
-    state.selections.incurred = fittedIncurred;
-    saveWorkspaceState(projectId, state);
-  } else {
-    state.selections.paid = fittedPaid;
-    state.selections.incurred = fittedIncurred;
+  // Keep stored selections consistent with the current triangle shape - both
+  // layers share origins/ages (same claims), so fit all four vectors.
+  // In-memory only: persisting on a pure GET would make every page view a
+  // one-way schema migration (fitSelections is deterministic, so nothing is
+  // lost by refitting on each read; mutations persist via patchWorkspace).
+  for (const layer of ["unlimited", "capped"] as const) {
+    for (const basis of ["paid", "incurred"] as const) {
+      state.selections[layer][basis] = fitSelections(state.selections[layer][basis], nCols);
+    }
   }
 
-  const claims = getClaims(projectId);
+  // Cap-selection evidence for the Layer exhibit.
+  const layerReview: LayerReview = {
+    diagnostics: claimSizeDiagnostics(claims, {
+      asOfDate: state.asOfDate,
+      indexRate: state.layer.indexRate,
+      // Same base-year convention as the applied caps (capProjectClaims).
+      baseYear: state.layer.baseYear ?? latestAccidentYear(claims, state.asOfDate),
+      extraCaps: capSet ? [state.layer.cap!] : undefined,
+    }),
+    volatility: {
+      unlimited: {
+        paid: factorVolatility(computeDevelopmentFactors(unlimitedSet.paid)),
+        incurred: factorVolatility(computeDevelopmentFactors(unlimitedSet.incurred)),
+      },
+      capped: cappedSet
+        ? {
+            paid: factorVolatility(computeDevelopmentFactors(cappedSet.paid)),
+            incurred: factorVolatility(computeDevelopmentFactors(cappedSet.incurred)),
+          }
+        : null,
+    },
+  };
+
   const latest = latestAnalysis(projectId);
   return {
     state,
     triangles,
+    layerReview,
     ultimateSelection: latest ? computeUltimateSelection(latest, state.ultimateSelection) : null,
     factors: {
       paid: computeDevelopmentFactors(triangles.paid),
       incurred: computeDevelopmentFactors(triangles.incurred),
     },
     tailFits: {
-      paid: fitAllTails(state.selections.paid),
-      incurred: fitAllTails(state.selections.incurred),
+      paid: fitAllTails(activeSelections(state).paid),
+      incurred: fitAllTails(activeSelections(state).incurred),
     },
     diagnostics: runDiagnostics({
       paid: triangles.paid,
@@ -346,6 +453,12 @@ export interface WorkspacePatch {
   cadence?: WorkspaceState["cadence"];
   asOfDate?: string;
   basis?: WorkspaceState["basis"];
+  layer?: {
+    active?: LayerKey;
+    cap?: number | null;
+    indexRate?: number;
+    baseYear?: number | null;
+  };
   selections?: { basis: "paid" | "incurred"; selected: (number | null)[] };
   tail?: {
     basis: "paid" | "incurred";
@@ -374,20 +487,103 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
 
   if (patch.cadence && patch.cadence !== state.cadence) {
     state.cadence = patch.cadence;
-    state.selections = { paid: [], incurred: [] };
+    state.selections = emptyLayerSelections();
   }
   if (patch.asOfDate && patch.asOfDate !== state.asOfDate) {
     state.asOfDate = patch.asOfDate;
-    state.selections = { paid: [], incurred: [] };
+    state.selections = emptyLayerSelections();
   }
   if (patch.basis) state.basis = patch.basis;
-  if (patch.bf) state.bf.aprioriLossRatio = patch.bf.aprioriLossRatio;
+  if (patch.layer) {
+    const l = patch.layer;
+    const before = { ...state.layer };
+    if (l.cap !== undefined) {
+      if (l.cap !== null && (!isNum(l.cap) || l.cap <= 0)) {
+        throw new HttpError(422, "BAD_CAP", "The per-occurrence cap must be a positive number");
+      }
+      state.layer.cap = l.cap;
+    }
+    if (l.indexRate !== undefined) {
+      if (!isNum(l.indexRate) || l.indexRate <= -1) {
+        throw new HttpError(
+          422,
+          "BAD_CAP",
+          "The cap index rate must be a number greater than -100%",
+        );
+      }
+      state.layer.indexRate = l.indexRate;
+    }
+    if (l.baseYear !== undefined) {
+      if (
+        l.baseYear !== null &&
+        (!Number.isInteger(l.baseYear) || l.baseYear < 1900 || l.baseYear > 2200)
+      ) {
+        throw new HttpError(
+          422,
+          "BAD_CAP",
+          "The cap base year must be a year between 1900 and 2200, or null",
+        );
+      }
+      state.layer.baseYear = l.baseYear;
+    }
+    if (l.active) state.layer.active = l.active;
+    if (state.layer.active === "capped" && (state.layer.cap === null || state.layer.cap <= 0)) {
+      throw new HttpError(
+        422,
+        "CAP_REQUIRED",
+        "Set a per-occurrence cap before activating the capped layer",
+      );
+    }
+
+    // Changing cap/indexRate/baseYear REDEFINES the capped triangles, so
+    // judgments made against the old layer are invalid: clear the capped
+    // selections and re-fit the capped tails (the same principle as the
+    // cadence/asOfDate resets above). A no-op patch changes nothing.
+    const capParamsChanged =
+      state.layer.cap !== before.cap ||
+      state.layer.indexRate !== before.indexRate ||
+      state.layer.baseYear !== before.baseYear;
+    // Fit pristine capped tails only when the patch actually TRANSITIONS
+    // into the capped layer - a deliberate manual unit tail must survive
+    // unrelated layer patches (value equality is not intent).
+    const activatedCapped = before.active !== "capped" && state.layer.active === "capped";
+    const cappedPristine =
+      state.tail.capped.paid.source === "manual" &&
+      state.tail.capped.paid.value === 1 &&
+      state.tail.capped.incurred.source === "manual" &&
+      state.tail.capped.incurred.value === 1;
+
+    if (capParamsChanged) {
+      state.selections.capped = { paid: [], incurred: [] };
+    }
+    const capSet = state.layer.cap !== null && state.layer.cap > 0;
+    if (capSet && (capParamsChanged || (activatedCapped && cappedPristine))) {
+      const cappedTriangles = buildLayerTriangles(getClaims(projectId), state, "capped");
+      for (const basis of ["paid", "incurred"] as const) {
+        const dev = computeDevelopmentFactors(cappedTriangles[basis]);
+        const vw = dev.averages.find((a) => a.spec.key === "all-wtd")?.values ?? [];
+        const fits = fitAllTails(vw);
+        const candidates = [fits.exponentialDecay, fits.inversePower].filter((f) => f.valid);
+        if (candidates.length === 0) {
+          // Honest fallback: a redefined layer resets to a unit tail rather
+          // than keeping a tail fitted to different data.
+          if (capParamsChanged) {
+            state.tail.capped[basis] = { source: "manual", value: 1 };
+          }
+          continue;
+        }
+        const best = candidates.reduce((a, b) => (b.rSquared > a.rSquared ? b : a));
+        state.tail.capped[basis] = { source: best.method, value: best.tailFactor };
+      }
+    }
+  }
+  if (patch.bf) activeBf(state).aprioriLossRatio = patch.bf.aprioriLossRatio;
   if (patch.berquist) {
     if (patch.berquist.severityTrend !== undefined) {
-      state.berquist.severityTrend = patch.berquist.severityTrend;
+      activeBerquist(state).severityTrend = patch.berquist.severityTrend;
     }
     if (patch.berquist.interpolation) {
-      state.berquist.interpolation = patch.berquist.interpolation;
+      activeBerquist(state).interpolation = patch.berquist.interpolation;
     }
   }
   if (patch.ultimateSelection) {
@@ -477,7 +673,7 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
         throw new HttpError(422, "BAD_SELECTION", "Selected LDFs must be positive numbers or null");
       }
     }
-    state.selections[patch.selections.basis] = patch.selections.selected;
+    activeSelections(state)[patch.selections.basis] = patch.selections.selected;
   }
   if (patch.tail) {
     const basis = patch.tail.basis;
@@ -485,9 +681,9 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
       if (!isNum(patch.tail.value ?? null) || patch.tail.value! <= 0) {
         throw new HttpError(422, "BAD_TAIL", "A manual tail requires a positive numeric value");
       }
-      state.tail[basis] = { source: "manual", value: patch.tail.value! };
+      activeTail(state)[basis] = { source: "manual", value: patch.tail.value! };
     } else {
-      const fits = fitAllTails(state.selections[basis]);
+      const fits = fitAllTails(activeSelections(state)[basis]);
       const fit = fits[patch.tail.source];
       if (!fit.valid) {
         throw new HttpError(
@@ -496,7 +692,7 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
           `The ${patch.tail.source} fit is not usable: ${fit.warnings.join("; ")}`,
         );
       }
-      state.tail[basis] = { source: patch.tail.source, value: fit.tailFactor };
+      activeTail(state)[basis] = { source: patch.tail.source, value: fit.tailFactor };
     }
   }
 
@@ -515,28 +711,44 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
  * the correct default.
  */
 export function autoFitTailsFromData(projectId: string): {
-  applied: Partial<Record<"paid" | "incurred", { source: string; value: number }>>;
+  applied: Partial<
+    Record<LayerKey, Partial<Record<"paid" | "incurred", { source: string; value: number }>>>
+  >;
   warnings: string[];
 } {
   const state = ensureWorkspaceState(projectId);
-  const triangles = buildProjectTriangles(projectId, state);
-  const applied: Partial<Record<"paid" | "incurred", { source: string; value: number }>> = {};
+  const claims = getClaims(projectId);
+  const applied: Partial<
+    Record<LayerKey, Partial<Record<"paid" | "incurred", { source: string; value: number }>>>
+  > = {};
   const warnings: string[] = [];
-  for (const basis of ["paid", "incurred"] as const) {
-    const dev = computeDevelopmentFactors(triangles[basis]);
-    const vw = dev.averages.find((a) => a.spec.key === "all-wtd")?.values ?? [];
-    const fits = fitAllTails(vw);
-    const candidates = [fits.exponentialDecay, fits.inversePower].filter((f) => f.valid);
-    if (candidates.length === 0) {
-      state.tail[basis] = { source: "manual", value: 1 };
-      warnings.push(
-        `No valid tail fit for the ${basis} basis (development already flat or too few usable factors); tail left at 1.000`,
-      );
-      continue;
+  const capSet = state.layer.cap !== null && state.layer.cap > 0;
+  // A new extract invalidates BOTH layers' fitted tails, not just the active
+  // one - a layer toggled later must not silently keep tails fitted to data
+  // that no longer exists.
+  const layers: LayerKey[] = capSet ? ["unlimited", "capped"] : ["unlimited"];
+  for (const layer of layers) {
+    const triangles = buildLayerTriangles(claims, state, layer);
+    const layerApplied: Partial<
+      Record<"paid" | "incurred", { source: string; value: number }>
+    > = {};
+    for (const basis of ["paid", "incurred"] as const) {
+      const dev = computeDevelopmentFactors(triangles[basis]);
+      const vw = dev.averages.find((a) => a.spec.key === "all-wtd")?.values ?? [];
+      const fits = fitAllTails(vw);
+      const candidates = [fits.exponentialDecay, fits.inversePower].filter((f) => f.valid);
+      if (candidates.length === 0) {
+        state.tail[layer][basis] = { source: "manual", value: 1 };
+        warnings.push(
+          `No valid tail fit for the ${layer} ${basis} basis (development already flat or too few usable factors); tail left at 1.000`,
+        );
+        continue;
+      }
+      const best = candidates.reduce((a, b) => (b.rSquared > a.rSquared ? b : a));
+      state.tail[layer][basis] = { source: best.method, value: best.tailFactor };
+      layerApplied[basis] = { source: best.method, value: best.tailFactor };
     }
-    const best = candidates.reduce((a, b) => (b.rSquared > a.rSquared ? b : a));
-    state.tail[basis] = { source: best.method, value: best.tailFactor };
-    applied[basis] = { source: best.method, value: best.tailFactor };
+    applied[layer] = layerApplied;
   }
   saveWorkspaceState(projectId, state);
   return { applied, warnings };
@@ -558,6 +770,8 @@ export interface AnalysisResults {
   ranAt: string;
   asOfDate: string;
   cadence: string;
+  /** The development layer this run was built on (absent on pre-layer runs = unlimited). */
+  layer?: LayerState;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };
   bornhuetterFerguson: {
     paid: BornhuetterFergusonResult | null;
@@ -615,14 +829,14 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
 
   const paidCl = runChainLadderOr422(
     triangles.paid,
-    state.selections.paid,
-    state.tail.paid.value,
+    activeSelections(state).paid,
+    activeTail(state).paid.value,
     "paid",
   );
   const incurredCl = runChainLadderOr422(
     triangles.incurred,
-    state.selections.incurred,
-    state.tail.incurred.value,
+    activeSelections(state).incurred,
+    activeTail(state).incurred.value,
     "incurred",
   );
   const paidAtDiagonal = latestDiagonalTotal(triangles.paid);
@@ -637,7 +851,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     warnings.push(bfSkipped);
   } else {
     const bfOptions = {
-      aprioriLossRatio: state.bf.aprioriLossRatio ?? undefined,
+      aprioriLossRatio: activeBf(state).aprioriLossRatio ?? undefined,
     };
     bfPaid = runBornhuetterFerguson(triangles.paid, paidCl, exposures, bfOptions);
     bfIncurred = runBornhuetterFerguson(triangles.incurred, incurredCl, exposures, bfOptions);
@@ -654,8 +868,8 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
       triangles.paid,
       triangles.incurred,
       triangles.openCount,
-      state.berquist.severityTrend !== null
-        ? { severityTrend: state.berquist.severityTrend }
+      activeBerquist(state).severityTrend !== null
+        ? { severityTrend: activeBerquist(state).severityTrend! }
         : {},
     );
     const caseSelections = volumeWeightedSelections(caseAdj.adjustedIncurred);
@@ -666,7 +880,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
       adjustedIncurredTriangle: caseAdj.adjustedIncurred,
       chainLadder: runChainLadder(caseAdj.adjustedIncurred, {
         selected: caseSelections,
-        tailFactor: state.tail.incurred.value,
+        tailFactor: activeTail(state).incurred.value,
       }),
     };
 
@@ -682,7 +896,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     });
     const settlement = berquistSettlement(triangles.paid, triangles.closedCount, {
       ultimateCounts,
-      interpolation: state.berquist.interpolation,
+      interpolation: activeBerquist(state).interpolation,
     });
     const settlementSelections = volumeWeightedSelections(settlement.adjustedPaid);
     bsSettlement = {
@@ -692,7 +906,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
       adjustedPaidTriangle: settlement.adjustedPaid,
       chainLadder: runChainLadder(settlement.adjustedPaid, {
         selected: settlementSelections,
-        tailFactor: state.tail.paid.value,
+        tailFactor: activeTail(state).paid.value,
       }),
     };
   } catch (err) {
@@ -711,12 +925,12 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   let mackSkipped: string | undefined;
   try {
     mackPaid = runMack(triangles.paid, {
-      selected: state.selections.paid,
-      tailFactor: state.tail.paid.value,
+      selected: activeSelections(state).paid,
+      tailFactor: activeTail(state).paid.value,
     });
     mackIncurred = runMack(triangles.incurred, {
-      selected: state.selections.incurred,
-      tailFactor: state.tail.incurred.value,
+      selected: activeSelections(state).incurred,
+      tailFactor: activeTail(state).incurred.value,
     });
   } catch (err) {
     mackSkipped =
@@ -762,6 +976,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     ranAt: new Date().toISOString(),
     asOfDate: state.asOfDate,
     cadence: state.cadence,
+    layer: { ...state.layer },
     chainLadder: { paid: paidCl, incurred: incurredCl },
     bornhuetterFerguson: { paid: bfPaid, incurred: bfIncurred, skippedReason: bfSkipped },
     berquistSherman: { caseAdequacy: bsCase, settlement: bsSettlement, skippedReason: bsSkipped },
@@ -772,6 +987,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   };
 
   const inputs = {
+    layer: state.layer,
     selections: state.selections,
     tail: state.tail,
     bf: state.bf,
@@ -823,8 +1039,8 @@ export function runSensitivity(
 } {
   const view = getWorkspaceView(projectId);
   const tri = view.triangles[scenario.basis];
-  const baseSelections = view.state.selections[scenario.basis];
-  const baseTail = view.state.tail[scenario.basis].value;
+  const baseSelections = activeSelections(view.state)[scenario.basis];
+  const baseTail = activeTail(view.state)[scenario.basis].value;
   const current = runChainLadderOr422(tri, baseSelections, baseTail);
   const alt = runChainLadderOr422(
     tri,

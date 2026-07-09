@@ -47,10 +47,20 @@ export default function ResultsPanel() {
   const bf = r.bornhuetterFerguson;
   const showBf = detail === "bf" && (bf.paid || bf.incurred);
 
+  const runLayer = r.layer ?? { active: "unlimited", cap: null, indexRate: 0, baseYear: null };
+  const layerTag =
+    runLayer.active === "capped"
+      ? ` - LIMITED LAYER: losses capped at ${fmt0(runLayer.cap ?? 0)}${
+          runLayer.indexRate !== 0
+            ? ` indexed ${(runLayer.indexRate * 100).toFixed(1)}%/yr`
+            : ""
+        } per occurrence`
+      : "";
+
   return (
     <Section
       title="Results"
-      kicker={`run ${new Date(r.ranAt).toLocaleString()} - ${analysis.label}`}
+      kicker={`run ${new Date(r.ranAt).toLocaleString()} - ${analysis.label}${layerTag}`}
       actions={
         analyses.length > 1 ? (
           <select
@@ -67,6 +77,18 @@ export default function ResultsPanel() {
         ) : undefined
       }
     >
+      {runLayer.active === "capped" ? (
+        <p className="mb-3 rounded-sm border border-steel bg-steel-soft px-3 py-1.5 text-[0.8rem] font-medium text-steel">
+          These are LIMITED ultimates: every claim is capped at{" "}
+          <span className="num">{fmt0(runLayer.cap ?? 0)}</span>
+          {runLayer.indexRate !== 0
+            ? ` (indexed ${(runLayer.indexRate * 100).toFixed(1)}%/yr, base ${runLayer.baseYear ?? "latest year"})`
+            : ""}{" "}
+          per occurrence. The excess layer above the cap is NOT in these numbers; restoring to
+          total limits requires increased-limits factors, which this workbench does not compute
+          yet.
+        </p>
+      ) : null}
       {stale ? (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-sm border border-gold bg-gold-soft px-3 py-2">
           <p className="text-[0.85rem] font-medium text-[#6b4f16]">
@@ -298,7 +320,7 @@ function BfDetail() {
 
   if (!analysis) return null;
   const bf = analysis.results.bornhuetterFerguson[basis];
-  const override = workspace?.state.bf.aprioriLossRatio ?? null;
+  const override = workspace ? workspace.state.bf[workspace.state.layer.active].aprioriLossRatio : null;
 
   const applyApriori = async () => {
     const v = aprioriDraft.trim() === "" ? null : Number(aprioriDraft);

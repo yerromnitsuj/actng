@@ -51,25 +51,82 @@ export function defaultUltimateSelection(): UltimateSelectionState {
   };
 }
 
+/** The development layer: raw losses, or losses capped at a per-occurrence limit. */
+export type LayerKey = "unlimited" | "capped";
+
+export interface TailChoice {
+  source: "manual" | "exponentialDecay" | "inversePower";
+  value: number;
+}
+
+export interface LayerState {
+  /** Which layer's triangles the whole pipeline runs on. */
+  active: LayerKey;
+  /** Per-occurrence cap stated at the baseYear cost level; null = no cap defined. */
+  cap: number | null;
+  /** Annual rate indexing the cap across accident years (0 = flat cap). */
+  indexRate: number;
+  /** Accident year at whose cost level the cap is stated; null = latest year in data. */
+  baseYear: number | null;
+}
+
 export interface WorkspaceState {
   cadence: OriginCadence;
   asOfDate: string;
   basis: "paid" | "incurred";
-  /** Per-basis LDF selections, keyed to the development columns of that basis. */
-  selections: {
-    paid: (number | null)[];
-    incurred: (number | null)[];
-  };
-  tail: {
-    paid: { source: "manual" | "exponentialDecay" | "inversePower"; value: number };
-    incurred: { source: "manual" | "exponentialDecay" | "inversePower"; value: number };
-  };
-  bf: { aprioriLossRatio: number | null };
-  berquist: {
-    severityTrend: number | null;
-    interpolation: "exponential" | "linear";
-  };
+  layer: LayerState;
+  /**
+   * Per-layer, per-basis LDF selections keyed to the development columns.
+   * Capped and unlimited triangles develop differently, so their selections
+   * are independent - sharing them would silently invalidate one layer.
+   */
+  selections: Record<LayerKey, { paid: (number | null)[]; incurred: (number | null)[] }>;
+  tail: Record<LayerKey, { paid: TailChoice; incurred: TailChoice }>;
+  /**
+   * Per-layer method assumptions: an a-priori loss ratio or severity trend
+   * judged at the unlimited level does NOT describe the capped layer (the cap
+   * compresses both), so sharing them would silently contaminate one layer.
+   */
+  bf: Record<LayerKey, { aprioriLossRatio: number | null }>;
+  berquist: Record<
+    LayerKey,
+    { severityTrend: number | null; interpolation: "exponential" | "linear" }
+  >;
   ultimateSelection: UltimateSelectionState;
+}
+
+export function defaultLayerBf(): WorkspaceState["bf"] {
+  return {
+    unlimited: { aprioriLossRatio: null },
+    capped: { aprioriLossRatio: null },
+  };
+}
+
+export function defaultLayerBerquist(): WorkspaceState["berquist"] {
+  return {
+    unlimited: { severityTrend: null, interpolation: "exponential" },
+    capped: { severityTrend: null, interpolation: "exponential" },
+  };
+}
+
+export function emptyLayerSelections(): WorkspaceState["selections"] {
+  return {
+    unlimited: { paid: [], incurred: [] },
+    capped: { paid: [], incurred: [] },
+  };
+}
+
+export function defaultLayerTails(): WorkspaceState["tail"] {
+  return {
+    unlimited: {
+      paid: { source: "manual", value: 1 },
+      incurred: { source: "manual", value: 1 },
+    },
+    capped: {
+      paid: { source: "manual", value: 1 },
+      incurred: { source: "manual", value: 1 },
+    },
+  };
 }
 
 export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
@@ -77,13 +134,11 @@ export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
     cadence: "annual",
     asOfDate,
     basis: "paid",
-    selections: { paid: [], incurred: [] },
-    tail: {
-      paid: { source: "manual", value: 1 },
-      incurred: { source: "manual", value: 1 },
-    },
-    bf: { aprioriLossRatio: null },
-    berquist: { severityTrend: null, interpolation: "exponential" },
+    layer: { active: "unlimited", cap: null, indexRate: 0, baseYear: null },
+    selections: emptyLayerSelections(),
+    tail: defaultLayerTails(),
+    bf: defaultLayerBf(),
+    berquist: defaultLayerBerquist(),
     ultimateSelection: defaultUltimateSelection(),
   };
 }
@@ -259,6 +314,69 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
     | undefined;
   if (!row) return null;
   const state = JSON.parse(row.state) as WorkspaceState;
+  // Migrate pre-layer workspaces in place: the flat selections/tail shapes
+  // become the "unlimited" layer, and the capped layer starts pristine.
+  if (!state.layer) {
+    state.layer = { active: "unlimited", cap: null, indexRate: 0, baseYear: null };
+  }
+  const flatSelections = state.selections as unknown as {
+    paid?: unknown;
+    unlimited?: unknown;
+  };
+  if (state.selections && Array.isArray(flatSelections.paid)) {
+    const legacy = state.selections as unknown as {
+      paid: (number | null)[];
+      incurred: (number | null)[];
+    };
+    state.selections = {
+      unlimited: { paid: legacy.paid, incurred: legacy.incurred },
+      capped: { paid: [], incurred: [] },
+    };
+  } else if (!state.selections || !flatSelections.unlimited) {
+    state.selections = emptyLayerSelections();
+  }
+  const flatTail = state.tail as unknown as {
+    paid?: { source?: unknown };
+    unlimited?: unknown;
+  };
+  if (state.tail && flatTail.paid && flatTail.paid.source !== undefined) {
+    const legacy = state.tail as unknown as { paid: TailChoice; incurred: TailChoice };
+    state.tail = {
+      unlimited: { paid: legacy.paid, incurred: legacy.incurred },
+      capped: {
+        paid: { source: "manual", value: 1 },
+        incurred: { source: "manual", value: 1 },
+      },
+    };
+  } else if (!state.tail || !flatTail.unlimited) {
+    state.tail = defaultLayerTails();
+  }
+  const flatBf = state.bf as unknown as { aprioriLossRatio?: unknown; unlimited?: unknown };
+  if (state.bf && flatBf.unlimited === undefined) {
+    const legacy = state.bf as unknown as { aprioriLossRatio: number | null };
+    state.bf = {
+      unlimited: { aprioriLossRatio: legacy.aprioriLossRatio ?? null },
+      capped: { aprioriLossRatio: null },
+    };
+  } else if (!state.bf) {
+    state.bf = defaultLayerBf();
+  }
+  const flatBq = state.berquist as unknown as { severityTrend?: unknown; unlimited?: unknown };
+  if (state.berquist && flatBq.unlimited === undefined) {
+    const legacy = state.berquist as unknown as {
+      severityTrend: number | null;
+      interpolation: "exponential" | "linear";
+    };
+    state.berquist = {
+      unlimited: {
+        severityTrend: legacy.severityTrend ?? null,
+        interpolation: legacy.interpolation ?? "exponential",
+      },
+      capped: { severityTrend: null, interpolation: "exponential" },
+    };
+  } else if (!state.berquist) {
+    state.berquist = defaultLayerBerquist();
+  }
   // Backfill for workspaces persisted before the selection exhibit existed,
   // and migrate the pre-matrix shape (a single global `weights` record).
   if (!state.ultimateSelection) {

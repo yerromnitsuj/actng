@@ -121,3 +121,27 @@ export function computeDevelopmentFactors(
     averages,
   };
 }
+
+/**
+ * Per-column coefficient of variation of the individual age-to-age factors:
+ * the stability metric the capped-vs-unlimited layer comparison is judged on.
+ * null where a column has fewer than two observed factors.
+ */
+export function factorVolatility(dev: DevelopmentFactors): (number | null)[] {
+  const nCols = dev.fromAges.length;
+  const out: (number | null)[] = new Array(nCols).fill(null);
+  for (let j = 0; j < nCols; j++) {
+    const values: number[] = [];
+    for (const row of dev.individual) {
+      const v = row[j];
+      if (v !== null && v !== undefined && Number.isFinite(v)) values.push(v);
+    }
+    if (values.length < 2) continue;
+    const mean = values.reduce((a, v) => a + v, 0) / values.length;
+    if (mean === 0) continue;
+    const variance =
+      values.reduce((a, v) => a + (v - mean) ** 2, 0) / (values.length - 1);
+    out[j] = Math.sqrt(variance) / Math.abs(mean);
+  }
+  return out;
+}

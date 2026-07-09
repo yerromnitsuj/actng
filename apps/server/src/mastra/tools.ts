@@ -2,15 +2,19 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { isNum, type DevelopmentFactors, type Triangle } from "@actng/core";
 import {
+  activeBf,
+  activeSelections,
+  activeTail,
   getWorkspaceView,
   patchWorkspace,
   runFullAnalysis,
   runSensitivity,
   HttpError,
 } from "../services/workspaceService.js";
-import { fitAllTails } from "@actng/core";
+import { claimSizeDiagnostics, fitAllTails } from "@actng/core";
 import {
   getAnalysis,
+  getClaims,
   getExposures,
   insertNote,
   latestAnalysis,
@@ -154,12 +158,13 @@ export const getWorkspaceOverview = createTool({
         asOfDate: view.state.asOfDate,
         origins: view.triangles.paid.origins,
         agesMonths: view.triangles.paid.ages,
+        layer: view.state.layer,
         selections: {
-          paid: view.state.selections.paid.map(round3),
-          incurred: view.state.selections.incurred.map(round3),
+          paid: activeSelections(view.state).paid.map(round3),
+          incurred: activeSelections(view.state).incurred.map(round3),
         },
-        tails: view.state.tail,
-        bfAprioriOverride: view.state.bf.aprioriLossRatio,
+        tails: activeTail(view.state),
+        bfAprioriOverride: activeBf(view.state).aprioriLossRatio,
         exposures: exposures.map((e) => ({
           origin: e.origin,
           earnedPremium: round0(e.earnedPremium),
@@ -219,7 +224,7 @@ export const analyzeDevelopmentFactors = createTool({
         success: true,
         basis,
         columns,
-        currentSelections: view.state.selections[basis].map(round3),
+        currentSelections: activeSelections(view.state)[basis].map(round3),
         guidance:
           "Volume-weighted averages resist small-denominator noise; medial trims one-off shocks; compare the most recent factors against all-year averages to spot drift before selecting.",
       };
@@ -247,7 +252,7 @@ export const fitTailCurves = createTool({
       const projectId = projectIdOf(context as ToolCtx);
       const view = getWorkspaceView(projectId);
       const basis = input.basis ?? view.state.basis;
-      const ldfs = input.candidateSelections ?? view.state.selections[basis];
+      const ldfs = input.candidateSelections ?? activeSelections(view.state)[basis];
       const fits = fitAllTails(ldfs);
       const compact = (fit: (typeof fits)["exponentialDecay"]) => ({
         method: fit.method,
@@ -402,8 +407,8 @@ export const applyLdfSelections = createTool({
         success: true,
         applied: {
           basis: input.basis,
-          selections: view.state.selections[input.basis].map(round3),
-          tail: view.state.tail[input.basis],
+          selections: activeSelections(view.state)[input.basis].map(round3),
+          tail: activeTail(view.state)[input.basis],
         },
         message: `Applied ${input.selections.filter((s) => s !== null).length} LDF selection(s) on the ${input.basis} basis. The workspace UI now reflects them.`,
       };
@@ -434,8 +439,8 @@ export const setTailFactor = createTool({
       });
       return {
         success: true,
-        applied: view.state.tail[input.basis],
-        message: `Tail for the ${input.basis} basis is now ${view.state.tail[input.basis].value.toFixed(4)} (${input.source}).`,
+        applied: activeTail(view.state)[input.basis],
+        message: `Tail for the ${input.basis} basis is now ${activeTail(view.state)[input.basis].value.toFixed(4)} (${input.source}).`,
       };
     } catch (err) {
       return failure(err);
@@ -529,11 +534,11 @@ export const setBfApriori = createTool({
       });
       return {
         success: true,
-        applied: view.state.bf.aprioriLossRatio,
+        applied: activeBf(view.state).aprioriLossRatio,
         message:
-          view.state.bf.aprioriLossRatio === null
-            ? "BF a-priori override cleared; the derived loss ratio will be used on the next run."
-            : `BF a-priori loss ratio override set to ${(view.state.bf.aprioriLossRatio * 100).toFixed(1)}%. Run the analysis for it to take effect.`,
+          activeBf(view.state).aprioriLossRatio === null
+            ? `BF a-priori override cleared for the ${view.state.layer.active} layer; the derived loss ratio will be used on the next run.`
+            : `BF a-priori loss ratio override set to ${(activeBf(view.state).aprioriLossRatio! * 100).toFixed(1)}% for the ${view.state.layer.active} layer. Run the analysis for it to take effect.`,
       };
     } catch (err) {
       return failure(err);
@@ -650,6 +655,129 @@ export const setUltimateSelection = createTool({
   },
 });
 
+export const analyzeClaimSizes = createTool({
+  id: "analyze_claim_sizes",
+  description:
+    "Cap-selection evidence: the claim-size distribution by accident year (percentiles, max, counts), pierce counts and excess-dollar shares for candidate per-occurrence caps, and the capped-vs-unlimited age-to-age factor volatility comparison when a cap is set. Use BEFORE recommending a loss cap.",
+  inputSchema: z.object({
+    candidateCaps: z
+      .array(z.number().positive())
+      .nullable()
+      .describe("Candidate caps (base-year cost level) to evaluate; defaults derived from the distribution when null"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = getWorkspaceView(projectId);
+      const review = view.layerReview;
+      const diagnostics = review.diagnostics;
+      const years = diagnostics.years.map((y) => ({
+        year: y.year,
+        claimCount: y.claimCount,
+        totalIncurred: round0(y.totalIncurred),
+        maxClaim: round0(y.maxClaim),
+        p90: round0(y.percentiles.find((x) => x.p === 0.9)?.value ?? 0),
+        p95: round0(y.percentiles.find((x) => x.p === 0.95)?.value ?? 0),
+        p99: round0(y.percentiles.find((x) => x.p === 0.99)?.value ?? 0),
+      }));
+      const candidates = (
+        input.candidateCaps?.length
+          ? claimSizeDiagnostics(getClaims(projectId), {
+              asOfDate: view.state.asOfDate,
+              indexRate: view.state.layer.indexRate,
+              baseYear: diagnostics.baseYear,
+              candidateCaps: input.candidateCaps,
+            }).candidates
+          : diagnostics.candidates
+      ).map((c) => ({
+          cap: c.cap,
+          totalPierceCount: c.totalPierceCount,
+          totalPierceShare: round3(c.totalPierceShare),
+          totalExcessShare: round3(c.totalExcessShare),
+        }));
+      return {
+        success: true,
+        layer: view.state.layer,
+        years,
+        candidates,
+        factorVolatility: {
+          note: "Per development column, coefficient of variation of the individual age-to-age factors. Lower = stabler. capped is null until a cap is set. Claim sizes are reported incurred at each claim's LATEST EVALUATION, so immature years' pierce and excess shares are floors - open large claims develop into the cap.",
+          unlimited: {
+            paid: review.volatility.unlimited.paid.map(round3),
+            incurred: review.volatility.unlimited.incurred.map(round3),
+          },
+          capped: review.volatility.capped
+            ? {
+                paid: review.volatility.capped.paid.map(round3),
+                incurred: review.volatility.capped.incurred.map(round3),
+              }
+            : null,
+        },
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
+export const setLossCap = createTool({
+  id: "set_loss_cap",
+  description:
+    "Set the per-occurrence loss cap and optionally activate the capped layer, which reroutes the ENTIRE analysis pipeline (triangles, factors, tails, methods, Mack) onto capped losses. The cap is stated at the baseYear cost level and indexed across accident years by indexRate (0 = flat cap). Activating the capped layer fits default tails for it. Selections for the capped layer are independent of the unlimited layer's.",
+  inputSchema: z.object({
+    cap: z
+      .number()
+      .positive()
+      .nullable()
+      .describe("Per-occurrence cap at the baseYear cost level; null leaves the current cap unchanged"),
+    indexRate: z
+      .number()
+      .gt(-1)
+      .nullable()
+      .describe("Annual rate indexing the cap across accident years; null leaves unchanged (0 = flat)"),
+    baseYear: z
+      .number()
+      .int()
+      .min(1900)
+      .max(2200)
+      .nullable()
+      .describe("Accident year the cap is stated at; null leaves unchanged (default: latest year in data)"),
+    activate: z
+      .enum(["unlimited", "capped"])
+      .nullable()
+      .describe("Switch the active development layer; null leaves the active layer unchanged"),
+    clearCap: z
+      .boolean()
+      .nullable()
+      .describe("true removes the cap entirely (only while the unlimited layer is active); overrides the cap field"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, {
+        layer: {
+          ...(input.clearCap ? { cap: null } : input.cap !== null ? { cap: input.cap } : {}),
+          ...(input.indexRate !== null ? { indexRate: input.indexRate } : {}),
+          ...(input.baseYear !== null ? { baseYear: input.baseYear } : {}),
+          ...(input.activate !== null ? { active: input.activate } : {}),
+        },
+      });
+      return {
+        success: true,
+        layer: view.state.layer,
+        cappedTails: view.state.tail.capped,
+        message: `Layer settings applied. Active layer: ${view.state.layer.active}${
+          view.state.layer.cap !== null
+            ? `, cap ${view.state.layer.cap.toLocaleString()} at ${view.state.layer.baseYear ?? "latest-year"} level, index ${(view.state.layer.indexRate * 100).toFixed(1)}%/yr`
+            : ""
+        }. Rerun the analysis for results on this layer.`,
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -679,6 +807,8 @@ export const advisorTools = {
   set_tail_factor: setTailFactor,
   set_bf_apriori: setBfApriori,
   set_ultimate_selection: setUltimateSelection,
+  analyze_claim_sizes: analyzeClaimSizes,
+  set_loss_cap: setLossCap,
   run_analysis: runAnalysisTool,
   run_sensitivity: runSensitivityTool,
   save_note: saveNote,
@@ -688,6 +818,7 @@ export const advisorTools = {
 export const ACTION_TOOL_IDS = new Set([
   "apply_ldf_selections",
   "set_tail_factor",
+  "set_loss_cap",
   "set_bf_apriori",
   "set_ultimate_selection",
   "run_analysis",

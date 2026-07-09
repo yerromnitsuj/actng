@@ -3,6 +3,8 @@ import { useStore } from "../state/store.js";
 import type { ToolEvent } from "../api/types.js";
 
 const TOOL_LABELS: Record<string, string> = {
+  analyze_claim_sizes: "Analyzing claim sizes",
+  set_loss_cap: "Setting the loss cap",
   get_workspace_overview: "Read workspace",
   analyze_development_factors: "Analyzed development factors",
   fit_tail_curves: "Fitted tail curves",

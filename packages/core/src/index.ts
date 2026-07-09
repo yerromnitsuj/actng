@@ -8,3 +8,4 @@ export * from "./tail.js";
 export * from "./berquist.js";
 export * from "./diagnostics.js";
 export * from "./mack.js";
+export * from "./capping.js";

@@ -23,10 +23,10 @@ export default function FactorPanel() {
   const factors = workspace?.factors[basis] ?? null;
   const triangle = workspace?.triangles[basis] ?? null;
   const selections = useMemo(
-    () => workspace?.state.selections[basis] ?? [],
+    () => workspace?.state.selections[workspace.state.layer.active][basis] ?? [],
     [workspace, basis],
   );
-  const tail = workspace?.state.tail[basis] ?? null;
+  const tail = workspace?.state.tail[workspace.state.layer.active][basis] ?? null;
   const tailFits = workspace?.tailFits[basis] ?? null;
 
   useEffect(() => {

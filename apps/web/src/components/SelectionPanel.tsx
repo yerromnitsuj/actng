@@ -145,6 +145,16 @@ export default function SelectionPanel() {
       title="Selection of ultimates"
       kicker={`blends the run "${selection.analysisLabel}" - each cell: indicated ultimate with its period weight beside it - overrides win`}
     >
+      {selection.layer.active === "capped" ? (
+        <p className="mb-3 rounded-sm border border-steel bg-steel-soft px-3 py-1.5 text-[0.8rem] font-medium text-steel">
+          LIMITED LAYER: every method ultimate below is capped at{" "}
+          <span className="num">{fmt0(selection.layer.cap ?? 0)}</span>
+          {selection.layer.indexRate !== 0
+            ? ` (indexed ${(selection.layer.indexRate * 100).toFixed(1)}%/yr)`
+            : ""}{" "}
+          per occurrence - the excess layer is NOT in these selections, IBNR, or unpaid figures.
+        </p>
+      ) : null}
       {stale ? (
         <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.8rem] font-medium text-[#6b4f16]">
           Inputs have changed since the run this exhibit blends; rerun the analysis to refresh the

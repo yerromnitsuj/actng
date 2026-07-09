@@ -53,6 +53,7 @@ export interface UltimateSelectionView {
   analysisId: string;
   analysisLabel: string;
   analysisRanAt: string;
+  layer: LayerState;
   methods: { key: SelectionMethodKey; label: string; weight: number }[];
   rows: UltimateSelectionRow[];
   totals: {
@@ -66,18 +67,69 @@ export interface UltimateSelectionView {
   };
 }
 
+export type LayerKey = "unlimited" | "capped";
+
+export interface TailChoice {
+  source: "manual" | "exponentialDecay" | "inversePower";
+  value: number;
+}
+
+export interface LayerState {
+  active: LayerKey;
+  cap: number | null;
+  indexRate: number;
+  baseYear: number | null;
+}
+
 export interface WorkspaceState {
   cadence: "annual" | "quarterly";
   asOfDate: string;
   basis: "paid" | "incurred";
-  selections: { paid: (number | null)[]; incurred: (number | null)[] };
-  tail: {
-    paid: { source: "manual" | "exponentialDecay" | "inversePower"; value: number };
-    incurred: { source: "manual" | "exponentialDecay" | "inversePower"; value: number };
-  };
-  bf: { aprioriLossRatio: number | null };
-  berquist: { severityTrend: number | null; interpolation: "exponential" | "linear" };
+  layer: LayerState;
+  selections: Record<LayerKey, { paid: (number | null)[]; incurred: (number | null)[] }>;
+  tail: Record<LayerKey, { paid: TailChoice; incurred: TailChoice }>;
+  bf: Record<LayerKey, { aprioriLossRatio: number | null }>;
+  berquist: Record<
+    LayerKey,
+    { severityTrend: number | null; interpolation: "exponential" | "linear" }
+  >;
   ultimateSelection: UltimateSelectionState;
+}
+
+export interface ClaimSizeYearRow {
+  year: number;
+  claimCount: number;
+  totalIncurred: number;
+  maxClaim: number;
+  percentiles: { p: number; value: number }[];
+}
+
+export interface CapCandidate {
+  cap: number;
+  byYear: {
+    year: number;
+    effectiveCap: number;
+    pierceCount: number;
+    pierceShare: number;
+    excessShare: number;
+  }[];
+  totalPierceCount: number;
+  totalPierceShare: number;
+  totalExcessShare: number;
+}
+
+export interface LayerReview {
+  diagnostics: {
+    years: ClaimSizeYearRow[];
+    candidates: CapCandidate[];
+    baseYear: number;
+    indexRate: number;
+    nonZeroClaimCount: number;
+  };
+  volatility: {
+    unlimited: { paid: (number | null)[]; incurred: (number | null)[] };
+    capped: { paid: (number | null)[]; incurred: (number | null)[] } | null;
+  };
 }
 
 export interface TriangleSet {
@@ -102,6 +154,7 @@ export interface WorkspaceView {
   dataAsOf: { claimRows: number; claimCount: number };
   exposures: ExposureRecord[];
   ultimateSelection: UltimateSelectionView | null;
+  layerReview: LayerReview;
 }
 
 export interface MethodSummary {
@@ -117,6 +170,8 @@ export interface AnalysisResults {
   ranAt: string;
   asOfDate: string;
   cadence: string;
+  /** The development layer this run was built on (absent on pre-layer runs = unlimited). */
+  layer?: LayerState;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };
   bornhuetterFerguson: {
     paid: BornhuetterFergusonResult | null;

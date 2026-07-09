@@ -37,6 +37,14 @@ const patchSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   basis: z.enum(["paid", "incurred"]).optional(),
+  layer: z
+    .object({
+      active: z.enum(["unlimited", "capped"]).optional(),
+      cap: z.number().positive().nullable().optional(),
+      indexRate: z.number().gt(-1).optional(),
+      baseYear: z.number().int().min(1900).max(2200).nullable().optional(),
+    })
+    .optional(),
   selections: z
     .object({
       basis: z.enum(["paid", "incurred"]),
