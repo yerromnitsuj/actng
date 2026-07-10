@@ -7,6 +7,8 @@ const TOOL_LABELS: Record<string, string> = {
   set_loss_cap: "Setting the loss cap",
   analyze_trends: "Analyzing trends",
   set_trend_selections: "Setting trend selections",
+  derive_expected_losses: "Starting the guided ELR derivation",
+  advance_elr_derivation: "Advancing the ELR derivation",
   analyze_elr: "Analyzing expected loss ratios",
   set_elr: "Selecting the ELR",
   set_rate_history: "Setting rate history",

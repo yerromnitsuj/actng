@@ -1,4 +1,6 @@
 import { createTool } from "@mastra/core/tools";
+import { RequestContext } from "@mastra/core/request-context";
+import { getMastra } from "./instanceRegistry.js";
 import { z } from "zod";
 import { isNum, type DevelopmentFactors, type Triangle } from "@actng/core";
 import {
@@ -1142,6 +1144,164 @@ export const setRateHistory = createTool({
   },
 });
 
+/** Structural view of the workflow surface these tools need (breaks the
+ * type-level cycle tools -> index -> advisor -> tools that full inference
+ * through the dynamic import would create). */
+interface ElrWorkflowRun {
+  runId: string;
+  start(params: {
+    inputData: Record<string, never>;
+    requestContext: RequestContext;
+  }): Promise<unknown>;
+  resume(params: {
+    step: string;
+    resumeData: Record<string, unknown>;
+    requestContext: RequestContext;
+  }): Promise<unknown>;
+}
+
+/**
+ * Resolved through the zero-import instance registry: a static import of
+ * ./index.js closes the module cycle index -> advisor -> tools, and a
+ * dynamic import deadlocks inside tool execution under the tsx loader.
+ */
+function getWorkflowInstance(): {
+  createRun(options?: { runId?: string }): Promise<ElrWorkflowRun>;
+} {
+  return getMastra().getWorkflow("deriveExpectedLossesWorkflow") as {
+    createRun(options?: { runId?: string }): Promise<ElrWorkflowRun>;
+  };
+}
+
+const GATE_STEP_IDS = {
+  cap: "cap-gate",
+  ilf: "ilf-gate",
+  trends: "trend-gate",
+  elr: "elr-gate",
+} as const;
+
+type WorkflowRunResult = {
+  status: string;
+  suspended?: string[][];
+  steps?: Record<string, { suspendPayload?: { stage?: string; recommendation?: string; evidence?: unknown } }>;
+  result?: unknown;
+  error?: unknown;
+};
+
+function describeRunState(runId: string, result: WorkflowRunResult) {
+  if (result.status === "suspended" && result.suspended?.length) {
+    const stepId = result.suspended[0]![result.suspended[0]!.length - 1]!;
+    const payload = result.steps?.[stepId]?.suspendPayload;
+    return {
+      success: true as const,
+      status: "awaiting-decision" as const,
+      runId,
+      gate: payload?.stage ?? stepId,
+      recommendation: payload?.recommendation ?? "",
+      evidence: payload?.evidence ?? null,
+      message:
+        "The derivation is paused at a judgment gate. Present the recommendation and evidence to the user, take their decision, then call advance_elr_derivation.",
+    };
+  }
+  if (result.status === "success") {
+    return {
+      success: true as const,
+      status: "complete" as const,
+      runId,
+      result: result.result ?? null,
+      message:
+        "Derivation complete: the selected ELR is applied, the analysis reran, and the rationale trail is saved as a note.",
+    };
+  }
+  return {
+    success: false as const,
+    status: result.status,
+    runId,
+    error: String((result as { error?: unknown }).error ?? "workflow did not suspend or complete"),
+  };
+}
+
+export const deriveExpectedLosses = createTool({
+  id: "derive_expected_losses",
+  description:
+    "Start the guided expected-loss-ratio derivation: a Mastra workflow that walks cap -> restoration -> trends -> ELR, PAUSING at every actuarial judgment with a recommendation and evidence. Nothing is applied without a decision. Present each gate to the user in chat, then advance with advance_elr_derivation. Requires at least one analysis run.",
+  inputSchema: z.object({}),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const requestContext = new RequestContext();
+      requestContext.set("projectId", projectId);
+      const wf = getWorkflowInstance();
+      const run = await wf.createRun();
+      const result = (await run.start({
+        inputData: {},
+        requestContext,
+      })) as WorkflowRunResult;
+      return describeRunState(run.runId, result);
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
+export const advanceElrDerivation = createTool({
+  id: "advance_elr_derivation",
+  description:
+    "Resume a paused ELR derivation with the user's decision at the current gate. Supply ONLY the fields the gate needs: cap gate -> decision (accept/adjust/skip) + cap/indexRate; ilf gate -> decision + source/fittedKind/curveId/targetLimit; trends gate -> decision (accept/adjust) + frequency/severity (decimals; null = none) + optional targetYear; elr gate -> decision (accept/adjust/abort) + selected (decimal). Always pass the user's stated rationale.",
+  inputSchema: z.object({
+    runId: z.string(),
+    gate: z.enum(["cap", "ilf", "trends", "elr"]),
+    decision: z.enum(["accept", "adjust", "skip", "abort"]),
+    cap: z.number().positive().nullable().describe("cap gate only; null when not applicable"),
+    indexRate: z.number().gt(-1).nullable(),
+    source: z.enum(["fitted", "table", "illustrative"]).nullable(),
+    fittedKind: z.enum(["lognormal", "pareto"]).nullable(),
+    curveId: z.string().nullable(),
+    targetLimit: z.number().positive().nullable(),
+    frequency: z.number().gt(-1).nullable(),
+    severity: z.number().gt(-1).nullable(),
+    targetYear: z.number().int().nullable(),
+    selected: z.number().positive().nullable().describe("elr gate: the chosen ELR as a decimal"),
+    rationale: z.string(),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const requestContext = new RequestContext();
+      requestContext.set("projectId", projectId);
+      const wf = getWorkflowInstance();
+      const run = await wf.createRun({ runId: input.runId });
+      const resumeData: Record<string, unknown> = {
+        decision: input.decision,
+        rationale: input.rationale,
+      };
+      if (input.gate === "cap") {
+        if (input.cap !== null) resumeData.cap = input.cap;
+        if (input.indexRate !== null) resumeData.indexRate = input.indexRate;
+      } else if (input.gate === "ilf") {
+        if (input.source !== null) resumeData.source = input.source;
+        if (input.fittedKind !== null) resumeData.fittedKind = input.fittedKind;
+        if (input.curveId !== null) resumeData.curveId = input.curveId;
+        if (input.targetLimit !== null) resumeData.targetLimit = input.targetLimit;
+      } else if (input.gate === "trends") {
+        resumeData.frequency = input.frequency;
+        resumeData.severity = input.severity;
+        if (input.targetYear !== null) resumeData.targetYear = input.targetYear;
+      } else {
+        if (input.selected !== null) resumeData.selected = input.selected;
+      }
+      const result = (await run.resume({
+        step: GATE_STEP_IDS[input.gate],
+        resumeData,
+        requestContext,
+      })) as WorkflowRunResult;
+      return describeRunState(input.runId, result);
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -1175,6 +1335,8 @@ export const advisorTools = {
   set_loss_cap: setLossCap,
   analyze_trends: analyzeTrends,
   set_trend_selections: setTrendSelections,
+  derive_expected_losses: deriveExpectedLosses,
+  advance_elr_derivation: advanceElrDerivation,
   analyze_elr: analyzeElr,
   set_elr: setElr,
   set_rate_history: setRateHistory,
@@ -1191,6 +1353,7 @@ export const ACTION_TOOL_IDS = new Set([
   "set_tail_factor",
   "set_loss_cap",
   "set_trend_selections",
+  "advance_elr_derivation",
   "set_elr",
   "set_rate_history",
   "set_ilf_source",

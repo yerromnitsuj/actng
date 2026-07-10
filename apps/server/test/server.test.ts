@@ -1235,3 +1235,87 @@ describe("phase-4 review fixes: level coherence, zod weights, on-level frequency
     expect(inputs.trend).toBeDefined();
   });
 });
+
+describe("derive-expected-losses workflow (phase 5)", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("Workflow gate test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 101,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+    ws.runFullAnalysis(projectId, "workflow base");
+  });
+
+  it("suspends at every gate, applies decisions through the service layer, and persists the trail", async () => {
+    const { RequestContext } = await import("@mastra/core/request-context");
+    const { mastra } = await import("../src/mastra/index.js");
+    const rc = new RequestContext<{ projectId: string }>();
+    rc.set("projectId", projectId);
+    const wf = mastra.getWorkflow("deriveExpectedLossesWorkflow");
+    const run = await wf.createRun();
+
+    let result = (await run.start({ inputData: {}, requestContext: rc })) as {
+      status: string;
+      suspended?: string[][];
+      steps?: Record<string, { suspendPayload?: { stage?: string; recommendation?: string } }>;
+      result?: { trail: unknown[]; selectedElr: number | null; noteId: string | null };
+    };
+    expect(result.status).toBe("suspended");
+    expect(result.suspended![0]![0]).toBe("cap-gate");
+    expect(
+      result.steps!["cap-gate"]!.suspendPayload!.recommendation!.length,
+    ).toBeGreaterThan(10);
+
+    // Gate 1: stay unlimited. The ilf gate must pass through silently.
+    result = (await run.resume({
+      step: "cap-gate",
+      resumeData: { decision: "skip", rationale: "test: stay unlimited" },
+      requestContext: rc,
+    })) as typeof result;
+    expect(result.status).toBe("suspended");
+    expect(result.suspended![0]![0]).toBe("trend-gate");
+
+    // Gate 3: trends.
+    result = (await run.resume({
+      step: "trend-gate",
+      resumeData: { decision: "accept", frequency: null, severity: 0.05, rationale: "sev 5%" },
+      requestContext: rc,
+    })) as typeof result;
+    expect(result.status).toBe("suspended");
+    expect(result.suspended![0]![0]).toBe("elr-gate");
+
+    // Gate 4: the ELR.
+    result = (await run.resume({
+      step: "elr-gate",
+      resumeData: { decision: "accept", selected: 0.68, rationale: "weighted average" },
+      requestContext: rc,
+    })) as typeof result;
+    expect(result.status).toBe("success");
+    expect(result.result!.selectedElr).toBe(0.68);
+    expect(result.result!.trail).toHaveLength(3);
+    expect(result.result!.noteId).not.toBeNull();
+
+    // The decisions landed in real state through the same service layer.
+    const state = ws.ensureWorkspaceState(projectId);
+    expect(state.elr.selected).toBe(0.68);
+    expect(state.elr.selectedAtLevel).toBe("unlimited");
+    expect(state.trend.severity.unlimited.value).toBe(0.05);
+    const note = repo.listNotes(projectId).find((n) => n.text.includes("ELR derivation trail"));
+    expect(note).toBeDefined();
+    expect(note!.text).toMatch(/stay unlimited/);
+  }, 30_000);
+});
