@@ -554,6 +554,9 @@ const toolWeightsSchema = z
     bfIncurred: z.number().min(0).nullable().describe("Bornhuetter-Ferguson incurred weight"),
     bsCase: z.number().min(0).nullable().describe("B-S case adequacy weight"),
     bsSettlement: z.number().min(0).nullable().describe("B-S settlement rate weight"),
+    ccPaid: z.number().min(0).nullable().describe("Cape Cod paid weight"),
+    ccIncurred: z.number().min(0).nullable().describe("Cape Cod incurred weight"),
+    expectedClaims: z.number().min(0).nullable().describe("Expected Claims (a-priori) weight"),
   })
   .describe("Method weights; null entries and omissions keep current values");
 
@@ -1007,6 +1010,138 @@ export const setTrendSelections = createTool({
   },
 });
 
+export const analyzeElr = createTool({
+  id: "analyze_elr",
+  description:
+    "The expected-loss-ratio compilation over the latest run: per-year trended SELECTED ultimates (the weights/overrides blend - see the circularity warning when a-priori methods carry weight) over on-level trended premium (parallelogram on-leveling from the rate history + premium trend + the selected loss trends), an averages menu, the Cape Cod mechanical ELR cross-check, and the current selection. Call BEFORE recommending an ELR.",
+  inputSchema: z.object({}),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = getWorkspaceView(projectId);
+      const review = view.elrReview;
+      if (!review) {
+        return {
+          success: false,
+          error:
+            "The ELR exhibit needs an analysis run and premium data (import exposures first)",
+        };
+      }
+      return {
+        success: true,
+        targetYear: review.targetYear,
+        level: review.level,
+        warnings: review.warnings,
+        rows: review.rows.map((r) => ({
+          origin: r.origin,
+          premium: round0(r.premium),
+          onLevelFactor: round3(r.onLevelFactor),
+          onLevelTrendedPremium: round0(r.onLevelTrendedPremium),
+          trendedUltimate: r.trendedUltimate !== null ? round0(r.trendedUltimate) : null,
+          lossRatioPct:
+            r.lossRatioAtTarget !== null ? Math.round(r.lossRatioAtTarget * 1000) / 10 : null,
+        })),
+        averagesPct: review.averages.map((a) => ({
+          key: a.key,
+          label: a.label,
+          valuePct: a.value !== null ? Math.round(a.value * 1000) / 10 : null,
+        })),
+        capeCodElrPct: {
+          paid:
+            review.capeCodElr.paid !== null
+              ? Math.round(review.capeCodElr.paid * 1000) / 10
+              : null,
+          incurred:
+            review.capeCodElr.incurred !== null
+              ? Math.round(review.capeCodElr.incurred * 1000) / 10
+              : null,
+        },
+        selectedPct: review.selected !== null ? Math.round(review.selected * 1000) / 10 : null,
+        note: "All ratios in PERCENT; set_elr takes a DECIMAL (0.65 = 65%)",
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
+export const setElr = createTool({
+  id: "set_elr",
+  description:
+    "Select the expected loss ratio AT THE TARGET COST LEVEL (decimal: 0.65 = 65%). The engine restates it to each origin year's own level for the BF a-priori and the Expected Claims method on the NEXT run. null clears the selection (BF reverts to its CL-derived default; Expected Claims drops out).",
+  inputSchema: z.object({
+    selected: z
+      .number()
+      .positive()
+      .nullable()
+      .describe("ELR at target level as a decimal; null clears"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, { elr: { selected: input.selected } });
+      return {
+        success: true,
+        selected: view.state.elr.selected,
+        message:
+          view.state.elr.selected !== null
+            ? `ELR selected at ${(view.state.elr.selected * 100).toFixed(1)}% (target level). Rerun the analysis for BF and Expected Claims to use it.`
+            : "ELR selection cleared; BF reverts to its derived default on the next run.",
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
+export const setRateHistory = createTool({
+  id: "set_rate_history",
+  description:
+    "Replace the rate-change history used for parallelogram premium on-leveling (each change applies to policies written on/after its effective date; change is a decimal, 0.05 = +5%), and/or set the annual premium trend rate. History replaces wholesale - include ALL changes.",
+  inputSchema: z.object({
+    history: z
+      .array(
+        z.object({
+          effectiveDate: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .describe("yyyy-mm-dd"),
+          change: z.number().gt(-1).describe("decimal rate change"),
+        }),
+      )
+      .nullable()
+      .describe("Full replacement history; null leaves it unchanged"),
+    premiumTrend: z
+      .number()
+      .gt(-1)
+      .nullable()
+      .describe("Annual premium trend NET OF RATE CHANGES (exposure/inflation drift only - rate action lives in the history, and fitting this from raw average premium double-counts the on-level factor); null CLEARS the trend, matching set_elr"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, {
+        rates: {
+          ...(input.history !== null ? { history: input.history } : {}),
+          // null = CLEAR (single-field semantics, same as set_elr).
+          premiumTrend: input.premiumTrend,
+        },
+      });
+      return {
+        success: true,
+        rates: view.state.rates,
+        message: `Rate history now has ${view.state.rates.history.length} change(s); premium trend ${
+          view.state.rates.premiumTrend !== null
+            ? (view.state.rates.premiumTrend * 100).toFixed(1) + "%/yr"
+            : "none"
+        }.`,
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -1040,6 +1175,9 @@ export const advisorTools = {
   set_loss_cap: setLossCap,
   analyze_trends: analyzeTrends,
   set_trend_selections: setTrendSelections,
+  analyze_elr: analyzeElr,
+  set_elr: setElr,
+  set_rate_history: setRateHistory,
   fit_severity_curves: fitSeverityCurves,
   set_ilf_source: setIlfSource,
   run_analysis: runAnalysisTool,
@@ -1053,6 +1191,8 @@ export const ACTION_TOOL_IDS = new Set([
   "set_tail_factor",
   "set_loss_cap",
   "set_trend_selections",
+  "set_elr",
+  "set_rate_history",
   "set_ilf_source",
   "set_bf_apriori",
   "set_ultimate_selection",

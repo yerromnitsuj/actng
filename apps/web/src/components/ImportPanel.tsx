@@ -10,13 +10,14 @@ import { Button } from "./ui.js";
 export default function ImportPanel({ projectId }: { projectId: string }) {
   const loadWorkspace = useStore((s) => s.loadWorkspace);
   const loadProjects = useStore((s) => s.loadProjects);
-  const [busy, setBusy] = useState<"claims" | "exposures" | null>(null);
+  const [busy, setBusy] = useState<"claims" | "exposures" | "rates" | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const claimsInput = useRef<HTMLInputElement>(null);
   const exposuresInput = useRef<HTMLInputElement>(null);
+  const ratesInput = useRef<HTMLInputElement>(null);
 
-  const handle = async (kind: "claims" | "exposures", file: File) => {
+  const handle = async (kind: "claims" | "exposures" | "rates", file: File) => {
     setBusy(kind);
     setError(null);
     setStatus(null);
@@ -26,9 +27,12 @@ export default function ImportPanel({ projectId }: { projectId: string }) {
         setStatus(
           `Imported ${result.imported.toLocaleString()} snapshot rows (${result.claimCount.toLocaleString()} claims). Existing claim data was replaced.`,
         );
-      } else {
+      } else if (kind === "exposures") {
         const result = await api.importExposures(projectId, file);
         setStatus(`Imported ${result.imported} exposure period(s).`);
+      } else {
+        const result = await api.importRateHistory(projectId, file);
+        setStatus(`Imported ${result.imported} rate change(s); the history was replaced.`);
       }
       await loadWorkspace(projectId);
       await loadProjects();
@@ -94,6 +98,33 @@ export default function ImportPanel({ projectId }: { projectId: string }) {
             onClick={() => exposuresInput.current?.click()}
           >
             {busy === "exposures" ? "Importing..." : "Choose file"}
+          </Button>
+        </div>
+        <div className="flex items-center justify-between gap-3 border border-dashed border-hairline-strong bg-paper px-3 py-2.5">
+          <div>
+            <p className="text-[0.85rem] font-medium text-ink">Rate-change history</p>
+            <p className="text-[0.72rem] text-ink-faint">
+              CSV or Excel - effective_date, rate_change (e.g. 0.05 = +5%). Replaces the stored
+              history; drives parallelogram on-leveling.
+            </p>
+          </div>
+          <input
+            ref={ratesInput}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handle("rates", file);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            kind="secondary"
+            disabled={busy !== null}
+            onClick={() => ratesInput.current?.click()}
+          >
+            {busy === "rates" ? "Importing..." : "Choose file"}
           </Button>
         </div>
       </div>

@@ -11,3 +11,5 @@ export * from "./mack.js";
 export * from "./capping.js";
 export * from "./ilf.js";
 export * from "./trend.js";
+export * from "./onlevel.js";
+export * from "./elrMethods.js";

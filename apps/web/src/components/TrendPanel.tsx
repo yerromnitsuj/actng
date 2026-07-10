@@ -195,6 +195,7 @@ export default function TrendPanel() {
               {[
                 "Year",
                 "Earned premium",
+                "OLF",
                 "Ult counts",
                 "Freq /$1M",
                 "Severity",
@@ -219,6 +220,12 @@ export default function TrendPanel() {
                 <td className="px-2 py-1 text-[0.82rem] font-medium text-ink-soft">{r.origin}</td>
                 <td className="num px-2 py-1 text-right text-[0.8rem] text-ink-soft">
                   {r.earnedPremium !== null ? fmt0(r.earnedPremium) : "-"}
+                </td>
+                <td
+                  className="num cursor-help px-2 py-1 text-right text-[0.8rem] text-ink-faint"
+                  title="Parallelogram on-level factor applied to the frequency and pure-premium denominators"
+                >
+                  {r.onLevelFactor.toFixed(3)}
                 </td>
                 <td className="num px-2 py-1 text-right text-[0.8rem] text-ink">
                   {r.ultimateCounts !== null ? r.ultimateCounts.toFixed(1) : "-"}

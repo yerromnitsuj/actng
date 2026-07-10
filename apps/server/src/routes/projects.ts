@@ -11,7 +11,12 @@ import {
   replaceExposures,
 } from "../db/repo.js";
 import { advisorMemory } from "../mastra/advisor.js";
-import { parseClaimsUpload, parseExposuresUpload, parseIlfTableUpload } from "../services/importService.js";
+import {
+  parseClaimsUpload,
+  parseExposuresUpload,
+  parseIlfTableUpload,
+  parseRateHistoryUpload,
+} from "../services/importService.js";
 import { autoFitTailsFromData, HttpError, patchWorkspace } from "../services/workspaceService.js";
 
 const upload = multer({
@@ -95,6 +100,15 @@ projectsRouter.post("/:id/import/ilf-table", upload.single("file"), async (req, 
     ilf: view.state.ilf,
     note: "Table loaded. To restore with it, select the table source and set a finite target limit in the Increased limits exhibit.",
   });
+});
+
+projectsRouter.post("/:id/import/rate-history", upload.single("file"), async (req, res) => {
+  const project = getProject(String(req.params.id));
+  if (!project) throw new HttpError(404, "NOT_FOUND", "Project not found");
+  if (!req.file) throw new HttpError(400, "NO_FILE", "Attach a CSV or Excel file as 'file'");
+  const history = await parseRateHistoryUpload(req.file.originalname, req.file.buffer);
+  const view = patchWorkspace(project.id, { rates: { history } });
+  res.json({ imported: history.length, replaced: true, rates: view.state.rates });
 });
 
 projectsRouter.post("/:id/import/exposures", upload.single("file"), async (req, res) => {

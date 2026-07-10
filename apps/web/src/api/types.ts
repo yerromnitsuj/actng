@@ -27,7 +27,10 @@ export type SelectionMethodKey =
   | "bfPaid"
   | "bfIncurred"
   | "bsCase"
-  | "bsSettlement";
+  | "bsSettlement"
+  | "ccPaid"
+  | "ccIncurred"
+  | "expectedClaims";
 
 export interface UltimateSelectionState {
   defaultWeights: Record<SelectionMethodKey, number>;
@@ -106,6 +109,7 @@ export interface TrendReview {
     origin: string;
     year: number;
     earnedPremium: number | null;
+    onLevelFactor: number;
     ultimateCounts: number | null;
     frequency: number | null;
     severity: number | null;
@@ -137,6 +141,28 @@ export interface WorkspaceState {
     severity: Record<LayerKey, TrendChoice>;
     targetYear: number | null;
   };
+  rates: { history: { effectiveDate: string; change: number }[]; premiumTrend: number | null };
+  elr: { selected: number | null };
+}
+
+export interface ElrReview {
+  targetYear: number;
+  level: "unlimited" | "limited" | "restored";
+  rows: {
+    origin: string;
+    premium: number;
+    onLevelFactor: number;
+    premiumAdj: number;
+    lossAdj: number;
+    onLevelTrendedPremium: number;
+    selectedUltimate: number | null;
+    trendedUltimate: number | null;
+    lossRatioAtTarget: number | null;
+  }[];
+  averages: { key: string; label: string; value: number | null }[];
+  capeCodElr: { paid: number | null; incurred: number | null };
+  selected: number | null;
+  warnings: string[];
 }
 
 export interface ClaimSizeYearRow {
@@ -237,6 +263,7 @@ export interface WorkspaceView {
   ultimateSelection: UltimateSelectionView | null;
   layerReview: LayerReview;
   trendReview: TrendReview | null;
+  elrReview: ElrReview | null;
   ilfReview: IlfReview;
 }
 
@@ -256,6 +283,12 @@ export interface AnalysisResults {
   /** The development layer this run was built on (absent on pre-layer runs = unlimited). */
   layer?: LayerState;
   ilfUnresolvedReason?: string | null;
+  capeCod?: {
+    paid: { elrAtTargetLevel: number; totals: { ultimate: number } } | null;
+    incurred: { elrAtTargetLevel: number; totals: { ultimate: number } } | null;
+    skippedReason?: string;
+  };
+  expectedClaims?: { selectedElrAtTargetLevel: number; totals: { ultimate: number } } | null;
   ilf?: ResolvedIlf | null;
   unlimitedDiagonals?: Record<string, { paid: number; incurred: number }>;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };

@@ -71,6 +71,14 @@ export const api = {
       body: form,
     });
   },
+  importRateHistory: (projectId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ imported: number }>(`/api/projects/${projectId}/import/rate-history`, {
+      method: "POST",
+      body: form,
+    });
+  },
   importExposures: (projectId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);

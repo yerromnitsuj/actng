@@ -3,6 +3,9 @@ import type { LayerKey, WorkspaceState } from "../api/types.js";
 interface AnalysisInputs {
   layer: WorkspaceState["layer"];
   ilf?: WorkspaceState["ilf"];
+  rates?: WorkspaceState["rates"];
+  elr?: WorkspaceState["elr"];
+  trend?: WorkspaceState["trend"];
   selections: WorkspaceState["selections"];
   tail: WorkspaceState["tail"];
   bf: WorkspaceState["bf"];
@@ -106,6 +109,20 @@ export function resultsAreStale(inputs: unknown, state: WorkspaceState | undefin
       tail: tail ?? null,
       bf: bf ?? null,
       berquist: berquist ?? null,
+      rates: (s as Partial<AnalysisInputs>).rates ?? { history: [], premiumTrend: null },
+      elr: (s as Partial<AnalysisInputs>).elr ?? { selected: null },
+      // Trend feeds Cape Cod / Expected Claims / the BF a-priori; only the
+      // ACTIVE layer's severity slot matters to this run. Pre-phase-4 runs
+      // had no trend influence, normalized to the empty default.
+      trend: (() => {
+        const t = (s as Partial<AnalysisInputs>).trend ?? ("trend" in s ? (s as WorkspaceState).trend : undefined);
+        if (!t) return { frequency: null, severity: null, targetYear: null };
+        return {
+          frequency: t.frequency?.value ?? null,
+          severity: t.severity?.[active]?.value ?? null,
+          targetYear: t.targetYear ?? null,
+        };
+      })(),
       cadence: s.cadence,
       asOfDate: s.asOfDate,
     });

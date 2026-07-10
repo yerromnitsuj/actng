@@ -11,6 +11,9 @@ const METHOD_COLUMNS: { key: SelectionMethodKey; short: string; full: string }[]
   { key: "bfIncurred", short: "BF Inc", full: "Bornhuetter-Ferguson - incurred" },
   { key: "bsCase", short: "B-S Case", full: "Berquist-Sherman case adequacy - incurred" },
   { key: "bsSettlement", short: "B-S Settle", full: "Berquist-Sherman settlement rate - paid" },
+  { key: "ccPaid", short: "CC Paid", full: "Cape Cod - paid" },
+  { key: "ccIncurred", short: "CC Inc", full: "Cape Cod - incurred" },
+  { key: "expectedClaims", short: "Exp Clms", full: "Expected Claims (a-priori)" },
 ];
 
 /**
@@ -211,7 +214,7 @@ export default function SelectionPanel() {
             cells need opaque backgrounds, fixed widths (table-fixed) so the
             right offsets stay exact, and border-separate because collapsed
             and tr-level borders do not travel with sticky cells. */}
-        <table className="ledger w-full min-w-[1360px] table-fixed border-separate border-spacing-0">
+        <table className="ledger w-full min-w-[1792px] table-fixed border-separate border-spacing-0">
           <thead>
             <tr>
               <th className="sticky left-0 z-[1] w-14 border-r border-hairline bg-panel px-2 py-1.5 text-left text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-soft">

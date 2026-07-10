@@ -1,6 +1,9 @@
 import {
   analyzeTrend,
   berquistCaseAdequacy,
+  parallelogramOnLevel,
+  runCapeCod,
+  runExpectedClaims,
   berquistSettlement,
   buildTriangles,
   capClaims,
@@ -22,8 +25,11 @@ import {
   runDiagnostics,
   runMack,
   type BornhuetterFergusonResult,
+  type CapeCodResult,
   type ChainLadderResult,
   type ClaimSizeDiagnostics,
+  type ElrMethodRow,
+  type ExpectedClaimsResult,
   type ClaimSnapshot,
   type SeverityFit,
   type DevelopmentFactors,
@@ -89,6 +95,8 @@ export interface WorkspaceView {
   ilfReview: IlfReview;
   /** Frequency/severity/trend exhibit over the latest run; null before any run. */
   trendReview: TrendReview | null;
+  /** ELR compilation over the latest run; null before any run / without premium. */
+  elrReview: ElrReview | null;
 }
 
 export interface IlfReview {
@@ -272,8 +280,10 @@ export interface TrendReview {
     /** Fractional year for quarterly cadences (e.g. 2021Q3 -> 2021.625). */
     year: number;
     earnedPremium: number | null;
+    /** Parallelogram on-level factor applied to the frequency denominator. */
+    onLevelFactor: number;
     ultimateCounts: number | null;
-    /** Ultimate claim counts per $1M earned premium (raw, not on-level). */
+    /** Ultimate claim counts per $1M ON-LEVEL earned premium. */
     frequency: number | null;
     /** Selected ultimate / ultimate counts, at the exhibit's dollar level. */
     severity: number | null;
@@ -305,8 +315,9 @@ function originYear(origin: string): number {
  * (per $1M earned premium - RAW premium until the rates module ships),
  * severity and pure premium from the SELECTED ultimates of the latest run,
  * log-linear trend fits over each series, and trended restatements at the
- * selected rates. Trend selections do NOT feed any current method (they
- * arm the ELR module), so they are deliberately not analysis inputs.
+ * selected rates. Trend selections FEED the ELR machinery (BF a-priori,
+ * Cape Cod, Expected Claims), so they are analysis inputs: changing them
+ * flags existing results stale.
  */
 export function computeTrendReview(
   state: WorkspaceState,
@@ -320,6 +331,15 @@ export function computeTrendReview(
   const premiumByOrigin = new Map(exposures.map((e) => [e.origin, e.earnedPremium]));
 
   const severityLayer: LayerKey = results.layer?.active ?? "unlimited";
+  // Frequency divides by ON-LEVEL premium: a fitted frequency trend against
+  // raw premium embeds the inverse of every rate change and silently
+  // double-counts once the ELR machinery on-levels the denominator again.
+  const onLevelByOrigin = new Map(
+    parallelogramOnLevel(
+      selectionView.rows.map((r) => r.origin).filter((o) => (premiumByOrigin.get(o) ?? 0) > 0),
+      state.rates.history,
+    ).rows.map((r) => [r.origin, r.onLevelFactor]),
+  );
   const level: TrendReview["level"] =
     severityLayer === "capped" ? (results.ilf ? "restored" : "limited") : "unlimited";
 
@@ -335,14 +355,18 @@ export function computeTrendReview(
   const rows = selectionView.rows.map((selRow) => {
     const year = originYear(selRow.origin);
     const premium = premiumByOrigin.get(selRow.origin) ?? null;
+    const onLevelFactor = onLevelByOrigin.get(selRow.origin) ?? 1;
+    const onLevelPremium = premium !== null ? premium * onLevelFactor : null;
     const count = counts?.[selRow.origin] ?? null;
     const frequency =
-      count !== null && premium !== null && premium > 0 ? count / (premium / 1_000_000) : null;
+      count !== null && onLevelPremium !== null && onLevelPremium > 0
+        ? count / (onLevelPremium / 1_000_000)
+        : null;
     const severity =
       selRow.selected !== null && count !== null && count > 0 ? selRow.selected / count : null;
     const purePremium =
-      selRow.selected !== null && premium !== null && premium > 0
-        ? selRow.selected / (premium / 1_000_000)
+      selRow.selected !== null && onLevelPremium !== null && onLevelPremium > 0
+        ? selRow.selected / (onLevelPremium / 1_000_000)
         : null;
     const trend = (value: number | null, rate: number | null): number | null =>
       value !== null && rate !== null ? value * Math.pow(1 + rate, targetX - year) : null;
@@ -350,6 +374,7 @@ export function computeTrendReview(
       origin: selRow.origin,
       year,
       earnedPremium: premium,
+      onLevelFactor,
       ultimateCounts: count,
       frequency,
       severity,
@@ -360,7 +385,9 @@ export function computeTrendReview(
   });
 
   const notes: string[] = [
-    "Frequency and pure premium divide by RAW earned premium; on-level restatement arrives with the rates module",
+    state.rates.history.length > 0
+      ? "Frequency and pure premium divide by ON-LEVEL earned premium (parallelogram on the rate history)"
+      : "Frequency and pure premium divide by earned premium at its recorded level (no rate history imported - add one in the Rates exhibit for on-level frequency)",
     "Ultimate counts are volume-weighted chain ladder on REPORTED counts with no tail: severity is per reported claim (closed-without-payment included), and late-emerging counts on long-tail books are not tailed",
   ];
   if (level === "limited") {
@@ -413,6 +440,262 @@ export function computeTrendReview(
 }
 
 // ---------------------------------------------------------------------------
+// Expected loss ratio machinery
+
+export interface ElrAdjustments {
+  targetYear: number;
+  /** Composite annual loss trend used (freq x sev); null = none selected. */
+  lossTrendRate: number | null;
+  byOrigin: Record<string, { lossAdj: number; premiumAdj: number; onLevelFactor: number }>;
+  warnings: string[];
+}
+
+/**
+ * Per-origin factors bringing losses and premium to the target cost/rate
+ * level: lossAdj = composite trend (frequency x active-layer severity) from
+ * the origin midpoint to the target midpoint; premiumAdj = parallelogram
+ * on-level factor x premium trend over the same span.
+ */
+export function computeElrAdjustments(
+  state: WorkspaceState,
+  origins: string[],
+  /**
+   * The resolved target year, computed ONCE by the caller over the FULL
+   * origin set - deriving it from whatever subset is passed in lets BF and
+   * Cape Cod restate the same ELR to different levels in one run.
+   */
+  resolvedTargetYear: number,
+  options: { includeSetupNotes?: boolean } = {},
+): ElrAdjustments {
+  const setup = options.includeSetupNotes ?? true;
+  const warnings: string[] = [];
+  const onLevel = parallelogramOnLevel(origins, state.rates.history);
+  warnings.push(...onLevel.warnings);
+  if (state.rates.history.length === 0 && setup) {
+    warnings.push(
+      "No rate-change history: premium is treated as already on-level (factor 1)",
+    );
+  }
+  // Premium restates to the CURRENT rate level; losses to the target-year
+  // cost level. Changes effective after the target year break that pairing.
+  const lateChanges = state.rates.history.filter(
+    (rc) => Number(rc.effectiveDate.slice(0, 4)) > resolvedTargetYear,
+  );
+  if (lateChanges.length > 0) {
+    warnings.push(
+      `${lateChanges.length} rate change(s) effective after the target year ${resolvedTargetYear}: on-level premium sits at the CURRENT rate level while losses trend to ${resolvedTargetYear} - pin the target year at or after the last rate change for a clean level match`,
+    );
+  }
+
+  const freq = state.trend.frequency.value;
+  const sev = state.trend.severity[state.layer.active].value;
+  let lossTrendRate: number | null = null;
+  if (freq !== null && sev !== null) {
+    lossTrendRate = (1 + freq) * (1 + sev) - 1;
+  } else if (sev !== null) {
+    lossTrendRate = sev;
+    if (setup) {
+      warnings.push(
+        "No frequency trend selected; the loss trend uses severity alone (pure-premium trend understated if frequency is drifting)",
+      );
+    }
+  } else if (freq !== null) {
+    lossTrendRate = freq;
+    if (setup) {
+      warnings.push(
+        "No severity trend selected; the loss trend uses frequency alone (almost certainly understated)",
+      );
+    }
+  } else if (setup) {
+    warnings.push("No trend selections: losses are NOT trended (factor 1)");
+  }
+  const premiumTrend = state.rates.premiumTrend;
+
+  const years = origins.map((o) => originYear(o));
+  const targetYear = resolvedTargetYear;
+  const targetX = targetYear + 0.5;
+
+  const byOrigin: ElrAdjustments["byOrigin"] = {};
+  for (let i = 0; i < origins.length; i++) {
+    const origin = origins[i]!;
+    const x = years[i]!;
+    const olf = onLevel.rows.find((r) => r.origin === origin)?.onLevelFactor ?? 1;
+    byOrigin[origin] = {
+      onLevelFactor: olf,
+      lossAdj: lossTrendRate !== null ? Math.pow(1 + lossTrendRate, targetX - x) : 1,
+      premiumAdj: olf * (premiumTrend !== null ? Math.pow(1 + premiumTrend, targetX - x) : 1),
+    };
+  }
+  return { targetYear, lossTrendRate, byOrigin, warnings };
+}
+
+/** The one place the floating target year resolves: max over ALL origins. */
+export function resolveElrTargetYear(state: WorkspaceState, allOrigins: string[]): number {
+  return (
+    state.trend.targetYear ??
+    Math.max(...allOrigins.map((o) => Math.floor(originYear(o))))
+  );
+}
+
+export interface ElrReview {
+  targetYear: number;
+  /** Dollar level of the ultimates the loss ratios divide (the run's level). */
+  level: "unlimited" | "limited" | "restored";
+  rows: {
+    origin: string;
+    premium: number;
+    onLevelFactor: number;
+    premiumAdj: number;
+    lossAdj: number;
+    onLevelTrendedPremium: number;
+    selectedUltimate: number | null;
+    trendedUltimate: number | null;
+    /** Trended developed ultimate / on-level trended premium. */
+    lossRatioAtTarget: number | null;
+  }[];
+  averages: { key: string; label: string; value: number | null }[];
+  /** Cape Cod mechanical ELR (restated to this exhibit's level when restored). */
+  capeCodElr: { paid: number | null; incurred: number | null };
+  selected: number | null;
+  selectedAtLevel: "unlimited" | "limited" | "restored" | null;
+  warnings: string[];
+}
+
+/**
+ * The ELR compilation: per-year trended developed ultimates over on-level
+ * trended premium, an averages menu, and the Cape Cod mechanical ELR as the
+ * cross-check. The SELECTED ELR (stored at target level) feeds BF's derived
+ * a-priori and the Expected Claims method on the next run.
+ */
+export function computeElrReview(
+  state: WorkspaceState,
+  record: AnalysisRecord | null,
+  selectionView: UltimateSelectionView | null,
+  exposures: { origin: string; earnedPremium: number }[],
+): ElrReview | null {
+  if (!record || !selectionView) return null;
+  const results = record.results as AnalysisResults;
+  const premiumByOrigin = new Map(exposures.map((e) => [e.origin, e.earnedPremium]));
+  const origins = selectionView.rows.map((r) => r.origin);
+  const withPremium = origins.filter((o) => (premiumByOrigin.get(o) ?? 0) > 0);
+  if (withPremium.length === 0) return null;
+
+  const resolvedTarget = resolveElrTargetYear(
+    state,
+    selectionView.rows.map((r) => r.origin),
+  );
+  const adj = computeElrAdjustments(state, withPremium, resolvedTarget);
+  const level: ElrReview["level"] =
+    (results.layer?.active ?? "unlimited") === "capped"
+      ? results.ilf
+        ? "restored"
+        : "limited"
+      : "unlimited";
+  const warnings = [...adj.warnings];
+  if (level === "limited") {
+    warnings.push(
+      "Ultimates are at the LIMITED (capped) level: this ELR excludes the excess layer - restore before selecting, or select a limited ELR knowingly",
+    );
+  }
+
+  const rows = withPremium.map((origin) => {
+    const premium = premiumByOrigin.get(origin)!;
+    const a = adj.byOrigin[origin]!;
+    const selRow = selectionView.rows.find((r) => r.origin === origin)!;
+    const selectedUltimate = selRow.selected;
+    const trendedUltimate = selectedUltimate !== null ? selectedUltimate * a.lossAdj : null;
+    const onLevelTrendedPremium = premium * a.premiumAdj;
+    return {
+      origin,
+      premium,
+      onLevelFactor: a.onLevelFactor,
+      premiumAdj: a.premiumAdj,
+      lossAdj: a.lossAdj,
+      onLevelTrendedPremium,
+      selectedUltimate,
+      trendedUltimate,
+      lossRatioAtTarget:
+        trendedUltimate !== null && onLevelTrendedPremium > 0
+          ? trendedUltimate / onLevelTrendedPremium
+          : null,
+    };
+  });
+
+  const usable = rows.filter((r) => r.lossRatioAtTarget !== null);
+  const straight = (xs: typeof usable): number | null =>
+    xs.length > 0 ? xs.reduce((a, r) => a + r.lossRatioAtTarget!, 0) / xs.length : null;
+  const weighted = (xs: typeof usable): number | null => {
+    const prem = xs.reduce((a, r) => a + r.onLevelTrendedPremium, 0);
+    return prem > 0 ? xs.reduce((a, r) => a + r.trendedUltimate!, 0) / prem : null;
+  };
+  const exHiLo = (): number | null => {
+    if (usable.length < 5) return null;
+    const sorted = [...usable].sort((a, b) => a.lossRatioAtTarget! - b.lossRatioAtTarget!);
+    return straight(sorted.slice(1, -1));
+  };
+  // Windows span YEARS (a quarterly book's "last 5 years" is 20 quarters),
+  // anchored at the newest usable origin - never sliding back over gaps.
+  const maxUsableYear = usable.length > 0 ? Math.max(...usable.map((r) => originYear(r.origin))) : 0;
+  const lastYears = (n: number) => usable.filter((r) => originYear(r.origin) > maxUsableYear - n);
+  const averages: ElrReview["averages"] = [
+    { key: "wtd-all", label: "Premium-weighted, all years", value: weighted(usable) },
+    { key: "all", label: "Straight average, all years", value: straight(usable) },
+    { key: "last5", label: "Straight, last 5 years", value: straight(lastYears(5)) },
+    { key: "last3", label: "Straight, last 3 years", value: straight(lastYears(3)) },
+    { key: "exhilo", label: "Ex high/low", value: exHiLo() },
+  ];
+
+  // Circularity disclosure: these loss ratios divide the SELECTED blend; any
+  // weight on a-priori methods (BF/CC/EC) makes the exhibit partially
+  // reproduce whatever ELR fed those methods.
+  let aprioriWeight = 0;
+  let totalWeight = 0;
+  for (const selRow of selectionView.rows) {
+    for (const [key, w] of Object.entries(selRow.weights)) {
+      totalWeight += w;
+      if (["bfPaid", "bfIncurred", "ccPaid", "ccIncurred", "expectedClaims"].includes(key)) {
+        aprioriWeight += w;
+      }
+    }
+  }
+  if (totalWeight > 0 && aprioriWeight > 0) {
+    warnings.push(
+      `${Math.round((aprioriWeight / totalWeight) * 100)}% of the blended weight sits on a-priori methods (BF/Cape Cod/Expected Claims): these loss ratios partially SELF-CONFIRM the prior ELR - anchor the selection on development-heavy weights, or read the averages as anchored accordingly`,
+    );
+  }
+
+  const restateCc = (v: number | null): number | null =>
+    v !== null && level === "restored" && results.ilf ? v * results.ilf.factor : v;
+  if (level === "restored" && results.ilf) {
+    warnings.push(
+      `The Cape Cod cross-check is restated x${results.ilf.factor.toFixed(4)} to total limits so it compares to these restored-level ratios`,
+    );
+  }
+  if (state.elr.selectedAtLevel !== null && state.elr.selectedAtLevel !== level) {
+    warnings.push(
+      `The selected ELR was chosen at the ${state.elr.selectedAtLevel} level but this exhibit is at the ${level} level - re-select before relying on it`,
+    );
+  }
+
+  return {
+    targetYear: adj.targetYear,
+    level,
+    rows,
+    averages,
+    // The mechanical Cape Cod ELR is native to the run's layer; on restored
+    // exhibits it is restated by the run's uncap factor so the cross-check
+    // and the rows sit at the SAME dollar level.
+    capeCodElr: {
+      paid: restateCc(results.capeCod?.paid?.elrAtTargetLevel ?? null),
+      incurred: restateCc(results.capeCod?.incurred?.elrAtTargetLevel ?? null),
+    },
+    selected: state.elr.selected,
+    selectedAtLevel: state.elr.selectedAtLevel,
+    warnings,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Selection of ultimates
 
 export const SELECTION_METHODS: { key: SelectionMethodKey; label: string }[] = [
@@ -422,6 +705,9 @@ export const SELECTION_METHODS: { key: SelectionMethodKey; label: string }[] = [
   { key: "bfIncurred", label: "Bornhuetter-Ferguson - incurred" },
   { key: "bsCase", label: "Berquist-Sherman case adequacy - incurred" },
   { key: "bsSettlement", label: "Berquist-Sherman settlement rate - paid" },
+  { key: "ccPaid", label: "Cape Cod - paid" },
+  { key: "ccIncurred", label: "Cape Cod - incurred" },
+  { key: "expectedClaims", label: "Expected Claims (a-priori)" },
 ];
 
 export interface UltimateSelectionRow {
@@ -522,6 +808,15 @@ export function computeUltimateSelection(
   }
   for (const row of results.berquistSherman.settlement?.chainLadder.rows ?? []) {
     ensure(row.origin).ultimates.bsSettlement = row.ultimate;
+  }
+  for (const row of results.capeCod?.paid?.rows ?? []) {
+    ensure(row.origin).ultimates.ccPaid = row.ultimate;
+  }
+  for (const row of results.capeCod?.incurred?.rows ?? []) {
+    ensure(row.origin).ultimates.ccIncurred = row.ultimate;
+  }
+  for (const row of results.expectedClaims?.rows ?? []) {
+    ensure(row.origin).ultimates.expectedClaims = row.ultimate;
   }
 
   // Restoration to total limits: capped runs with a resolved uncap factor
@@ -830,6 +1125,7 @@ export function getWorkspaceView(projectId: string): WorkspaceView {
     layerReview,
     ilfReview,
     trendReview: computeTrendReview(state, latest, ultimateSelection, getExposures(projectId)),
+    elrReview: computeElrReview(state, latest, ultimateSelection, getExposures(projectId)),
     ultimateSelection,
     factors: {
       paid: computeDevelopmentFactors(triangles.paid),
@@ -863,6 +1159,11 @@ export interface WorkspacePatch {
     indexRate?: number;
     baseYear?: number | null;
   };
+  rates?: {
+    history?: { effectiveDate: string; change: number }[];
+    premiumTrend?: number | null;
+  };
+  elr?: { selected?: number | null };
   trend?: {
     frequency?: TrendChoice;
     severity?: { layer: LayerKey; source: TrendChoice["source"]; value: number | null };
@@ -1085,6 +1386,79 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
       state.trend.targetYear = t.targetYear;
     }
   }
+  if (patch.rates) {
+    if (patch.rates.history !== undefined) {
+      for (const rc of patch.rates.history) {
+        if (!isNum(rc.change) || rc.change <= -1) {
+          throw new HttpError(
+            422,
+            "BAD_RATE_CHANGE",
+            "A rate change must be a number greater than -100%",
+          );
+        }
+        const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(rc.effectiveDate);
+        const valid =
+          dm !== null &&
+          (() => {
+            const t = Date.UTC(Number(dm[1]), Number(dm[2]) - 1, Number(dm[3]));
+            const d = new Date(t);
+            return (
+              d.getUTCFullYear() === Number(dm[1]) &&
+              d.getUTCMonth() === Number(dm[2]) - 1 &&
+              d.getUTCDate() === Number(dm[3])
+            );
+          })();
+        if (!valid) {
+          throw new HttpError(
+            422,
+            "BAD_DATE",
+            "Rate-change dates must be real calendar dates in yyyy-mm-dd",
+          );
+        }
+      }
+      state.rates.history = [...patch.rates.history].sort((a, b) =>
+        a.effectiveDate.localeCompare(b.effectiveDate),
+      );
+    }
+    if (patch.rates.premiumTrend !== undefined) {
+      if (
+        patch.rates.premiumTrend !== null &&
+        (!isNum(patch.rates.premiumTrend) || patch.rates.premiumTrend <= -1)
+      ) {
+        throw new HttpError(
+          422,
+          "BAD_TREND",
+          "The premium trend must be a number greater than -100%",
+        );
+      }
+      state.rates.premiumTrend = patch.rates.premiumTrend;
+    }
+  }
+  if (patch.elr) {
+    if (patch.elr.selected !== undefined) {
+      if (
+        patch.elr.selected !== null &&
+        (!isNum(patch.elr.selected) || patch.elr.selected <= 0)
+      ) {
+        throw new HttpError(422, "BAD_ELR", "The selected ELR must be a positive number or null");
+      }
+      state.elr.selected = patch.elr.selected;
+      // Stamp the dollar level of the exhibit this number was read from: a
+      // later run at a different level must refuse it, not misapply it.
+      if (patch.elr.selected === null) {
+        state.elr.selectedAtLevel = null;
+      } else {
+        const latest = latestAnalysis(projectId);
+        const latestResults = latest ? (latest.results as AnalysisResults) : null;
+        state.elr.selectedAtLevel =
+          (latestResults?.layer?.active ?? "unlimited") === "capped"
+            ? latestResults?.ilf
+              ? "restored"
+              : "limited"
+            : "unlimited";
+      }
+    }
+  }
   if (patch.bf) activeBf(state).aprioriLossRatio = patch.bf.aprioriLossRatio;
   if (patch.berquist) {
     if (patch.berquist.severityTrend !== undefined) {
@@ -1284,6 +1658,17 @@ export interface AnalysisResults {
   ilfUnresolvedReason?: string | null;
   /** Ultimate claim counts by origin (CL on reported counts, no tail). */
   ultimateCounts?: Record<string, number>;
+  capeCod?: {
+    paid: CapeCodResult | null;
+    incurred: CapeCodResult | null;
+    skippedReason?: string;
+  };
+  expectedClaims?: ExpectedClaimsResult | null;
+  /** Per-origin adjustment factors the ELR methods ran with (audit trail). */
+  elrAdjustments?: Record<
+    string,
+    { lossAdj: number; premiumAdj: number; onLevelFactor: number }
+  >;
   /** The uncap factor applied to restore capped ultimates; null/absent = still limited. */
   ilf?: ResolvedIlf | null;
   /** Unlimited latest diagonals per origin (capped runs only): the true
@@ -1375,6 +1760,28 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
 
   // Bornhuetter-Ferguson (needs exposure data).
   const exposures = getExposures(projectId);
+
+  // ELR level coherence, resolved ONCE for BF, Cape Cod, and Expected Claims.
+  const runResolvedIlf = state.layer.active === "capped" ? view.ilfReview.resolved : null;
+  const runLevel: "unlimited" | "limited" | "restored" =
+    state.layer.active === "capped" ? (runResolvedIlf ? "restored" : "limited") : "unlimited";
+  const elrTargetYear = resolveElrTargetYear(state, triangles.paid.origins);
+  let elrNativeToRun: number | null = null;
+  if (state.elr.selected !== null) {
+    const selLevel = state.elr.selectedAtLevel ?? "unlimited";
+    if (selLevel !== runLevel) {
+      warnings.push(
+        `The selected ELR was chosen at the ${selLevel} level but this run is ${runLevel}: Expected Claims and the ELR-derived BF a-priori were SKIPPED - re-select the ELR on the current exhibit`,
+      );
+    } else if (runLevel === "restored") {
+      // De-restate to the capped level: method outputs are native to the run
+      // layer and the selection matrix restores them exactly once.
+      elrNativeToRun = state.elr.selected / runResolvedIlf!.factor;
+    } else {
+      elrNativeToRun = state.elr.selected;
+    }
+  }
+
   let bfPaid: BornhuetterFergusonResult | null = null;
   let bfIncurred: BornhuetterFergusonResult | null = null;
   let bfSkipped: string | undefined;
@@ -1382,8 +1789,27 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     bfSkipped = "No exposure/premium data imported; Bornhuetter-Ferguson was skipped.";
     warnings.push(bfSkipped);
   } else {
+    // A-priori precedence: explicit manual override > per-origin restatement
+    // of the selected ELR > BF's own CL-derived default. The selected ELR is
+    // stored at the level of the exhibit it was chosen from; a run at a
+    // DIFFERENT level must not consume it, and a restored-level ELR feeding
+    // a capped run is first de-restated to the capped level so the uniform
+    // restoration in the selection matrix applies exactly once.
+    const manualApriori = activeBf(state).aprioriLossRatio;
+    let aprioriByOrigin: Record<string, number> | undefined;
+    if (manualApriori === null && elrNativeToRun !== null) {
+      const adj = computeElrAdjustments(state, triangles.paid.origins, elrTargetYear, {
+        includeSetupNotes: false,
+      });
+      aprioriByOrigin = {};
+      for (const origin of triangles.paid.origins) {
+        const a = adj.byOrigin[origin]!;
+        aprioriByOrigin[origin] = (elrNativeToRun * a.premiumAdj) / a.lossAdj;
+      }
+    }
     const bfOptions = {
-      aprioriLossRatio: activeBf(state).aprioriLossRatio ?? undefined,
+      aprioriLossRatio: manualApriori ?? undefined,
+      aprioriByOrigin,
     };
     bfPaid = runBornhuetterFerguson(triangles.paid, paidCl, exposures, bfOptions);
     bfIncurred = runBornhuetterFerguson(triangles.incurred, incurredCl, exposures, bfOptions);
@@ -1490,6 +1916,70 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     warnings.push(mackSkipped);
   }
 
+  // Cape Cod (mechanical ELR) and Expected Claims (selected ELR), both on
+  // trended on-level terms via the per-origin adjustment factors.
+  let ccPaid: CapeCodResult | null = null;
+  let ccIncurred: CapeCodResult | null = null;
+  let expectedClaimsResult: ExpectedClaimsResult | null = null;
+  let ccSkipped: string | undefined;
+  let elrAdjustmentsByOrigin: AnalysisResults["elrAdjustments"];
+  if (exposures.length === 0) {
+    ccSkipped = "No exposure/premium data imported; Cape Cod and Expected Claims were skipped.";
+    warnings.push(ccSkipped);
+  } else {
+    try {
+      const premiumByOrigin = new Map(exposures.map((e) => [e.origin, e.earnedPremium]));
+      const originsWithPremium = triangles.paid.origins.filter(
+        (o) => (premiumByOrigin.get(o) ?? 0) > 0,
+      );
+      if (originsWithPremium.length < triangles.paid.origins.length) {
+        warnings.push(
+          `${triangles.paid.origins.length - originsWithPremium.length} origin(s) lack premium and are excluded from Cape Cod / Expected Claims`,
+        );
+      }
+      const elrArmed =
+        state.rates.history.length > 0 ||
+        state.elr.selected !== null ||
+        state.trend.frequency.value !== null ||
+        state.trend.severity[state.layer.active].value !== null;
+      const adj = computeElrAdjustments(state, originsWithPremium, elrTargetYear, {
+        // A pristine workspace shouldn't read like it has data problems:
+        // setup guidance stays on the ELR exhibit until the machinery is armed.
+        includeSetupNotes: elrArmed,
+      });
+      warnings.push(...adj.warnings.filter((w) => !warnings.includes(w)));
+      elrAdjustmentsByOrigin = adj.byOrigin;
+      const mkRows = (cl: ChainLadderResult): ElrMethodRow[] =>
+        originsWithPremium.flatMap((origin) => {
+          const row = cl.rows.find((r) => r.origin === origin);
+          if (!row) return [];
+          const a = adj.byOrigin[origin]!;
+          return [
+            {
+              origin,
+              reported: row.latestValue,
+              cdf: row.cdf,
+              premium: premiumByOrigin.get(origin)!,
+              lossAdj: a.lossAdj,
+              premiumAdj: a.premiumAdj,
+            },
+          ];
+        });
+      ccPaid = runCapeCod(mkRows(paidCl));
+      ccIncurred = runCapeCod(mkRows(incurredCl));
+      warnings.push(...ccPaid.warnings, ...ccIncurred.warnings);
+      if (elrNativeToRun !== null) {
+        expectedClaimsResult = runExpectedClaims(mkRows(paidCl), elrNativeToRun);
+      }
+    } catch (err) {
+      ccSkipped =
+        err instanceof Error
+          ? `Cape Cod / Expected Claims skipped: ${err.message}`
+          : "Cape Cod / Expected Claims skipped";
+      warnings.push(ccSkipped);
+    }
+  }
+
   const summary: MethodSummary[] = [];
   const push = (
     method: string,
@@ -1519,6 +2009,30 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
       "paid",
       bsSettlement.chainLadder.totals,
       "CL on adjusted paid, fresh volume-weighted factors",
+    );
+  }
+  if (ccPaid) {
+    push(
+      "Cape Cod",
+      "paid",
+      { ultimate: ccPaid.totals.ultimate },
+      `mechanical ELR ${(ccPaid.elrAtTargetLevel * 100).toFixed(1)}% at target level`,
+    );
+  }
+  if (ccIncurred) {
+    push(
+      "Cape Cod",
+      "incurred",
+      { ultimate: ccIncurred.totals.ultimate },
+      `mechanical ELR ${(ccIncurred.elrAtTargetLevel * 100).toFixed(1)}% at target level`,
+    );
+  }
+  if (expectedClaimsResult) {
+    push(
+      "Expected Claims",
+      "paid",
+      { ultimate: expectedClaimsResult.totals.ultimate },
+      `selected ELR ${(expectedClaimsResult.selectedElrAtTargetLevel * 100).toFixed(1)}% at target level, restated per year`,
     );
   }
 
@@ -1569,6 +2083,9 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     ilf: ilfApplied,
     ilfUnresolvedReason,
     ultimateCounts: ultimateCountsByOrigin,
+    capeCod: { paid: ccPaid, incurred: ccIncurred, skippedReason: ccSkipped },
+    expectedClaims: expectedClaimsResult,
+    elrAdjustments: elrAdjustmentsByOrigin,
     unlimitedDiagonals,
     chainLadder: { paid: paidCl, incurred: incurredCl },
     bornhuetterFerguson: { paid: bfPaid, incurred: bfIncurred, skippedReason: bfSkipped },
@@ -1584,6 +2101,9 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     ilf: state.ilf,
     selections: state.selections,
     tail: state.tail,
+    rates: state.rates,
+    elr: state.elr,
+    trend: state.trend,
     bf: state.bf,
     berquist: state.berquist,
     cadence: state.cadence,

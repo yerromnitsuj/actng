@@ -21,7 +21,10 @@ export type SelectionMethodKey =
   | "bfPaid"
   | "bfIncurred"
   | "bsCase"
-  | "bsSettlement";
+  | "bsSettlement"
+  | "ccPaid"
+  | "ccIncurred"
+  | "expectedClaims";
 
 export interface UltimateSelectionState {
   /**
@@ -45,6 +48,9 @@ export function defaultUltimateSelection(): UltimateSelectionState {
       bfIncurred: 0,
       bsCase: 0,
       bsSettlement: 0,
+      ccPaid: 0,
+      ccIncurred: 0,
+      expectedClaims: 0,
     },
     weightsByOrigin: {},
     overrides: {},
@@ -72,6 +78,25 @@ export interface TrendState {
   severity: Record<LayerKey, TrendChoice>;
   /** Cost level the exhibit trends TO; null = latest origin year. */
   targetYear: number | null;
+}
+
+export interface RatesState {
+  /** Rate-change history for parallelogram on-leveling. */
+  history: { effectiveDate: string; change: number }[];
+  /** Annual premium trend rate; null = none. */
+  premiumTrend: number | null;
+}
+
+export interface ElrState {
+  /** Selected expected loss ratio AT THE TARGET COST LEVEL; null = unselected. */
+  selected: number | null;
+  /**
+   * The dollar level of the exhibit the ELR was selected FROM (stamped at
+   * selection time). A run at a different level must not consume it - a
+   * total-limits ELR applied to capped triangles (or vice versa) is wrong by
+   * the whole uncap factor.
+   */
+  selectedAtLevel: "unlimited" | "limited" | "restored" | null;
 }
 
 export function defaultTrendState(): TrendState {
@@ -122,6 +147,8 @@ export interface WorkspaceState {
   >;
   ultimateSelection: UltimateSelectionState;
   trend: TrendState;
+  rates: RatesState;
+  elr: ElrState;
 }
 
 export interface IlfState {
@@ -188,6 +215,8 @@ export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
     berquist: defaultLayerBerquist(),
     ultimateSelection: defaultUltimateSelection(),
     trend: defaultTrendState(),
+    rates: { history: [], premiumTrend: null },
+    elr: { selected: null, selectedAtLevel: null },
   };
 }
 
@@ -429,6 +458,15 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
   if (!state.trend) {
     state.trend = defaultTrendState();
   }
+  if (!state.rates) {
+    state.rates = { history: [], premiumTrend: null };
+  }
+  if (!state.elr) {
+    state.elr = { selected: null, selectedAtLevel: null };
+  } else if (state.elr.selectedAtLevel === undefined) {
+    // Pre-stamp selections came from unlimited-level exhibits by construction.
+    state.elr.selectedAtLevel = state.elr.selected !== null ? "unlimited" : null;
+  }
   // Backfill for workspaces persisted before the selection exhibit existed,
   // and migrate the pre-matrix shape (a single global `weights` record).
   if (!state.ultimateSelection) {
@@ -444,6 +482,15 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
     }
     if (!state.ultimateSelection.weightsByOrigin) state.ultimateSelection.weightsByOrigin = {};
     if (!state.ultimateSelection.overrides) state.ultimateSelection.overrides = {};
+  }
+  // New method keys join the weights records with zero weight - AFTER the
+  // pre-matrix migration above, so legacy flat-weights states get them too.
+  if (state.ultimateSelection?.defaultWeights) {
+    for (const key of ["ccPaid", "ccIncurred", "expectedClaims"] as const) {
+      if (state.ultimateSelection.defaultWeights[key] === undefined) {
+        state.ultimateSelection.defaultWeights[key] = 0;
+      }
+    }
   }
   return state;
 }

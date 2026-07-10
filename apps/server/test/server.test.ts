@@ -985,3 +985,253 @@ describe("trend and frequency/severity exhibit", () => {
     ).toThrowError(/1900 and 2200/);
   });
 });
+
+describe("expected-loss-ratio machinery (phase 4)", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("ELR test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 89,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+  });
+
+  it("parallelogram on-level factors flow into the exhibit and run adjustments", () => {
+    ws.patchWorkspace(projectId, {
+      rates: {
+        history: [
+          { effectiveDate: "2022-01-01", change: 0.1 },
+          { effectiveDate: "2024-01-01", change: 0.05 },
+        ],
+        premiumTrend: 0.02,
+      },
+      trend: {
+        frequency: { source: "manual", value: 0.0 },
+        severity: { layer: "unlimited", source: "manual", value: 0.08 },
+        targetYear: 2025,
+      },
+    });
+    const record = ws.runFullAnalysis(projectId, "elr base run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    // Adjustments stamped per origin; 2020 predates all changes -> its OLF
+    // is the full compounded level 1.1 * 1.05.
+    expect(results.elrAdjustments).toBeDefined();
+    expect(results.elrAdjustments!["2020"]!.onLevelFactor).toBeCloseTo(1.1 * 1.05, 6);
+    // Loss adj for 2020 at 8% sev (freq 0): (1.08)^(2025.5-2020.5) = 1.08^5.
+    expect(results.elrAdjustments!["2020"]!.lossAdj).toBeCloseTo(1.08 ** 5, 6);
+    // Cape Cod ran on both bases with a sane mechanical ELR.
+    expect(results.capeCod?.paid?.elrAtTargetLevel).toBeGreaterThan(0);
+    expect(results.capeCod?.incurred?.elrAtTargetLevel).toBeGreaterThan(0);
+    // Cape Cod internal identity on one row: ultimate = reported + expected x (1 - 1/cdf).
+    const cc = results.capeCod!.paid!;
+    const row = cc.rows[cc.rows.length - 1]!;
+    expect(row.ultimate).toBeCloseTo(
+      row.reported + row.expectedUltimate * (1 - 1 / row.cdf),
+      6,
+    );
+    // The ELR exhibit populates with premium-weighted average available.
+    const review = ws.getWorkspaceView(projectId).elrReview!;
+    expect(review.rows.length).toBeGreaterThan(0);
+    const wtd = review.averages.find((a) => a.key === "wtd-all")!;
+    expect(wtd.value).toBeGreaterThan(0);
+    expect(review.capeCodElr.paid).toBeCloseTo(cc.elrAtTargetLevel, 9);
+  });
+
+  it("a selected ELR drives BF per-origin a-priori and the Expected Claims method", () => {
+    ws.patchWorkspace(projectId, { elr: { selected: 0.7 } });
+    const record = ws.runFullAnalysis(projectId, "elr selected run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    // Expected Claims: ultimate_i = 0.7 restated to origin level x premium_i.
+    expect(results.expectedClaims).not.toBeNull();
+    const exposures = repo.getExposures(projectId);
+    for (const row of results.expectedClaims!.rows) {
+      const adj = results.elrAdjustments![row.origin]!;
+      const premium = exposures.find((e) => e.origin === row.origin)!.earnedPremium;
+      expect(row.ultimate).toBeCloseTo(((0.7 * adj.premiumAdj) / adj.lossAdj) * premium, 6);
+    }
+    // BF used the restated ELR as its per-origin a-priori.
+    const bfRow = results.bornhuetterFerguson.paid!.rows.find((r) => r.origin === "2025")!;
+    const adj2025 = results.elrAdjustments!["2025"]!;
+    expect(bfRow.aprioriLossRatio).toBeCloseTo((0.7 * adj2025.premiumAdj) / adj2025.lossAdj, 9);
+    // Selection matrix carries all nine methods.
+    const sel = ws.getWorkspaceView(projectId).ultimateSelection!;
+    expect(sel.methods.map((m) => m.key)).toEqual(
+      expect.arrayContaining(["ccPaid", "ccIncurred", "expectedClaims"]),
+    );
+    const first = sel.rows[0]!;
+    expect(first.ultimates.ccPaid).not.toBeNull();
+    expect(first.ultimates.expectedClaims).not.toBeNull();
+  });
+
+  it("a manual BF override still wins over the selected ELR", () => {
+    ws.patchWorkspace(projectId, { bf: { aprioriLossRatio: 0.55 } });
+    const record = ws.runFullAnalysis(projectId, "manual override run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    for (const row of results.bornhuetterFerguson.paid!.rows) {
+      expect(row.aprioriLossRatio).toBeCloseTo(0.55, 9);
+    }
+    ws.patchWorkspace(projectId, { bf: { aprioriLossRatio: null } });
+  });
+
+  it("rates and elr are run inputs (staleness) and validate at the door", () => {
+    const record = repo.listAnalyses(projectId)[0]!;
+    const full = repo.getAnalysis(record.id)!;
+    const inputs = full.inputs as { rates?: unknown; elr?: unknown };
+    expect(inputs.rates).toBeDefined();
+    expect(inputs.elr).toBeDefined();
+    expect(() =>
+      ws.patchWorkspace(projectId, {
+        rates: { history: [{ effectiveDate: "2024-13-01", change: 0.1 }] },
+      }),
+    ).toThrowError(/calendar dates/);
+    expect(() => ws.patchWorkspace(projectId, { elr: { selected: -0.2 } })).toThrowError(
+      /positive/,
+    );
+  });
+});
+
+describe("phase-4 review fixes: level coherence, zod weights, on-level frequency", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("ELR coherence test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 89,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+  });
+
+  it("the route zod accepts weights for the three new methods", async () => {
+    const { patchSchema } = await import("../src/routes/workspace.js");
+    const parsed = patchSchema.parse({
+      ultimateSelection: { weights: { ccPaid: 1, ccIncurred: 2, expectedClaims: 3 } },
+    });
+    expect(parsed.ultimateSelection?.weights).toEqual({
+      ccPaid: 1,
+      ccIncurred: 2,
+      expectedClaims: 3,
+    });
+  });
+
+  it("trend exhibit frequency divides by ON-LEVEL premium", () => {
+    ws.runFullAnalysis(projectId, "base run");
+    ws.patchWorkspace(projectId, {
+      rates: { history: [{ effectiveDate: "2023-01-01", change: 0.1 }] },
+    });
+    const view = ws.getWorkspaceView(projectId);
+    const review = view.trendReview!;
+    const exposures = repo.getExposures(projectId);
+    const row2020 = review.rows.find((r) => r.origin === "2020")!;
+    expect(row2020.onLevelFactor).toBeGreaterThan(1); // pre-change year restates up
+    const premium = exposures.find((e) => e.origin === "2020")!.earnedPremium;
+    expect(row2020.frequency).toBeCloseTo(
+      row2020.ultimateCounts! / ((premium * row2020.onLevelFactor) / 1_000_000),
+      9,
+    );
+  });
+
+  it("ELR selected on a restored exhibit is de-restated for the run: Expected Claims is restored exactly once", () => {
+    // Arm the capped+restored pipeline.
+    ws.patchWorkspace(projectId, { layer: { cap: 150_000, active: "capped" } });
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+    ws.patchWorkspace(projectId, {
+      ilf: {
+        table: [
+          { limit: 150_000, factor: 1 },
+          { limit: 5_000_000, factor: 1.25 },
+        ],
+        source: "table",
+        targetLimit: 5_000_000,
+      },
+    });
+    const restoredRun = ws.runFullAnalysis(projectId, "restored run");
+    const restoredResults =
+      restoredRun.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(restoredResults.ilf).not.toBeNull();
+    const factor = restoredResults.ilf!.factor;
+
+    // Select an ELR from the RESTORED exhibit (stamps the level).
+    ws.patchWorkspace(projectId, { elr: { selected: 0.7 } });
+    expect(ws.ensureWorkspaceState(projectId).elr.selectedAtLevel).toBe("restored");
+
+    const rerun = ws.runFullAnalysis(projectId, "ec run");
+    const results = rerun.results as import("../src/services/workspaceService.js").AnalysisResults;
+    // EC ran (levels match) with the DE-RESTATED elr...
+    expect(results.expectedClaims).not.toBeNull();
+    expect(results.expectedClaims!.selectedElrAtTargetLevel).toBeCloseTo(0.7 / factor, 9);
+    // ...so after the matrix restores it ONCE, the displayed EC ultimate is
+    // the target-level a-priori: 0.7 x premium x premiumAdj/lossAdj.
+    const sel = ws.getWorkspaceView(projectId).ultimateSelection!;
+    const adj = results.elrAdjustments!;
+    const exposures = repo.getExposures(projectId);
+    const probe = sel.rows.find((r) => r.ultimates.expectedClaims !== null)!;
+    const premium = exposures.find((e) => e.origin === probe.origin)!.earnedPremium;
+    const a = adj[probe.origin]!;
+    expect(probe.ultimates.expectedClaims!).toBeCloseTo(
+      ((0.7 * a.premiumAdj) / a.lossAdj) * premium,
+      6,
+    );
+  });
+
+  it("a level mismatch SKIPS Expected Claims and the derived a-priori with a warning", () => {
+    ws.patchWorkspace(projectId, { layer: { active: "unlimited" } });
+    const run = ws.runFullAnalysis(projectId, "mismatch run");
+    const results = run.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.expectedClaims ?? null).toBeNull();
+    expect(results.warnings.join(" ")).toMatch(/SKIPPED/);
+    ws.patchWorkspace(projectId, { layer: { active: "capped" } });
+  });
+
+  it("elrReview restates the Cape Cod cross-check to the restored level and discloses circularity", () => {
+    // The exhibit reads the LATEST run; the previous test left an unlimited
+    // one on top - put a capped+restored run back first.
+    ws.runFullAnalysis(projectId, "restored again");
+    ws.patchWorkspace(projectId, {
+      ultimateSelection: { weights: { expectedClaims: 1 } },
+    });
+    const view = ws.getWorkspaceView(projectId);
+    const review = view.elrReview!;
+    expect(review.level).toBe("restored");
+    expect(review.warnings.join(" ")).toMatch(/restated x/);
+    expect(review.warnings.join(" ")).toMatch(/SELF-CONFIRM/);
+    // Reset the EC weight.
+    ws.patchWorkspace(projectId, { ultimateSelection: { weights: { expectedClaims: 0 } } });
+  });
+
+  it("trend changes now flag runs stale (trend is a run input)", () => {
+    const run = ws.runFullAnalysis(projectId, "trend input run");
+    const inputs = run.inputs as { trend?: unknown };
+    expect(inputs.trend).toBeDefined();
+  });
+});

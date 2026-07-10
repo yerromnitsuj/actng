@@ -244,6 +244,30 @@ const ilfRowSchema = z.object({
   factor: numericCell("factor"),
 });
 
+const rateChangeRowSchema = z.object({
+  effective_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "effective_date must be yyyy-mm-dd"),
+  rate_change: numericCell("rate_change").refine((v) => v > -1, {
+    message: "rate_change must be greater than -1 (-100%)",
+  }),
+});
+
+/** Parses a rate-change history upload: CSV/Excel with columns effective_date, rate_change (decimal, 0.05 = +5%). */
+export async function parseRateHistoryUpload(
+  filename: string,
+  buffer: Buffer,
+): Promise<{ effectiveDate: string; change: number }[]> {
+  const table = await parseUpload(filename, buffer);
+  const rows = validateRows(table, rateChangeRowSchema, ["effective_date", "rate_change"]);
+  if (rows.length === 0) {
+    throw new HttpError(422, "NO_ROWS", "The rate-history file has no data rows");
+  }
+  return rows
+    .map((r) => ({ effectiveDate: r.effective_date, change: r.rate_change }))
+    .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+}
+
 /** Parses an ILF table upload: CSV/Excel with columns limit, factor. */
 export async function parseIlfTableUpload(
   filename: string,

@@ -28,9 +28,13 @@ const weightRecordSchema = z.object({
   bfIncurred: z.number().min(0).optional(),
   bsCase: z.number().min(0).optional(),
   bsSettlement: z.number().min(0).optional(),
+  ccPaid: z.number().min(0).optional(),
+  ccIncurred: z.number().min(0).optional(),
+  expectedClaims: z.number().min(0).optional(),
 });
 
-const patchSchema = z.object({
+/** Exported for schema-contract tests: a weight key zod silently strips can never be set. */
+export const patchSchema = z.object({
   cadence: z.enum(["annual", "quarterly"]).optional(),
   asOfDate: z
     .string()
@@ -45,6 +49,20 @@ const patchSchema = z.object({
       baseYear: z.number().int().min(1900).max(2200).nullable().optional(),
     })
     .optional(),
+  rates: z
+    .object({
+      history: z
+        .array(
+          z.object({
+            effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            change: z.number().gt(-1),
+          }),
+        )
+        .optional(),
+      premiumTrend: z.number().gt(-1).nullable().optional(),
+    })
+    .optional(),
+  elr: z.object({ selected: z.number().positive().nullable().optional() }).optional(),
   trend: z
     .object({
       frequency: z
