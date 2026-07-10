@@ -9,6 +9,7 @@ import SelectionPanel from "../components/SelectionPanel.js";
 import DiagnosticsPanel from "../components/DiagnosticsPanel.js";
 import AdvisorPanel from "../components/AdvisorPanel.js";
 import LayerPanel from "../components/LayerPanel.js";
+import TrendPanel from "../components/TrendPanel.js";
 import IlfPanel from "../components/IlfPanel.js";
 import ImportPanel from "../components/ImportPanel.js";
 import NotesPanel from "../components/NotesPanel.js";
@@ -154,6 +155,8 @@ export default function WorkspacePage() {
             <ResultsPanel />
 
             <SelectionPanel />
+
+            <TrendPanel />
 
             <DiagnosticsPanel />
 

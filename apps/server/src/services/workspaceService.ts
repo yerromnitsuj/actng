@@ -1,4 +1,5 @@
 import {
+  analyzeTrend,
   berquistCaseAdequacy,
   berquistSettlement,
   buildTriangles,
@@ -29,6 +30,7 @@ import {
   type DiagnosticsResult,
   type MackResult,
   type TailFit,
+  type TrendFit,
   type Triangle,
   type TriangleSet,
 } from "@actng/core";
@@ -46,6 +48,7 @@ import {
   type LayerKey,
   type LayerState,
   type SelectionMethodKey,
+  type TrendChoice,
   type UltimateSelectionState,
   type WorkspaceState,
 } from "../db/repo.js";
@@ -84,6 +87,8 @@ export interface WorkspaceView {
   layerReview: LayerReview;
   /** Increased-limits exhibit data: fits, resolved factor, curve catalog. */
   ilfReview: IlfReview;
+  /** Frequency/severity/trend exhibit over the latest run; null before any run. */
+  trendReview: TrendReview | null;
 }
 
 export interface IlfReview {
@@ -242,6 +247,168 @@ export interface LayerReview {
     unlimited: { paid: (number | null)[]; incurred: (number | null)[] };
     /** null until a cap is set. */
     capped: { paid: (number | null)[]; incurred: (number | null)[] } | null;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Trends and frequency/severity
+
+export interface TrendSeriesReview {
+  fits: TrendFit[];
+  selection: TrendChoice;
+  /** True when a fitted-window selection no longer matches its refitted window. */
+  selectionStale: boolean;
+}
+
+export interface TrendReview {
+  /** Cost level the trended columns restate to (resolved). */
+  targetYear: number;
+  /** Dollar level of the severity/pure-premium series (the run's exhibit level). */
+  level: "unlimited" | "limited" | "restored";
+  /** Which per-layer severity-trend slot this exhibit reads and writes. */
+  severityLayer: LayerKey;
+  rows: {
+    origin: string;
+    /** Fractional year for quarterly cadences (e.g. 2021Q3 -> 2021.625). */
+    year: number;
+    earnedPremium: number | null;
+    ultimateCounts: number | null;
+    /** Ultimate claim counts per $1M earned premium (raw, not on-level). */
+    frequency: number | null;
+    /** Selected ultimate / ultimate counts, at the exhibit's dollar level. */
+    severity: number | null;
+    /** Selected ultimate per $1M earned premium (raw, not on-level). */
+    purePremium: number | null;
+    trendedFrequency: number | null;
+    trendedSeverity: number | null;
+  }[];
+  frequency: TrendSeriesReview;
+  severity: TrendSeriesReview;
+  notes: string[];
+}
+
+/**
+ * Origin label -> its cost-level MIDPOINT as a fractional year (annual
+ * "2021" -> 2021.5; "2021Q3" -> 2021.625). Restatement targets use the same
+ * convention (targetYear + 0.5), so "trended to 2025" means the midpoint of
+ * accident year 2025 under EVERY cadence - an integer target on a
+ * quarter-midpoint axis would silently mean January 1 instead.
+ */
+function originYear(origin: string): number {
+  const year = Number(origin.slice(0, 4));
+  const qMatch = /Q([1-4])$/.exec(origin);
+  return qMatch ? year + (Number(qMatch[1]) - 0.5) / 4 : year + 0.5;
+}
+
+/**
+ * The frequency/severity/trend exhibit: per-year ultimate counts, frequency
+ * (per $1M earned premium - RAW premium until the rates module ships),
+ * severity and pure premium from the SELECTED ultimates of the latest run,
+ * log-linear trend fits over each series, and trended restatements at the
+ * selected rates. Trend selections do NOT feed any current method (they
+ * arm the ELR module), so they are deliberately not analysis inputs.
+ */
+export function computeTrendReview(
+  state: WorkspaceState,
+  record: AnalysisRecord | null,
+  selectionView: UltimateSelectionView | null,
+  exposures: { origin: string; earnedPremium: number }[],
+): TrendReview | null {
+  if (!record || !selectionView) return null;
+  const results = record.results as AnalysisResults;
+  const counts = results.ultimateCounts ?? null;
+  const premiumByOrigin = new Map(exposures.map((e) => [e.origin, e.earnedPremium]));
+
+  const severityLayer: LayerKey = results.layer?.active ?? "unlimited";
+  const level: TrendReview["level"] =
+    severityLayer === "capped" ? (results.ilf ? "restored" : "limited") : "unlimited";
+
+  const years = selectionView.rows.map((r) => originYear(r.origin));
+  const resolvedTarget =
+    state.trend.targetYear ?? Math.max(...years.map((y) => Math.floor(y)));
+  /** Restatement x: the midpoint of the target accident year. */
+  const targetX = resolvedTarget + 0.5;
+
+  const freqSelection = state.trend.frequency;
+  const sevSelection = state.trend.severity[severityLayer];
+
+  const rows = selectionView.rows.map((selRow) => {
+    const year = originYear(selRow.origin);
+    const premium = premiumByOrigin.get(selRow.origin) ?? null;
+    const count = counts?.[selRow.origin] ?? null;
+    const frequency =
+      count !== null && premium !== null && premium > 0 ? count / (premium / 1_000_000) : null;
+    const severity =
+      selRow.selected !== null && count !== null && count > 0 ? selRow.selected / count : null;
+    const purePremium =
+      selRow.selected !== null && premium !== null && premium > 0
+        ? selRow.selected / (premium / 1_000_000)
+        : null;
+    const trend = (value: number | null, rate: number | null): number | null =>
+      value !== null && rate !== null ? value * Math.pow(1 + rate, targetX - year) : null;
+    return {
+      origin: selRow.origin,
+      year,
+      earnedPremium: premium,
+      ultimateCounts: count,
+      frequency,
+      severity,
+      purePremium,
+      trendedFrequency: trend(frequency, freqSelection.value),
+      trendedSeverity: trend(severity, sevSelection.value),
+    };
+  });
+
+  const notes: string[] = [
+    "Frequency and pure premium divide by RAW earned premium; on-level restatement arrives with the rates module",
+    "Ultimate counts are volume-weighted chain ladder on REPORTED counts with no tail: severity is per reported claim (closed-without-payment included), and late-emerging counts on long-tail books are not tailed",
+  ];
+  if (level === "limited") {
+    notes.push(
+      "Severity and pure premium are at the LIMITED (capped) level - the excess layer is not in them",
+    );
+  } else if (level === "restored") {
+    notes.push("Severity and pure premium are RESTORED total-limits values");
+  }
+  if (!counts) {
+    notes.push("Ultimate claim counts are unavailable for this run; frequency and severity are blank");
+  }
+
+  const pointsPerYear = state.cadence === "quarterly" ? 4 : 1;
+  const frequencyFits = analyzeTrend(
+    rows.map((r) => ({ year: r.year, value: r.frequency })),
+    pointsPerYear,
+  ).fits;
+  const severityFits = analyzeTrend(
+    rows.map((r) => ({ year: r.year, value: r.severity })),
+    pointsPerYear,
+  ).fits;
+
+  // A fitted-window selection whose window has since refit differently is a
+  // stale judgment; label it rather than letting the source tag lie.
+  const staleCheck = (selection: TrendChoice, fits: TrendFit[]): boolean => {
+    if (selection.source === "manual" || selection.value === null) return false;
+    const fit = fits.find((f) => f.key === selection.source);
+    return !fit || fit.annualRate === null || Math.abs(fit.annualRate - selection.value) > 5e-4;
+  };
+  const freqStale = staleCheck(freqSelection, frequencyFits);
+  const sevStale = staleCheck(sevSelection, severityFits);
+  if (freqStale || sevStale) {
+    notes.push(
+      `${[freqStale ? "frequency" : null, sevStale ? "severity" : null]
+        .filter(Boolean)
+        .join(" and ")} trend selection no longer matches its refitted window (the series changed since it was selected) - re-select or treat as manual`,
+    );
+  }
+
+  return {
+    targetYear: resolvedTarget,
+    level,
+    severityLayer,
+    rows,
+    frequency: { fits: frequencyFits, selection: freqSelection, selectionStale: freqStale },
+    severity: { fits: severityFits, selection: sevSelection, selectionStale: sevStale },
+    notes,
   };
 }
 
@@ -654,12 +821,16 @@ export function getWorkspaceView(projectId: string): WorkspaceView {
   };
 
   const latest = latestAnalysis(projectId);
+  const ultimateSelection = latest
+    ? computeUltimateSelection(latest, state.ultimateSelection)
+    : null;
   return {
     state,
     triangles,
     layerReview,
     ilfReview,
-    ultimateSelection: latest ? computeUltimateSelection(latest, state.ultimateSelection) : null,
+    trendReview: computeTrendReview(state, latest, ultimateSelection, getExposures(projectId)),
+    ultimateSelection,
     factors: {
       paid: computeDevelopmentFactors(triangles.paid),
       incurred: computeDevelopmentFactors(triangles.incurred),
@@ -691,6 +862,11 @@ export interface WorkspacePatch {
     cap?: number | null;
     indexRate?: number;
     baseYear?: number | null;
+  };
+  trend?: {
+    frequency?: TrendChoice;
+    severity?: { layer: LayerKey; source: TrendChoice["source"]; value: number | null };
+    targetYear?: number | null;
   };
   ilf?: {
     source?: IlfState["source"];
@@ -801,6 +977,12 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
     if (capParamsChanged || state.layer.active !== before.active) {
       state.ultimateSelection.overrides = {};
     }
+    // The capped severity-trend selection was fitted on the OLD capped
+    // series; a redefined cap changes that series (same principle as the
+    // selections/tails/overrides resets above).
+    if (capParamsChanged) {
+      state.trend.severity.capped = { source: "manual", value: null };
+    }
     const capSet = state.layer.cap !== null && state.layer.cap > 0;
     if (capSet && (capParamsChanged || (activatedCapped && cappedPristine))) {
       const cappedTriangles = buildLayerTriangles(getClaims(projectId), state, "capped");
@@ -863,9 +1045,44 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
       state.ilf.targetLimit = i.targetLimit;
     }
     // A changed restoration config changes the level the selection exhibit
-    // is stated at; dollar overrides typed against the old level are void.
+    // is stated at; dollar overrides typed against the old level are void,
+    // and so is a capped severity trend fitted at the old level
+    // (limited <-> restored flips the series' dollar basis).
     if (JSON.stringify(state.ilf) !== ilfBefore) {
       state.ultimateSelection.overrides = {};
+      state.trend.severity.capped = { source: "manual", value: null };
+    }
+  }
+  if (patch.trend) {
+    const t = patch.trend;
+    const validateRate = (v: number | null) => {
+      if (v !== null && (!isNum(v) || v <= -1)) {
+        throw new HttpError(422, "BAD_TREND", "A trend rate must be a number greater than -100%");
+      }
+    };
+    if (t.frequency) {
+      validateRate(t.frequency.value);
+      state.trend.frequency = { source: t.frequency.source, value: t.frequency.value };
+    }
+    if (t.severity) {
+      validateRate(t.severity.value);
+      state.trend.severity[t.severity.layer] = {
+        source: t.severity.source,
+        value: t.severity.value,
+      };
+    }
+    if (t.targetYear !== undefined) {
+      if (
+        t.targetYear !== null &&
+        (!Number.isInteger(t.targetYear) || t.targetYear < 1900 || t.targetYear > 2200)
+      ) {
+        throw new HttpError(
+          422,
+          "BAD_TREND",
+          "The trend target year must be a year between 1900 and 2200, or null",
+        );
+      }
+      state.trend.targetYear = t.targetYear;
     }
   }
   if (patch.bf) activeBf(state).aprioriLossRatio = patch.bf.aprioriLossRatio;
@@ -1065,6 +1282,8 @@ export interface AnalysisResults {
   layer?: LayerState;
   /** Why a CONFIGURED ILF source failed to resolve on a capped run (null when none/applied). */
   ilfUnresolvedReason?: string | null;
+  /** Ultimate claim counts by origin (CL on reported counts, no tail). */
+  ultimateCounts?: Record<string, number>;
   /** The uncap factor applied to restore capped ultimates; null/absent = still limited. */
   ilf?: ResolvedIlf | null;
   /** Unlimited latest diagonals per origin (capped runs only): the true
@@ -1173,6 +1392,27 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
 
   // Berquist-Sherman. Adjusted triangles get fresh volume-weighted selections
   // (the user's selections describe the unadjusted data, not the restated one).
+  // Ultimate claim counts: chain ladder on reported counts, no tail. Used by
+  // Berquist-Sherman settlement AND the frequency/severity exhibit, so they
+  // are computed (and stamped on the results) independent of B-S success.
+  let ultimateCountsByOrigin: Record<string, number> | undefined;
+  let countError: string | undefined;
+  try {
+    const countSelections = volumeWeightedSelections(triangles.reportedCount);
+    const countCl = runChainLadder(triangles.reportedCount, {
+      selected: countSelections,
+      tailFactor: 1,
+    });
+    ultimateCountsByOrigin = {};
+    for (const origin of triangles.reportedCount.origins) {
+      const row = countCl.rows.find((r) => r.origin === origin);
+      ultimateCountsByOrigin[origin] = row ? row.ultimate : 0;
+    }
+  } catch (err) {
+    ultimateCountsByOrigin = undefined;
+    countError = err instanceof Error ? err.message : String(err);
+  }
+
   let bsCase: AnalysisResults["berquistSherman"]["caseAdequacy"] = null;
   let bsSettlement: AnalysisResults["berquistSherman"]["settlement"] = null;
   let bsSkipped: string | undefined;
@@ -1197,16 +1437,15 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
       }),
     };
 
-    // Ultimate claim counts: chain ladder on reported counts, no tail.
-    const countSelections = volumeWeightedSelections(triangles.reportedCount);
-    const countCl = runChainLadder(triangles.reportedCount, {
-      selected: countSelections,
-      tailFactor: 1,
-    });
-    const ultimateCounts = triangles.reportedCount.origins.map((origin) => {
-      const row = countCl.rows.find((r) => r.origin === origin);
-      return row ? row.ultimate : 0;
-    });
+    if (!ultimateCountsByOrigin) {
+      throw new ReservingError(
+        "NO_FACTOR",
+        `Count development is unavailable for this data${countError ? `: ${countError}` : ""}`,
+      );
+    }
+    const ultimateCounts = triangles.reportedCount.origins.map(
+      (origin) => ultimateCountsByOrigin![origin] ?? 0,
+    );
     const settlement = berquistSettlement(triangles.paid, triangles.closedCount, {
       ultimateCounts,
       interpolation: activeBerquist(state).interpolation,
@@ -1329,6 +1568,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     layer: { ...state.layer },
     ilf: ilfApplied,
     ilfUnresolvedReason,
+    ultimateCounts: ultimateCountsByOrigin,
     unlimitedDiagonals,
     chainLadder: { paid: paidCl, incurred: incurredCl },
     bornhuetterFerguson: { paid: bfPaid, incurred: bfIncurred, skippedReason: bfSkipped },

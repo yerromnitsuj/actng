@@ -83,6 +83,41 @@ export interface LayerState {
   baseYear: number | null;
 }
 
+export interface TrendChoice {
+  source: "all" | "last5" | "last3" | "exhilo" | "manual";
+  value: number | null;
+}
+
+export interface TrendFit {
+  key: string;
+  label: string;
+  annualRate: number | null;
+  rSquared: number | null;
+  nPoints: number;
+  usedYears: number[];
+  warnings: string[];
+}
+
+export interface TrendReview {
+  targetYear: number;
+  level: "unlimited" | "limited" | "restored";
+  severityLayer: LayerKey;
+  rows: {
+    origin: string;
+    year: number;
+    earnedPremium: number | null;
+    ultimateCounts: number | null;
+    frequency: number | null;
+    severity: number | null;
+    purePremium: number | null;
+    trendedFrequency: number | null;
+    trendedSeverity: number | null;
+  }[];
+  frequency: { fits: TrendFit[]; selection: TrendChoice; selectionStale: boolean };
+  severity: { fits: TrendFit[]; selection: TrendChoice; selectionStale: boolean };
+  notes: string[];
+}
+
 export interface WorkspaceState {
   cadence: "annual" | "quarterly";
   asOfDate: string;
@@ -97,6 +132,11 @@ export interface WorkspaceState {
     { severityTrend: number | null; interpolation: "exponential" | "linear" }
   >;
   ultimateSelection: UltimateSelectionState;
+  trend: {
+    frequency: TrendChoice;
+    severity: Record<LayerKey, TrendChoice>;
+    targetYear: number | null;
+  };
 }
 
 export interface ClaimSizeYearRow {
@@ -196,6 +236,7 @@ export interface WorkspaceView {
   exposures: ExposureRecord[];
   ultimateSelection: UltimateSelectionView | null;
   layerReview: LayerReview;
+  trendReview: TrendReview | null;
   ilfReview: IlfReview;
 }
 

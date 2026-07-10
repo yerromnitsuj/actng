@@ -59,6 +59,32 @@ export interface TailChoice {
   value: number;
 }
 
+export interface TrendChoice {
+  /** Which fitted window the selection came from, or a manual judgment. */
+  source: "all" | "last5" | "last3" | "exhilo" | "manual";
+  /** The selected annual rate (frozen at selection time); null = unselected. */
+  value: number | null;
+}
+
+export interface TrendState {
+  frequency: TrendChoice;
+  /** Severity trend is a per-layer judgment: the cap compresses trend. */
+  severity: Record<LayerKey, TrendChoice>;
+  /** Cost level the exhibit trends TO; null = latest origin year. */
+  targetYear: number | null;
+}
+
+export function defaultTrendState(): TrendState {
+  return {
+    frequency: { source: "manual", value: null },
+    severity: {
+      unlimited: { source: "manual", value: null },
+      capped: { source: "manual", value: null },
+    },
+    targetYear: null,
+  };
+}
+
 export interface LayerState {
   /** Which layer's triangles the whole pipeline runs on. */
   active: LayerKey;
@@ -95,6 +121,7 @@ export interface WorkspaceState {
     { severityTrend: number | null; interpolation: "exponential" | "linear" }
   >;
   ultimateSelection: UltimateSelectionState;
+  trend: TrendState;
 }
 
 export interface IlfState {
@@ -160,6 +187,7 @@ export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
     bf: defaultLayerBf(),
     berquist: defaultLayerBerquist(),
     ultimateSelection: defaultUltimateSelection(),
+    trend: defaultTrendState(),
   };
 }
 
@@ -397,6 +425,9 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
     };
   } else if (!state.berquist) {
     state.berquist = defaultLayerBerquist();
+  }
+  if (!state.trend) {
+    state.trend = defaultTrendState();
   }
   // Backfill for workspaces persisted before the selection exhibit existed,
   // and migrate the pre-matrix shape (a single global `weights` record).

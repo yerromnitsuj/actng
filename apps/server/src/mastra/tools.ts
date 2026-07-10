@@ -878,6 +878,135 @@ export const setIlfSource = createTool({
   },
 });
 
+export const analyzeTrends = createTool({
+  id: "analyze_trends",
+  description:
+    "The frequency/severity/trend exhibit over the latest run: per-year ultimate counts, frequency (per $1M RAW earned premium), severity and pure premium from the SELECTED ultimates, log-linear trend fits (all years / last 5 / last 3 / ex-hi-lo) with R-squared for frequency and severity, current selections, and the target cost level. Call BEFORE recommending trend rates.",
+  inputSchema: z.object({}),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = getWorkspaceView(projectId);
+      const review = view.trendReview;
+      if (!review) {
+        return {
+          success: false,
+          error: "No analysis run yet; the trend exhibit derives from the latest run's selected ultimates",
+        };
+      }
+      return {
+        success: true,
+        targetYear: review.targetYear,
+        level: review.level,
+        severityLayer: review.severityLayer,
+        notes: review.notes,
+        rows: review.rows.map((r) => ({
+          origin: r.origin,
+          earnedPremium: r.earnedPremium !== null ? round0(r.earnedPremium) : null,
+          ultimateCounts: r.ultimateCounts !== null ? Math.round(r.ultimateCounts * 10) / 10 : null,
+          frequency: r.frequency !== null ? round3(r.frequency) : null,
+          severity: r.severity !== null ? round0(r.severity) : null,
+          purePremium: r.purePremium !== null ? round0(r.purePremium) : null,
+        })),
+        fits: {
+          frequency: review.frequency.fits.map((f) => ({
+            key: f.key,
+            annualRatePct: f.annualRate !== null ? Math.round(f.annualRate * 1000) / 10 : null,
+            rSquared: round3(f.rSquared),
+            nPoints: f.nPoints,
+            warnings: f.warnings,
+          })),
+          severity: review.severity.fits.map((f) => ({
+            key: f.key,
+            annualRatePct: f.annualRate !== null ? Math.round(f.annualRate * 1000) / 10 : null,
+            rSquared: round3(f.rSquared),
+            nPoints: f.nPoints,
+            warnings: f.warnings,
+          })),
+        },
+        selections: {
+          note: "ratePct is PERCENT per year (6.5 = 6.5%/yr), matching the fits' annualRatePct; set_trend_selections takes DECIMALS (0.065)",
+          frequency: {
+            source: review.frequency.selection.source,
+            ratePct:
+              review.frequency.selection.value !== null
+                ? Math.round(review.frequency.selection.value * 1000) / 10
+                : null,
+            stale: review.frequency.selectionStale,
+          },
+          severity: {
+            source: review.severity.selection.source,
+            ratePct:
+              review.severity.selection.value !== null
+                ? Math.round(review.severity.selection.value * 1000) / 10
+                : null,
+            stale: review.severity.selectionStale,
+          },
+        },
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
+export const setTrendSelections = createTool({
+  id: "set_trend_selections",
+  description:
+    "Select trend rates: frequency and/or severity (severity is PER LAYER - the cap compresses trend), each as a fitted window key with its rate, or manual with a judgmental rate; optionally the target cost level year. Rates are decimals (0.05 = +5%/yr). These arm the expected-loss-ratio machinery; they do not change current method results.",
+  inputSchema: z.object({
+    frequency: z
+      .object({
+        source: z.enum(["all", "last5", "last3", "exhilo", "manual"]),
+        value: z.number().gt(-1).nullable().describe("Annual rate; null clears the selection"),
+      })
+      .nullable()
+      .describe("null leaves the frequency selection unchanged"),
+    severity: z
+      .object({
+        layer: z.enum(["unlimited", "capped"]),
+        source: z.enum(["all", "last5", "last3", "exhilo", "manual"]),
+        value: z.number().gt(-1).nullable().describe("Annual rate; null clears the selection"),
+      })
+      .nullable()
+      .describe("null leaves the severity selection unchanged"),
+    targetYear: z
+      .number()
+      .int()
+      .min(1900)
+      .max(2200)
+      .nullable()
+      .describe("Target cost-level year (the trended columns restate to ITS MIDPOINT); null LEAVES IT UNCHANGED - to restore the floating latest-origin-year default, set clearTargetYear true"),
+    clearTargetYear: z
+      .boolean()
+      .nullable()
+      .describe("true resets the target year to the floating default (latest origin year); overrides targetYear"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, {
+        trend: {
+          ...(input.frequency !== null ? { frequency: input.frequency } : {}),
+          ...(input.severity !== null ? { severity: input.severity } : {}),
+          ...(input.clearTargetYear
+            ? { targetYear: null }
+            : input.targetYear !== null
+              ? { targetYear: input.targetYear }
+              : {}),
+        },
+      });
+      return {
+        success: true,
+        trend: view.state.trend,
+        message: "Trend selections applied; the trended columns in the exhibit reflect them.",
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -909,6 +1038,8 @@ export const advisorTools = {
   set_ultimate_selection: setUltimateSelection,
   analyze_claim_sizes: analyzeClaimSizes,
   set_loss_cap: setLossCap,
+  analyze_trends: analyzeTrends,
+  set_trend_selections: setTrendSelections,
   fit_severity_curves: fitSeverityCurves,
   set_ilf_source: setIlfSource,
   run_analysis: runAnalysisTool,
@@ -921,6 +1052,7 @@ export const ACTION_TOOL_IDS = new Set([
   "apply_ldf_selections",
   "set_tail_factor",
   "set_loss_cap",
+  "set_trend_selections",
   "set_ilf_source",
   "set_bf_apriori",
   "set_ultimate_selection",

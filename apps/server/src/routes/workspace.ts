@@ -45,6 +45,24 @@ const patchSchema = z.object({
       baseYear: z.number().int().min(1900).max(2200).nullable().optional(),
     })
     .optional(),
+  trend: z
+    .object({
+      frequency: z
+        .object({
+          source: z.enum(["all", "last5", "last3", "exhilo", "manual"]),
+          value: z.number().gt(-1).nullable(),
+        })
+        .optional(),
+      severity: z
+        .object({
+          layer: z.enum(["unlimited", "capped"]),
+          source: z.enum(["all", "last5", "last3", "exhilo", "manual"]),
+          value: z.number().gt(-1).nullable(),
+        })
+        .optional(),
+      targetYear: z.number().int().min(1900).max(2200).nullable().optional(),
+    })
+    .optional(),
   ilf: z
     .object({
       source: z.enum(["none", "fitted", "table", "illustrative"]).optional(),

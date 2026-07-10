@@ -841,3 +841,147 @@ describe("phase-2 review fixes: factor ceiling, override clearing, unresolved ho
     ).toThrowError(/Duplicate limit/);
   });
 });
+
+describe("trend and frequency/severity exhibit", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("Trend test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 73,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+    ws.runFullAnalysis(projectId, "trend base run");
+  });
+
+  it("populates every row with consistent math and the run stamps ultimate counts", () => {
+    const view = ws.getWorkspaceView(projectId);
+    const review = view.trendReview!;
+    expect(review).not.toBeNull();
+    expect(review.level).toBe("unlimited");
+
+    // The run itself carries counts keyed by origin - asserted directly, not
+    // through the exhibit (a broken stamp must fail HERE, not vacuously).
+    const record = repo.getAnalysis(view.ultimateSelection!.analysisId)!;
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.ultimateCounts).toBeDefined();
+    for (const row of review.rows) {
+      expect(results.ultimateCounts![row.origin]).toBeGreaterThan(0);
+    }
+
+    // Every row must be POPULATED (exposures exist for every seeded year);
+    // guarded if-checks would pass vacuously on a broken join.
+    const exposures = repo.getExposures(projectId);
+    const sel = view.ultimateSelection!;
+    for (const row of review.rows) {
+      const premium = exposures.find((e) => e.origin === row.origin)!.earnedPremium;
+      const selRow = sel.rows.find((r) => r.origin === row.origin)!;
+      expect(row.ultimateCounts).not.toBeNull();
+      expect(row.frequency).not.toBeNull();
+      expect(row.severity).not.toBeNull();
+      expect(row.frequency!).toBeCloseTo(row.ultimateCounts! / (premium / 1_000_000), 9);
+      expect(row.severity!).toBeCloseTo(selRow.selected! / row.ultimateCounts!, 6);
+      // Midpoint convention: annual origins sit at year + 0.5.
+      expect(row.year - Math.floor(row.year)).toBeCloseTo(0.5, 12);
+      // No selections yet -> trended columns blank.
+      expect(row.trendedFrequency).toBeNull();
+      expect(row.trendedSeverity).toBeNull();
+    }
+  });
+
+  it("selected trends drive the trended restatement exactly", () => {
+    ws.patchWorkspace(projectId, {
+      trend: {
+        frequency: { source: "manual", value: 0.02 },
+        severity: { layer: "unlimited", source: "manual", value: 0.08 },
+        targetYear: 2025,
+      },
+    });
+    const review = ws.getWorkspaceView(projectId).trendReview!;
+    for (const row of review.rows) {
+      expect(row.frequency).not.toBeNull();
+      expect(row.severity).not.toBeNull();
+      // Restatement runs midpoint-to-midpoint: target x = targetYear + 0.5.
+      expect(row.trendedFrequency).toBeCloseTo(
+        row.frequency! * Math.pow(1.02, 2025.5 - row.year),
+        9,
+      );
+      expect(row.trendedSeverity).toBeCloseTo(
+        row.severity! * Math.pow(1.08, 2025.5 - row.year),
+        6,
+      );
+    }
+  });
+
+  it("severity trend selections are per layer and the exhibit reads the run's layer slot", () => {
+    const state = ws.ensureWorkspaceState(projectId);
+    expect(state.trend.severity.unlimited.value).toBe(0.08);
+    expect(state.trend.severity.capped.value).toBeNull();
+    // Writing the capped slot must not disturb the unlimited exhibit.
+    ws.patchWorkspace(projectId, {
+      trend: { severity: { layer: "capped", source: "manual", value: 0.03 } },
+    });
+    const review = ws.getWorkspaceView(projectId).trendReview!;
+    expect(review.severityLayer).toBe("unlimited");
+    expect(review.severity.selection.value).toBe(0.08);
+  });
+
+  it("fits recover an exact planted trend through the full stack", () => {
+    // Synthetic data won't be exactly exponential, but the fit plumbing must
+    // return rates and R^2 for windows with enough points.
+    const review = ws.getWorkspaceView(projectId).trendReview!;
+    const all = review.severity.fits.find((f) => f.key === "all")!;
+    expect(all.nPoints).toBeGreaterThanOrEqual(5);
+    expect(all.annualRate).not.toBeNull();
+    expect(all.rSquared).not.toBeNull();
+  });
+
+  it("cap redefinition and ilf changes reset the capped severity-trend judgment", () => {
+    ws.patchWorkspace(projectId, { layer: { cap: 200_000 } });
+    ws.patchWorkspace(projectId, {
+      trend: { severity: { layer: "capped", source: "manual", value: 0.04 } },
+    });
+    expect(ws.ensureWorkspaceState(projectId).trend.severity.capped.value).toBe(0.04);
+    // Redefine the cap: the capped-series judgment is void.
+    ws.patchWorkspace(projectId, { layer: { cap: 300_000 } });
+    expect(ws.ensureWorkspaceState(projectId).trend.severity.capped.value).toBeNull();
+    // Re-select, then change the restoration config: void again (level flip).
+    ws.patchWorkspace(projectId, {
+      trend: { severity: { layer: "capped", source: "manual", value: 0.05 } },
+    });
+    ws.patchWorkspace(projectId, {
+      ilf: {
+        table: [
+          { limit: 300_000, factor: 1 },
+          { limit: 2_000_000, factor: 1.3 },
+        ],
+      },
+    });
+    expect(ws.ensureWorkspaceState(projectId).trend.severity.capped.value).toBeNull();
+    // The unlimited slot is untouched throughout.
+    expect(ws.ensureWorkspaceState(projectId).trend.severity.unlimited.value).toBe(0.08);
+  });
+
+  it("rejects garbage trend patches", () => {
+    expect(() =>
+      ws.patchWorkspace(projectId, {
+        trend: { frequency: { source: "manual", value: -1.5 } },
+      }),
+    ).toThrowError(/-100%/);
+    expect(() =>
+      ws.patchWorkspace(projectId, { trend: { targetYear: 1500 } }),
+    ).toThrowError(/1900 and 2200/);
+  });
+});

@@ -5,6 +5,8 @@ import type { ToolEvent } from "../api/types.js";
 const TOOL_LABELS: Record<string, string> = {
   analyze_claim_sizes: "Analyzing claim sizes",
   set_loss_cap: "Setting the loss cap",
+  analyze_trends: "Analyzing trends",
+  set_trend_selections: "Setting trend selections",
   fit_severity_curves: "Fitting severity curves",
   set_ilf_source: "Setting the ILF source",
   get_workspace_overview: "Read workspace",
