@@ -87,14 +87,27 @@ export interface RatesState {
   premiumTrend: number | null;
 }
 
+export type ElrMethod = "loss-ratio" | "pure-premium";
+
 export interface ElrState {
-  /** Selected expected loss ratio AT THE TARGET COST LEVEL; null = unselected. */
+  /**
+   * A-priori method. "loss-ratio" divides trended developed losses by ON-LEVEL
+   * earned PREMIUM and yields a loss ratio; "pure-premium" divides by EXPOSURE
+   * UNITS (no premium on-leveling - units are not rate-sensitive) and yields a
+   * pure premium (loss cost per unit). Both feed BF and Expected Claims.
+   */
+  method: ElrMethod;
+  /**
+   * Selected a-priori AT THE TARGET COST LEVEL; null = unselected. Its unit
+   * follows `method`: a loss ratio (e.g. 0.65) for loss-ratio, a pure premium
+   * (dollars per exposure unit) for pure-premium.
+   */
   selected: number | null;
   /**
-   * The dollar level of the exhibit the ELR was selected FROM (stamped at
+   * The dollar level of the exhibit the a-priori was selected FROM (stamped at
    * selection time). A run at a different level must not consume it - a
-   * total-limits ELR applied to capped triangles (or vice versa) is wrong by
-   * the whole uncap factor.
+   * total-limits a-priori applied to capped triangles (or vice versa) is wrong
+   * by the whole uncap factor.
    */
   selectedAtLevel: "unlimited" | "limited" | "restored" | null;
 }
@@ -216,7 +229,7 @@ export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
     ultimateSelection: defaultUltimateSelection(),
     trend: defaultTrendState(),
     rates: { history: [], premiumTrend: null },
-    elr: { selected: null, selectedAtLevel: null },
+    elr: { method: "loss-ratio", selected: null, selectedAtLevel: null },
   };
 }
 
@@ -364,11 +377,11 @@ export function getClaims(projectId: string): ClaimSnapshot[] {
 export function replaceExposures(projectId: string, rows: ExposureRecord[]): number {
   const del = db.prepare("DELETE FROM exposures WHERE project_id = ?");
   const ins = db.prepare(
-    "INSERT INTO exposures (project_id, origin, earned_premium) VALUES (?, ?, ?)",
+    "INSERT INTO exposures (project_id, origin, earned_premium, exposure_units) VALUES (?, ?, ?, ?)",
   );
   const tx = db.transaction((batch: ExposureRecord[]) => {
     del.run(projectId);
-    for (const r of batch) ins.run(projectId, r.origin, r.earnedPremium);
+    for (const r of batch) ins.run(projectId, r.origin, r.earnedPremium ?? null, r.exposureUnits ?? null);
   });
   tx(rows);
   return rows.length;
@@ -377,7 +390,7 @@ export function replaceExposures(projectId: string, rows: ExposureRecord[]): num
 export function getExposures(projectId: string): ExposureRecord[] {
   return db
     .prepare(
-      "SELECT origin, earned_premium AS earnedPremium FROM exposures WHERE project_id = ? ORDER BY origin",
+      "SELECT origin, earned_premium AS earnedPremium, exposure_units AS exposureUnits FROM exposures WHERE project_id = ? ORDER BY origin",
     )
     .all(projectId) as ExposureRecord[];
 }
@@ -462,10 +475,14 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
     state.rates = { history: [], premiumTrend: null };
   }
   if (!state.elr) {
-    state.elr = { selected: null, selectedAtLevel: null };
-  } else if (state.elr.selectedAtLevel === undefined) {
-    // Pre-stamp selections came from unlimited-level exhibits by construction.
-    state.elr.selectedAtLevel = state.elr.selected !== null ? "unlimited" : null;
+    state.elr = { method: "loss-ratio", selected: null, selectedAtLevel: null };
+  } else {
+    if (state.elr.selectedAtLevel === undefined) {
+      // Pre-stamp selections came from unlimited-level exhibits by construction.
+      state.elr.selectedAtLevel = state.elr.selected !== null ? "unlimited" : null;
+    }
+    // Workspaces persisted before the pure-premium method existed are loss-ratio.
+    if (state.elr.method === undefined) state.elr.method = "loss-ratio";
   }
   // Backfill for workspaces persisted before the selection exhibit existed,
   // and migrate the pre-matrix shape (a single global `weights` record).

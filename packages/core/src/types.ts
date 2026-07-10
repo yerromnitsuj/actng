@@ -48,12 +48,19 @@ export interface ClaimSnapshot {
   status: "open" | "closed";
 }
 
-/** Exposure/premium by origin period. */
+/**
+ * Exposure data by origin period. A period may carry earned premium (the base
+ * for the loss-ratio method), exposure units (the base for the pure-premium
+ * method), or both. The reserving methods are base-agnostic: the caller feeds
+ * whichever base the chosen method uses into `earnedPremium`.
+ */
 export interface ExposureRecord {
   /** Origin period label matching triangle origins (e.g. "2021" or "2021Q3"). */
   origin: string;
-  /** Earned premium (or another exposure base) for the period. */
-  earnedPremium: number;
+  /** Earned premium for the period (the loss-ratio base); null if not imported. */
+  earnedPremium: number | null;
+  /** Exposure units for the period (the pure-premium base); null if not imported. */
+  exposureUnits: number | null;
 }
 
 /** How a link-ratio average is computed for a development column. */

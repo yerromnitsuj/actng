@@ -116,6 +116,13 @@ export default function RatesPanel() {
       title="Rates & premium"
       kicker="rate-change history for parallelogram on-leveling (annual policies, written uniformly) + premium trend"
     >
+      {workspace.state.elr.method === "pure-premium" ? (
+        <p className="mb-3 rounded-sm border border-steel bg-steel-soft px-3 py-1.5 text-[0.78rem] font-medium text-steel">
+          The pure-premium method is active: exposure units are not rate-sensitive, so this rate
+          history and parallelogram on-leveling do NOT affect the a-priori. Switch to the loss-ratio
+          method in the a-priori exhibit to use them.
+        </p>
+      ) : null}
       {pending ? (
         <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1 text-[0.78rem] font-medium text-[#6b4f16]">
           Pending rate edit - press Enter or click away to apply. The on-level factors and ELR

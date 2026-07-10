@@ -50,6 +50,7 @@ import {
   latestAnalysis,
   saveWorkspaceState,
   type AnalysisRecord,
+  type ElrMethod,
   type IlfState,
   type LayerKey,
   type LayerState,
@@ -271,6 +272,8 @@ export interface TrendSeriesReview {
 export interface TrendReview {
   /** Cost level the trended columns restate to (resolved). */
   targetYear: number;
+  /** A-priori method: frequency/pure-premium divide by premium (loss-ratio) or units (pure-premium). */
+  method: ElrMethod;
   /** Dollar level of the severity/pure-premium series (the run's exhibit level). */
   level: "unlimited" | "limited" | "restored";
   /** Which per-layer severity-trend slot this exhibit reads and writes. */
@@ -323,23 +326,33 @@ export function computeTrendReview(
   state: WorkspaceState,
   record: AnalysisRecord | null,
   selectionView: UltimateSelectionView | null,
-  exposures: { origin: string; earnedPremium: number }[],
+  exposures: { origin: string; earnedPremium: number | null; exposureUnits: number | null }[],
 ): TrendReview | null {
   if (!record || !selectionView) return null;
   const results = record.results as AnalysisResults;
   const counts = results.ultimateCounts ?? null;
-  const premiumByOrigin = new Map(exposures.map((e) => [e.origin, e.earnedPremium]));
+  // The base for frequency/pure-premium follows the a-priori method: earned
+  // premium (loss ratio) or exposure units (pure premium). Premium is expressed
+  // per $1M; units per single unit.
+  const isPP = state.elr.method === "pure-premium";
+  const baseScale = isPP ? 1 : 1_000_000;
+  const premiumByOrigin = new Map(
+    exposures.map((e) => [e.origin, isPP ? e.exposureUnits : e.earnedPremium]),
+  );
 
   const severityLayer: LayerKey = results.layer?.active ?? "unlimited";
-  // Frequency divides by ON-LEVEL premium: a fitted frequency trend against
-  // raw premium embeds the inverse of every rate change and silently
+  // Frequency divides by ON-LEVEL premium (loss-ratio): a fitted frequency trend
+  // against raw premium embeds the inverse of every rate change and silently
   // double-counts once the ELR machinery on-levels the denominator again.
-  const onLevelByOrigin = new Map(
-    parallelogramOnLevel(
-      selectionView.rows.map((r) => r.origin).filter((o) => (premiumByOrigin.get(o) ?? 0) > 0),
-      state.rates.history,
-    ).rows.map((r) => [r.origin, r.onLevelFactor]),
-  );
+  // Exposure units (pure-premium) are not rate-sensitive, so they never on-level.
+  const onLevelByOrigin = isPP
+    ? new Map<string, number>()
+    : new Map(
+        parallelogramOnLevel(
+          selectionView.rows.map((r) => r.origin).filter((o) => (premiumByOrigin.get(o) ?? 0) > 0),
+          state.rates.history,
+        ).rows.map((r) => [r.origin, r.onLevelFactor]),
+      );
   const level: TrendReview["level"] =
     severityLayer === "capped" ? (results.ilf ? "restored" : "limited") : "unlimited";
 
@@ -360,13 +373,13 @@ export function computeTrendReview(
     const count = counts?.[selRow.origin] ?? null;
     const frequency =
       count !== null && onLevelPremium !== null && onLevelPremium > 0
-        ? count / (onLevelPremium / 1_000_000)
+        ? count / (onLevelPremium / baseScale)
         : null;
     const severity =
       selRow.selected !== null && count !== null && count > 0 ? selRow.selected / count : null;
     const purePremium =
       selRow.selected !== null && onLevelPremium !== null && onLevelPremium > 0
-        ? selRow.selected / (onLevelPremium / 1_000_000)
+        ? selRow.selected / (onLevelPremium / baseScale)
         : null;
     const trend = (value: number | null, rate: number | null): number | null =>
       value !== null && rate !== null ? value * Math.pow(1 + rate, targetX - year) : null;
@@ -385,9 +398,11 @@ export function computeTrendReview(
   });
 
   const notes: string[] = [
-    state.rates.history.length > 0
-      ? "Frequency and pure premium divide by ON-LEVEL earned premium (parallelogram on the rate history)"
-      : "Frequency and pure premium divide by earned premium at its recorded level (no rate history imported - add one in the Rates exhibit for on-level frequency)",
+    isPP
+      ? "Frequency and pure premium divide by EXPOSURE UNITS (the pure-premium base; units are not rate-sensitive, so no on-leveling applies)"
+      : state.rates.history.length > 0
+        ? "Frequency and pure premium divide by ON-LEVEL earned premium (parallelogram on the rate history)"
+        : "Frequency and pure premium divide by earned premium at its recorded level (no rate history imported - add one in the Rates exhibit for on-level frequency)",
     "Ultimate counts are volume-weighted chain ladder on REPORTED counts with no tail: severity is per reported claim (closed-without-payment included), and late-emerging counts on long-tail books are not tailed",
   ];
   if (level === "limited") {
@@ -430,6 +445,7 @@ export function computeTrendReview(
 
   return {
     targetYear: resolvedTarget,
+    method: state.elr.method,
     level,
     severityLayer,
     rows,
@@ -469,18 +485,26 @@ export function computeElrAdjustments(
 ): ElrAdjustments {
   const setup = options.includeSetupNotes ?? true;
   const warnings: string[] = [];
-  const onLevel = parallelogramOnLevel(origins, state.rates.history);
+  // Pure premium divides losses by EXPOSURE UNITS, which are not rate-sensitive:
+  // parallelogram on-leveling and premium trend do not apply (the base adjustment
+  // is 1). Loss trend still applies to the numerator. Loss-ratio keeps the full
+  // premium on-leveling below.
+  const isPurePremium = state.elr.method === "pure-premium";
+  const onLevel = isPurePremium
+    ? { rows: [] as { origin: string; onLevelFactor: number }[], warnings: [] as string[] }
+    : parallelogramOnLevel(origins, state.rates.history);
   warnings.push(...onLevel.warnings);
-  if (state.rates.history.length === 0 && setup) {
+  if (!isPurePremium && state.rates.history.length === 0 && setup) {
     warnings.push(
       "No rate-change history: premium is treated as already on-level (factor 1)",
     );
   }
   // Premium restates to the CURRENT rate level; losses to the target-year
   // cost level. Changes effective after the target year break that pairing.
-  const lateChanges = state.rates.history.filter(
-    (rc) => Number(rc.effectiveDate.slice(0, 4)) > resolvedTargetYear,
-  );
+  // (Loss-ratio only - the pure-premium base does not on-level.)
+  const lateChanges = isPurePremium
+    ? []
+    : state.rates.history.filter((rc) => Number(rc.effectiveDate.slice(0, 4)) > resolvedTargetYear);
   if (lateChanges.length > 0) {
     warnings.push(
       `${lateChanges.length} rate change(s) effective after the target year ${resolvedTargetYear}: on-level premium sits at the CURRENT rate level while losses trend to ${resolvedTargetYear} - pin the target year at or after the last rate change for a clean level match`,
@@ -509,7 +533,7 @@ export function computeElrAdjustments(
   } else if (setup) {
     warnings.push("No trend selections: losses are NOT trended (factor 1)");
   }
-  const premiumTrend = state.rates.premiumTrend;
+  const premiumTrend = isPurePremium ? null : state.rates.premiumTrend;
 
   const years = origins.map((o) => originYear(o));
   const targetYear = resolvedTargetYear;
@@ -519,10 +543,12 @@ export function computeElrAdjustments(
   for (let i = 0; i < origins.length; i++) {
     const origin = origins[i]!;
     const x = years[i]!;
-    const olf = onLevel.rows.find((r) => r.origin === origin)?.onLevelFactor ?? 1;
+    // Exposure units carry no on-level factor; loss-ratio premium does.
+    const olf = isPurePremium ? 1 : (onLevel.rows.find((r) => r.origin === origin)?.onLevelFactor ?? 1);
     byOrigin[origin] = {
       onLevelFactor: olf,
       lossAdj: lossTrendRate !== null ? Math.pow(1 + lossTrendRate, targetX - x) : 1,
+      // Loss-ratio: on-level x premium trend. Pure premium: 1 (units do not adjust).
       premiumAdj: olf * (premiumTrend !== null ? Math.pow(1 + premiumTrend, targetX - x) : 1),
     };
   }
@@ -539,22 +565,31 @@ export function resolveElrTargetYear(state: WorkspaceState, allOrigins: string[]
 
 export interface ElrReview {
   targetYear: number;
-  /** Dollar level of the ultimates the loss ratios divide (the run's level). */
+  /**
+   * A-priori method. "loss-ratio" -> the ratios/averages/selected are loss
+   * ratios and `premium` is on-level earned premium; "pure-premium" -> they are
+   * pure premiums (loss cost per unit), `premium` holds exposure UNITS, and the
+   * on-level factor is always 1 (units do not on-level).
+   */
+  method: ElrMethod;
+  /** Dollar level of the ultimates the loss ratios/pure premiums divide (the run's level). */
   level: "unlimited" | "limited" | "restored";
   rows: {
     origin: string;
+    /** The exposure base: on-level earned premium (loss-ratio) or exposure units (pure-premium). */
     premium: number;
     onLevelFactor: number;
     premiumAdj: number;
     lossAdj: number;
+    /** Base after adjustment: on-level trended premium (loss-ratio) or units (pure-premium, adj=1). */
     onLevelTrendedPremium: number;
     selectedUltimate: number | null;
     trendedUltimate: number | null;
-    /** Trended developed ultimate / on-level trended premium. */
+    /** Trended developed ultimate / adjusted base: a loss ratio or a pure premium per `method`. */
     lossRatioAtTarget: number | null;
   }[];
   averages: { key: string; label: string; value: number | null }[];
-  /** Cape Cod mechanical ELR (restated to this exhibit's level when restored). */
+  /** Cape Cod mechanical a-priori (loss ratio or pure premium), restated to this exhibit's level when restored. */
   capeCodElr: { paid: number | null; incurred: number | null };
   selected: number | null;
   selectedAtLevel: "unlimited" | "limited" | "restored" | null;
@@ -571,13 +606,19 @@ export function computeElrReview(
   state: WorkspaceState,
   record: AnalysisRecord | null,
   selectionView: UltimateSelectionView | null,
-  exposures: { origin: string; earnedPremium: number }[],
+  exposures: { origin: string; earnedPremium: number | null; exposureUnits: number | null }[],
 ): ElrReview | null {
   if (!record || !selectionView) return null;
   const results = record.results as AnalysisResults;
-  const premiumByOrigin = new Map(exposures.map((e) => [e.origin, e.earnedPremium]));
+  // The base is earned premium (loss-ratio) or exposure units (pure-premium).
+  const method = state.elr.method;
+  const isPP = method === "pure-premium";
+  const aprioriWord = isPP ? "pure premium" : "ELR";
+  const baseByOrigin = new Map(
+    exposures.map((e) => [e.origin, isPP ? e.exposureUnits : e.earnedPremium]),
+  );
   const origins = selectionView.rows.map((r) => r.origin);
-  const withPremium = origins.filter((o) => (premiumByOrigin.get(o) ?? 0) > 0);
+  const withPremium = origins.filter((o) => (baseByOrigin.get(o) ?? 0) > 0);
   if (withPremium.length === 0) return null;
 
   const resolvedTarget = resolveElrTargetYear(
@@ -594,12 +635,12 @@ export function computeElrReview(
   const warnings = [...adj.warnings];
   if (level === "limited") {
     warnings.push(
-      "Ultimates are at the LIMITED (capped) level: this ELR excludes the excess layer - restore before selecting, or select a limited ELR knowingly",
+      `Ultimates are at the LIMITED (capped) level: this ${aprioriWord} excludes the excess layer - restore before selecting, or select a limited ${aprioriWord} knowingly`,
     );
   }
 
   const rows = withPremium.map((origin) => {
-    const premium = premiumByOrigin.get(origin)!;
+    const premium = baseByOrigin.get(origin)!;
     const a = adj.byOrigin[origin]!;
     const selRow = selectionView.rows.find((r) => r.origin === origin)!;
     const selectedUltimate = selRow.selected;
@@ -638,7 +679,11 @@ export function computeElrReview(
   const maxUsableYear = usable.length > 0 ? Math.max(...usable.map((r) => originYear(r.origin))) : 0;
   const lastYears = (n: number) => usable.filter((r) => originYear(r.origin) > maxUsableYear - n);
   const averages: ElrReview["averages"] = [
-    { key: "wtd-all", label: "Premium-weighted, all years", value: weighted(usable) },
+    {
+      key: "wtd-all",
+      label: isPP ? "Exposure-weighted, all years" : "Premium-weighted, all years",
+      value: weighted(usable),
+    },
     { key: "all", label: "Straight average, all years", value: straight(usable) },
     { key: "last5", label: "Straight, last 5 years", value: straight(lastYears(5)) },
     { key: "last3", label: "Straight, last 3 years", value: straight(lastYears(3)) },
@@ -660,7 +705,7 @@ export function computeElrReview(
   }
   if (totalWeight > 0 && aprioriWeight > 0) {
     warnings.push(
-      `${Math.round((aprioriWeight / totalWeight) * 100)}% of the blended weight sits on a-priori methods (BF/Cape Cod/Expected Claims): these loss ratios partially SELF-CONFIRM the prior ELR - anchor the selection on development-heavy weights, or read the averages as anchored accordingly`,
+      `${Math.round((aprioriWeight / totalWeight) * 100)}% of the blended weight sits on a-priori methods (BF/Cape Cod/Expected Claims): these ${isPP ? "pure premiums" : "loss ratios"} partially SELF-CONFIRM the prior ${aprioriWord} - anchor the selection on development-heavy weights, or read the averages as anchored accordingly`,
     );
   }
 
@@ -673,12 +718,13 @@ export function computeElrReview(
   }
   if (state.elr.selectedAtLevel !== null && state.elr.selectedAtLevel !== level) {
     warnings.push(
-      `The selected ELR was chosen at the ${state.elr.selectedAtLevel} level but this exhibit is at the ${level} level - re-select before relying on it`,
+      `The selected ${aprioriWord} was chosen at the ${state.elr.selectedAtLevel} level but this exhibit is at the ${level} level - re-select before relying on it`,
     );
   }
 
   return {
     targetYear: adj.targetYear,
+    method,
     level,
     rows,
     averages,
@@ -1163,7 +1209,7 @@ export interface WorkspacePatch {
     history?: { effectiveDate: string; change: number }[];
     premiumTrend?: number | null;
   };
-  elr?: { selected?: number | null };
+  elr?: { method?: ElrMethod; selected?: number | null };
   trend?: {
     frequency?: TrendChoice;
     severity?: { layer: LayerKey; source: TrendChoice["source"]; value: number | null };
@@ -1435,12 +1481,34 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
     }
   }
   if (patch.elr) {
+    if (patch.elr.method !== undefined && patch.elr.method !== state.elr.method) {
+      if (patch.elr.method !== "loss-ratio" && patch.elr.method !== "pure-premium") {
+        throw new HttpError(
+          422,
+          "BAD_ELR_METHOD",
+          "The a-priori method must be 'loss-ratio' or 'pure-premium'",
+        );
+      }
+      state.elr.method = patch.elr.method;
+      // A loss ratio and a pure premium are different units: a selected a-priori
+      // or a manual BF a-priori judged under one method is meaningless under the
+      // other, so a method switch clears them (same as a layer switch clearing
+      // level-specific judgments).
+      state.elr.selected = null;
+      state.elr.selectedAtLevel = null;
+      state.bf.unlimited.aprioriLossRatio = null;
+      state.bf.capped.aprioriLossRatio = null;
+    }
     if (patch.elr.selected !== undefined) {
       if (
         patch.elr.selected !== null &&
         (!isNum(patch.elr.selected) || patch.elr.selected <= 0)
       ) {
-        throw new HttpError(422, "BAD_ELR", "The selected ELR must be a positive number or null");
+        throw new HttpError(
+          422,
+          "BAD_ELR",
+          "The selected a-priori (loss ratio or pure premium) must be a positive number or null",
+        );
       }
       state.elr.selected = patch.elr.selected;
       // Stamp the dollar level of the exhibit this number was read from: a
@@ -1762,8 +1830,23 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   );
   const paidAtDiagonal = latestDiagonalTotal(triangles.paid);
 
-  // Bornhuetter-Ferguson (needs exposure data).
-  const exposures = getExposures(projectId);
+  // Bornhuetter-Ferguson (needs exposure data). The a-priori METHOD picks the
+  // base: earned premium (loss ratio) or exposure units (pure premium). Feed the
+  // chosen base into earnedPremium so the base-agnostic BF / Cape Cod / Expected
+  // Claims compute a loss ratio or a pure premium; exposureUnits is carried for
+  // reference. `hasBase` gates on a USABLE base, not just any row (a premium-only
+  // project has rows but no base under the pure-premium method).
+  const isPPMethod = state.elr.method === "pure-premium";
+  const aprioriWord = isPPMethod ? "pure premium" : "ELR";
+  const exposures = getExposures(projectId).map((e) => ({
+    origin: e.origin,
+    earnedPremium: isPPMethod ? e.exposureUnits : e.earnedPremium,
+    exposureUnits: e.exposureUnits,
+  }));
+  const hasBase = exposures.some((e) => (e.earnedPremium ?? 0) > 0);
+  const noBaseMsg = isPPMethod
+    ? "No exposure units imported (the pure-premium method needs them)"
+    : "No exposure/premium data imported";
 
   // ELR level coherence, resolved ONCE for BF, Cape Cod, and Expected Claims.
   const runResolvedIlf = state.layer.active === "capped" ? view.ilfReview.resolved : null;
@@ -1775,11 +1858,13 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   if (state.elr.selected !== null) {
     const selLevel = state.elr.selectedAtLevel ?? "unlimited";
     if (selLevel !== runLevel) {
-      elrDerivedSkipReason = `The selected ELR was chosen at the ${selLevel} level but this run is ${runLevel}, so Expected Claims and the ELR-derived BF a-priori were skipped (the levels must match, or the a-priori would sit at the wrong dollar level). Re-select the ELR on the current ${runLevel} exhibit, then rerun.`;
+      elrDerivedSkipReason = `The selected ${aprioriWord} was chosen at the ${selLevel} level but this run is ${runLevel}, so Expected Claims and the ${aprioriWord}-derived BF a-priori were skipped (the levels must match, or the a-priori would sit at the wrong dollar level). Re-select the ${aprioriWord} on the current ${runLevel} exhibit, then rerun.`;
       warnings.push(elrDerivedSkipReason);
     } else if (runLevel === "restored") {
-      // De-restate to the capped level: method outputs are native to the run
-      // layer and the selection matrix restores them exactly once.
+      // De-restate to the capped level: the a-priori (loss ratio or pure premium)
+      // is native to the run layer and the selection matrix restores it exactly
+      // once. Restoration scales losses, and a pure premium is losses per unit,
+      // so it scales by the same uncap factor.
       elrNativeToRun = state.elr.selected / runResolvedIlf!.factor;
     } else {
       elrNativeToRun = state.elr.selected;
@@ -1789,8 +1874,8 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   let bfPaid: BornhuetterFergusonResult | null = null;
   let bfIncurred: BornhuetterFergusonResult | null = null;
   let bfSkipped: string | undefined;
-  if (exposures.length === 0) {
-    bfSkipped = "No exposure/premium data imported; Bornhuetter-Ferguson was skipped.";
+  if (!hasBase) {
+    bfSkipped = `${noBaseMsg}; Bornhuetter-Ferguson was skipped.`;
     warnings.push(bfSkipped);
   } else {
     // A-priori precedence: explicit manual override > per-origin restatement
@@ -1927,8 +2012,8 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   let expectedClaimsResult: ExpectedClaimsResult | null = null;
   let ccSkipped: string | undefined;
   let elrAdjustmentsByOrigin: AnalysisResults["elrAdjustments"];
-  if (exposures.length === 0) {
-    ccSkipped = "No exposure/premium data imported; Cape Cod and Expected Claims were skipped.";
+  if (!hasBase) {
+    ccSkipped = `${noBaseMsg}; Cape Cod and Expected Claims were skipped.`;
     warnings.push(ccSkipped);
   } else {
     try {
@@ -1938,7 +2023,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
       );
       if (originsWithPremium.length < triangles.paid.origins.length) {
         warnings.push(
-          `${triangles.paid.origins.length - originsWithPremium.length} origin(s) lack premium and are excluded from Cape Cod / Expected Claims`,
+          `${triangles.paid.origins.length - originsWithPremium.length} origin(s) lack ${isPPMethod ? "exposure units" : "premium"} and are excluded from Cape Cod / Expected Claims`,
         );
       }
       const elrArmed =
@@ -1969,8 +2054,8 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
             },
           ];
         });
-      ccPaid = runCapeCod(mkRows(paidCl));
-      ccIncurred = runCapeCod(mkRows(incurredCl));
+      ccPaid = runCapeCod(mkRows(paidCl), { baseIsPurePremium: isPPMethod });
+      ccIncurred = runCapeCod(mkRows(incurredCl), { baseIsPurePremium: isPPMethod });
       warnings.push(...ccPaid.warnings, ...ccIncurred.warnings);
       if (elrNativeToRun !== null) {
         expectedClaimsResult = runExpectedClaims(mkRows(paidCl), elrNativeToRun);

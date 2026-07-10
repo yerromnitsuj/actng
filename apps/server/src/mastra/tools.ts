@@ -167,9 +167,11 @@ export const getWorkspaceOverview = createTool({
         },
         tails: activeTail(view.state),
         bfAprioriOverride: activeBf(view.state).aprioriLossRatio,
+        aprioriMethod: view.state.elr.method,
         exposures: exposures.map((e) => ({
           origin: e.origin,
-          earnedPremium: round0(e.earnedPremium),
+          earnedPremium: e.earnedPremium !== null ? round0(e.earnedPremium) : null,
+          exposureUnits: e.exposureUnits !== null ? round0(e.exposureUnits) : null,
         })),
         data: view.dataAsOf,
         diagnosticHeadlines: view.diagnostics.findings.map((f) => `${f.severity}: ${f.message}`),
@@ -1012,10 +1014,32 @@ export const setTrendSelections = createTool({
   },
 });
 
+export const setAprioriMethod = createTool({
+  id: "set_apriori_method",
+  description:
+    "Choose the a-priori METHOD. 'loss-ratio' divides trended developed losses by ON-LEVEL earned PREMIUM (yields a loss ratio; needs premium + rate history). 'pure-premium' divides by EXPOSURE UNITS (yields a pure premium = loss cost per unit; needs exposure units imported; premium on-leveling does NOT apply). Switching methods CLEARS any selected a-priori and manual BF override (a loss ratio and a pure premium are different units). Rerun the analysis afterwards.",
+  inputSchema: z.object({
+    method: z.enum(["loss-ratio", "pure-premium"]).describe("The a-priori method to use"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, { elr: { method: input.method } });
+      return {
+        success: true,
+        method: view.state.elr.method,
+        message: `A-priori method set to ${view.state.elr.method}. Any prior a-priori selection and manual BF override were cleared. Rerun the analysis.`,
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const analyzeElr = createTool({
   id: "analyze_elr",
   description:
-    "The expected-loss-ratio compilation over the latest run: per-year trended SELECTED ultimates (the weights/overrides blend - see the circularity warning when a-priori methods carry weight) over on-level trended premium (parallelogram on-leveling from the rate history + premium trend + the selected loss trends), an averages menu, the Cape Cod mechanical ELR cross-check, and the current selection. Call BEFORE recommending an ELR.",
+    "The a-priori compilation over the latest run: per-year trended SELECTED ultimates over the exposure base, an averages menu, the Cape Cod mechanical cross-check, and the current selection. The METHOD determines the base and the a-priori's unit: loss-ratio (over ON-LEVEL premium -> a loss RATIO, percent) or pure-premium (over EXPOSURE UNITS -> a pure premium, DOLLARS per unit). Call BEFORE recommending an a-priori. All a-priori values below are in the unit named by `aprioriUnit`.",
   inputSchema: z.object({}),
   execute: async (input, context) => {
     try {
@@ -1023,43 +1047,44 @@ export const analyzeElr = createTool({
       const view = getWorkspaceView(projectId);
       const review = view.elrReview;
       if (!review) {
+        const isPP = view.state.elr.method === "pure-premium";
         return {
           success: false,
-          error:
-            "The ELR exhibit needs an analysis run and premium data (import exposures first)",
+          error: `The a-priori exhibit needs an analysis run and ${isPP ? "exposure units (import exposure_units)" : "premium data (import exposures)"} first`,
         };
       }
+      const isPP = review.method === "pure-premium";
+      // Loss ratios are reported in percent; pure premiums as whole dollars.
+      const fmtA = (v: number | null): number | null =>
+        v === null ? null : isPP ? round0(v) : Math.round(v * 1000) / 10;
       return {
         success: true,
+        method: review.method,
+        aprioriUnit: isPP ? "pure premium (dollars per exposure unit)" : "loss ratio (percent)",
         targetYear: review.targetYear,
         level: review.level,
         warnings: review.warnings,
         rows: review.rows.map((r) => ({
           origin: r.origin,
-          premium: round0(r.premium),
+          base: round0(r.premium),
           onLevelFactor: round3(r.onLevelFactor),
-          onLevelTrendedPremium: round0(r.onLevelTrendedPremium),
+          adjustedBase: round0(r.onLevelTrendedPremium),
           trendedUltimate: r.trendedUltimate !== null ? round0(r.trendedUltimate) : null,
-          lossRatioPct:
-            r.lossRatioAtTarget !== null ? Math.round(r.lossRatioAtTarget * 1000) / 10 : null,
+          aprioriAtTarget: fmtA(r.lossRatioAtTarget),
         })),
-        averagesPct: review.averages.map((a) => ({
+        averages: review.averages.map((a) => ({
           key: a.key,
           label: a.label,
-          valuePct: a.value !== null ? Math.round(a.value * 1000) / 10 : null,
+          value: fmtA(a.value),
         })),
-        capeCodElrPct: {
-          paid:
-            review.capeCodElr.paid !== null
-              ? Math.round(review.capeCodElr.paid * 1000) / 10
-              : null,
-          incurred:
-            review.capeCodElr.incurred !== null
-              ? Math.round(review.capeCodElr.incurred * 1000) / 10
-              : null,
+        capeCodApriori: {
+          paid: fmtA(review.capeCodElr.paid),
+          incurred: fmtA(review.capeCodElr.incurred),
         },
-        selectedPct: review.selected !== null ? Math.round(review.selected * 1000) / 10 : null,
-        note: "All ratios in PERCENT; set_elr takes a DECIMAL (0.65 = 65%)",
+        selected: fmtA(review.selected),
+        note: isPP
+          ? "Pure premiums are DOLLARS per exposure unit; set_elr takes the dollar value (e.g. 475)"
+          : "All ratios in PERCENT; set_elr takes a DECIMAL (0.65 = 65%)",
       };
     } catch (err) {
       return failure(err);
@@ -1070,25 +1095,28 @@ export const analyzeElr = createTool({
 export const setElr = createTool({
   id: "set_elr",
   description:
-    "Select the expected loss ratio AT THE TARGET COST LEVEL (decimal: 0.65 = 65%). The engine restates it to each origin year's own level for the BF a-priori and the Expected Claims method on the NEXT run. null clears the selection (BF reverts to its CL-derived default; Expected Claims drops out).",
+    "Select the a-priori AT THE TARGET COST LEVEL. Its unit follows the method: loss-ratio -> a DECIMAL loss ratio (0.65 = 65%); pure-premium -> a positive DOLLAR pure premium per exposure unit (e.g. 475). The engine restates it to each origin year's own level for the BF a-priori and the Expected Claims method on the NEXT run. null clears the selection (BF reverts to its CL-derived default; Expected Claims drops out). Call analyze_elr / read the exhibit first to know the current method.",
   inputSchema: z.object({
     selected: z
       .number()
       .positive()
       .nullable()
-      .describe("ELR at target level as a decimal; null clears"),
+      .describe("A-priori at target level: a decimal loss ratio (loss-ratio method) or a dollar pure premium (pure-premium method); null clears"),
   }),
   execute: async (input, context) => {
     try {
       const projectId = projectIdOf(context as ToolCtx);
       const view = patchWorkspace(projectId, { elr: { selected: input.selected } });
+      const isPP = view.state.elr.method === "pure-premium";
+      const sel = view.state.elr.selected;
       return {
         success: true,
-        selected: view.state.elr.selected,
+        method: view.state.elr.method,
+        selected: sel,
         message:
-          view.state.elr.selected !== null
-            ? `ELR selected at ${(view.state.elr.selected * 100).toFixed(1)}% (target level). Rerun the analysis for BF and Expected Claims to use it.`
-            : "ELR selection cleared; BF reverts to its derived default on the next run.",
+          sel !== null
+            ? `${isPP ? "Pure premium" : "ELR"} selected at ${isPP ? "$" + Math.round(sel).toLocaleString() : (sel * 100).toFixed(1) + "%"} (target level). Rerun the analysis for BF and Expected Claims to use it.`
+            : "A-priori selection cleared; BF reverts to its derived default on the next run.",
       };
     } catch (err) {
       return failure(err);
@@ -1338,6 +1366,7 @@ export const advisorTools = {
   derive_expected_losses: deriveExpectedLosses,
   advance_elr_derivation: advanceElrDerivation,
   analyze_elr: analyzeElr,
+  set_apriori_method: setAprioriMethod,
   set_elr: setElr,
   set_rate_history: setRateHistory,
   fit_severity_curves: fitSeverityCurves,
@@ -1354,6 +1383,7 @@ export const ACTION_TOOL_IDS = new Set([
   "set_loss_cap",
   "set_trend_selections",
   "advance_elr_derivation",
+  "set_apriori_method",
   "set_elr",
   "set_rate_history",
   "set_ilf_source",

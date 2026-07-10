@@ -78,7 +78,8 @@ export default function ImportPanel({ projectId }: { projectId: string }) {
           <div>
             <p className="text-[0.85rem] font-medium text-ink">Exposure / premium</p>
             <p className="text-[0.72rem] text-ink-faint">
-              CSV or Excel - origin, earned_premium. Required for Bornhuetter-Ferguson.
+              CSV or Excel - origin, then earned_premium (loss-ratio method) and/or exposure_units
+              (pure-premium method); at least one. Required for Bornhuetter-Ferguson.
             </p>
           </div>
           <input

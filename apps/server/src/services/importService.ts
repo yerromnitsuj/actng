@@ -35,10 +35,29 @@ const claimRowSchema = z.object({
     .pipe(z.enum(["open", "closed"])),
 });
 
-const exposureRowSchema = z.object({
-  origin: z.string().trim().min(1, "origin is required"),
-  earned_premium: z.coerce.number().finite().positive("earned_premium must be > 0"),
-});
+/** An optional positive numeric cell: blank/absent -> undefined, else > 0. */
+const optionalPositiveCell = (label: string) =>
+  z.preprocess(
+    (v) =>
+      v === undefined || v === null || String(v).trim() === ""
+        ? undefined
+        : Number(String(v).replace(/,/g, "")),
+    z
+      .number({ invalid_type_error: `${label} must be a number` })
+      .finite()
+      .positive(`${label} must be > 0`)
+      .optional(),
+  );
+
+const exposureRowSchema = z
+  .object({
+    origin: z.string().trim().min(1, "origin is required"),
+    earned_premium: optionalPositiveCell("earned_premium"),
+    exposure_units: optionalPositiveCell("exposure_units"),
+  })
+  .refine((r) => r.earned_premium !== undefined || r.exposure_units !== undefined, {
+    message: "each row needs earned_premium and/or exposure_units",
+  });
 
 interface RawTable {
   headers: string[];
@@ -222,7 +241,14 @@ export async function parseExposuresUpload(
   buffer: Buffer,
 ): Promise<ExposureRecord[]> {
   const table = await parseUpload(filename, buffer);
-  const rows = validateRows(table, exposureRowSchema, ["origin", "earned_premium"]);
+  if (!table.headers.includes("earned_premium") && !table.headers.includes("exposure_units")) {
+    throw new HttpError(
+      422,
+      "MISSING_COLUMNS",
+      `Exposure files need an origin column plus earned_premium (loss-ratio method) and/or exposure_units (pure-premium method). Found: ${table.headers.join(", ") || "(none)"}`,
+    );
+  }
+  const rows = validateRows(table, exposureRowSchema, ["origin"]);
   const seen = new Set<string>();
   for (const r of rows) {
     if (seen.has(r.origin)) {
@@ -230,7 +256,11 @@ export async function parseExposuresUpload(
     }
     seen.add(r.origin);
   }
-  return rows.map((r) => ({ origin: r.origin, earnedPremium: r.earned_premium }));
+  return rows.map((r) => ({
+    origin: r.origin,
+    earnedPremium: r.earned_premium ?? null,
+    exposureUnits: r.exposure_units ?? null,
+  }));
 }
 
 const numericCell = (label: string) =>

@@ -62,7 +62,12 @@ export const patchSchema = z.object({
       premiumTrend: z.number().gt(-1).nullable().optional(),
     })
     .optional(),
-  elr: z.object({ selected: z.number().positive().nullable().optional() }).optional(),
+  elr: z
+    .object({
+      method: z.enum(["loss-ratio", "pure-premium"]).optional(),
+      selected: z.number().positive().nullable().optional(),
+    })
+    .optional(),
   trend: z
     .object({
       frequency: z

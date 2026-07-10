@@ -101,8 +101,11 @@ export interface TrendFit {
   warnings: string[];
 }
 
+export type ElrMethod = "loss-ratio" | "pure-premium";
+
 export interface TrendReview {
   targetYear: number;
+  method: ElrMethod;
   level: "unlimited" | "limited" | "restored";
   severityLayer: LayerKey;
   rows: {
@@ -142,14 +145,21 @@ export interface WorkspaceState {
     targetYear: number | null;
   };
   rates: { history: { effectiveDate: string; change: number }[]; premiumTrend: number | null };
-  elr: { selected: number | null };
+  elr: {
+    method: ElrMethod;
+    selected: number | null;
+    selectedAtLevel: "unlimited" | "limited" | "restored" | null;
+  };
 }
 
 export interface ElrReview {
   targetYear: number;
+  /** loss-ratio -> ratios/premium; pure-premium -> pure premiums ($/unit)/exposure units. */
+  method: ElrMethod;
   level: "unlimited" | "limited" | "restored";
   rows: {
     origin: string;
+    /** Exposure base: on-level earned premium (loss-ratio) or exposure units (pure-premium). */
     premium: number;
     onLevelFactor: number;
     premiumAdj: number;
@@ -157,11 +167,13 @@ export interface ElrReview {
     onLevelTrendedPremium: number;
     selectedUltimate: number | null;
     trendedUltimate: number | null;
+    /** A loss ratio or a pure premium, per `method`. */
     lossRatioAtTarget: number | null;
   }[];
   averages: { key: string; label: string; value: number | null }[];
   capeCodElr: { paid: number | null; incurred: number | null };
   selected: number | null;
+  selectedAtLevel: "unlimited" | "limited" | "restored" | null;
   warnings: string[];
 }
 

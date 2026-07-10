@@ -25,6 +25,10 @@ export interface SyntheticConfig {
   asOfDate?: string;
   basePremium?: number;
   premiumGrowth?: number;
+  /** Exposure units in the start year (the pure-premium base, e.g. earned car-years). */
+  baseExposureUnits?: number;
+  /** Annual exposure-count growth; slower than premiumGrowth so premium carries rate on top of exposure. */
+  exposureGrowth?: number;
   claimsPerMillion?: number;
   severityTrend?: number;
 }
@@ -80,6 +84,8 @@ export function generateSyntheticLossRun(config: SyntheticConfig = {}): Syntheti
     asOfDate: config.asOfDate ?? "2025-12-31",
     basePremium: config.basePremium ?? 5_000_000,
     premiumGrowth: config.premiumGrowth ?? 0.05,
+    baseExposureUnits: config.baseExposureUnits ?? 10_000,
+    exposureGrowth: config.exposureGrowth ?? 0.02,
     claimsPerMillion: config.claimsPerMillion ?? 48,
     severityTrend: config.severityTrend ?? 0.06,
   };
@@ -95,7 +101,10 @@ export function generateSyntheticLossRun(config: SyntheticConfig = {}): Syntheti
   for (let yearIdx = 0; yearIdx < cfg.nYears; yearIdx++) {
     const accidentYear = cfg.startYear + yearIdx;
     const premium = Math.round(cfg.basePremium * Math.pow(1 + cfg.premiumGrowth, yearIdx));
-    exposures.push({ origin: String(accidentYear), earnedPremium: premium });
+    // Exposure units grow slower than premium: premium carries rate change on top
+    // of exposure growth, so the pure-premium and loss-ratio methods differ.
+    const exposureUnits = Math.round(cfg.baseExposureUnits * Math.pow(1 + cfg.exposureGrowth, yearIdx));
+    exposures.push({ origin: String(accidentYear), earnedPremium: premium, exposureUnits });
 
     const expectedClaims = (premium / 1_000_000) * cfg.claimsPerMillion;
     // Poisson-ish count via normal approximation, floored sensibly.
@@ -190,7 +199,8 @@ export function claimsToCsv(claims: ClaimSnapshot[]): string {
 }
 
 export function exposuresToCsv(exposures: ExposureRecord[]): string {
-  const header = "origin,earned_premium";
-  const lines = exposures.map((e) => `${e.origin},${e.earnedPremium}`);
+  // Both bases so the demo import supports the loss-ratio and pure-premium methods.
+  const header = "origin,earned_premium,exposure_units";
+  const lines = exposures.map((e) => `${e.origin},${e.earnedPremium ?? ""},${e.exposureUnits ?? ""}`);
   return [header, ...lines].join("\n") + "\n";
 }

@@ -73,7 +73,7 @@ function validateRows(rows: ElrMethodRow[]): void {
     if (!isNum(r.premium) || r.premium <= 0) {
       throw new ReservingError(
         "BAD_PREMIUM",
-        `Origin ${r.origin}: earned premium must be positive`,
+        `Origin ${r.origin}: the exposure base (earned premium or exposure units) must be positive`,
       );
     }
     if (!isNum(r.reported) || r.reported < 0) {
@@ -96,7 +96,10 @@ function validateRows(rows: ElrMethodRow[]): void {
  * expectedUltimate_i = ELR* x premium_i x premiumAdj_i / lossAdj_i (the
  * target-level ELR restated to origin i's own level, times its premium).
  */
-export function runCapeCod(rows: ElrMethodRow[]): CapeCodResult {
+export function runCapeCod(
+  rows: ElrMethodRow[],
+  opts: { baseIsPurePremium?: boolean } = {},
+): CapeCodResult {
   validateRows(rows);
   const warnings: string[] = [];
 
@@ -115,7 +118,9 @@ export function runCapeCod(rows: ElrMethodRow[]): CapeCodResult {
       "Some origins have CDFs below 1 (expected downward development): their Cape Cod provision is an expected take-down, standard for incurred bases with case redundancy",
     );
   }
-  if (elr > 2) {
+  // A pure premium (losses per exposure unit) is a dollar amount, not a ratio,
+  // so the "ELR looks too high" sanity check only applies to the loss-ratio base.
+  if (!opts.baseIsPurePremium && elr > 2) {
     warnings.push(
       `Cape Cod mechanical ELR is ${(elr * 100).toFixed(0)}% - check that premium and losses are on comparable levels`,
     );

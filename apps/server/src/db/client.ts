@@ -84,3 +84,31 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(thread_id, created_at ASC);
 `);
+
+/**
+ * Additive migration: the exposures table gains an `exposure_units` column and
+ * `earned_premium` becomes nullable, so a project can carry earned premium (the
+ * loss-ratio method), exposure units (the pure-premium method), or both. SQLite
+ * cannot relax a NOT NULL in place, so the table is rebuilt once (guarded on the
+ * absence of the new column). Idempotent and additive: existing premium is
+ * copied verbatim.
+ */
+{
+  const cols = db.prepare("PRAGMA table_info(exposures)").all() as { name: string }[];
+  if (!cols.some((c) => c.name === "exposure_units")) {
+    db.exec(`
+      ALTER TABLE exposures RENAME TO exposures_legacy;
+      CREATE TABLE exposures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        origin TEXT NOT NULL,
+        earned_premium REAL,
+        exposure_units REAL,
+        UNIQUE(project_id, origin)
+      );
+      INSERT INTO exposures (id, project_id, origin, earned_premium)
+        SELECT id, project_id, origin, earned_premium FROM exposures_legacy;
+      DROP TABLE exposures_legacy;
+    `);
+  }
+}

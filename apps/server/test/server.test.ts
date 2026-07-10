@@ -886,7 +886,7 @@ describe("trend and frequency/severity exhibit", () => {
     const exposures = repo.getExposures(projectId);
     const sel = view.ultimateSelection!;
     for (const row of review.rows) {
-      const premium = exposures.find((e) => e.origin === row.origin)!.earnedPremium;
+      const premium = exposures.find((e) => e.origin === row.origin)!.earnedPremium!;
       const selRow = sel.rows.find((r) => r.origin === row.origin)!;
       expect(row.ultimateCounts).not.toBeNull();
       expect(row.frequency).not.toBeNull();
@@ -1059,7 +1059,7 @@ describe("expected-loss-ratio machinery (phase 4)", () => {
     const exposures = repo.getExposures(projectId);
     for (const row of results.expectedClaims!.rows) {
       const adj = results.elrAdjustments![row.origin]!;
-      const premium = exposures.find((e) => e.origin === row.origin)!.earnedPremium;
+      const premium = exposures.find((e) => e.origin === row.origin)!.earnedPremium!;
       expect(row.ultimate).toBeCloseTo(((0.7 * adj.premiumAdj) / adj.lossAdj) * premium, 6);
     }
     // BF used the restated ELR as its per-origin a-priori.
@@ -1148,7 +1148,7 @@ describe("phase-4 review fixes: level coherence, zod weights, on-level frequency
     const exposures = repo.getExposures(projectId);
     const row2020 = review.rows.find((r) => r.origin === "2020")!;
     expect(row2020.onLevelFactor).toBeGreaterThan(1); // pre-change year restates up
-    const premium = exposures.find((e) => e.origin === "2020")!.earnedPremium;
+    const premium = exposures.find((e) => e.origin === "2020")!.earnedPremium!;
     expect(row2020.frequency).toBeCloseTo(
       row2020.ultimateCounts! / ((premium * row2020.onLevelFactor) / 1_000_000),
       9,
@@ -1196,7 +1196,7 @@ describe("phase-4 review fixes: level coherence, zod weights, on-level frequency
     const adj = results.elrAdjustments!;
     const exposures = repo.getExposures(projectId);
     const probe = sel.rows.find((r) => r.ultimates.expectedClaims !== null)!;
-    const premium = exposures.find((e) => e.origin === probe.origin)!.earnedPremium;
+    const premium = exposures.find((e) => e.origin === probe.origin)!.earnedPremium!;
     const a = adj[probe.origin]!;
     expect(probe.ultimates.expectedClaims!).toBeCloseTo(
       ((0.7 * a.premiumAdj) / a.lossAdj) * premium,
@@ -1322,4 +1322,115 @@ describe("derive-expected-losses workflow (phase 5)", () => {
     expect(note).toBeDefined();
     expect(note!.text).toMatch(/stay unlimited/);
   }, 30_000);
+});
+
+describe("pure-premium method", () => {
+  let projectId: string;
+  const allWtdOf = (view: ReturnType<WorkspaceService["getWorkspaceView"]>, basis: "paid" | "incurred") =>
+    view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+  const setup = () => {
+    const project = repo.createProject("Pure premium test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 99,
+      nYears: 6,
+      startYear: 2019,
+      asOfDate: "2024-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    const view = ws.getWorkspaceView(projectId);
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtdOf(view, "paid") } });
+    ws.patchWorkspace(projectId, { selections: { basis: "incurred", selected: allWtdOf(view, "incurred") } });
+  };
+
+  it("the synthetic generator emits exposure units alongside premium", () => {
+    const { exposures } = synthetic.generateSyntheticLossRun({ seed: 1, nYears: 3, startYear: 2020, asOfDate: "2022-12-31" });
+    for (const e of exposures) {
+      expect(e.earnedPremium!).toBeGreaterThan(0);
+      expect(e.exposureUnits!).toBeGreaterThan(0);
+    }
+  });
+
+  it("divides by units (no on-leveling) and Expected Claims uses pure premium x units", () => {
+    setup();
+    // A rate history is present but must NOT touch pure premium (units don't on-level).
+    ws.patchWorkspace(projectId, { rates: { history: [{ effectiveDate: "2022-01-01", change: 0.1 }] } });
+    ws.patchWorkspace(projectId, { elr: { method: "pure-premium" } });
+    ws.runFullAnalysis(projectId, "pp run");
+    const review = ws.getWorkspaceView(projectId).elrReview!;
+    expect(review.method).toBe("pure-premium");
+    const exposures = repo.getExposures(projectId);
+    for (const r of review.rows) {
+      expect(r.onLevelFactor).toBe(1); // units are not rate-sensitive
+      const units = exposures.find((e) => e.origin === r.origin)!.exposureUnits!;
+      expect(r.premium).toBeCloseTo(units, 6); // the base IS units, not premium
+      if (r.trendedUltimate !== null) {
+        expect(r.lossRatioAtTarget!).toBeCloseTo(r.trendedUltimate / units, 6);
+        expect(r.lossRatioAtTarget!).toBeGreaterThan(50); // a dollar pure premium, not a ratio
+      }
+    }
+    // Select the weighted pure premium; Expected Claims = (PP / lossAdj) x units.
+    const wtd = Math.round(review.averages.find((a) => a.key === "wtd-all")!.value!);
+    ws.patchWorkspace(projectId, { elr: { selected: wtd } });
+    const rerun = ws.runFullAnalysis(projectId, "pp ec run");
+    const results = rerun.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.expectedClaims).not.toBeNull();
+    const sel = ws.getWorkspaceView(projectId).ultimateSelection!;
+    const adj = results.elrAdjustments!;
+    const probe = sel.rows.find((r) => r.ultimates.expectedClaims !== null)!;
+    const units = exposures.find((e) => e.origin === probe.origin)!.exposureUnits!;
+    const a = adj[probe.origin]!;
+    expect(a.premiumAdj).toBe(1); // no on-level / premium trend
+    expect(probe.ultimates.expectedClaims!).toBeCloseTo((wtd / a.lossAdj) * units, 3);
+  });
+
+  it("switching methods clears a selected a-priori and manual BF override", () => {
+    setup();
+    ws.patchWorkspace(projectId, { elr: { selected: 0.7 } });
+    ws.patchWorkspace(projectId, { bf: { aprioriLossRatio: 0.8 } });
+    expect(ws.ensureWorkspaceState(projectId).elr.selected).toBe(0.7);
+    ws.patchWorkspace(projectId, { elr: { method: "pure-premium" } });
+    const state = ws.ensureWorkspaceState(projectId);
+    expect(state.elr.method).toBe("pure-premium");
+    expect(state.elr.selected).toBeNull();
+    expect(state.elr.selectedAtLevel).toBeNull();
+    expect(state.bf.unlimited.aprioriLossRatio).toBeNull();
+  });
+
+  it("loss-ratio yields a ratio, pure-premium yields a dollar amount (bases differ)", () => {
+    setup();
+    ws.runFullAnalysis(projectId, "lr run");
+    const lr = ws.getWorkspaceView(projectId).elrReview!;
+    expect(lr.method).toBe("loss-ratio");
+    const lrWtd = lr.averages.find((a) => a.key === "wtd-all")!.value!;
+    expect(lrWtd).toBeGreaterThan(0.2);
+    expect(lrWtd).toBeLessThan(3);
+    ws.patchWorkspace(projectId, { elr: { method: "pure-premium" } });
+    ws.runFullAnalysis(projectId, "pp run");
+    const pp = ws.getWorkspaceView(projectId).elrReview!;
+    const ppWtd = pp.averages.find((a) => a.key === "wtd-all")!.value!;
+    expect(ppWtd).toBeGreaterThan(50);
+  });
+
+  it("pure premium with no exposure units skips BF/EC with a units-specific message", () => {
+    const project = repo.createProject("PP no units", "");
+    const pid = project.id;
+    const { claims } = synthetic.generateSyntheticLossRun({ seed: 5, nYears: 4, startYear: 2020, asOfDate: "2023-12-31" });
+    repo.insertClaims(pid, claims);
+    repo.replaceExposures(pid, [
+      { origin: "2020", earnedPremium: 1_000_000, exposureUnits: null },
+      { origin: "2021", earnedPremium: 1_000_000, exposureUnits: null },
+      { origin: "2022", earnedPremium: 1_000_000, exposureUnits: null },
+      { origin: "2023", earnedPremium: 1_000_000, exposureUnits: null },
+    ]);
+    const view = ws.getWorkspaceView(pid);
+    ws.patchWorkspace(pid, { selections: { basis: "paid", selected: allWtdOf(view, "paid") } });
+    ws.patchWorkspace(pid, { selections: { basis: "incurred", selected: allWtdOf(view, "incurred") } });
+    ws.patchWorkspace(pid, { elr: { method: "pure-premium" } });
+    const run = ws.runFullAnalysis(pid, "pp no units");
+    const results = run.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.bornhuetterFerguson.skippedReason).toMatch(/exposure units/i);
+    expect(results.warnings.join(" ")).toMatch(/pure-premium method needs them/i);
+  });
 });

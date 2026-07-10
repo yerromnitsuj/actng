@@ -83,9 +83,10 @@ export default function SelectionPanel() {
   const levelChanged = stale && armedLevel !== runLevel;
 
   // Round-5 F2: this run could not drive Expected Claims / the ELR-derived BF
-  // a-priori (ELR level mismatch), so those columns are deliberately blank -
+  // a-priori (a-priori level mismatch), so those columns are deliberately blank -
   // state WHY on the matrix instead of leaving a silent "-".
   const elrSkip = analysis?.results.elrDerivedSkipReason ?? null;
+  const aprioriWord = workspace?.state.elr.method === "pure-premium" ? "pure premium" : "ELR";
 
   const committedFor = (origin: string, method: SelectionMethodKey): number => {
     const row = selection.rows.find((r) => r.origin === origin);
@@ -204,7 +205,7 @@ export default function SelectionPanel() {
       ) : null}
       {elrSkip ? (
         <p className="mb-3 rounded-sm border border-steel bg-steel-soft px-3 py-1.5 text-[0.8rem] font-medium text-steel">
-          Exp Clms is blank (and BF carries its derived a-priori, not the selected ELR): {elrSkip}
+          Exp Clms is blank (and BF carries its derived a-priori, not the selected {aprioriWord}): {elrSkip}
         </p>
       ) : null}
       {selection.rows.some((r) => r.restorationShortfall) ? (

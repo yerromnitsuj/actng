@@ -261,11 +261,14 @@ const elrGate = createStep({
     if (!resumeData) {
       const view = getWorkspaceView(projectId);
       const review = view.elrReview;
+      const isPP = review?.method === "pure-premium";
       const wtd = review?.averages.find((a) => a.key === "wtd-all")?.value ?? null;
       const cc = review?.capeCodElr.paid ?? null;
+      const fmtA = (v: number | null): string =>
+        v === null ? "n/a" : isPP ? "$" + Math.round(v).toLocaleString() + "/unit" : (v * 100).toFixed(1) + "%";
       const recommendation = review
-        ? `Premium-weighted all-years loss ratio ${wtd !== null ? (wtd * 100).toFixed(1) + "%" : "n/a"}; Cape Cod mechanical cross-check ${cc !== null ? (cc * 100).toFixed(1) + "%" : "n/a"} (${review.level} level). Anchor on the weighted average unless recent years shifted; heed the circularity warning if a-priori methods carry weight`
-        : "No premium data: the ELR exhibit is unavailable";
+        ? `${isPP ? "Exposure-weighted all-years pure premium" : "Premium-weighted all-years loss ratio"} ${fmtA(wtd)}; Cape Cod mechanical cross-check ${fmtA(cc)} (${review.level} level). Anchor on the weighted average unless recent years shifted; heed the circularity warning if a-priori methods carry weight`
+        : `No ${view.state.elr.method === "pure-premium" ? "exposure-unit" : "premium"} data: the a-priori exhibit is unavailable`;
       await suspend({
         stage: "elr",
         recommendation,
@@ -280,11 +283,16 @@ const elrGate = createStep({
     }
     patchWorkspace(projectId, { elr: { selected: resumeData.selected } });
     runFullAnalysis(projectId, "ELR derivation - final");
+    const finalMethod = getWorkspaceView(projectId).state.elr.method;
+    const decisionText =
+      finalMethod === "pure-premium"
+        ? `selected pure premium $${Math.round(resumeData.selected).toLocaleString()}/unit at target level`
+        : `selected ELR ${(resumeData.selected * 100).toFixed(1)}% at target level`;
     const trail = [
       ...inputData.trail,
       {
         stage: "elr",
-        decision: `selected ELR ${(resumeData.selected * 100).toFixed(1)}% at target level`,
+        decision: decisionText,
         rationale: resumeData.rationale,
       },
     ];

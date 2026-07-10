@@ -194,12 +194,12 @@ export default function TrendPanel() {
             <tr>
               {[
                 "Year",
-                "Earned premium",
+                review.method === "pure-premium" ? "Exposure units" : "Earned premium",
                 "OLF",
                 "Ult counts",
-                "Freq /$1M",
+                review.method === "pure-premium" ? "Freq /unit" : "Freq /$1M",
                 "Severity",
-                "Pure prem /$1M",
+                review.method === "pure-premium" ? "Pure prem /unit" : "Pure prem /$1M",
                 `Freq @${review.targetYear}`,
                 `Sev @${review.targetYear}`,
               ].map((h, i) => (
@@ -223,7 +223,11 @@ export default function TrendPanel() {
                 </td>
                 <td
                   className="num cursor-help px-2 py-1 text-right text-[0.8rem] text-ink-faint"
-                  title="Parallelogram on-level factor applied to the frequency and pure-premium denominators"
+                  title={
+                    review.method === "pure-premium"
+                      ? "On-level factor is 1 under the pure-premium method: exposure units are not rate-sensitive"
+                      : "Parallelogram on-level factor applied to the frequency and pure-premium denominators"
+                  }
                 >
                   {r.onLevelFactor.toFixed(3)}
                 </td>

@@ -153,8 +153,8 @@ describe("Bornhuetter-Ferguson", () => {
     ]);
     const cl = runChainLadder(t, { selected: [1.5], tailFactor: 1 });
     const bf = runBornhuetterFerguson(t, cl, [
-      { origin: "2000", earnedPremium: 200 },
-      { origin: "2001", earnedPremium: 200 },
+      { origin: "2000", earnedPremium: 200, exposureUnits: null },
+      { origin: "2001", earnedPremium: 200, exposureUnits: null },
     ]);
     // Mature origin 2000 anchors the a-priori at 150/200 = 0.75.
     expect(bf.rows[0]!.aprioriLossRatio).toBeCloseTo(0.75, 10);
@@ -173,8 +173,8 @@ describe("Bornhuetter-Ferguson", () => {
       t,
       cl,
       [
-        { origin: "2000", earnedPremium: 200 },
-        { origin: "2001", earnedPremium: 200 },
+        { origin: "2000", earnedPremium: 200, exposureUnits: null },
+        { origin: "2001", earnedPremium: 200, exposureUnits: null },
       ],
       { aprioriLossRatio: 0.9 },
     );
