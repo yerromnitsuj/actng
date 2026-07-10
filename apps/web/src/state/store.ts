@@ -181,6 +181,18 @@ export const useStore = create<AppState>((set, get) => {
         if (stale(projectId)) return;
         set({ currentAnalysis: analysis, runningAnalysis: false, runError: null });
         await get().loadAnalyses(projectId);
+        // Re-blend the derived exhibits (selection matrix, ELR, trends) from the
+        // NEW latest run. They are recomputed server-side in getWorkspace from the
+        // latest analysis, so a run that doesn't also refresh the workspace leaves
+        // them blending the PREVIOUS run — the booked ultimates read stale until a
+        // page reload (cold-eyes round-6 MAJOR). Fetched directly (not loadWorkspace)
+        // to avoid flashing the whole page to the "Building triangles" empty state.
+        try {
+          const view = await api.getWorkspace(projectId);
+          if (!stale(projectId)) set({ workspace: view });
+        } catch {
+          // The run itself succeeded; a workspace refetch blip is non-fatal.
+        }
       } catch (err) {
         // A run failure is surfaced in the work area (runError), not the
         // transient top toast, so it can't be missed or auto-dismissed while
