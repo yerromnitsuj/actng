@@ -47,6 +47,7 @@ export interface UltimateSelectionRow {
   latestIncurred: number;
   ibnr: number | null;
   unpaid: number | null;
+  restorationShortfall: boolean;
 }
 
 export interface UltimateSelectionView {
@@ -54,6 +55,7 @@ export interface UltimateSelectionView {
   analysisLabel: string;
   analysisRanAt: string;
   layer: LayerState;
+  restored: ResolvedIlf | null;
   methods: { key: SelectionMethodKey; label: string; weight: number }[];
   rows: UltimateSelectionRow[];
   totals: {
@@ -86,6 +88,7 @@ export interface WorkspaceState {
   asOfDate: string;
   basis: "paid" | "incurred";
   layer: LayerState;
+  ilf: IlfState;
   selections: Record<LayerKey, { paid: (number | null)[]; incurred: (number | null)[] }>;
   tail: Record<LayerKey, { paid: TailChoice; incurred: TailChoice }>;
   bf: Record<LayerKey, { aprioriLossRatio: number | null }>;
@@ -116,6 +119,44 @@ export interface CapCandidate {
   totalPierceCount: number;
   totalPierceShare: number;
   totalExcessShare: number;
+}
+
+export interface IlfState {
+  source: "none" | "fitted" | "table" | "illustrative";
+  fittedKind: "lognormal" | "pareto";
+  curveId: string | null;
+  table: { limit: number; factor: number }[] | null;
+  targetLimit: number | null;
+}
+
+export type SeverityDistribution =
+  | { kind: "lognormal"; mu: number; sigma: number }
+  | { kind: "pareto"; theta: number; alpha: number };
+
+export interface SeverityFit {
+  distribution: SeverityDistribution;
+  logLikelihood: number;
+  nExact: number;
+  nCensored: number;
+  nExcludedNonPositive: number;
+  valid: boolean;
+  warnings: string[];
+  quantileCheck: { p: number; empirical: number | null; fitted: number }[];
+}
+
+export interface ResolvedIlf {
+  factor: number;
+  sourceLabel: string;
+  targetLimit: number | null;
+  warnings: string[];
+}
+
+export interface IlfReview {
+  config: IlfState;
+  fits: { lognormal: SeverityFit; pareto: SeverityFit } | null;
+  resolved: ResolvedIlf | null;
+  unresolvedReason: string | null;
+  illustrativeCurves: { id: string; label: string }[];
 }
 
 export interface LayerReview {
@@ -155,6 +196,7 @@ export interface WorkspaceView {
   exposures: ExposureRecord[];
   ultimateSelection: UltimateSelectionView | null;
   layerReview: LayerReview;
+  ilfReview: IlfReview;
 }
 
 export interface MethodSummary {
@@ -172,6 +214,9 @@ export interface AnalysisResults {
   cadence: string;
   /** The development layer this run was built on (absent on pre-layer runs = unlimited). */
   layer?: LayerState;
+  ilfUnresolvedReason?: string | null;
+  ilf?: ResolvedIlf | null;
+  unlimitedDiagonals?: Record<string, { paid: number; incurred: number }>;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };
   bornhuetterFerguson: {
     paid: BornhuetterFergusonResult | null;

@@ -232,3 +232,34 @@ export async function parseExposuresUpload(
   }
   return rows.map((r) => ({ origin: r.origin, earnedPremium: r.earned_premium }));
 }
+
+const numericCell = (label: string) =>
+  z.preprocess(
+    (v) => Number(String(v).replace(/,/g, "")),
+    z.number({ invalid_type_error: `${label} must be a number` }).positive(`${label} must be positive`),
+  );
+
+const ilfRowSchema = z.object({
+  limit: numericCell("limit"),
+  factor: numericCell("factor"),
+});
+
+/** Parses an ILF table upload: CSV/Excel with columns limit, factor. */
+export async function parseIlfTableUpload(
+  filename: string,
+  buffer: Buffer,
+): Promise<{ limit: number; factor: number }[]> {
+  const table = await parseUpload(filename, buffer);
+  const rows = validateRows(table, ilfRowSchema, ["limit", "factor"]);
+  if (rows.length < 2) {
+    throw new HttpError(422, "BAD_TABLE", "An ILF table needs at least two limit/factor rows");
+  }
+  const seen = new Set<number>();
+  for (const r of rows) {
+    if (seen.has(r.limit)) {
+      throw new HttpError(422, "BAD_TABLE", `Duplicate limit ${r.limit.toLocaleString()} in the file`);
+    }
+    seen.add(r.limit);
+  }
+  return rows.map((r) => ({ limit: r.limit, factor: r.factor }));
+}

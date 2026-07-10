@@ -778,6 +778,106 @@ export const setLossCap = createTool({
   },
 });
 
+export const fitSeverityCurves = createTool({
+  id: "fit_severity_curves",
+  description:
+    "Severity-distribution evidence for the ILF/uncapping decision: censored MLE fits (lognormal and Pareto) to the project's claim severities at the cap's base-year cost level (open claims right-censored at reported incurred), empirical-vs-fitted quantile checks, and the uncap factor each usable source would produce under the current cap and target limit. Call BEFORE recommending an ILF source.",
+  inputSchema: z.object({}),
+  execute: async (_input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = getWorkspaceView(projectId);
+      const review = view.ilfReview;
+      const compactFit = (fit: NonNullable<typeof review.fits>["lognormal"]) => ({
+        valid: fit.valid,
+        distribution: fit.distribution,
+        logLikelihood: round3(fit.logLikelihood),
+        nExact: fit.nExact,
+        nCensored: fit.nCensored,
+        warnings: fit.warnings,
+        quantileCheck: fit.quantileCheck.map((q) => ({
+          p: q.p,
+          // Kaplan-Meier adjusted; null = censoring exhausts the observable range.
+          empirical: q.empirical !== null ? round0(q.empirical) : null,
+          fitted: round0(q.fitted),
+        })),
+      });
+      return {
+        success: true,
+        config: view.state.ilf,
+        capBaseYearLevel: true,
+        fits: review.fits
+          ? { lognormal: compactFit(review.fits.lognormal), pareto: compactFit(review.fits.pareto) }
+          : null,
+        resolvedFactor: review.resolved
+          ? {
+              factor: Math.round(review.resolved.factor * 10000) / 10000,
+              sourceLabel: review.resolved.sourceLabel,
+              targetLimit: review.resolved.targetLimit,
+              warnings: review.resolved.warnings,
+            }
+          : null,
+        unresolvedReason: review.unresolvedReason,
+        illustrativeCurves: review.illustrativeCurves,
+        note: "The factor applies to CAPPED ultimates: total-limits ultimate = capped ultimate x factor. Fits use each claim's latest evaluation; open claims are censored at reported incurred, so heavy open inventories widen the uncertainty.",
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
+export const setIlfSource = createTool({
+  id: "set_ilf_source",
+  description:
+    "Configure how capped ultimates restore to total limits: source none (stay limited), fitted (own-data censored MLE curve: lognormal or pareto), table (imported ILF table; requires a finite target limit), or illustrative (bundled textbook curves - NOT ISO/NCCI). targetLimit null = unlimited (curve sources only). Rerun the analysis afterwards; the selection-of-ultimates exhibit then blends RESTORED ultimates against unlimited diagonals.",
+  inputSchema: z.object({
+    source: z.enum(["none", "fitted", "table", "illustrative"]).nullable(),
+    fittedKind: z.enum(["lognormal", "pareto"]).nullable(),
+    curveId: z.string().nullable().describe("Illustrative curve id from fit_severity_curves"),
+    targetLimit: z
+      .number()
+      .positive()
+      .nullable()
+      .describe("Restoration target at base-year cost level; null LEAVES THE CURRENT TARGET UNCHANGED - to restore to unlimited, set clearTargetLimit true (curve sources only)"),
+    clearTargetLimit: z
+      .boolean()
+      .nullable()
+      .describe("true sets the target to unlimited (curves only); overrides targetLimit"),
+  }),
+  execute: async (input, context) => {
+    try {
+      const projectId = projectIdOf(context as ToolCtx);
+      const view = patchWorkspace(projectId, {
+        ilf: {
+          ...(input.source !== null ? { source: input.source } : {}),
+          ...(input.fittedKind !== null ? { fittedKind: input.fittedKind } : {}),
+          ...(input.curveId !== null ? { curveId: input.curveId } : {}),
+          ...(input.clearTargetLimit
+            ? { targetLimit: null }
+            : input.targetLimit !== null
+              ? { targetLimit: input.targetLimit }
+              : {}),
+        },
+      });
+      const review = view.ilfReview;
+      return {
+        success: true,
+        config: view.state.ilf,
+        resolvedFactor: review.resolved
+          ? Math.round(review.resolved.factor * 10000) / 10000
+          : null,
+        unresolvedReason: review.unresolvedReason,
+        message: review.resolved
+          ? `ILF source set: ${review.resolved.sourceLabel}, factor ${review.resolved.factor.toFixed(4)} to ${review.resolved.targetLimit === null ? "unlimited" : review.resolved.targetLimit.toLocaleString()}. Rerun the analysis to restore capped ultimates.`
+          : `ILF configuration saved but the factor is unresolved: ${review.unresolvedReason}`,
+      };
+    } catch (err) {
+      return failure(err);
+    }
+  },
+});
+
 export const saveNote = createTool({
   id: "save_note",
   description:
@@ -809,6 +909,8 @@ export const advisorTools = {
   set_ultimate_selection: setUltimateSelection,
   analyze_claim_sizes: analyzeClaimSizes,
   set_loss_cap: setLossCap,
+  fit_severity_curves: fitSeverityCurves,
+  set_ilf_source: setIlfSource,
   run_analysis: runAnalysisTool,
   run_sensitivity: runSensitivityTool,
   save_note: saveNote,
@@ -819,6 +921,7 @@ export const ACTION_TOOL_IDS = new Set([
   "apply_ldf_selections",
   "set_tail_factor",
   "set_loss_cap",
+  "set_ilf_source",
   "set_bf_apriori",
   "set_ultimate_selection",
   "run_analysis",

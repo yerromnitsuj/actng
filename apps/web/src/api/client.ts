@@ -63,6 +63,14 @@ export const api = {
       { method: "POST", body: form },
     );
   },
+  importIlfTable: (projectId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ imported: number }>(`/api/projects/${projectId}/import/ilf-table`, {
+      method: "POST",
+      body: form,
+    });
+  },
   importExposures: (projectId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);

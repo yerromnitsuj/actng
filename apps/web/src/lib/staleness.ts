@@ -2,6 +2,7 @@ import type { LayerKey, WorkspaceState } from "../api/types.js";
 
 interface AnalysisInputs {
   layer: WorkspaceState["layer"];
+  ilf?: WorkspaceState["ilf"];
   selections: WorkspaceState["selections"];
   tail: WorkspaceState["tail"];
   bf: WorkspaceState["bf"];
@@ -62,6 +63,32 @@ export function resultsAreStale(inputs: unknown, state: WorkspaceState | undefin
       runLayer.baseYear !== state.layer.baseYear)
   ) {
     return true;
+  }
+
+  // ILF settings only feed capped runs, and only the fields that RESOLVE the
+  // factor for the chosen source count - editing a leftover table while the
+  // source is fitted (or a target while source is none) changes nothing.
+  if (state.layer.active === "capped") {
+    const signature = (c: WorkspaceState["ilf"] | undefined): string => {
+      const cfg = c ?? {
+        source: "none" as const,
+        fittedKind: "lognormal" as const,
+        curveId: null,
+        table: null,
+        targetLimit: null,
+      };
+      switch (cfg.source) {
+        case "none":
+          return "none";
+        case "fitted":
+          return `fitted|${cfg.fittedKind}|${cfg.targetLimit ?? "unlimited"}`;
+        case "illustrative":
+          return `illustrative|${cfg.curveId ?? ""}|${cfg.targetLimit ?? "unlimited"}`;
+        case "table":
+          return `table|${JSON.stringify(cfg.table ?? null)}|${cfg.targetLimit ?? "unlimited"}`;
+      }
+    };
+    if (signature(run.ilf) !== signature(state.ilf)) return true;
   }
 
   const active = state.layer.active;

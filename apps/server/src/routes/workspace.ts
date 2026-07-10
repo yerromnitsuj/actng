@@ -45,6 +45,19 @@ const patchSchema = z.object({
       baseYear: z.number().int().min(1900).max(2200).nullable().optional(),
     })
     .optional(),
+  ilf: z
+    .object({
+      source: z.enum(["none", "fitted", "table", "illustrative"]).optional(),
+      fittedKind: z.enum(["lognormal", "pareto"]).optional(),
+      curveId: z.string().nullable().optional(),
+      targetLimit: z.number().positive().nullable().optional(),
+      table: z
+        .array(z.object({ limit: z.number().positive(), factor: z.number().positive() }))
+        .min(2)
+        .nullable()
+        .optional(),
+    })
+    .optional(),
   selections: z
     .object({
       basis: z.enum(["paid", "incurred"]),

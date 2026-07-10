@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ClaimSnapshot, ExposureRecord, OriginCadence } from "@actng/core";
+import type { ClaimSnapshot, ExposureRecord, IlfTableRow, OriginCadence } from "@actng/core";
 import { db } from "./client.js";
 
 /** Typed repository layer. All JSON columns are parsed/serialized here. */
@@ -87,12 +87,31 @@ export interface WorkspaceState {
    * judged at the unlimited level does NOT describe the capped layer (the cap
    * compresses both), so sharing them would silently contaminate one layer.
    */
+  /** Increased-limits configuration: how capped ultimates restore to total limits. */
+  ilf: IlfState;
   bf: Record<LayerKey, { aprioriLossRatio: number | null }>;
   berquist: Record<
     LayerKey,
     { severityTrend: number | null; interpolation: "exponential" | "linear" }
   >;
   ultimateSelection: UltimateSelectionState;
+}
+
+export interface IlfState {
+  /** Where the uncap factor comes from; "none" leaves capped runs limited. */
+  source: "none" | "fitted" | "table" | "illustrative";
+  /** Which fitted curve applies when source = "fitted". */
+  fittedKind: "lognormal" | "pareto";
+  /** Illustrative curve id when source = "illustrative". */
+  curveId: string | null;
+  /** Imported ILF table rows (limit at base-year level, factor). */
+  table: IlfTableRow[] | null;
+  /** Restoration target limit at base-year level; null = unlimited (curves only). */
+  targetLimit: number | null;
+}
+
+export function defaultIlfState(): IlfState {
+  return { source: "none", fittedKind: "lognormal", curveId: null, table: null, targetLimit: null };
 }
 
 export function defaultLayerBf(): WorkspaceState["bf"] {
@@ -137,6 +156,7 @@ export function defaultWorkspaceState(asOfDate: string): WorkspaceState {
     layer: { active: "unlimited", cap: null, indexRate: 0, baseYear: null },
     selections: emptyLayerSelections(),
     tail: defaultLayerTails(),
+    ilf: defaultIlfState(),
     bf: defaultLayerBf(),
     berquist: defaultLayerBerquist(),
     ultimateSelection: defaultUltimateSelection(),
@@ -351,6 +371,7 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
   } else if (!state.tail || !flatTail.unlimited) {
     state.tail = defaultLayerTails();
   }
+  if (!state.ilf) state.ilf = defaultIlfState();
   const flatBf = state.bf as unknown as { aprioriLossRatio?: unknown; unlimited?: unknown };
   if (state.bf && flatBf.unlimited === undefined) {
     const legacy = state.bf as unknown as { aprioriLossRatio: number | null };

@@ -145,7 +145,18 @@ export default function SelectionPanel() {
       title="Selection of ultimates"
       kicker={`blends the run "${selection.analysisLabel}" - each cell: indicated ultimate with its period weight beside it - overrides win`}
     >
-      {selection.layer.active === "capped" ? (
+      {selection.restored ? (
+        <p className="mb-3 rounded-sm border border-verdigris bg-verdigris-soft px-3 py-1.5 text-[0.8rem] font-medium text-verdigris">
+          RESTORED TO {selection.restored.targetLimit === null
+            ? "UNLIMITED"
+            : `A ${fmt0(selection.restored.targetLimit)} LIMIT`}: capped ultimates x{" "}
+          <span className="num">{selection.restored.factor.toFixed(4)}</span> via{" "}
+          {selection.restored.sourceLabel}; IBNR and unpaid are against UNLIMITED diagonals.
+          One expected factor restores EVERY year - this assumes each year's excess share
+          equals the book average; years with realized large-loss excess violate it (flagged
+          below when the restored blend falls short of reported incurred).
+        </p>
+      ) : selection.layer.active === "capped" ? (
         <p className="mb-3 rounded-sm border border-steel bg-steel-soft px-3 py-1.5 text-[0.8rem] font-medium text-steel">
           LIMITED LAYER: every method ultimate below is capped at{" "}
           <span className="num">{fmt0(selection.layer.cap ?? 0)}</span>
@@ -153,12 +164,26 @@ export default function SelectionPanel() {
             ? ` (indexed ${(selection.layer.indexRate * 100).toFixed(1)}%/yr)`
             : ""}{" "}
           per occurrence - the excess layer is NOT in these selections, IBNR, or unpaid figures.
+          Configure an ILF source in the Increased limits exhibit to restore total limits.
         </p>
       ) : null}
       {stale ? (
         <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.8rem] font-medium text-[#6b4f16]">
           Inputs have changed since the run this exhibit blends; rerun the analysis to refresh the
           method ultimates below.
+        </p>
+      ) : null}
+      {selection.rows.some((r) => r.restorationShortfall) ? (
+        <p className="mb-3 rounded-sm border border-oxblood/50 bg-oxblood-soft px-3 py-1.5 text-[0.8rem] font-medium text-oxblood">
+          Restoration shortfall in{" "}
+          {selection.rows
+            .filter((r) => r.restorationShortfall)
+            .map((r) => r.origin)
+            .join(", ")}
+          : the restored blend sits BELOW that year's unlimited reported incurred - realized
+          large-loss excess exceeds the book-average restoration. Handle these years with a
+          manual override (reported incurred plus a development provision) or an aggregate
+          excess treatment; their negative IBNR is an artifact, not favorable development.
         </p>
       ) : null}
       {allWeightsZero && !anyOverride ? (
@@ -226,6 +251,14 @@ export default function SelectionPanel() {
               <tr key={row.origin} className="group hover:bg-steel-soft/40">
                 <td className="sticky left-0 z-[1] border-r border-hairline bg-panel px-2 py-1 text-[0.82rem] font-medium text-ink-soft group-hover:bg-[#f6f7f7]">
                   {row.origin}
+                  {row.restorationShortfall ? (
+                    <span
+                      className="ml-1 cursor-help font-semibold text-oxblood"
+                      title="Restored blend below this year's unlimited reported incurred - the uniform factor understates realized excess here"
+                    >
+                      !
+                    </span>
+                  ) : null}
                 </td>
                 {METHOD_COLUMNS.map((m) => {
                   const weight = row.weights[m.key] ?? 0;
@@ -298,8 +331,17 @@ export default function SelectionPanel() {
                   />
                 </td>
                 <td
+                  title={
+                    row.restorationShortfall
+                      ? "Negative IBNR here is a restoration artifact (uniform factor vs realized excess), not favorable development"
+                      : undefined
+                  }
                   className={`num sticky right-[104px] z-[1] bg-panel px-2 py-1 text-right text-[0.8rem] font-medium group-hover:bg-[#f6f7f7] ${
-                    (row.ibnr ?? 0) < 0 ? "text-verdigris" : "text-oxblood"
+                    row.restorationShortfall
+                      ? "text-oxblood"
+                      : (row.ibnr ?? 0) < 0
+                        ? "text-verdigris"
+                        : "text-oxblood"
                   }`}
                 >
                   {row.ibnr !== null ? fmt0(row.ibnr) : "-"}
@@ -359,7 +401,8 @@ export default function SelectionPanel() {
         with a value for that period, divided by the sum of those weights (weights renormalize
         within the period). A typed Selected value overrides the weighted blend for that period
         only. IBNR = selected minus reported incurred; Unpaid = selected minus paid, both on the
-        latest diagonal.
+        latest diagonal. Overrides are dollar judgments at the exhibit's CURRENT level (limited
+        or restored); changing the layer, cap, or restoration settings clears them.
       </p>
     </Section>
   );

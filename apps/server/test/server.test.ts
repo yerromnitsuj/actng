@@ -594,3 +594,250 @@ describe("layer redefinition and cross-layer isolation (review fixes)", () => {
     expect(after.ultimateSelection?.layer.active).toBe("capped");
   });
 });
+
+describe("increased limits: restoring capped ultimates", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("ILF test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 61,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    ws.patchWorkspace(projectId, { layer: { cap: 120_000, active: "capped" } });
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+  });
+
+  it("exposes severity fits and stays honestly unresolved with source none", () => {
+    const view = ws.getWorkspaceView(projectId);
+    expect(view.ilfReview.fits).not.toBeNull();
+    expect(view.ilfReview.resolved).toBeNull();
+    expect(view.ilfReview.unresolvedReason).toMatch(/no ilf source/i);
+    // A capped run without a source stays limited: selection = capped values.
+    const record = ws.runFullAnalysis(projectId, "limited run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.ilf).toBeNull();
+    expect(results.unlimitedDiagonals).toBeDefined();
+    const sel = ws.getWorkspaceView(projectId).ultimateSelection!;
+    expect(sel.restored).toBeNull();
+    expect(sel.rows[0]!.ultimates.clPaid).toBeCloseTo(
+      results.chainLadder.paid.rows[0]!.ultimate,
+      6,
+    );
+  });
+
+  it("restores selection ultimates by the fitted factor against unlimited diagonals", () => {
+    const view = ws.patchWorkspace(projectId, {
+      ilf: { source: "fitted", fittedKind: "lognormal", targetLimit: null },
+    });
+    const resolved = view.ilfReview.resolved;
+    expect(resolved).not.toBeNull();
+    expect(resolved!.factor).toBeGreaterThan(1);
+
+    const record = ws.runFullAnalysis(projectId, "restored run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.ilf?.factor).toBeCloseTo(resolved!.factor, 9);
+
+    const sel = ws.getWorkspaceView(projectId).ultimateSelection!;
+    expect(sel.restored?.factor).toBeCloseTo(resolved!.factor, 9);
+    // Row-level: restored ultimate = capped ultimate x factor.
+    for (const row of sel.rows) {
+      const capped = results.chainLadder.paid.rows.find((r) => r.origin === row.origin);
+      if (capped && row.ultimates.clPaid !== null) {
+        expect(row.ultimates.clPaid).toBeCloseTo(capped.ultimate * resolved!.factor, 4);
+      }
+      // IBNR base is the UNLIMITED diagonal, not the capped one.
+      const diag = results.unlimitedDiagonals![row.origin]!;
+      expect(row.latestIncurred).toBeCloseTo(diag.incurred, 6);
+      if (row.selected !== null) {
+        expect(row.ibnr).toBeCloseTo(row.selected - diag.incurred, 6);
+      }
+    }
+  });
+
+  it("unlimited diagonals are >= capped diagonals (the cap bites the base too)", () => {
+    const view = ws.getWorkspaceView(projectId);
+    const record = repo.listAnalyses(projectId).find((a) => a.label === "restored run")!;
+    const results = repo.getAnalysis(record.id)!
+      .results as import("../src/services/workspaceService.js").AnalysisResults;
+    for (const row of results.chainLadder.incurred.rows) {
+      const unl = results.unlimitedDiagonals![row.origin]!.incurred;
+      expect(unl).toBeGreaterThanOrEqual(row.latestValue - 1e-9);
+    }
+    expect(view.ilfReview.resolved).not.toBeNull();
+  });
+
+  it("table source: interpolated ratio with finite target, refuses unlimited", () => {
+    ws.patchWorkspace(projectId, {
+      ilf: {
+        table: [
+          { limit: 100_000, factor: 1.0 },
+          { limit: 250_000, factor: 1.4 },
+          { limit: 1_000_000, factor: 1.95 },
+        ],
+        source: "table",
+        targetLimit: null,
+      },
+    });
+    let view = ws.getWorkspaceView(projectId);
+    expect(view.ilfReview.resolved).toBeNull();
+    expect(view.ilfReview.unresolvedReason).toMatch(/finite target/i);
+
+    view = ws.patchWorkspace(projectId, { ilf: { targetLimit: 1_000_000 } });
+    expect(view.ilfReview.resolved).not.toBeNull();
+    // 120k cap between the 100k and 250k knots; factor = ILF(1M)/ILF(120k).
+    expect(view.ilfReview.resolved!.factor).toBeGreaterThan(1.3);
+    expect(view.ilfReview.resolved!.factor).toBeLessThan(1.95);
+  });
+
+  it("rejects garbage ilf patches", () => {
+    expect(() =>
+      ws.patchWorkspace(projectId, { ilf: { targetLimit: -5 } }),
+    ).toThrowError(/positive/);
+    expect(() =>
+      ws.patchWorkspace(projectId, { ilf: { curveId: "not-a-curve" } }),
+    ).toThrowError(/curve/i);
+    expect(() =>
+      ws.patchWorkspace(projectId, {
+        ilf: { table: [{ limit: 100, factor: 1 }] },
+      }),
+    ).toThrowError(/two/);
+  });
+
+  it("ilf settings participate in run inputs (staleness)", () => {
+    const record = repo.listAnalyses(projectId).find((a) => a.label === "restored run")!;
+    const inputs = repo.getAnalysis(record.id)!.inputs as { ilf?: { source: string } };
+    expect(inputs.ilf?.source).toBe("fitted");
+  });
+});
+
+describe("phase-2 review fixes: factor ceiling, override clearing, unresolved honesty", () => {
+  let projectId: string;
+
+  beforeAll(() => {
+    const project = repo.createProject("ILF review-fix test", "");
+    projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 61,
+      nYears: 5,
+      startYear: 2021,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    ws.patchWorkspace(projectId, { layer: { cap: 100_000, active: "capped" } });
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+  });
+
+  it("refuses a resolved factor beyond the 10x sanity ceiling", () => {
+    ws.patchWorkspace(projectId, {
+      ilf: {
+        table: [
+          { limit: 100_000, factor: 1 },
+          { limit: 25_000_000, factor: 50 },
+        ],
+        source: "table",
+        targetLimit: 25_000_000,
+      },
+    });
+    const view = ws.getWorkspaceView(projectId);
+    expect(view.ilfReview.resolved).toBeNull();
+    expect(view.ilfReview.unresolvedReason).toMatch(/sanity ceiling/);
+  });
+
+  it("stamps and warns when a configured source fails to resolve", () => {
+    const record = ws.runFullAnalysis(projectId, "unresolved ilf run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.ilf).toBeNull();
+    expect(results.ilfUnresolvedReason).toMatch(/sanity ceiling/);
+    expect(results.warnings.join(" ")).toMatch(/did not resolve/);
+  });
+
+  it("clears manual overrides when the restoration config changes", () => {
+    ws.patchWorkspace(projectId, {
+      ultimateSelection: { overrides: { "2021": 1_200_000 } },
+    });
+    expect(
+      Object.keys(ws.ensureWorkspaceState(projectId).ultimateSelection.overrides),
+    ).toHaveLength(1);
+    // A sane table this time; changing the config must void level-dependent overrides.
+    ws.patchWorkspace(projectId, {
+      ilf: {
+        table: [
+          { limit: 100_000, factor: 1 },
+          { limit: 1_000_000, factor: 1.35 },
+        ],
+        targetLimit: 1_000_000,
+      },
+    });
+    expect(
+      Object.keys(ws.ensureWorkspaceState(projectId).ultimateSelection.overrides),
+    ).toHaveLength(0);
+  });
+
+  it("clears overrides on a layer switch too", () => {
+    ws.patchWorkspace(projectId, {
+      ultimateSelection: { overrides: { "2022": 900_000 } },
+    });
+    ws.patchWorkspace(projectId, { layer: { active: "unlimited" } });
+    expect(
+      Object.keys(ws.ensureWorkspaceState(projectId).ultimateSelection.overrides),
+    ).toHaveLength(0);
+    ws.patchWorkspace(projectId, { layer: { active: "capped" } });
+  });
+
+  it("a sane table restores and flags restoration-shortfall rows honestly", () => {
+    const record = ws.runFullAnalysis(projectId, "restored run");
+    const results = record.results as import("../src/services/workspaceService.js").AnalysisResults;
+    expect(results.ilf).not.toBeNull();
+    expect(results.ilf!.factor).toBeGreaterThan(1);
+    expect(results.ilf!.factor).toBeLessThan(10);
+    const view = ws.getWorkspaceView(projectId);
+    const sel = view.ultimateSelection!;
+    // Every row carries the flag field; flagged rows are exactly those whose
+    // restored blend sits below their unlimited reported incurred.
+    for (const row of sel.rows) {
+      expect(typeof row.restorationShortfall).toBe("boolean");
+      if (row.weighted !== null) {
+        expect(row.restorationShortfall).toBe(row.weighted < row.latestIncurred);
+      }
+    }
+  });
+
+  it("rejects {source:'table', table:null} in a single patch", () => {
+    expect(() =>
+      ws.patchWorkspace(projectId, { ilf: { source: "table", table: null } }),
+    ).toThrowError(/Import an ILF table/);
+  });
+
+  it("rejects duplicate-limit tables at the patch door", () => {
+    expect(() =>
+      ws.patchWorkspace(projectId, {
+        ilf: {
+          table: [
+            { limit: 100_000, factor: 1 },
+            { limit: 100_000, factor: 1.2 },
+            { limit: 250_000, factor: 1.4 },
+          ],
+        },
+      }),
+    ).toThrowError(/Duplicate limit/);
+  });
+});

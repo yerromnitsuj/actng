@@ -84,9 +84,12 @@ export default function ResultsPanel() {
           {runLayer.indexRate !== 0
             ? ` (indexed ${(runLayer.indexRate * 100).toFixed(1)}%/yr, base ${runLayer.baseYear ?? "latest year"})`
             : ""}{" "}
-          per occurrence. The excess layer above the cap is NOT in these numbers; restoring to
-          total limits requires increased-limits factors, which this workbench does not compute
-          yet.
+          per occurrence. The excess layer above the cap is NOT in these numbers.{" "}
+          {r.ilf
+            ? `This run's ultimates enter its selection blend restored x${r.ilf.factor.toFixed(4)} via ${r.ilf.sourceLabel} (the Selection exhibit always blends the LATEST run).`
+            : r.ilfUnresolvedReason
+              ? `An ILF source was configured but did not resolve for this run: ${r.ilfUnresolvedReason}`
+              : "Configure an ILF source in the Increased limits exhibit to restore total limits."}
         </p>
       ) : null}
       {stale ? (

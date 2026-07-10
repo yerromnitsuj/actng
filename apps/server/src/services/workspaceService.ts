@@ -8,7 +8,13 @@ import {
   factorVolatility,
   fitAllTails,
   isNum,
+  fitSeverity,
+  ILLUSTRATIVE_CURVES,
   latestAccidentYear,
+  validateIlfTable,
+  severityObservations,
+  tableUncapFactor,
+  uncapFactor,
   ReservingError,
   runBornhuetterFerguson,
   runChainLadder,
@@ -17,6 +23,8 @@ import {
   type BornhuetterFergusonResult,
   type ChainLadderResult,
   type ClaimSizeDiagnostics,
+  type ClaimSnapshot,
+  type SeverityFit,
   type DevelopmentFactors,
   type DiagnosticsResult,
   type MackResult,
@@ -34,6 +42,7 @@ import {
   latestAnalysis,
   saveWorkspaceState,
   type AnalysisRecord,
+  type IlfState,
   type LayerKey,
   type LayerState,
   type SelectionMethodKey,
@@ -73,6 +82,157 @@ export interface WorkspaceView {
   ultimateSelection: UltimateSelectionView | null;
   /** Cap-selection evidence: claim-size distribution + layer stability comparison. */
   layerReview: LayerReview;
+  /** Increased-limits exhibit data: fits, resolved factor, curve catalog. */
+  ilfReview: IlfReview;
+}
+
+export interface IlfReview {
+  config: IlfState;
+  /** null until a per-occurrence cap is set (fits exist to price the layer). */
+  /** Censored MLE fits at base-year cost level; null before claims exist. */
+  fits: { lognormal: SeverityFit; pareto: SeverityFit } | null;
+  /** The resolved uncap factor under the current config; null when unresolvable. */
+  resolved: ResolvedIlf | null;
+  /** Why the factor is unresolved (source none, invalid fit, missing table...). */
+  unresolvedReason: string | null;
+  illustrativeCurves: { id: string; label: string }[];
+}
+
+export interface ResolvedIlf {
+  factor: number;
+  /** Human description of the source, e.g. "fitted lognormal (mu 9.21, sigma 1.43)". */
+  sourceLabel: string;
+  targetLimit: number | null;
+  warnings: string[];
+}
+
+/**
+ * Resolves the uncap factor E[X ∧ target]/E[X ∧ cap] under the workspace's
+ * ILF configuration, at the cap's base-year cost level. Returns null (with a
+ * reason) rather than throwing: an unresolved factor means capped runs stay
+ * honestly LIMITED.
+ */
+/**
+ * A resolved factor beyond this is not a credible restoration - it is almost
+ * always a censoring-dominated fit or a garbage table. Refusing keeps the
+ * run honestly LIMITED instead of multiplying reserves into fiction.
+ */
+const FACTOR_SANITY_CEILING = 10;
+const FACTOR_REVIEW_THRESHOLD = 3;
+
+export function resolveIlf(
+  state: WorkspaceState,
+  fits: { lognormal: SeverityFit; pareto: SeverityFit } | null,
+): { resolved: ResolvedIlf | null; unresolvedReason: string | null } {
+  const ilf = state.ilf;
+  if (ilf.source === "none") {
+    return { resolved: null, unresolvedReason: "No ILF source selected" };
+  }
+  const cap = state.layer.cap;
+  if (cap === null || cap <= 0) {
+    return { resolved: null, unresolvedReason: "No per-occurrence cap is set" };
+  }
+  const warnings: string[] = [];
+  if (state.layer.indexRate === 0) {
+    warnings.push(
+      "The cap is flat (index 0): real severity trend makes the true uncap factor vary by year; it is treated as constant until the trend module ships",
+    );
+  } else {
+    warnings.push(
+      `The cap index (${(state.layer.indexRate * 100).toFixed(1)}%/yr) doubles as the severity deflator: the single factor is valid to the extent the index matches real severity trend`,
+    );
+  }
+  const guardFactor = (
+    factor: number,
+  ): { ok: true } | { ok: false; reason: string } => {
+    if (!Number.isFinite(factor) || factor < 1) {
+      return { ok: false, reason: "The resolved uncap factor is not a finite value >= 1" };
+    }
+    if (factor > FACTOR_SANITY_CEILING) {
+      return {
+        ok: false,
+        reason: `The resolved uncap factor ${factor.toFixed(1)}x exceeds the ${FACTOR_SANITY_CEILING}x sanity ceiling - the severity model is not credible for restoration (typically a censoring-dominated fit); use an imported table or a different curve`,
+      };
+    }
+    if (factor > FACTOR_REVIEW_THRESHOLD) {
+      warnings.push(
+        `Uncap factor ${factor.toFixed(2)}x is unusually large; verify it against the book's actual excess share before relying on it`,
+      );
+    }
+    return { ok: true };
+  };
+  try {
+    if (ilf.source === "table") {
+      if (!ilf.table || ilf.table.length < 2) {
+        return { resolved: null, unresolvedReason: "No ILF table imported" };
+      }
+      if (ilf.targetLimit === null) {
+        return {
+          resolved: null,
+          unresolvedReason:
+            "A table restoration needs a finite target limit (tables cannot express unlimited)",
+        };
+      }
+      const factor = tableUncapFactor(ilf.table, cap, ilf.targetLimit);
+      const guard = guardFactor(factor);
+      if (!guard.ok) return { resolved: null, unresolvedReason: guard.reason };
+      return {
+        resolved: {
+          factor,
+          sourceLabel: `imported ILF table (${ilf.table.length} rows)`,
+          targetLimit: ilf.targetLimit,
+          warnings,
+        },
+        unresolvedReason: null,
+      };
+    }
+    if (ilf.source === "illustrative") {
+      const curve = ILLUSTRATIVE_CURVES.find((c) => c.id === ilf.curveId);
+      if (!curve) {
+        return { resolved: null, unresolvedReason: "No illustrative curve selected" };
+      }
+      const factor = uncapFactor(curve.distribution, cap, ilf.targetLimit);
+      const curveGuard = guardFactor(factor);
+      if (!curveGuard.ok) return { resolved: null, unresolvedReason: curveGuard.reason };
+      warnings.push(
+        "Illustrative curve: textbook-plausible parameters, NOT ISO/NCCI factors - do not book against it without judgment",
+      );
+      return {
+        resolved: { factor, sourceLabel: curve.label, targetLimit: ilf.targetLimit, warnings },
+        unresolvedReason: null,
+      };
+    }
+    // fitted
+    const fit = fits?.[ilf.fittedKind];
+    if (!fit || !fit.valid) {
+      return {
+        resolved: null,
+        unresolvedReason: `The ${ilf.fittedKind} fit is not usable${fit ? `: ${fit.warnings.join("; ")}` : ""}`,
+      };
+    }
+    const factor = uncapFactor(fit.distribution, cap, ilf.targetLimit);
+    const fitGuard = guardFactor(factor);
+    if (!fitGuard.ok) return { resolved: null, unresolvedReason: fitGuard.reason };
+    const d = fit.distribution;
+    const paramLabel =
+      d.kind === "lognormal"
+        ? `mu ${d.mu.toFixed(2)}, sigma ${d.sigma.toFixed(2)}`
+        : `theta ${Math.round(d.theta).toLocaleString()}, alpha ${d.alpha.toFixed(2)}`;
+    return {
+      resolved: {
+        factor,
+        sourceLabel: `fitted ${d.kind} (${paramLabel}; ${fit.nExact} closed + ${fit.nCensored} open claims)`,
+        targetLimit: ilf.targetLimit,
+        warnings: [...warnings, ...fit.warnings],
+      },
+      unresolvedReason: null,
+    };
+  } catch (err) {
+    return {
+      resolved: null,
+      unresolvedReason: err instanceof Error ? err.message : "ILF resolution failed",
+    };
+  }
 }
 
 export interface LayerReview {
@@ -115,6 +275,12 @@ export interface UltimateSelectionRow {
   latestIncurred: number;
   ibnr: number | null;
   unpaid: number | null;
+  /**
+   * RESTORED runs only: true when this year's restored blend sits BELOW its
+   * unlimited reported incurred - realized large-loss excess exceeds the
+   * book-average restoration, so the uniform factor understates this year.
+   */
+  restorationShortfall: boolean;
 }
 
 export interface UltimateSelectionView {
@@ -123,6 +289,8 @@ export interface UltimateSelectionView {
   analysisRanAt: string;
   /** The development layer the blended run was built on. */
   layer: LayerState;
+  /** Set when capped ultimates were restored to total limits for display. */
+  restored: ResolvedIlf | null;
   /** The all-periods default weight per method. */
   methods: { key: SelectionMethodKey; label: string; weight: number }[];
   rows: UltimateSelectionRow[];
@@ -189,6 +357,23 @@ export function computeUltimateSelection(
     ensure(row.origin).ultimates.bsSettlement = row.ultimate;
   }
 
+  // Restoration to total limits: capped runs with a resolved uncap factor
+  // display restored ultimates blended against UNLIMITED diagonals.
+  const restored = results.layer?.active === "capped" && results.ilf ? results.ilf : null;
+  if (restored) {
+    for (const [origin, entry] of byOrigin) {
+      for (const key of Object.keys(entry.ultimates) as SelectionMethodKey[]) {
+        const v = entry.ultimates[key];
+        if (v !== undefined) entry.ultimates[key] = v * restored.factor;
+      }
+      const diag = results.unlimitedDiagonals?.[origin];
+      if (diag) {
+        entry.latestPaid = diag.paid;
+        entry.latestIncurred = diag.incurred;
+      }
+    }
+  }
+
   const rows: UltimateSelectionRow[] = originOrder.map((origin) => {
     const entry = byOrigin.get(origin)!;
     const ultimates = Object.fromEntries(
@@ -217,6 +402,8 @@ export function computeUltimateSelection(
       }
     }
     const weighted = weightSum > 0 ? blend / weightSum : null;
+    const restorationShortfall =
+      restored !== null && weighted !== null && weighted < entry.latestIncurred;
     const rawOverride = selection.overrides[origin];
     const override =
       typeof rawOverride === "number" && Number.isFinite(rawOverride) && rawOverride > 0
@@ -233,6 +420,7 @@ export function computeUltimateSelection(
       selected,
       latestPaid: entry.latestPaid,
       latestIncurred: entry.latestIncurred,
+      restorationShortfall,
       ibnr: selected !== null ? selected - entry.latestIncurred : null,
       unpaid: selected !== null ? selected - entry.latestPaid : null,
     };
@@ -256,6 +444,7 @@ export function computeUltimateSelection(
     analysisId: record.id,
     analysisLabel: record.label,
     layer: results.layer ?? { active: "unlimited", cap: null, indexRate: 0, baseYear: null },
+    restored,
     analysisRanAt: results.ranAt,
     methods: SELECTION_METHODS.map((m) => ({
       ...m,
@@ -347,6 +536,36 @@ function buildLayerTriangles(
   }
 }
 
+/** Memo for the censored severity MLEs, keyed on everything that feeds them. */
+const severityFitCache = new Map<
+  string,
+  { key: string; fits: { lognormal: SeverityFit; pareto: SeverityFit } }
+>();
+
+function getSeverityFits(
+  projectId: string,
+  claims: ClaimSnapshot[],
+  state: WorkspaceState,
+): { lognormal: SeverityFit; pareto: SeverityFit } {
+  const capBaseYear = state.layer.baseYear ?? latestAccidentYear(claims, state.asOfDate);
+  let checksum = 0;
+  for (const c of claims) checksum += c.paidToDate + c.caseReserve;
+  const key = `${claims.length}:${checksum}:${state.asOfDate}:${state.layer.indexRate}:${capBaseYear}`;
+  const cached = severityFitCache.get(projectId);
+  if (cached && cached.key === key) return cached.fits;
+  const observations = severityObservations(claims, {
+    asOfDate: state.asOfDate,
+    indexRate: state.layer.indexRate,
+    baseYear: capBaseYear,
+  });
+  const fits = {
+    lognormal: fitSeverity(observations, "lognormal"),
+    pareto: fitSeverity(observations, "pareto"),
+  };
+  severityFitCache.set(projectId, { key, fits });
+  return fits;
+}
+
 /**
  * The ACTIVE layer's triangles: the one seam where the layer dial is
  * resolved. Everything downstream (factors, tails, methods, Mack,
@@ -421,11 +640,25 @@ export function getWorkspaceView(projectId: string): WorkspaceView {
     },
   };
 
+  // Severity fits only when a cap exists (they exist to price the layer) and
+  // memoized per data shape: two censored MLEs are ~0.4s at 10k claims and
+  // getWorkspaceView runs on every patch and advisor tool call.
+  const fits = capSet ? getSeverityFits(projectId, claims, state) : null;
+  const ilfResolution = resolveIlf(state, fits);
+  const ilfReview: IlfReview = {
+    config: state.ilf,
+    fits,
+    resolved: ilfResolution.resolved,
+    unresolvedReason: ilfResolution.unresolvedReason,
+    illustrativeCurves: ILLUSTRATIVE_CURVES.map((c) => ({ id: c.id, label: c.label })),
+  };
+
   const latest = latestAnalysis(projectId);
   return {
     state,
     triangles,
     layerReview,
+    ilfReview,
     ultimateSelection: latest ? computeUltimateSelection(latest, state.ultimateSelection) : null,
     factors: {
       paid: computeDevelopmentFactors(triangles.paid),
@@ -458,6 +691,13 @@ export interface WorkspacePatch {
     cap?: number | null;
     indexRate?: number;
     baseYear?: number | null;
+  };
+  ilf?: {
+    source?: IlfState["source"];
+    fittedKind?: IlfState["fittedKind"];
+    curveId?: string | null;
+    targetLimit?: number | null;
+    table?: IlfState["table"];
   };
   selections?: { basis: "paid" | "incurred"; selected: (number | null)[] };
   tail?: {
@@ -556,6 +796,11 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
     if (capParamsChanged) {
       state.selections.capped = { paid: [], incurred: [] };
     }
+    // Overrides are dollar judgments at a specific exhibit level; a layer
+    // switch or cap redefinition changes that level, so they cannot survive.
+    if (capParamsChanged || state.layer.active !== before.active) {
+      state.ultimateSelection.overrides = {};
+    }
     const capSet = state.layer.cap !== null && state.layer.cap > 0;
     if (capSet && (capParamsChanged || (activatedCapped && cappedPristine))) {
       const cappedTriangles = buildLayerTriangles(getClaims(projectId), state, "capped");
@@ -575,6 +820,52 @@ export function patchWorkspace(projectId: string, patch: WorkspacePatch): Worksp
         const best = candidates.reduce((a, b) => (b.rSquared > a.rSquared ? b : a));
         state.tail.capped[basis] = { source: best.method, value: best.tailFactor };
       }
+    }
+  }
+  if (patch.ilf) {
+    const i = patch.ilf;
+    const ilfBefore = JSON.stringify(state.ilf);
+    if (i.table !== undefined) {
+      // Same structural validation as the import route, so garbage never
+      // persists regardless of which door it came through.
+      if (i.table !== null) {
+        try {
+          state.ilf.table = validateIlfTable(i.table);
+        } catch (err) {
+          if (err instanceof ReservingError) {
+            throw new HttpError(422, err.code, err.message);
+          }
+          throw err;
+        }
+      } else {
+        state.ilf.table = null;
+      }
+    }
+    if (i.source) {
+      // Guard against the POST-patch table so {source:'table', table:null}
+      // in one patch cannot defeat it.
+      if (i.source === "table" && !state.ilf.table) {
+        throw new HttpError(422, "NO_TABLE", "Import an ILF table before selecting the table source");
+      }
+      state.ilf.source = i.source;
+    }
+    if (i.fittedKind) state.ilf.fittedKind = i.fittedKind;
+    if (i.curveId !== undefined) {
+      if (i.curveId !== null && !ILLUSTRATIVE_CURVES.some((c) => c.id === i.curveId)) {
+        throw new HttpError(422, "BAD_CURVE", "Unknown illustrative curve id");
+      }
+      state.ilf.curveId = i.curveId;
+    }
+    if (i.targetLimit !== undefined) {
+      if (i.targetLimit !== null && (!isNum(i.targetLimit) || i.targetLimit <= 0)) {
+        throw new HttpError(422, "BAD_LIMIT", "The restoration target limit must be a positive number or null (unlimited)");
+      }
+      state.ilf.targetLimit = i.targetLimit;
+    }
+    // A changed restoration config changes the level the selection exhibit
+    // is stated at; dollar overrides typed against the old level are void.
+    if (JSON.stringify(state.ilf) !== ilfBefore) {
+      state.ultimateSelection.overrides = {};
     }
   }
   if (patch.bf) activeBf(state).aprioriLossRatio = patch.bf.aprioriLossRatio;
@@ -772,6 +1063,13 @@ export interface AnalysisResults {
   cadence: string;
   /** The development layer this run was built on (absent on pre-layer runs = unlimited). */
   layer?: LayerState;
+  /** Why a CONFIGURED ILF source failed to resolve on a capped run (null when none/applied). */
+  ilfUnresolvedReason?: string | null;
+  /** The uncap factor applied to restore capped ultimates; null/absent = still limited. */
+  ilf?: ResolvedIlf | null;
+  /** Unlimited latest diagonals per origin (capped runs only): the true
+   * reported/paid base for total-limits IBNR and unpaid. */
+  unlimitedDiagonals?: Record<string, { paid: number; incurred: number }>;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };
   bornhuetterFerguson: {
     paid: BornhuetterFergusonResult | null;
@@ -814,6 +1112,21 @@ function latestDiagonalTotal(tri: Triangle): number {
     }
   }
   return total;
+}
+
+/** Latest observed diagonal value per origin. */
+function latestDiagonalByOrigin(tri: Triangle): Record<string, number> {
+  const out: Record<string, number> = {};
+  tri.values.forEach((row, i) => {
+    for (let j = row.length - 1; j >= 0; j--) {
+      const v = row[j];
+      if (v !== null && v !== undefined) {
+        out[tri.origins[i]!] = v;
+        break;
+      }
+    }
+  });
+  return out;
 }
 
 /** Volume-weighted all-year selections for a triangle (used for adjusted triangles and counts). */
@@ -972,11 +1285,51 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
 
   warnings.push(...paidCl.warnings, ...incurredCl.warnings);
 
+  // Capped runs carry their restoration factor and the UNLIMITED diagonals
+  // (total-limits IBNR/unpaid must subtract the real reported/paid, not the
+  // capped ones).
+  let ilfApplied: ResolvedIlf | null = null;
+  let ilfUnresolvedReason: string | null = null;
+  let unlimitedDiagonals: Record<string, { paid: number; incurred: number }> | undefined;
+  if (state.layer.active === "capped") {
+    ilfApplied = view.ilfReview.resolved;
+    const rawSet = buildLayerTriangles(getClaims(projectId), state, "unlimited");
+    const paidDiag = latestDiagonalByOrigin(rawSet.paid);
+    const incDiag = latestDiagonalByOrigin(rawSet.incurred);
+    unlimitedDiagonals = {};
+    for (const origin of rawSet.paid.origins) {
+      unlimitedDiagonals[origin] = {
+        paid: paidDiag[origin] ?? 0,
+        incurred: incDiag[origin] ?? 0,
+      };
+    }
+    if (ilfApplied) {
+      warnings.push(
+        `Selection-of-ultimates figures are restored to ${
+          ilfApplied.targetLimit === null
+            ? "unlimited"
+            : `a ${ilfApplied.targetLimit.toLocaleString()} limit`
+        } via ${ilfApplied.sourceLabel} (factor ${ilfApplied.factor.toFixed(4)})`,
+        ...ilfApplied.warnings,
+      );
+    } else if (state.ilf.source !== "none") {
+      // A configured source that fails to resolve must not masquerade as a
+      // deliberately-limited run.
+      ilfUnresolvedReason = view.ilfReview.unresolvedReason ?? "ILF resolution failed";
+      warnings.push(
+        `An ILF source is configured but did not resolve (${ilfUnresolvedReason}); this run is LIMITED`,
+      );
+    }
+  }
+
   const results: AnalysisResults = {
     ranAt: new Date().toISOString(),
     asOfDate: state.asOfDate,
     cadence: state.cadence,
     layer: { ...state.layer },
+    ilf: ilfApplied,
+    ilfUnresolvedReason,
+    unlimitedDiagonals,
     chainLadder: { paid: paidCl, incurred: incurredCl },
     bornhuetterFerguson: { paid: bfPaid, incurred: bfIncurred, skippedReason: bfSkipped },
     berquistSherman: { caseAdequacy: bsCase, settlement: bsSettlement, skippedReason: bsSkipped },
@@ -988,6 +1341,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
 
   const inputs = {
     layer: state.layer,
+    ilf: state.ilf,
     selections: state.selections,
     tail: state.tail,
     bf: state.bf,
