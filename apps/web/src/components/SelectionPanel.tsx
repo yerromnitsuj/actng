@@ -62,6 +62,31 @@ export default function SelectionPanel() {
 
   const stale = analysis ? resultsAreStale(analysis.inputs, workspace?.state) : false;
 
+  // Level coherence (round-5 F1): the provenance banner below states the level
+  // of the run this exhibit BLENDS. When the armed layer has since changed, that
+  // level claim is about a superseded run - so "RESTORED TO 1M" must not stand
+  // unqualified next to an unlimited toggle. Name the level change in the stale
+  // note instead of leaving the two banners silently contradicting each other.
+  const levelWord = (l: "unlimited" | "limited" | "restored") =>
+    l === "restored" ? "restored (total-limits)" : l === "limited" ? "limited (capped)" : "unlimited";
+  const runLevel: "unlimited" | "limited" | "restored" = selection.restored
+    ? "restored"
+    : selection.layer.active === "capped"
+      ? "limited"
+      : "unlimited";
+  const armedLevel: "unlimited" | "limited" | "restored" =
+    workspace?.state.layer.active === "capped"
+      ? workspace?.ilfReview.resolved
+        ? "restored"
+        : "limited"
+      : "unlimited";
+  const levelChanged = stale && armedLevel !== runLevel;
+
+  // Round-5 F2: this run could not drive Expected Claims / the ELR-derived BF
+  // a-priori (ELR level mismatch), so those columns are deliberately blank -
+  // state WHY on the matrix instead of leaving a silent "-".
+  const elrSkip = analysis?.results.elrDerivedSkipReason ?? null;
+
   const committedFor = (origin: string, method: SelectionMethodKey): number => {
     const row = selection.rows.find((r) => r.origin === origin);
     return row?.weights[method] ?? 0;
@@ -172,8 +197,14 @@ export default function SelectionPanel() {
       ) : null}
       {stale ? (
         <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.8rem] font-medium text-[#6b4f16]">
-          Inputs have changed since the run this exhibit blends; rerun the analysis to refresh the
-          method ultimates below.
+          {levelChanged
+            ? `You switched to the ${levelWord(armedLevel)} layer since this run - the method ultimates below are STILL at the ${levelWord(runLevel)} level (the banner above describes that superseded run). Rerun to move them onto the ${levelWord(armedLevel)} basis.`
+            : "Inputs have changed since the run this exhibit blends; rerun the analysis to refresh the method ultimates below."}
+        </p>
+      ) : null}
+      {elrSkip ? (
+        <p className="mb-3 rounded-sm border border-steel bg-steel-soft px-3 py-1.5 text-[0.8rem] font-medium text-steel">
+          Exp Clms is blank (and BF carries its derived a-priori, not the selected ELR): {elrSkip}
         </p>
       ) : null}
       {selection.rows.some((r) => r.restorationShortfall) ? (

@@ -1209,7 +1209,11 @@ describe("phase-4 review fixes: level coherence, zod weights, on-level frequency
     const run = ws.runFullAnalysis(projectId, "mismatch run");
     const results = run.results as import("../src/services/workspaceService.js").AnalysisResults;
     expect(results.expectedClaims ?? null).toBeNull();
-    expect(results.warnings.join(" ")).toMatch(/SKIPPED/);
+    // The skip is now a structured field the selection exhibit surfaces (round-5 F2),
+    // not just a buried warning - assert both.
+    expect(results.elrDerivedSkipReason).toBeTruthy();
+    expect(results.elrDerivedSkipReason).toMatch(/skipped/i);
+    expect(results.warnings.join(" ")).toMatch(/skipped/i);
     ws.patchWorkspace(projectId, { layer: { active: "capped" } });
   });
 

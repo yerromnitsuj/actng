@@ -1664,6 +1664,10 @@ export interface AnalysisResults {
     skippedReason?: string;
   };
   expectedClaims?: ExpectedClaimsResult | null;
+  /** Set when a selected ELR could NOT drive Expected Claims / the ELR-derived BF
+   * a-priori this run (its level did not match the run's level), so those columns
+   * are deliberately blank. Lets the selection exhibit state WHY, not just show "-". */
+  elrDerivedSkipReason?: string | null;
   /** Per-origin adjustment factors the ELR methods ran with (audit trail). */
   elrAdjustments?: Record<
     string,
@@ -1767,12 +1771,12 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     state.layer.active === "capped" ? (runResolvedIlf ? "restored" : "limited") : "unlimited";
   const elrTargetYear = resolveElrTargetYear(state, triangles.paid.origins);
   let elrNativeToRun: number | null = null;
+  let elrDerivedSkipReason: string | null = null;
   if (state.elr.selected !== null) {
     const selLevel = state.elr.selectedAtLevel ?? "unlimited";
     if (selLevel !== runLevel) {
-      warnings.push(
-        `The selected ELR was chosen at the ${selLevel} level but this run is ${runLevel}: Expected Claims and the ELR-derived BF a-priori were SKIPPED - re-select the ELR on the current exhibit`,
-      );
+      elrDerivedSkipReason = `The selected ELR was chosen at the ${selLevel} level but this run is ${runLevel}, so Expected Claims and the ELR-derived BF a-priori were skipped (the levels must match, or the a-priori would sit at the wrong dollar level). Re-select the ELR on the current ${runLevel} exhibit, then rerun.`;
+      warnings.push(elrDerivedSkipReason);
     } else if (runLevel === "restored") {
       // De-restate to the capped level: method outputs are native to the run
       // layer and the selection matrix restores them exactly once.
@@ -2082,6 +2086,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     layer: { ...state.layer },
     ilf: ilfApplied,
     ilfUnresolvedReason,
+    elrDerivedSkipReason,
     ultimateCounts: ultimateCountsByOrigin,
     capeCod: { paid: ccPaid, incurred: ccIncurred, skippedReason: ccSkipped },
     expectedClaims: expectedClaimsResult,

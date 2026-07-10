@@ -88,6 +88,26 @@ export default function RatesPanel() {
     void patchWorkspace({ rates: { premiumTrend: parsed } });
   };
 
+  const blurOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+  };
+
+  // Round-5 F3: a typed-but-uncommitted rate change silently held its value
+  // while the on-level exhibit still showed the prior answer. History commits
+  // only on blur, so surface a pending cue (matching the selection matrix) and
+  // let Enter commit - a half-typed or changed row must not read as applied.
+  const seededNow = seedRows(rates.history);
+  const historyPending =
+    rows.length !== seededNow.length ||
+    rows.some(
+      (r, i) =>
+        r.effectiveDate.trim() !== (seededNow[i]?.effectiveDate ?? "") ||
+        r.change.trim() !== (seededNow[i]?.change ?? ""),
+    );
+  const trendSeed = rates.premiumTrend !== null ? String(+(rates.premiumTrend * 100).toFixed(6)) : "";
+  const trendPending = trendDraft.trim() !== trendSeed;
+  const pending = historyPending || trendPending;
+
   const inputClass =
     "num rounded-sm border border-hairline-strong bg-panel px-2 py-1 text-right text-[0.8rem] text-ink outline-none focus:border-steel";
 
@@ -96,6 +116,12 @@ export default function RatesPanel() {
       title="Rates & premium"
       kicker="rate-change history for parallelogram on-leveling (annual policies, written uniformly) + premium trend"
     >
+      {pending ? (
+        <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1 text-[0.78rem] font-medium text-[#6b4f16]">
+          Pending rate edit - press Enter or click away to apply. The on-level factors and ELR
+          exhibit use the committed history below, not this draft.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-start gap-8">
         <div>
           <h3 className="mb-1 text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">
@@ -130,6 +156,7 @@ export default function RatesPanel() {
                         setRows(rows.map((x, j) => (j === i ? { ...x, effectiveDate: e.target.value } : x)))
                       }
                       onBlur={() => commitHistory(rows)}
+                      onKeyDown={blurOnEnter}
                       className={`${inputClass} w-32 text-left`}
                       aria-label={`Rate change ${i + 1} effective date`}
                     />
@@ -144,6 +171,7 @@ export default function RatesPanel() {
                         setRows(rows.map((x, j) => (j === i ? { ...x, change: e.target.value } : x)))
                       }
                       onBlur={() => commitHistory(rows)}
+                      onKeyDown={blurOnEnter}
                       className={`${inputClass} w-20`}
                       aria-label={`Rate change ${i + 1} percent`}
                     />

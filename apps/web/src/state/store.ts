@@ -33,6 +33,9 @@ interface AppState {
   analyses: AnalysisListItem[];
   currentAnalysis: AnalysisRecord | null;
   runningAnalysis: boolean;
+  /** A failed "Run analysis" (e.g. 422 no-selections): held in the work area
+   * until the next run, not just flashed as an 8s top toast that scrolls away. */
+  runError: string | null;
 
   notes: Note[];
 
@@ -53,6 +56,8 @@ interface AppState {
   runAnalysis: (label?: string) => Promise<void>;
   loadAnalyses: (projectId: string, options?: { selectLatest?: boolean }) => Promise<void>;
   openAnalysis: (analysisId: string) => Promise<void>;
+
+  clearRunError: () => void;
 
   loadNotes: (projectId: string) => Promise<void>;
   addNote: (text: string) => Promise<void>;
@@ -80,6 +85,7 @@ export const useStore = create<AppState>((set, get) => {
     analyses: [],
     currentAnalysis: null,
     runningAnalysis: false,
+    runError: null,
     notes: [],
     threads: [],
     activeThreadId: null,
@@ -88,6 +94,7 @@ export const useStore = create<AppState>((set, get) => {
     chatBusy: false,
 
     clearError: () => set({ error: null }),
+    clearRunError: () => set({ runError: null }),
 
     loadProjects: async () => {
       try {
@@ -168,14 +175,17 @@ export const useStore = create<AppState>((set, get) => {
     runAnalysis: async (label) => {
       const projectId = get().workspaceProjectId;
       if (!projectId) return;
-      set({ runningAnalysis: true });
+      set({ runningAnalysis: true, runError: null });
       try {
         const { analysis } = await api.runAnalysis(projectId, label);
         if (stale(projectId)) return;
-        set({ currentAnalysis: analysis, runningAnalysis: false });
+        set({ currentAnalysis: analysis, runningAnalysis: false, runError: null });
         await get().loadAnalyses(projectId);
       } catch (err) {
-        set({ runningAnalysis: false, error: errorText(err) });
+        // A run failure is surfaced in the work area (runError), not the
+        // transient top toast, so it can't be missed or auto-dismissed while
+        // the user is mid-page looking at an exhibit that didn't change.
+        set({ runningAnalysis: false, runError: errorText(err) });
       }
     },
 

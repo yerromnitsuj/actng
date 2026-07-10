@@ -289,6 +289,10 @@ export interface AnalysisResults {
     skippedReason?: string;
   };
   expectedClaims?: { selectedElrAtTargetLevel: number; totals: { ultimate: number } } | null;
+  /** Set when a selected ELR could not drive Expected Claims / the ELR-derived BF
+   * a-priori this run (level mismatch) - the selection exhibit surfaces this so the
+   * blank columns are explained rather than silent. */
+  elrDerivedSkipReason?: string | null;
   ilf?: ResolvedIlf | null;
   unlimitedDiagonals?: Record<string, { paid: number; incurred: number }>;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };

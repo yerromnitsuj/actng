@@ -24,6 +24,8 @@ export default function WorkspacePage() {
   const patchWorkspace = useStore((s) => s.patchWorkspace);
   const runAnalysis = useStore((s) => s.runAnalysis);
   const runningAnalysis = useStore((s) => s.runningAnalysis);
+  const runError = useStore((s) => s.runError);
+  const clearRunError = useStore((s) => s.clearRunError);
   const advisorChangeTick = useStore((s) => s.advisorChangeTick);
   const projects = useStore((s) => s.projects);
   const loadProjects = useStore((s) => s.loadProjects);
@@ -128,6 +130,25 @@ export default function WorkspacePage() {
             </div>
           ) : null}
         </div>
+
+        {runError ? (
+          <div
+            role="alert"
+            className="rise rounded-sm border border-oxblood bg-oxblood-soft px-4 py-3 text-[0.85rem] text-oxblood"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0">
+                <span className="font-semibold">Run failed - nothing changed.</span> {runError}
+              </p>
+              <button
+                onClick={clearRunError}
+                className="shrink-0 font-semibold hover:underline"
+              >
+                dismiss
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {workspaceLoading ? (
           <Section title="Workspace" kicker="loading">
