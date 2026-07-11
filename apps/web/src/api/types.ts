@@ -51,6 +51,7 @@ export interface UltimateSelectionRow {
   ibnr: number | null;
   unpaid: number | null;
   restorationShortfall: boolean;
+  restorationOverage: boolean;
 }
 
 export interface UltimateSelectionView {

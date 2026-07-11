@@ -32,16 +32,20 @@ export function Section({
   actions,
   children,
   className = "",
+  id,
 }: {
   title: string;
   kicker?: string;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Anchor id for the exhibit jump-nav; scroll-margin keeps the heading clear of the sticky nav. */
+  id?: string;
 }) {
   return (
     <section
-      className={`rise rounded-sm border border-hairline bg-panel shadow-[0_1px_2px_rgb(26_35_50/0.04)] ${className}`}
+      id={id}
+      className={`rise scroll-mt-24 rounded-sm border border-hairline bg-panel shadow-[0_1px_2px_rgb(26_35_50/0.04)] ${className}`}
     >
       <header className="flex items-baseline justify-between gap-4 border-b border-hairline px-5 py-3">
         <div className="flex items-baseline gap-3">

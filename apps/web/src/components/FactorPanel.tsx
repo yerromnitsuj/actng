@@ -43,6 +43,18 @@ export default function FactorPanel() {
 
   const nCols = factors.fromAges.length;
 
+  // Soft outlier guardrail: a SELECTED factor that sits well off the all-year
+  // volume-weighted average (more than double, or less than half) is usually a
+  // typo (11.0 for 1.10), not judgment. Advisory only - never blocks.
+  const vwValues = factors.averages.find((a) => a.spec.key === "all-wtd")?.values ?? [];
+  const isOutlier = (j: number): boolean => {
+    const sel = selections[j];
+    const vw = vwValues[j];
+    if (sel === null || sel === undefined || vw === null || vw === undefined) return false;
+    return sel > vw * 2 || (sel > 0 && sel < vw * 0.5);
+  };
+  const outlierCols = Array.from({ length: nCols }, (_, j) => j).filter(isOutlier);
+
   const applySelections = (selected: (number | null)[]) => {
     void patchWorkspace({ selections: { basis, selected } });
   };
@@ -205,7 +217,16 @@ export default function FactorPanel() {
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
                     placeholder="-"
-                    className="num w-full rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-right text-[0.82rem] font-semibold text-ink outline-none focus:border-steel focus:bg-panel"
+                    title={
+                      isOutlier(j)
+                        ? "This selection is well off the volume-weighted average (>2x or <0.5x) - confirm it isn't a typo"
+                        : undefined
+                    }
+                    className={`num w-full rounded-sm border px-1 py-0.5 text-right text-[0.82rem] font-semibold text-ink outline-none focus:border-steel focus:bg-panel ${
+                      isOutlier(j)
+                        ? "border-oxblood/60 bg-oxblood-soft/60"
+                        : "border-transparent bg-transparent"
+                    }`}
                   />
                 </td>
               ))}
@@ -222,6 +243,15 @@ export default function FactorPanel() {
           </tbody>
         </table>
       </div>
+
+      {outlierCols.length > 0 ? (
+        <p className="mt-2 rounded-sm border border-oxblood/50 bg-oxblood-soft px-3 py-1.5 text-[0.78rem] font-medium text-oxblood">
+          Selected factor{outlierCols.length > 1 ? "s" : ""} at{" "}
+          {outlierCols.map((j) => `${factors.fromAges[j]}-${factors.toAges[j]}`).join(", ")}{" "}
+          {outlierCols.length > 1 ? "are" : "is"} well off the volume-weighted average (more than
+          double or less than half) - confirm this is deliberate judgment and not a typo.
+        </p>
+      ) : null}
 
       {/* Tail factor */}
       <div className="mt-5 border-t border-hairline pt-4">

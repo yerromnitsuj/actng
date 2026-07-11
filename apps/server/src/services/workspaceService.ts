@@ -795,6 +795,13 @@ export interface UltimateSelectionRow {
    * book-average restoration, so the uniform factor understates this year.
    */
   restorationShortfall: boolean;
+  /**
+   * RESTORED runs only, symmetric to the shortfall: true when a MATURE year's
+   * realized excess (unlimited reported / capped reported) is materially below
+   * the uniform uncap factor, so the factor grosses it up beyond its own
+   * experience and books phantom positive excess IBNR.
+   */
+  restorationOverage: boolean;
 }
 
 export interface UltimateSelectionView {
@@ -897,6 +904,17 @@ export function computeUltimateSelection(
     }
   }
 
+  // For the symmetric over-restoration flag: a mature year's REALIZED excess
+  // ratio (unlimited reported / capped reported) vs the uniform uncap factor.
+  // On a restored run results.chainLadder is the capped layer, so its incurred
+  // latestValue is the capped reported and percentDeveloped is the maturity.
+  const cappedIncByOrigin = new Map(
+    (results.chainLadder?.incurred?.rows ?? []).map((r) => [
+      r.origin,
+      { reported: r.latestValue, percentDeveloped: r.percentDeveloped, latestAge: r.latestAge },
+    ]),
+  );
+
   const rows: UltimateSelectionRow[] = originOrder.map((origin) => {
     const entry = byOrigin.get(origin)!;
     const ultimates = Object.fromEntries(
@@ -927,6 +945,24 @@ export function computeUltimateSelection(
     const weighted = weightSum > 0 ? blend / weightSum : null;
     const restorationShortfall =
       restored !== null && weighted !== null && weighted < entry.latestIncurred;
+    // Symmetric to the shortfall: a MATURE year whose realized excess (unlimited
+    // reported / capped reported) sits materially BELOW the uniform uncap factor
+    // is grossed up beyond its own experience, booking phantom positive excess
+    // IBNR. The maturity gate is deliberately strict: capped losses develop
+    // FASTER than excess (large) losses, so capped-maturity alone would false-flag
+    // recent years whose big claims simply have not emerged yet. Require real age
+    // (>= 5 years) so the excess experience is credible, and a MATERIAL (>25%) gap.
+    const cappedInc = cappedIncByOrigin.get(origin);
+    const realizedExcess =
+      cappedInc && cappedInc.reported > 0 ? entry.latestIncurred / cappedInc.reported : null;
+    const restorationOverage =
+      restored !== null &&
+      weighted !== null &&
+      cappedInc !== undefined &&
+      cappedInc.percentDeveloped >= 0.9 &&
+      cappedInc.latestAge >= 60 &&
+      realizedExcess !== null &&
+      restored.factor > realizedExcess * 1.25;
     const rawOverride = selection.overrides[origin];
     const override =
       typeof rawOverride === "number" && Number.isFinite(rawOverride) && rawOverride > 0
@@ -944,6 +980,7 @@ export function computeUltimateSelection(
       latestPaid: entry.latestPaid,
       latestIncurred: entry.latestIncurred,
       restorationShortfall,
+      restorationOverage,
       ibnr: selected !== null ? selected - entry.latestIncurred : null,
       unpaid: selected !== null ? selected - entry.latestPaid : null,
     };

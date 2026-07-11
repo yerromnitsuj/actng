@@ -16,6 +16,21 @@ import IlfPanel from "../components/IlfPanel.js";
 import ImportPanel from "../components/ImportPanel.js";
 import NotesPanel from "../components/NotesPanel.js";
 
+/** Exhibit jump-nav: a working actuary moves between these repeatedly on a long page. */
+const EXHIBITS: { id: string; label: string }[] = [
+  { id: "ex-triangle", label: "Triangle" },
+  { id: "ex-layer", label: "Layer" },
+  { id: "ex-limits", label: "Limits" },
+  { id: "ex-factors", label: "Factors" },
+  { id: "ex-results", label: "Results" },
+  { id: "ex-selection", label: "Selection" },
+  { id: "ex-trends", label: "Trends" },
+  { id: "ex-rates", label: "Rates" },
+  { id: "ex-apriori", label: "A-priori" },
+  { id: "ex-diagnostics", label: "Diagnostics" },
+  { id: "ex-notes", label: "Notes & data" },
+];
+
 export default function WorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const workspace = useStore((s) => s.workspace);
@@ -162,32 +177,64 @@ export default function WorkspacePage() {
           </>
         ) : (
           <>
-            <Section
-              title={`${basis === "paid" ? "Paid losses" : "Incurred losses"}`}
-              kicker={`cumulative triangle - development age (months) - gold cells mark the ${workspace.state.asOfDate} diagonal`}
+            <nav
+              aria-label="Jump to exhibit"
+              className="sticky top-2 z-30 -mx-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-sm border border-hairline bg-panel/90 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-panel/75"
             >
-              {activeTriangle ? <TriangleGrid triangle={activeTriangle} /> : null}
-            </Section>
+              <span className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-ink-faint">
+                Jump to
+              </span>
+              {EXHIBITS.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() =>
+                    document.getElementById(e.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                  className="text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-ink-soft transition-colors hover:text-steel"
+                >
+                  {e.label}
+                </button>
+              ))}
+            </nav>
 
-            <LayerPanel />
+            <div id="ex-triangle" className="scroll-mt-24">
+              <Section
+                title={`${basis === "paid" ? "Paid losses" : "Incurred losses"}`}
+                kicker={`cumulative triangle - development age (months) - gold cells mark the ${workspace.state.asOfDate} diagonal`}
+              >
+                {activeTriangle ? <TriangleGrid triangle={activeTriangle} /> : null}
+              </Section>
+            </div>
 
-            <IlfPanel />
+            <div id="ex-layer" className="scroll-mt-24">
+              <LayerPanel />
+            </div>
+            <div id="ex-limits" className="scroll-mt-24">
+              <IlfPanel />
+            </div>
+            <div id="ex-factors" className="scroll-mt-24">
+              <FactorPanel />
+            </div>
+            <div id="ex-results" className="scroll-mt-24">
+              <ResultsPanel />
+            </div>
+            <div id="ex-selection" className="scroll-mt-24">
+              <SelectionPanel />
+            </div>
+            <div id="ex-trends" className="scroll-mt-24">
+              <TrendPanel />
+            </div>
+            <div id="ex-rates" className="scroll-mt-24">
+              <RatesPanel />
+            </div>
+            <div id="ex-apriori" className="scroll-mt-24">
+              <ElrPanel />
+            </div>
+            <div id="ex-diagnostics" className="scroll-mt-24">
+              <DiagnosticsPanel />
+            </div>
 
-            <FactorPanel />
-
-            <ResultsPanel />
-
-            <SelectionPanel />
-
-            <TrendPanel />
-
-            <RatesPanel />
-
-            <ElrPanel />
-
-            <DiagnosticsPanel />
-
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <div id="ex-notes" className="grid scroll-mt-24 grid-cols-1 gap-5 xl:grid-cols-2">
               <Section title="Notes" kicker="analysis record">
                 <NotesPanel />
               </Section>

@@ -221,6 +221,19 @@ export default function SelectionPanel() {
           excess treatment; their negative IBNR is an artifact, not favorable development.
         </p>
       ) : null}
+      {selection.rows.some((r) => r.restorationOverage) ? (
+        <p className="mb-3 rounded-sm border border-gold bg-gold-soft px-3 py-1.5 text-[0.8rem] font-medium text-[#6b4f16]">
+          Possible over-restoration in{" "}
+          {selection.rows
+            .filter((r) => r.restorationOverage)
+            .map((r) => r.origin)
+            .join(", ")}
+          : these MATURE years' realized excess (unlimited-to-capped reported) sits well below the
+          uniform uncap factor, so the single factor grosses them up beyond their own experience and
+          books phantom positive excess IBNR. Consider a manual override at each year's own level, or
+          an experience-based per-year factor.
+        </p>
+      ) : null}
       {allWeightsZero && !anyOverride ? (
         <p className="mb-3 rounded-sm border border-oxblood/50 bg-oxblood-soft px-3 py-1.5 text-[0.8rem] font-medium text-oxblood">
           All method weights are zero in every period, so there is no weighted blend and no
@@ -292,6 +305,14 @@ export default function SelectionPanel() {
                       title="Restored blend below this year's unlimited reported incurred - the uniform factor understates realized excess here"
                     >
                       !
+                    </span>
+                  ) : null}
+                  {row.restorationOverage ? (
+                    <span
+                      className="ml-1 cursor-help font-semibold text-[#6b4f16]"
+                      title="Possible over-restoration - this mature year's realized excess is well below the uniform uncap factor, so it is grossed up beyond its own experience"
+                    >
+                      &#9650;
                     </span>
                   ) : null}
                 </td>
