@@ -709,9 +709,24 @@ export function computeElrReview(
     );
   }
 
+  // The Cape Cod cross-check is the RUN's mechanical a-priori, native to the
+  // method the run used. If the method has since been toggled (live, no rerun)
+  // the value is in the wrong unit - a pure premium ($/unit) is not a loss ratio.
+  // Hide it until a rerun rather than mislabel a $454 pure premium as "45431%".
+  const runMethod = results.aprioriMethod ?? "loss-ratio";
+  const ccInThisMethod = runMethod === method;
+  if (!ccInThisMethod) {
+    warnings.push(
+      `The a-priori method changed to ${method === "pure-premium" ? "pure premium" : "loss ratio"} since this run - rerun to refresh the exhibit (the Cape Cod cross-check, native to the run's ${runMethod === "pure-premium" ? "pure-premium" : "loss-ratio"} basis, is hidden until then)`,
+    );
+  }
   const restateCc = (v: number | null): number | null =>
-    v !== null && level === "restored" && results.ilf ? v * results.ilf.factor : v;
-  if (level === "restored" && results.ilf) {
+    !ccInThisMethod
+      ? null
+      : v !== null && level === "restored" && results.ilf
+        ? v * results.ilf.factor
+        : v;
+  if (ccInThisMethod && level === "restored" && results.ilf) {
     warnings.push(
       `The Cape Cod cross-check is restated x${results.ilf.factor.toFixed(4)} to total limits so it compares to these restored-level ratios`,
     );
@@ -1736,6 +1751,9 @@ export interface AnalysisResults {
    * a-priori this run (its level did not match the run's level), so those columns
    * are deliberately blank. Lets the selection exhibit state WHY, not just show "-". */
   elrDerivedSkipReason?: string | null;
+  /** The a-priori method this run used. The Cape Cod cross-check is native to it;
+   * a later live method toggle must not reinterpret a pure premium as a ratio. */
+  aprioriMethod?: ElrMethod;
   /** Per-origin adjustment factors the ELR methods ran with (audit trail). */
   elrAdjustments?: Record<
     string,
@@ -2172,6 +2190,7 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     ilf: ilfApplied,
     ilfUnresolvedReason,
     elrDerivedSkipReason,
+    aprioriMethod: state.elr.method,
     ultimateCounts: ultimateCountsByOrigin,
     capeCod: { paid: ccPaid, incurred: ccIncurred, skippedReason: ccSkipped },
     expectedClaims: expectedClaimsResult,

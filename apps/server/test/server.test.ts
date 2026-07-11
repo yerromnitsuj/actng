@@ -1433,4 +1433,25 @@ describe("pure-premium method", () => {
     expect(results.bornhuetterFerguson.skippedReason).toMatch(/exposure units/i);
     expect(results.warnings.join(" ")).toMatch(/pure-premium method needs them/i);
   });
+
+  it("hides the Cape Cod cross-check (not mislabels it) when the method is toggled without a rerun", () => {
+    setup();
+    ws.patchWorkspace(projectId, { elr: { method: "pure-premium" } });
+    ws.runFullAnalysis(projectId, "pp run");
+    expect(ws.getWorkspaceView(projectId).elrReview!.capeCodElr.paid!).toBeGreaterThan(50);
+
+    // Toggle to loss ratio WITHOUT rerunning: the run's pure-premium Cape Cod must
+    // NOT reappear as a ~45000% loss ratio - it is hidden until a rerun (round 7).
+    ws.patchWorkspace(projectId, { elr: { method: "loss-ratio" } });
+    const stale = ws.getWorkspaceView(projectId).elrReview!;
+    expect(stale.method).toBe("loss-ratio");
+    expect(stale.capeCodElr.paid).toBeNull();
+    expect(stale.warnings.join(" ")).toMatch(/method changed/i);
+
+    // Rerun in loss ratio: now it is a real loss ratio.
+    ws.runFullAnalysis(projectId, "lr run");
+    const lr = ws.getWorkspaceView(projectId).elrReview!;
+    expect(lr.capeCodElr.paid!).toBeGreaterThan(0.2);
+    expect(lr.capeCodElr.paid!).toBeLessThan(3);
+  });
 });

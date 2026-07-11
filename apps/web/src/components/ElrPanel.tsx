@@ -132,8 +132,9 @@ export default function ElrPanel() {
               {[
                 "Year",
                 baseHeader,
-                ...(isPP ? [] : ["OLF"]),
-                adjBaseHeader,
+                // Under pure premium the on-level factor is always 1 and the
+                // adjusted base equals the base, so both columns are dropped.
+                ...(isPP ? [] : ["OLF", adjBaseHeader]),
                 "Selected ultimate",
                 `Trended @${review.targetYear}`,
                 ratioHeader,
@@ -157,13 +158,15 @@ export default function ElrPanel() {
                   {fmt0(r.premium)}
                 </td>
                 {isPP ? null : (
-                  <td className="num px-2 py-1 text-right text-[0.8rem] text-ink-soft">
-                    {r.onLevelFactor.toFixed(3)}
-                  </td>
+                  <>
+                    <td className="num px-2 py-1 text-right text-[0.8rem] text-ink-soft">
+                      {r.onLevelFactor.toFixed(3)}
+                    </td>
+                    <td className="num px-2 py-1 text-right text-[0.8rem] text-ink">
+                      {fmt0(r.onLevelTrendedPremium)}
+                    </td>
+                  </>
                 )}
-                <td className="num px-2 py-1 text-right text-[0.8rem] text-ink">
-                  {fmt0(r.onLevelTrendedPremium)}
-                </td>
                 <td className="num px-2 py-1 text-right text-[0.8rem] text-ink">
                   {r.selectedUltimate !== null ? fmt0(r.selectedUltimate) : "-"}
                 </td>

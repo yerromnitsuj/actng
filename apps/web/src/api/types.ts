@@ -305,6 +305,8 @@ export interface AnalysisResults {
    * a-priori this run (level mismatch) - the selection exhibit surfaces this so the
    * blank columns are explained rather than silent. */
   elrDerivedSkipReason?: string | null;
+  /** The a-priori method this run used (loss-ratio or pure-premium). */
+  aprioriMethod?: ElrMethod;
   ilf?: ResolvedIlf | null;
   unlimitedDiagonals?: Record<string, { paid: number; incurred: number }>;
   chainLadder: { paid: ChainLadderResult; incurred: ChainLadderResult };
