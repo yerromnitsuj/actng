@@ -149,8 +149,9 @@ function measureToKind(measure: Measure): TriangleKind | null {
 }
 
 /**
- * TriangleDoc → core `Triangle`. Validates the document (schema +
- * integrity), maps the measure to a core kind, cumulates incremental
+ * TriangleDoc → core `Triangle`. Validates the document SCHEMA (integrity
+ * verification is parseDocument's job — pass documents through it first
+ * when provenance matters), maps the measure to a core kind, cumulates incremental
  * values through core's `incrementalToCumulative` (with a warning), and
  * channels reader-capability warnings for 1-/6-month cadences.
  */

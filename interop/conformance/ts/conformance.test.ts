@@ -49,6 +49,10 @@ function readJson(fixtureName: string, file: string): unknown {
   return JSON.parse(readFileSync(path.join(FIXTURES_DIR, fixtureName, file), "utf8"));
 }
 
+function readText(fixtureName: string, file: string): string {
+  return readFileSync(path.join(FIXTURES_DIR, fixtureName, file), "utf8");
+}
+
 for (const fixture of CONFORMANCE_FIXTURES) {
   describe(`conformance fixture ${fixture.name}`, () => {
     const triangleRaw = readJson(fixture.name, "triangle.json");
@@ -67,13 +71,17 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       }
     });
 
-    it("committed documents are frozen: a fresh authoring run reproduces them exactly", () => {
+    it("committed documents are byte-frozen: a fresh authoring run reproduces the files exactly", () => {
+      // TRUE byte freeze (not just structural equality): the committed file
+      // text must equal the generator's serialization of a fresh authoring
+      // run. Regeneration requires a documented convention change.
       const authored = authorFixture(fixture);
-      expect(triangleRaw).toEqual(authored.triangleDoc);
-      expect(selectionRaw).toEqual(authored.selectionDoc);
-      expect(clResultRaw).toEqual(authored.clResultDoc);
-      expect(mackResultRaw).toEqual(authored.mackResultDoc);
-      expect(readJson(fixture.name, "expectations.json")).toEqual(authored.expectations);
+      const asFile = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;
+      expect(readText(fixture.name, "triangle.json")).toBe(asFile(authored.triangleDoc));
+      expect(readText(fixture.name, "selection.json")).toBe(asFile(authored.selectionDoc));
+      expect(readText(fixture.name, "deterministic-cl.json")).toBe(asFile(authored.clResultDoc));
+      expect(readText(fixture.name, "mack1993-vw.json")).toBe(asFile(authored.mackResultDoc));
+      expect(readText(fixture.name, "expectations.json")).toBe(asFile(authored.expectations));
     });
 
     it("expectations.json records the committed documents' integrity tags", () => {

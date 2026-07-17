@@ -175,10 +175,22 @@ export function crosscheck(options: CrosscheckOptions): CrosscheckReportDoc {
 
   // --- comparability: origin sets ---
   const aOrigins = a.result.rows.map((r) => r.origin);
+  for (const [label, rows] of [["a", a.result.rows] as const, ["b", b.result.rows] as const]) {
+    const seen = new Set<string>();
+    for (const row of rows) {
+      if (seen.has(row.origin)) {
+        throw new ReservingError(
+          "BAD_INTERCHANGE",
+          `Result "${label}" lists origin "${row.origin}" more than once; per-origin comparison is ill-defined`,
+        );
+      }
+      seen.add(row.origin);
+    }
+  }
   const bByOrigin = new Map(b.result.rows.map((r) => [r.origin, r]));
   const aOnly = aOrigins.filter((o) => !bByOrigin.has(o));
   const bOnly = b.result.rows.map((r) => r.origin).filter((o) => !a.result.rows.some((r) => r.origin === o));
-  if (notComparable.length === 0 && (aOnly.length > 0 || bOnly.length > 0)) {
+  if (aOnly.length > 0 || bOnly.length > 0) {
     notComparable.push(
       `the results cover different origin sets (only in a: [${aOnly.join(", ")}]; only in b: [${bOnly.join(", ")}])`,
     );

@@ -1,0 +1,37 @@
+name: Python interop conformance
+
+# The pinned-matrix drift tripwire from the interchange spec (section 10):
+# the Python shore + cross-engine conformance run against exact pinned
+# chainladder versions. A new chainladder release changing numbers is
+# caught here by ADDING a matrix column, never by silent breakage.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "interop/**"
+      - "schema/interchange/**"
+      - "packages/interchange/**"
+      - "packages/core/**"
+      - ".github/workflows/py-conformance.yml"
+  pull_request:
+    branches: [main]
+
+jobs:
+  py-conformance:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+        chainladder-version: ["0.9.2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package + pinned engine
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "interop/python[chainladder]" pytest
+          pip install "chainladder==${{ matrix.chainladder-version }}"
+      - name: Python shore + cross-engine conformance
+        run: pytest interop/python/tests interop/conformance/py -q

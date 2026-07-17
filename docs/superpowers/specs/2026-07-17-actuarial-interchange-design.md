@@ -188,8 +188,7 @@ embedded in study/bundle documents.
         "intent": {
           "kind": "volume-weighted",     // volume-weighted | simple | regression | geometric | medial | judgmental | external
           "windowOriginPeriods": 5,      // counts ORIGIN PERIODS in the triangle's own cadence; omitted = all
-          "excludeHigh": 0,              // medial trims; valid only with kind="medial"
-          "excludeLow": 0,
+          // excludeHigh/excludeLow (medial trims) are valid ONLY with kind="medial" and must be omitted otherwise
           "exclusions": [ { "origin": "2021", "reason": "one-off large loss" } ],
           "rationale": "..."             // REQUIRED when kind is judgmental or external
         }
