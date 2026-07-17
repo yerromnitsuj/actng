@@ -47,23 +47,10 @@ export function ols(
   return { intercept, slope, rSquared, n };
 }
 
-/** Sum of the non-null values in a list. */
-export function sumDefined(values: (number | null)[]): number {
-  let total = 0;
-  for (const v of values) if (isNum(v)) total += v;
-  return total;
-}
-
 /** Index of the last non-null cell in a row; -1 when the row is empty. */
 export function lastObservedIndex(row: (number | null)[]): number {
   for (let j = row.length - 1; j >= 0; j--) {
     if (isNum(row[j] ?? null)) return j;
   }
   return -1;
-}
-
-/** Round to a given number of decimal places (display and test tolerance only). */
-export function round(v: number, places = 0): number {
-  const p = 10 ** places;
-  return Math.round(v * p) / p;
 }

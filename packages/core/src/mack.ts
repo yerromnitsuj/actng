@@ -73,7 +73,16 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
         `Expected ${K - 1} LDF selections (one per development interval), got ${options.selected.length}`,
       );
     }
-    fEff = options.selected.map((s) => (isNum(s) && s > 0 ? s : 1));
+    fEff = options.selected.map((s, k) => {
+      if (s === null || s === undefined) return 1;
+      if (!isNum(s) || s <= 0) {
+        warnings.push(
+          `Selected LDF for ${tri.ages[k]}-${tri.ages[k + 1]} months is not positive; treated as 1.000`,
+        );
+        return 1;
+      }
+      return s;
+    });
     const differs = fEff.some((v, k) => Math.abs(v - f[k]!) > 1e-9);
     if (differs) {
       warnings.push(

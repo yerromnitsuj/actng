@@ -1,5 +1,5 @@
 import { ReservingError } from "./types.js";
-import { isNum } from "./util.js";
+import { isNum, ols } from "./util.js";
 
 /**
  * Trend machinery: log-linear regressions on year-indexed actuarial series
@@ -54,19 +54,9 @@ function fitWindow(
   }
   const xs = points.map((p) => p.year);
   const ys = points.map((p) => Math.log(p.value));
-  const xMean = xs.reduce((a, v) => a + v, 0) / xs.length;
-  const yMean = ys.reduce((a, v) => a + v, 0) / ys.length;
-  let sxx = 0;
-  let sxy = 0;
-  let syy = 0;
-  for (let i = 0; i < xs.length; i++) {
-    const dx = xs[i]! - xMean;
-    const dy = ys[i]! - yMean;
-    sxx += dx * dx;
-    sxy += dx * dy;
-    syy += dy * dy;
-  }
-  if (sxx === 0) {
+  // n >= 3 here, so a null fit can only mean zero variation in years.
+  const fit = ols(xs, ys);
+  if (fit === null) {
     return {
       key,
       label,
@@ -77,16 +67,14 @@ function fitWindow(
       warnings: ["No variation in years; no fit"],
     };
   }
-  const slope = sxy / sxx;
-  const rSquared = syy > 0 ? (sxy * sxy) / (sxx * syy) : 1;
   if (points.length < 5) {
     warnings.push(`Only ${points.length} points; the fitted trend is volatile`);
   }
   return {
     key,
     label,
-    annualRate: Math.exp(slope) - 1,
-    rSquared,
+    annualRate: Math.exp(fit.slope) - 1,
+    rSquared: fit.rSquared,
     nPoints: points.length,
     usedYears: xs,
     warnings,

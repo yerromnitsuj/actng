@@ -155,6 +155,18 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
     expect(selected.totals.standardError).toBeCloseTo(base.totals.standardError, 6);
   });
 
+  it("warns when a non-positive selected factor is coerced to 1.000 (parity with chain ladder)", () => {
+    const base = runMack(taylorAshe);
+    const bad = base.developmentFactors.map((v, k) => (k === 2 ? -1 : v));
+    const result = runMack(taylorAshe, { selected: bad, tailFactor: 1 });
+    expect(result.warnings.some((w) => w.includes("not positive; treated as 1.000"))).toBe(true);
+    // Deliberately null (unselected) intervals stay silent here: the paired
+    // chain ladder run already warns for missing selections.
+    const withNull = base.developmentFactors.map((v, k) => (k === 2 ? null : v));
+    const nullResult = runMack(taylorAshe, { selected: withNull, tailFactor: 1 });
+    expect(nullResult.warnings.some((w) => w.includes("not positive"))).toBe(false);
+  });
+
   it("reproduces the Mack (1999) published ultimates through runMack with the 1.05 tail", () => {
     const mack = runMack(mortgage, { tailFactor: mortgagePublished.tailFactor });
     const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } = mortgagePublished;

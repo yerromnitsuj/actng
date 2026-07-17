@@ -527,7 +527,8 @@ export function interpolateIlf(table: IlfTableRow[], limit: number): number {
       return Math.exp(Math.log(lo.factor) + t * (Math.log(hi.factor) - Math.log(lo.factor)));
     }
   }
-  return rows[rows.length - 1]!.factor;
+  // Unreachable: the range check above guarantees the loop returns.
+  throw new ReservingError("TABLE_RANGE", "ILF interpolation failed to bracket a validated limit");
 }
 
 /** Table-based uncap factor: ILF(target)/ILF(cap). */
