@@ -1,7 +1,8 @@
 # ActNG - Codex Rules
 
 AI-native P&C actuarial reserving workbench. npm-workspaces monorepo:
-`packages/core` = `@actuarial-ts/core` (pure math, to be published to npm at 0.1.0;
+`packages/{core,data,compliance,agents}` = the `@actuarial-ts/*` SDK
+(published to npm at 0.1.0, tag v0.1.0; core is the pure math;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
 `npm install`), `apps/server` (Express 5 + SQLite + Mastra
 advisor), `apps/web` (Vite + React 19 + Tailwind v4).
@@ -11,7 +12,7 @@ advisor), `apps/web` (Vite + React 19 + Tailwind v4).
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run dev` - seed (idempotent, `--if-empty`) + API on :4600 + web on :5175
-- `npm test` - core suite (incl. Mack 1993/1999 published-value validation) + server suite
+- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), data, compliance, agents, server - 535 tests
 - `npm run typecheck` - every workspace (four @actuarial-ts packages + two apps)
 - `npm run seed --workspace @actng/server` - regenerate demo data (deterministic seed)
 

@@ -77,7 +77,7 @@ decisions, loss-run format, and validation notes.
 
 ```bash
 npm install        # workspace install; builds SDK dist via the root prepare
-npm test           # every package + the server (450+ tests)
+npm test           # every package + the server (535 tests)
 npm run typecheck  # all workspaces
 npm run build      # SDK packages + the web app
 ```

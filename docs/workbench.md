@@ -32,7 +32,7 @@ Optional `.env` settings: `ADVISOR_MODEL` (default `claude-opus-4-8`), `PORT`
 (API, default 4600), `ACTNG_DATA_DIR` (SQLite location).
 
 ```bash
-npm test          # core math suite (incl. published-value validation) + server suite
+npm test          # all four @actuarial-ts package suites + the server suite (535 tests)
 npm run typecheck # every workspace
 ```
 
