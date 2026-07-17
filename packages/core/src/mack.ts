@@ -92,6 +92,44 @@ export function mackEstimators(tri: Triangle): {
   return { f, denomSums, counts, sigma2 };
 }
 
+/**
+ * Mack's sigma^2 extrapolation for columns the data cannot estimate (fewer
+ * than two observed factors - usually only the final column):
+ * sigma^2_k = min(sigma^4_{k-1} / sigma^2_{k-2}, sigma^2_{k-2}, sigma^2_{k-1}),
+ * Mack (1993), also eq. (4.1) of Merz-Wuthrich (2008). Shared by runMack and
+ * runMerzWuthrich so the two can never disagree on the final column.
+ *
+ * Takes the raw per-column estimates (null = not estimable) and returns the
+ * completed array; when the min-rule inputs are unavailable it falls back to
+ * the prior column's value, then 0, pushing a warning either way.
+ */
+export function extrapolateSigma2(
+  sigma2Raw: (number | null)[],
+  ages: number[],
+  warnings: string[],
+): number[] {
+  const sigma2: number[] = sigma2Raw.map((s) => (s === null ? NaN : s));
+  for (let k = 0; k < sigma2.length; k++) {
+    if (!Number.isNaN(sigma2[k]!)) continue;
+    const s2a = k >= 2 ? sigma2[k - 2]! : NaN;
+    const s2b = k >= 1 ? sigma2[k - 1]! : NaN;
+    if (isNum(s2a) && isNum(s2b) && s2a > 0) {
+      sigma2[k] = Math.min((s2b * s2b) / s2a, Math.min(s2a, s2b));
+    } else if (isNum(s2b)) {
+      sigma2[k] = s2b;
+      warnings.push(
+        `sigma^2 for the ${ages[k]}-${ages[k + 1]} column could not use Mack's extrapolation; reused the prior column's value`,
+      );
+    } else {
+      sigma2[k] = 0;
+      warnings.push(
+        `sigma^2 for the ${ages[k]}-${ages[k + 1]} column is not estimable; set to 0 (standard errors understated)`,
+      );
+    }
+  }
+  return sigma2;
+}
+
 export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
   const n = tri.origins.length;
   const K = tri.ages.length;
@@ -134,28 +172,9 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
     throw new ReservingError("BAD_TAIL", "Tail factor must be a positive number");
   }
 
-  // sigma^2_k estimates: data-estimated where possible, NaN marks columns
-  // needing Mack's extrapolation below.
-  const sigma2: number[] = estimators.sigma2.map((s) => (s === null ? NaN : s));
-  // Mack's extrapolation for columns with a single factor (usually the last).
-  for (let k = 0; k < K - 1; k++) {
-    if (!Number.isNaN(sigma2[k]!)) continue;
-    const s2a = k >= 2 ? sigma2[k - 2]! : NaN;
-    const s2b = k >= 1 ? sigma2[k - 1]! : NaN;
-    if (isNum(s2a) && isNum(s2b) && s2a > 0) {
-      sigma2[k] = Math.min((s2b * s2b) / s2a, Math.min(s2a, s2b));
-    } else if (isNum(s2b)) {
-      sigma2[k] = s2b;
-      warnings.push(
-        `sigma^2 for the ${tri.ages[k]}-${tri.ages[k + 1]} column could not use Mack's extrapolation; reused the prior column's value`,
-      );
-    } else {
-      sigma2[k] = 0;
-      warnings.push(
-        `sigma^2 for the ${tri.ages[k]}-${tri.ages[k + 1]} column is not estimable; set to 0 (standard errors understated)`,
-      );
-    }
-  }
+  // sigma^2_k estimates: data-estimated where possible; Mack's extrapolation
+  // fills columns with a single factor (usually the last).
+  const sigma2 = extrapolateSigma2(estimators.sigma2, tri.ages, warnings);
 
   // Tail step variance: extrapolate sigma^2 one more column by Mack's rule
   // and reuse the final column's volume as its denominator (approximation).

@@ -201,6 +201,41 @@ export interface MackResult {
   warnings: string[];
 }
 
+export interface MerzWuthrichRow {
+  origin: string;
+  /** Chain ladder reserve at time I (ultimate minus the latest diagonal). */
+  reserve: number;
+  /**
+   * sqrt of the one-year CDR msep (Merz-Wuthrich 2008, eq. 3.17): the
+   * prediction uncertainty of 0 for next year's observable claims
+   * development result - the Solvency II / SST one-year reserve risk.
+   */
+  cdrMsepRoot: number;
+  /** sqrt of Mack's full-runoff msep for the same origin (ultimate view). */
+  mackMsepRoot: number;
+  /** cdrMsepRoot / mackMsepRoot; null when the Mack msep is 0. */
+  oneYearRatio: number | null;
+}
+
+export interface MerzWuthrichResult {
+  method: "merzWuthrich";
+  /** Volume-weighted development factors fhat_j estimated at time I. */
+  developmentFactors: number[];
+  /** sigma^2_j estimates; the final column uses Mack's extrapolation (4.1). */
+  sigmaSquared: number[];
+  rows: MerzWuthrichRow[];
+  totals: {
+    reserve: number;
+    /** Aggregate one-year msep root per eq. (3.18), cross terms included. */
+    cdrMsepRoot: number;
+    /** Mack's total full-runoff msep root, cross terms included. */
+    mackMsepRoot: number;
+    /** totals.cdrMsepRoot / totals.mackMsepRoot; null when the Mack total is 0. */
+    oneYearRatio: number | null;
+  };
+  warnings: string[];
+}
+
 export interface BerquistCaseAdequacyResult {
   /** Average open case reserve per open claim, by cell. */
   averageCaseReserves: (number | null)[][];
