@@ -5,6 +5,7 @@ export * from "./factors.js";
 export * from "./chainladder.js";
 export * from "./bf.js";
 export * from "./benktander.js";
+export * from "./freqSev.js";
 export * from "./tail.js";
 export * from "./berquist.js";
 export * from "./diagnostics.js";
