@@ -1,0 +1,78 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "method-result",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "extensions": {},
+  "integrity": "4cea2bec73df7859",
+  "result": {
+    "appliesTo": {
+      "triangleIntegrity": "b9f295850853e964",
+      "selectionIntegrity": "297b985ee6dde8d5"
+    },
+    "engine": {
+      "name": "actuarial-ts",
+      "version": "0.1.0",
+      "conventionProfile": "deterministic-cl"
+    },
+    "method": "chainLadder",
+    "parameters": {
+      "selections": "volume-weighted all-period factors per the linked SelectionDoc",
+      "tailFactor": 1
+    },
+    "rows": [
+      {
+        "origin": "2001",
+        "ultimate": 1950105,
+        "unpaid": 0
+      },
+      {
+        "origin": "2002",
+        "ultimate": 4209117.516619015,
+        "unpaid": 93357.51661901455
+      },
+      {
+        "origin": "2003",
+        "ultimate": 5607658.152568719,
+        "unpaid": 265073.15256871935
+      },
+      {
+        "origin": "2004",
+        "ultimate": 7688163.217636677,
+        "unpaid": 834259.2176366774
+      },
+      {
+        "origin": "2005",
+        "ultimate": 7216271.974577976,
+        "unpaid": 1567708.9745779764
+      },
+      {
+        "origin": "2006",
+        "ultimate": 9562602.035502175,
+        "unpaid": 3696120.035502175
+      },
+      {
+        "origin": "2007",
+        "ultimate": 5442090.754057395,
+        "unpaid": 3487293.7540573953
+      },
+      {
+        "origin": "2008",
+        "ultimate": 3240566.6789284293,
+        "unpaid": 2956125.6789284293
+      },
+      {
+        "origin": "2009",
+        "ultimate": 1659912.8145790913,
+        "unpaid": 1646791.8145790913
+      }
+    ],
+    "totals": {
+      "ultimate": 46576488.14446947,
+      "unpaid": 14546730.14446948
+    }
+  }
+}

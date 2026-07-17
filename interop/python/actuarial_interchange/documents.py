@@ -527,7 +527,13 @@ class ResultTotals:
 
 @dataclass
 class MethodResultPayload:
-    """The semantic body of a MethodResultDoc (spec 3.2)."""
+    """The semantic body of a MethodResultDoc (spec 3.2).
+
+    ``warnings=None`` means the field is ABSENT from the body; an empty
+    list means it is explicitly present and empty. The distinction is
+    preserved through parse -> re-serialize so another adapter's integrity
+    tag survives the hop (spec 3.1); authoring code omits empty warnings.
+    """
 
     applies_to: ResultAppliesTo
     engine: EngineStamp
@@ -536,7 +542,7 @@ class MethodResultPayload:
     rows: list[ResultRow]
     totals: ResultTotals
     effective_parameters: Optional[dict] = None
-    warnings: list[str] = field(default_factory=list)
+    warnings: Optional[list[str]] = None
     extra: dict = field(default_factory=dict)
 
     def to_body(self) -> dict:
@@ -549,7 +555,7 @@ class MethodResultPayload:
             "totals": self.totals.to_dict(),
         }
         _put_optional(body, "effectiveParameters", self.effective_parameters)
-        if self.warnings:
+        if self.warnings is not None:
             body["warnings"] = list(self.warnings)
         body.update(self.extra)
         return body
@@ -574,7 +580,7 @@ class MethodResultPayload:
             rows=[ResultRow.from_dict(r) for r in _require(body, "rows", "result")],
             totals=ResultTotals.from_dict(_require(body, "totals", "result")),
             effective_parameters=body.get("effectiveParameters"),
-            warnings=list(body.get("warnings", [])),
+            warnings=list(body["warnings"]) if "warnings" in body else None,
             extra={k: v for k, v in body.items() if k not in known},
         )
 
@@ -583,7 +589,9 @@ class MethodResultPayload:
 class StochasticResultPayload:
     """The semantic body of a StochasticResultDoc: a MethodResultDoc plus
     distribution-level summaries (spec 3.2). Cross-engine comparison is
-    distribution-level only — samples never travel inline."""
+    distribution-level only — samples never travel inline. ``warnings``
+    follows the MethodResultPayload rule: None = absent, [] = present and
+    empty, preserved faithfully for tag stability."""
 
     applies_to: ResultAppliesTo
     engine: EngineStamp
@@ -593,7 +601,7 @@ class StochasticResultPayload:
     summary: dict
     by_origin: list[dict]
     seed: Optional[int] = None
-    warnings: list[str] = field(default_factory=list)
+    warnings: Optional[list[str]] = None
     extra: dict = field(default_factory=dict)
 
     def to_body(self) -> dict:
@@ -607,7 +615,7 @@ class StochasticResultPayload:
             "byOrigin": list(self.by_origin),
         }
         _put_optional(body, "seed", self.seed)
-        if self.warnings:
+        if self.warnings is not None:
             body["warnings"] = list(self.warnings)
         body.update(self.extra)
         return body
@@ -634,7 +642,7 @@ class StochasticResultPayload:
             summary=_require(body, "summary", "stochastic result"),
             by_origin=list(_require(body, "byOrigin", "stochastic result")),
             seed=body.get("seed"),
-            warnings=list(body.get("warnings", [])),
+            warnings=list(body["warnings"]) if "warnings" in body else None,
             extra={k: v for k, v in body.items() if k not in known},
         )
 

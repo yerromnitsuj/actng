@@ -182,8 +182,11 @@ export function resultToDoc(
     parameters: options.parameters ?? {},
     rows: mapped.rows,
     totals: mapped.totals,
-    warnings: mapped.warnings,
   };
+  // Authoring convention (shared with the Python adapter): `warnings` is
+  // omitted when empty, so a warning-free result hashes identically no
+  // matter which shore authored it.
+  if (mapped.warnings.length > 0) body.warnings = mapped.warnings;
   if (options.effectiveParameters !== undefined) {
     body.effectiveParameters = options.effectiveParameters;
   }

@@ -1,0 +1,83 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "selection",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "extensions": {},
+  "integrity": "297b985ee6dde8d5",
+  "selection": {
+    "appliesTo": {
+      "measure": "paid",
+      "triangleIntegrity": "b9f295850853e964"
+    },
+    "development": [
+      {
+        "fromAgeMonths": 12,
+        "toAgeMonths": 24,
+        "value": 11.104258848778619,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 24,
+        "toAgeMonths": 36,
+        "value": 4.092273479647305,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 36,
+        "toAgeMonths": 48,
+        "value": 1.7079131262576632,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 48,
+        "toAgeMonths": 60,
+        "value": 1.2759199372511285,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 60,
+        "toAgeMonths": 72,
+        "value": 1.1389124448583465,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 72,
+        "toAgeMonths": 84,
+        "value": 1.0686967464633803,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 84,
+        "toAgeMonths": 96,
+        "value": 1.0263348623407633,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      },
+      {
+        "fromAgeMonths": 96,
+        "toAgeMonths": 108,
+        "value": 1.0226829350154076,
+        "intent": {
+          "kind": "volume-weighted"
+        }
+      }
+    ]
+  }
+}

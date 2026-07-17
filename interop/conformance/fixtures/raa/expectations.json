@@ -1,0 +1,32 @@
+{
+  "fixture": "raa",
+  "source": "Mack (1994) running example: RAA Automatic Facultative GL triangle (packages/core/test/fixtures/mack1994raa.ts), real accident years 1981-1990",
+  "generatedBy": "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+  "integrity": {
+    "triangle": "6efec450de3879d7",
+    "selection": "38a3a9665ed63909",
+    "deterministic-cl": "671b150b93944e62",
+    "mack1993-vw": "a85369cc40970408"
+  },
+  "deterministic-cl": {
+    "totals": {
+      "ultimate": 213122.22826121014,
+      "unpaid": 52135.228261210155
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": null
+    }
+  },
+  "mack1993-vw": {
+    "totals": {
+      "ultimate": 213122.22826121017,
+      "unpaid": 52135.228261210155,
+      "standardError": 26909.011155643664
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": 0.005
+    }
+  }
+}

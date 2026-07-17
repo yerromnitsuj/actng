@@ -157,6 +157,9 @@ def extract_result(
         parameters=_json_clean(parameters if parameters is not None else fitted.get_params(deep=False)),
         rows=rows,
         totals=totals,
-        warnings=list(warnings or []),
+        # Authoring convention (shared with the TS converter): empty
+        # warnings are omitted, so a warning-free result hashes identically
+        # no matter which shore authored it.
+        warnings=list(warnings) if warnings else None,
     )
     return Document(kind="method-result", payload=payload, created_at=created_at)

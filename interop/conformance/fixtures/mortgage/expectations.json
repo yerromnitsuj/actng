@@ -1,0 +1,32 @@
+{
+  "fixture": "mortgage",
+  "source": "Mack (1993) Table 4: Sanders mortgage guarantee triangle (packages/core/test/fixtures/mack1993.ts), origins relabelled 2001-2009 (cross-engine origin identity requires year labels)",
+  "generatedBy": "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+  "integrity": {
+    "triangle": "b9f295850853e964",
+    "selection": "297b985ee6dde8d5",
+    "deterministic-cl": "4cea2bec73df7859",
+    "mack1993-vw": "ce0b83417b9ef8a0"
+  },
+  "deterministic-cl": {
+    "totals": {
+      "ultimate": 46576488.14446947,
+      "unpaid": 14546730.14446948
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": null
+    }
+  },
+  "mack1993-vw": {
+    "totals": {
+      "ultimate": 46576488.14446947,
+      "unpaid": 14546730.144469474,
+      "standardError": 3728870.241257798
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": 0.005
+    }
+  }
+}

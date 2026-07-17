@@ -1,0 +1,193 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "triangle",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "extensions": {},
+  "integrity": "6efec450de3879d7",
+  "triangle": {
+    "measure": "incurred",
+    "cumulative": true,
+    "originLengthMonths": 12,
+    "origins": [
+      {
+        "label": "1981",
+        "start": "1981-01-01"
+      },
+      {
+        "label": "1982",
+        "start": "1982-01-01"
+      },
+      {
+        "label": "1983",
+        "start": "1983-01-01"
+      },
+      {
+        "label": "1984",
+        "start": "1984-01-01"
+      },
+      {
+        "label": "1985",
+        "start": "1985-01-01"
+      },
+      {
+        "label": "1986",
+        "start": "1986-01-01"
+      },
+      {
+        "label": "1987",
+        "start": "1987-01-01"
+      },
+      {
+        "label": "1988",
+        "start": "1988-01-01"
+      },
+      {
+        "label": "1989",
+        "start": "1989-01-01"
+      },
+      {
+        "label": "1990",
+        "start": "1990-01-01"
+      }
+    ],
+    "agesMonths": [
+      12,
+      24,
+      36,
+      48,
+      60,
+      72,
+      84,
+      96,
+      108,
+      120
+    ],
+    "values": [
+      [
+        5012,
+        8269,
+        10907,
+        11805,
+        13539,
+        16181,
+        18009,
+        18608,
+        18662,
+        18834
+      ],
+      [
+        106,
+        4285,
+        5396,
+        10666,
+        13782,
+        15599,
+        15496,
+        16169,
+        16704,
+        null
+      ],
+      [
+        3410,
+        8992,
+        13873,
+        16141,
+        18735,
+        22214,
+        22863,
+        23466,
+        null,
+        null
+      ],
+      [
+        5655,
+        11555,
+        15766,
+        21266,
+        23425,
+        26083,
+        27067,
+        null,
+        null,
+        null
+      ],
+      [
+        1092,
+        9565,
+        15836,
+        22169,
+        25955,
+        26180,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        1513,
+        6445,
+        11702,
+        12935,
+        15852,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        557,
+        4020,
+        10946,
+        12314,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        1351,
+        6947,
+        13112,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        3133,
+        5395,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        2063,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ],
+    "valuationDate": "1990-12-31"
+  }
+}

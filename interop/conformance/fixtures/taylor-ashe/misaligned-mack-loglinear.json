@@ -1,0 +1,97 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "method-result",
+  "generator": {
+    "name": "actuarial-interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "result": {
+    "appliesTo": {
+      "triangleIntegrity": "c568b1bbca929611",
+      "selectionIntegrity": null
+    },
+    "engine": {
+      "name": "chainladder-python",
+      "version": "0.9.2",
+      "conventionProfile": "mack1993-vw"
+    },
+    "method": "clpy:MackChainladder",
+    "parameters": {
+      "average": "volume",
+      "n_periods": -1,
+      "sigma_interpolation": "log-linear"
+    },
+    "rows": [
+      {
+        "origin": "2001",
+        "ultimate": 3901463.0,
+        "unpaid": 0.0
+      },
+      {
+        "origin": "2002",
+        "ultimate": 5433718.8145487895,
+        "unpaid": 94633.81454878952,
+        "standardError": 71835.18719515459
+      },
+      {
+        "origin": "2003",
+        "ultimate": 5378826.290064239,
+        "unpaid": 469511.29006423894,
+        "standardError": 119473.73610530334
+      },
+      {
+        "origin": "2004",
+        "ultimate": 5297905.820825462,
+        "unpaid": 709637.8208254622,
+        "standardError": 131572.83289793582
+      },
+      {
+        "origin": "2005",
+        "ultimate": 4858199.639049739,
+        "unpaid": 984888.6390497386,
+        "standardError": 260530.01487690659
+      },
+      {
+        "origin": "2006",
+        "ultimate": 5111171.457661663,
+        "unpaid": 1419459.4576616632,
+        "standardError": 410406.89022275974
+      },
+      {
+        "origin": "2007",
+        "ultimate": 5660770.620135548,
+        "unpaid": 2177640.6201355476,
+        "standardError": 557795.5417483974
+      },
+      {
+        "origin": "2008",
+        "ultimate": 6784799.0119525,
+        "unpaid": 3920301.0119525,
+        "standardError": 874882.2176886941
+      },
+      {
+        "origin": "2009",
+        "ultimate": 5642266.263261643,
+        "unpaid": 4278972.263261643,
+        "standardError": 970959.7845874823
+      },
+      {
+        "origin": "2010",
+        "ultimate": 4969824.694424728,
+        "unpaid": 4625810.694424728,
+        "standardError": 1362981.0697892713
+      }
+    ],
+    "totals": {
+      "ultimate": 53038945.61192431,
+      "unpaid": 18680855.611924313,
+      "standardError": 2441364.128054218
+    },
+    "warnings": [
+      "DELIBERATELY MISALIGNED conformance fixture: sigma_interpolation is the chainladder default 'log-linear' while the engine stamp claims the mack1993-vw profile (which requires 'mack'); the TS referee must return verdict 'disagree' on this document"
+    ]
+  },
+  "extensions": {},
+  "integrity": "ed7d5811a9039c50"
+}

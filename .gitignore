@@ -19,3 +19,9 @@ packages/*/dist/
 
 # Interop Python venv (local dev tooling)
 .venv-interop/
+
+# Python bytecode + packaging artifacts
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/

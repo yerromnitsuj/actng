@@ -1,4 +1,0 @@
-
-[chainladder]
-chainladder<0.10,>=0.9.2
-pandas

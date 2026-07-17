@@ -1,0 +1,95 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "method-result",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "extensions": {},
+  "integrity": "c779b4d4ec7fd777",
+  "result": {
+    "appliesTo": {
+      "triangleIntegrity": "c568b1bbca929611",
+      "selectionIntegrity": null
+    },
+    "engine": {
+      "name": "actuarial-ts",
+      "version": "0.1.0",
+      "conventionProfile": "mack1993-vw"
+    },
+    "method": "mack",
+    "parameters": {
+      "selected": "omitted (volume-weighted per Mack 1993)",
+      "sigma": "Mack last-column extrapolation (built in)",
+      "tailFactor": 1
+    },
+    "rows": [
+      {
+        "origin": "2001",
+        "ultimate": 3901463,
+        "unpaid": 0,
+        "standardError": 0
+      },
+      {
+        "origin": "2002",
+        "ultimate": 5433718.8145487895,
+        "unpaid": 94633.81454878952,
+        "standardError": 75535.04075748839
+      },
+      {
+        "origin": "2003",
+        "ultimate": 5378826.29006424,
+        "unpaid": 469511.2900642399,
+        "standardError": 121698.56164542341
+      },
+      {
+        "origin": "2004",
+        "ultimate": 5297905.820825461,
+        "unpaid": 709637.8208254613,
+        "standardError": 133548.85301207833
+      },
+      {
+        "origin": "2005",
+        "ultimate": 4858199.639049737,
+        "unpaid": 984888.6390497368,
+        "standardError": 261406.44934268505
+      },
+      {
+        "origin": "2006",
+        "ultimate": 5111171.457661661,
+        "unpaid": 1419459.4576616613,
+        "standardError": 411009.70388105325
+      },
+      {
+        "origin": "2007",
+        "ultimate": 5660770.620135546,
+        "unpaid": 2177640.6201355457,
+        "standardError": 558316.8580711902
+      },
+      {
+        "origin": "2008",
+        "ultimate": 6784799.011952501,
+        "unpaid": 3920301.011952501,
+        "standardError": 875327.5119113593
+      },
+      {
+        "origin": "2009",
+        "ultimate": 5642266.263261642,
+        "unpaid": 4278972.263261642,
+        "standardError": 971257.8064699426
+      },
+      {
+        "origin": "2010",
+        "ultimate": 4969824.694424726,
+        "unpaid": 4625810.694424726,
+        "standardError": 1363154.911732307
+      }
+    ],
+    "totals": {
+      "ultimate": 53038945.61192431,
+      "unpaid": 18680855.611924306,
+      "standardError": 2447094.8608346656
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "fixture": "taylor-ashe",
+  "source": "Mack (1993) Table 1: Taylor/Ashe run-off triangle (packages/core/test/fixtures/mack1993.ts), origins relabelled 2001-2010 per chainladder-python's genins presentation of the same data",
+  "generatedBy": "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+  "integrity": {
+    "triangle": "c568b1bbca929611",
+    "selection": "16aa90b6c1298de2",
+    "deterministic-cl": "c3daa017430a869d",
+    "mack1993-vw": "c779b4d4ec7fd777"
+  },
+  "deterministic-cl": {
+    "totals": {
+      "ultimate": 53038945.611924306,
+      "unpaid": 18680855.611924313
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": null
+    }
+  },
+  "mack1993-vw": {
+    "totals": {
+      "ultimate": 53038945.61192431,
+      "unpaid": 18680855.611924306,
+      "standardError": 2447094.8608346656
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": 0.005
+    }
+  }
+}
