@@ -17,7 +17,7 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/data -w @actuarial-ts/compliance"
+    "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/data -w @actuarial-ts/compliance -w @actuarial-ts/agents"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -1,0 +1,59 @@
+{
+  "name": "@actuarial-ts/agents",
+  "version": "0.1.0",
+  "description": "Mastra agent toolkit for the actuarial-ts SDK: typed actuarial tools with a hard tenant seam, human-gated judgment workflows that write the compliance assumption ledger, a reserving advisor factory, and a golden-prompt eval harness.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yerromnitsuj/actng.git",
+    "directory": "packages/data"
+  },
+  "keywords": [
+    "actuarial",
+    "agents",
+    "mastra",
+    "ai",
+    "reserving",
+    "human-in-the-loop",
+    "tools"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actuarial-ts/core": "*",
+    "@actuarial-ts/compliance": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "@mastra/core": "^1.49.0",
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@mastra/core": ">=1.49.0",
+    "zod": "^3.25.0"
+  }
+}
