@@ -1,0 +1,48 @@
+# actuarial-ts SDK — Master Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Evolve ActNG2's `packages/core` into the published, Apache-2.0, four-package `@actuarial-ts` SDK (core, data, compliance, agents) per `docs/superpowers/specs/2026-07-16-actuarial-ts-sdk-design.md`, with the workbench as flagship consumer.
+
+**Architecture:** Six phases, each independently shippable, each ending with a full regression gate (typecheck + all tests + live workbench verify) and a `/ship` (commit + push). Detailed per-phase plans are written just-in-time in this directory as `2026-07-XX-phaseN-<name>.md` so each absorbs the previous phase's learnings. This master file is the durable index: update the Progress Log after every phase.
+
+**Tech Stack:** TypeScript 5.7 strict (+noUncheckedIndexedAccess), npm workspaces, vitest, tsc-emitted ESM dist with .d.ts, Mastra 1.49 (agents package, peer), zod (peer), Node >= 20.
+
+## Global Constraints
+
+- License: Apache-2.0 everywhere; copyright holder "Justin Morrey". Never claim "ASOP-approved"; the sanctioned phrase is "designed to support the actuary's compliance with ASOP Nos. 43, 23, 41, 56, 25, 36, 20, 21, 38, and 13; responsibility for compliance remains with the credentialed actuary."
+- npm scope `@actuarial-ts`; package versions start 0.1.0; P&C only.
+- `packages/core` stays ZERO runtime dependencies; pure; no I/O, clock reads, or ambient randomness (stochastic methods take explicit seeds).
+- The published-value validation tests are the contract: reserving math changes are wrong until they pass. New methods require published-value or property tests transcribed from primary sources.
+- Core domain invariants (from CLAUDE.md): null unobservable cells; never divide by missing/zero/negative denominators (null, never NaN/throw); volume-weighted = sum/sum; CDFs multiply right-to-left, tail last.
+- API grammar for all new code: pure functions, typed inputs + options object, results carry `warnings: string[]`, `ReservingError` with a registered machine code for invalid input only.
+- Agents security seam: tenant/project id ONLY via RequestContext, never in tool input schemas; tools never throw into the model (`{ success: false, error: { code, message } }`).
+- Node 22 via nvm for every command: `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"`.
+- Every phase ends: `npm run typecheck` clean, `npm test` all green, workbench boots (`npm run dev` smoke), commit + push (= /ship).
+
+## Phase Index
+
+| Phase | Plan file | Status |
+|---|---|---|
+| Spec + master plan | (this file) | in progress |
+| 0 — shipping mechanics | 2026-07-16-phase0-shipping-mechanics.md | pending |
+| 1 — Friedland shelf + data pkg | write just-in-time | pending |
+| 2 — compliance pkg | write just-in-time | pending |
+| 3 — stochastic backbone | write just-in-time | pending |
+| 4 — agents pkg + dogfood | write just-in-time | pending |
+| 5 — reserve-review completeness | write just-in-time | pending |
+| Final — review + ship + publish-readiness | write just-in-time | pending |
+
+## Phase acceptance criteria (summary; detail lives in phase plans)
+
+- **P0:** core renamed `@actuarial-ts/core@0.1.0`, builds real dist (ESM + d.ts, exports map, files whitelist, sideEffects false, prepare script), LICENSE files, `RESERVING_ERROR_CODES` registry + `ReservingErrorCode` union, `AverageKey` union type, dead code gone (util sumDefined/round, ilf unreachable return, trend duplicate OLS), Mack warns on coerced non-positive selections like CL does, SSE client disconnect aborts the advisor stream, core README, GitHub Actions CI green, `npm pack --dry-run` clean.
+- **P1:** `runBenktander`, `runFrequencySeverity` (uses reported-count triangles), Cape Cod `decay` option (Gluck), Mack factor-correlation test, standardized development residuals as data; `@actuarial-ts/data` package (RFC4180 CSV loss-run parse, long-format + grid ingestion, control totals, ASOP 23 data review report). Each with published-value/property tests.
+- **P2:** `@actuarial-ts/compliance`: EstimateMetadata (required intended measure/purpose/basis/dates), AssumptionLedger (default vs judgment, rationale/source), ASOP 41 disclosure generator (markdown from a typed AnalysisRecord), model cards for every shipped method, reproducibility bundle (serialize → re-run → byte-identical), AvE roll-forward. Golden-file + determinism tests.
+- **P3:** incremental triangle + algebra, seeded RNG, StochasticResult; ODP bootstrap (GLM mean == CL exactly; seeded; SE sane vs published), Merz-Wuthrich (published 2008 example), Clark LDF/Cape Cod (published 2003 example).
+- **P4:** `@actuarial-ts/agents`: tool factory (tenant seam, envelopes, action/read), judgment-gate workflow factory writing the compliance ledger, advisor factory, eval harness; ActNG2 server consumes it (dogfood), all existing advisor behavior preserved.
+- **P5:** Munich CL (Quarg-Mack example), case outstanding development, Fisher-Lange, salvage/subro (optional recovery inputs), ULAE Conger-Nolibos, discounting + payout patterns to new ASOP 20.
+- **Final:** whole-SDK adversarial review fixed, root README + CHANGELOG, all packages `npm pack` clean, publish attempted only if founder npm auth + scope exist (else documented manual step), final /ship.
+
+## Progress Log
+
+- 2026-07-16: Spec approved (founder: ActNG2 home, @actuarial-ts scope, Apache-2.0 all-OSS, P&C only). Master plan created. Pre-work already landed: workflow-snapshot persistence fix + tool envelope normalization (commit 5d8223c).
