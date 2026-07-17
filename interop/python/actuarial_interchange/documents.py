@@ -58,6 +58,7 @@ __all__ = [
     "MethodResultPayload",
     "StochasticResultPayload",
     "StudyPayload",
+    "BundlePayload",
     "DeviationCell",
     "OriginDeviation",
     "ParameterSet",
@@ -114,6 +115,9 @@ _INTEGRITY_RE = re.compile(r"^[0-9a-f]{16}$")
 
 # Kind -> the semantic-body key (spec 3.1 names the object after the kind's
 # head noun: method-result and stochastic-result both carry "result").
+# kind "bundle" is deliberately ABSENT: its semantic body is the TWO-field
+# object { bundle, interchange } spread across two top-level keys
+# (_BUNDLE_BODY_KEYS), not one kind-named object (spec 3.2 BundleDoc).
 _BODY_KEYS: dict[str, str] = {
     "triangle": "triangle",
     "selection": "selection",
@@ -122,6 +126,10 @@ _BODY_KEYS: dict[str, str] = {
     "study": "study",
     "crosscheck-report": "report",
 }
+
+#: The wrapped bundle's two body keys; the OUTER integrity tag is
+#: fnv1a64(canonical_json({ bundle, interchange })) over exactly these.
+_BUNDLE_BODY_KEYS = frozenset({"bundle", "interchange"})
 
 #: Envelope fields this adapter models explicitly; everything else at the
 #: document's top level (other than the semantic body key) is preserved in

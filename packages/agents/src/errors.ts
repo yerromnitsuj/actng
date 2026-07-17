@@ -23,6 +23,16 @@ export const AGENTS_ERROR_CODES = [
   "MISSING_RATIONALE",
   /** Two tools with the same id were passed to toolRegistry. */
   "DUPLICATE_TOOL_ID",
+  /** promoteStudy was called with malformed deps/options (programmer error). */
+  "BAD_PROMOTION_OPTIONS",
+  /** A study document carries no selections; nothing to promote. */
+  "EMPTY_STUDY",
+  /** The study's stated replayTolerance exceeds the host ceiling (spec 6 Gate 1). */
+  "TOLERANCE_CEILING_EXCEEDED",
+  /** A selection's segment labels match no host workspace target (no fuzzy matching in v1). */
+  "SEGMENT_UNRESOLVED",
+  /** Two selections resolve to the same workspace target; v1 promotes one selection per segment. */
+  "SEGMENT_AMBIGUOUS",
 ] as const;
 
 export type AgentsErrorCode = (typeof AGENTS_ERROR_CODES)[number];
