@@ -16,7 +16,8 @@
     "seed": "npm run seed --workspace @actng/server",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/data"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
