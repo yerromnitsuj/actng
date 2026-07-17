@@ -9,9 +9,14 @@ The chainladder bridges are NOT imported here — they require the
 and are imported explicitly::
 
     from actuarial_interchange import bridge_triangle, bridge_selection, bridge_result
+
+``load_bundle``/``save_study`` (spec 4.2) ARE exported here: their module
+is stdlib-only and only ``load_bundle(..., chainladder=True)`` pulls the
+extra in, lazily.
 """
 
 from ._jcs import canonical_json, fnv1a64
+from .bundle import LoadedBundle, load_bundle, save_study
 from .documents import (
     COMPUTABLE_INTENT_KINDS,
     CROSSCHECK_VERDICTS,
@@ -20,6 +25,7 @@ from .documents import (
     SPEC_VERSION,
     SUPPORTED_MAJOR,
     VALUE_ONLY_INTENT_KINDS,
+    BundlePayload,
     CrosscheckDeviations,
     CrosscheckEngines,
     CrosscheckParameters,
@@ -91,6 +97,7 @@ __all__ = [
     "MethodResultPayload",
     "StochasticResultPayload",
     "StudyPayload",
+    "BundlePayload",
     "DeviationCell",
     "OriginDeviation",
     "ParameterSet",
@@ -101,6 +108,10 @@ __all__ = [
     "CrosscheckReportPayload",
     "parse_document",
     "serialize_document",
+    # bundle/study workflow (spec 4.2; stdlib-only unless chainladder=True)
+    "LoadedBundle",
+    "load_bundle",
+    "save_study",
     # errors
     "InterchangeError",
     "UnsupportedVersionError",

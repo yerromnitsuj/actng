@@ -933,6 +933,97 @@ class StudyPayload:
 
 
 # ---------------------------------------------------------------------------
+# BundleDoc payload
+# ---------------------------------------------------------------------------
+
+
+#: Document kinds the bundle mirror's ``results`` array may carry
+#: (TS bundleInterchangeSchema: MethodResultDoc | StochasticResultDoc).
+_BUNDLE_RESULT_KINDS = frozenset({"method-result", "stochastic-result"})
+
+
+@dataclass
+class BundlePayload:
+    """The wrapped reproducibility bundle (spec 3.2 BundleDoc).
+
+    - ``bundle`` is the HOST'S existing canonical payload (compliance's
+      ``{ payload, hash }``), OPAQUE at this layer and preserved
+      byte-faithfully — this adapter never parses the TS-native blob.
+    - ``triangles``/``selections``/``results`` are the interchange MIRROR:
+      full embedded documents, parsed (each verifying its own integrity
+      tag) and re-serialized byte-faithfully, exactly like StudyPayload's
+      embedded documents.
+    - The semantic body is the TWO-field object ``{ bundle, interchange }``
+      — the outer tag covers both, so the mirror (the only part non-TS
+      consumers read) cannot drift from the wrapped payload unnoticed.
+    - ``interchange_extra`` carries unknown fields inside the interchange
+      block (TS passthrough parity); they are part of the outer tag and
+      re-serialize in place.
+    """
+
+    bundle: dict
+    triangles: list["Document"]
+    selections: list["Document"]
+    results: list["Document"]
+    interchange_extra: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        for doc in self.triangles:
+            if doc.kind != "triangle":
+                raise BadInterchangeError(
+                    f"bundle interchange.triangles carries kind '{doc.kind}'; "
+                    "only triangle documents belong there"
+                )
+        for doc in self.selections:
+            if doc.kind != "selection":
+                raise BadInterchangeError(
+                    f"bundle interchange.selections carries kind '{doc.kind}'; "
+                    "only selection documents belong there"
+                )
+        for doc in self.results:
+            if doc.kind not in _BUNDLE_RESULT_KINDS:
+                raise BadInterchangeError(
+                    f"bundle interchange.results carries kind '{doc.kind}'; "
+                    "only method-result/stochastic-result documents belong there"
+                )
+
+    def to_body(self) -> dict:
+        interchange: dict = {
+            "triangles": [doc.to_dict() for doc in self.triangles],
+            "selections": [doc.to_dict() for doc in self.selections],
+            "results": [doc.to_dict() for doc in self.results],
+        }
+        interchange.update(self.interchange_extra)
+        return {"bundle": self.bundle, "interchange": interchange}
+
+    @classmethod
+    def from_body(cls, body: dict) -> "BundlePayload":
+        bundle = _require(body, "bundle", "bundle")
+        if not isinstance(bundle, dict):
+            raise BadInterchangeError("bundle: 'bundle' segment must be a JSON object")
+        interchange = _require(body, "interchange", "bundle")
+        if not isinstance(interchange, dict):
+            raise BadInterchangeError("bundle: 'interchange' mirror must be a JSON object")
+        known = {"triangles", "selections", "results"}
+        return cls(
+            bundle=bundle,
+            triangles=[
+                parse_document(doc)
+                for doc in _require(interchange, "triangles", "bundle interchange")
+            ],
+            selections=[
+                parse_document(doc)
+                for doc in _require(interchange, "selections", "bundle interchange")
+            ],
+            results=[
+                parse_document(doc)
+                for doc in _require(interchange, "results", "bundle interchange")
+            ],
+            interchange_extra=_extra_of(interchange, known),
+        )
+
+
+# ---------------------------------------------------------------------------
 # CrosscheckReportDoc payload
 # ---------------------------------------------------------------------------
 
@@ -1218,6 +1309,7 @@ Payload = Union[
     MethodResultPayload,
     StochasticResultPayload,
     StudyPayload,
+    BundlePayload,
     CrosscheckReportPayload,
 ]
 
@@ -1227,6 +1319,7 @@ _PAYLOAD_TYPES: dict[str, type] = {
     "method-result": MethodResultPayload,
     "stochastic-result": StochasticResultPayload,
     "study": StudyPayload,
+    "bundle": BundlePayload,
     "crosscheck-report": CrosscheckReportPayload,
 }
 
@@ -1236,6 +1329,7 @@ _KIND_BY_PAYLOAD_TYPE: dict[type, str] = {
     MethodResultPayload: "method-result",
     StochasticResultPayload: "stochastic-result",
     StudyPayload: "study",
+    BundlePayload: "bundle",
     CrosscheckReportPayload: "crosscheck-report",
 }
 
@@ -1296,8 +1390,13 @@ class Document:
             "kind": self.kind,
             "generator": self.generator.to_dict(),
             "createdAt": self.created_at,
-            _BODY_KEYS[self.kind]: self.body(),
         }
+        if self.kind == "bundle":
+            # The bundle's semantic body { bundle, interchange } spreads
+            # across two top-level keys (spec 3.2 BundleDoc).
+            doc.update(self.body())
+        else:
+            doc[_BODY_KEYS[self.kind]] = self.body()
         _put_optional(doc, "governance", self.governance)
         if self.extensions is not None:
             doc["extensions"] = self.extensions
@@ -1364,16 +1463,35 @@ def parse_document(source: Union[str, dict], *, verify_integrity: bool = True) -
 
     kind = _require(raw, "kind", "document")
     if kind not in _PAYLOAD_TYPES:
-        if kind == "bundle":
-            raise BadInterchangeError(
-                "kind 'bundle' is not supported by this adapter version (Phase B)"
-            )
         raise BadInterchangeError(f"unknown document kind '{kind}'")
 
-    body_key = _BODY_KEYS[kind]
-    body = _require(raw, body_key, f"document kind '{kind}'")
-    if not isinstance(body, dict):
-        raise BadInterchangeError(f"'{body_key}' must be a JSON object")
+    if kind == "bundle":
+        # The bundle's semantic body is the TWO-field object
+        # { bundle, interchange } (spec 3.2), assembled from two top-level
+        # keys rather than one kind-named object.
+        body_keys: "frozenset[str] | set[str]" = _BUNDLE_BODY_KEYS
+        body = {
+            "bundle": _require(raw, "bundle", "document kind 'bundle'"),
+            "interchange": _require(raw, "interchange", "document kind 'bundle'"),
+        }
+        # OUTER-tag check on the RAW body, BEFORE the embedded mirror
+        # documents are parsed: a tampered mirror (or inner segment) fails
+        # HERE, naming both tags — matching TS verifyBundle's wrapped mode,
+        # which hashes doc.bundle/doc.interchange as committed.
+        if verify_integrity and "integrity" in raw:
+            stated = raw["integrity"]
+            computed_outer = fnv1a64(canonical_json(body))
+            if stated != computed_outer:
+                raise BadInterchangeError(
+                    f"outer integrity mismatch: bundle states {stated!r}, "
+                    f"{{ bundle, interchange }} hashes to {computed_outer!r}"
+                )
+    else:
+        body_key = _BODY_KEYS[kind]
+        body_keys = {body_key}
+        body = _require(raw, body_key, f"document kind '{kind}'")
+        if not isinstance(body, dict):
+            raise BadInterchangeError(f"'{body_key}' must be a JSON object")
 
     document = Document(
         kind=kind,
@@ -1383,7 +1501,7 @@ def parse_document(source: Union[str, dict], *, verify_integrity: bool = True) -
         interchange_version=version_text,
         governance=raw.get("governance"),
         extensions=raw.get("extensions"),  # None = absent, preserved as absent
-        extra={k: v for k, v in raw.items() if k not in _ENVELOPE_KEYS and k != body_key},
+        extra={k: v for k, v in raw.items() if k not in _ENVELOPE_KEYS and k not in body_keys},
     )
 
     if verify_integrity and "integrity" in raw:

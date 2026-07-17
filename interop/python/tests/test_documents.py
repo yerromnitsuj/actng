@@ -277,12 +277,14 @@ class TestValidation:
         with pytest.raises(BadInterchangeError, match="does not match"):
             Document(kind="selection", payload=make_triangle_payload(), created_at=CREATED_AT)
 
-    def test_bundle_kind_is_phase_b(self) -> None:
+    def test_bundle_kind_requires_the_interchange_mirror(self) -> None:
+        # kind "bundle" is supported since Phase B; a bundle without its
+        # interchange mirror is structurally invalid (spec 3.2 BundleDoc).
         raw = json.loads(serialize_document(make_triangle_doc()))
         raw["kind"] = "bundle"
         raw["bundle"] = raw.pop("triangle")
         del raw["integrity"]
-        with pytest.raises(BadInterchangeError, match="Phase B"):
+        with pytest.raises(BadInterchangeError, match="interchange"):
             parse_document(raw)
 
     def test_unknown_kind_rejected(self) -> None:
