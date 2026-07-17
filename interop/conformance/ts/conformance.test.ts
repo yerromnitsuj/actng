@@ -12,6 +12,8 @@ import {
   parseDocument,
   triangleToDoc,
 } from "../../../packages/interchange/src/index.js";
+import { verifyBundle } from "../../../packages/compliance/src/index.js";
+import type { BundleDoc } from "../../../packages/interchange/src/index.js";
 import {
   CONFORMANCE_FIXTURES,
   CREATED_AT,
@@ -19,6 +21,7 @@ import {
   authorClResultDoc,
   authorFixture,
   authorMackResultDoc,
+  authorWrappedBundleDoc,
 } from "./fixtures.js";
 
 /**
@@ -230,4 +233,43 @@ describe("conformance: cross-engine ALIGNED runs referee to agree (both directio
       expect(report.report.warnings.join("\n")).not.toContain("effective");
     });
   }
+});
+
+describe("conformance: wrapped reproducibility bundle (Phase B, spec 3.2)", () => {
+  // ONE wrapped bundle is committed, on Taylor/Ashe: the proof document the
+  // Python shore's load_bundle (Task B3) parses. Same freeze policy as every
+  // other fixture file.
+  const fixture = CONFORMANCE_FIXTURES.find((f) => f.name === "taylor-ashe");
+  if (fixture === undefined) throw new Error("taylor-ashe fixture is missing");
+
+  it("wrapped-bundle.json is byte-frozen: a fresh authoring run reproduces the file exactly", () => {
+    const authored = authorWrappedBundleDoc(fixture, authorFixture(fixture));
+    expect(readText("taylor-ashe", "wrapped-bundle.json")).toBe(`${JSON.stringify(authored, null, 2)}\n`);
+  });
+
+  it("parses with an intact outer tag and wrapped verify reproduces inner AND outer", () => {
+    const raw = readJson("taylor-ashe", "wrapped-bundle.json");
+    const { warnings, doc } = parseDocument(raw);
+    expect(warnings).toEqual([]);
+    const wrapped = doc as BundleDoc;
+
+    // Wrapped verify: the inner results segment re-verifies exactly as an
+    // unwrapped bundle, and the outer tag over { bundle, interchange } holds.
+    const innerBody = JSON.parse((wrapped.bundle as { payload: string }).payload) as { results: unknown };
+    const verdict = verifyBundle(wrapped, innerBody.results);
+    expect(verdict.reproduced).toBe(true);
+    expect(verdict.outerIntegrity?.ok).toBe(true);
+    expect(verdict.outerIntegrity?.expected).toBe(wrapped.integrity);
+  });
+
+  it("mirrors the committed fixture documents byte-for-byte (results INCLUDED, spec 3.2)", () => {
+    const wrapped = readJson("taylor-ashe", "wrapped-bundle.json") as BundleDoc;
+    expect(wrapped.createdAt).toBe(CREATED_AT);
+    expect(wrapped.interchange.triangles).toEqual([readJson("taylor-ashe", "triangle.json")]);
+    expect(wrapped.interchange.selections).toEqual([readJson("taylor-ashe", "selection.json")]);
+    expect(wrapped.interchange.results).toEqual([
+      readJson("taylor-ashe", "deterministic-cl.json"),
+      readJson("taylor-ashe", "mack1993-vw.json"),
+    ]);
+  });
 });

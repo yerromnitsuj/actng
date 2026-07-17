@@ -1,3 +1,4 @@
+import type { CrosscheckReportDoc } from "@actuarial-ts/interchange";
 import type { EstimateMetadata } from "./metadata.js";
 import type { AssumptionLedger, ChangedAssumptions } from "./ledger.js";
 import { MODEL_CARDS, type MethodId } from "./modelCards.js";
@@ -64,6 +65,13 @@ export interface DisclosureInput {
   priorComparison?: PriorComparison;
   reliances?: string[];
   limitations?: string[];
+  /**
+   * Cross-implementation referee reports (interchange spec 5), rendered as
+   * "## 4b. Cross-implementation verification" after Section 4. Omitted or
+   * empty = no Section 4b (the disclosure never claims a verification that
+   * was not performed).
+   */
+  crossImplementation?: CrosscheckReportDoc[];
   sdkVersion: string;
   /** Caller-supplied ISO timestamp (determinism: the generator never reads a clock). */
   generatedAt: string;
@@ -115,6 +123,36 @@ function parameterLines(parameters: unknown): string {
   if (parameters === undefined || parameters === null) return "(engine defaults)";
   const json = canonicalJson(parameters);
   return json.length > 400 ? `${json.slice(0, 400)}… (truncated; full value in the reproducibility bundle)` : json;
+}
+
+/** REQUIRED Section 4b boilerplate — verbatim per interchange spec section 5. */
+const CROSS_IMPLEMENTATION_BOILERPLATE =
+  "Agreement between independent implementations supports, but does not by itself constitute, the model validation contemplated by ASOP No. 56; model appropriateness to the book remains a separate professional judgment.";
+
+/** Relative deviations/tolerances render in scientific notation (they live at 1e-9…1e-2 scale). */
+const fmtDeviation = (v: number | null): string =>
+  v === null ? "—" : v === 0 ? "0" : v.toExponential(2);
+
+type CrosscheckDeviationCell = { ultimate: number | null; unpaid: number | null; standardError: number | null };
+
+function maxAbsDeviation(
+  report: CrosscheckReportDoc["report"],
+  pick: (cell: CrosscheckDeviationCell) => (number | null)[],
+): number | null {
+  const cells: CrosscheckDeviationCell[] = [...report.deviations.perOrigin, report.deviations.totals];
+  const values = cells.flatMap((cell) => pick(cell).filter((v): v is number => v !== null).map(Math.abs));
+  return values.length === 0 ? null : Math.max(...values);
+}
+
+const engineLabel = (e: { name: string; version: string }): string => `${e.name} v${e.version}`;
+
+/**
+ * `verified-by-value` renders as exactly "verified by value (no independent
+ * recomputation)" — spec 5: the disclosure must not overstate what was
+ * checked when the selection was value-only.
+ */
+function verdictLabel(verdict: CrosscheckReportDoc["report"]["verdict"]): string {
+  return verdict === "verified-by-value" ? "verified by value (no independent recomputation)" : verdict;
 }
 
 /** Renders the ASOP 41-oriented methods-assumptions-and-data appendix. */
@@ -203,6 +241,53 @@ export function generateDisclosure(input: DisclosureInput): string {
       if (s.standardError !== undefined) bits.push(`standard error ${fmtNumber(s.standardError)}`);
       if (bits.length > 0) L.push(`- **Indicated:** ${bits.join(", ")}`);
     }
+    L.push("");
+  }
+
+  // 4b. Cross-implementation verification (interchange spec 5) — rendered
+  // only when referee reports were actually provided.
+  if (input.crossImplementation !== undefined && input.crossImplementation.length > 0) {
+    L.push("## 4b. Cross-implementation verification");
+    L.push("");
+    L.push(
+      "The computations were cross-checked against independent implementations via the actuarial-interchange referee. Each row is one referee report (relative deviations; SE = standard error):",
+    );
+    L.push("");
+    L.push(
+      ...mdTable(
+        [
+          "Engine A",
+          "Engine B",
+          "Profile",
+          "Max deviation (central)",
+          "Max deviation (SE)",
+          "Tolerance (central / SE)",
+          "Verdict",
+        ],
+        input.crossImplementation.map((doc) => {
+          const r = doc.report;
+          return [
+            engineLabel(r.engines.a),
+            engineLabel(r.engines.b),
+            r.engines.a.conventionProfile ?? r.engines.b.conventionProfile ?? "—",
+            fmtDeviation(maxAbsDeviation(r, (cell) => [cell.ultimate, cell.unpaid])),
+            fmtDeviation(maxAbsDeviation(r, (cell) => [cell.standardError])),
+            `${fmtDeviation(r.tolerance.central)} / ${fmtDeviation(r.tolerance.standardError)}`,
+            verdictLabel(r.verdict),
+          ];
+        }),
+      ),
+    );
+    for (const doc of input.crossImplementation) {
+      const r = doc.report;
+      if (r.warnings.length === 0) continue;
+      L.push("");
+      L.push(`**Warnings — ${engineLabel(r.engines.a)} vs ${engineLabel(r.engines.b)}:**`);
+      L.push("");
+      for (const w of r.warnings) L.push(`- ${w}`);
+    }
+    L.push("");
+    L.push(CROSS_IMPLEMENTATION_BOILERPLATE);
     L.push("");
   }
 

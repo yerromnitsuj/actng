@@ -28,7 +28,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONFORMANCE_FIXTURES, authorFixture } from "./ts/fixtures.js";
+import { CONFORMANCE_FIXTURES, authorFixture, authorWrappedBundleDoc } from "./ts/fixtures.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturesRoot = path.join(here, "fixtures");
@@ -48,4 +48,10 @@ for (const fixture of CONFORMANCE_FIXTURES) {
   write(dir, "deterministic-cl.json", authored.clResultDoc);
   write(dir, "mack1993-vw.json", authored.mackResultDoc);
   write(dir, "expectations.json", authored.expectations);
+  // Phase B (spec 3.2): ONE wrapped reproducibility bundle rides on
+  // Taylor/Ashe only — the committed proof document for the Python shore's
+  // load_bundle (Task B3). Same freeze policy as every other fixture file.
+  if (fixture.name === "taylor-ashe") {
+    write(dir, "wrapped-bundle.json", authorWrappedBundleDoc(fixture, authored));
+  }
 }

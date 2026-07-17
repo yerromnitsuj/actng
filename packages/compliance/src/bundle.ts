@@ -27,8 +27,27 @@
  */
 
 import { canonicalJson, fnv1a64 } from "@actuarial-ts/core";
+import type {
+  BundleDoc,
+  MethodResultDoc,
+  SelectionDoc,
+  StochasticResultDoc,
+  TriangleDoc,
+} from "@actuarial-ts/interchange";
 
 export { canonicalJson, fnv1a64 };
+
+/**
+ * The wrapped reproducibility bundle: the interchange BundleDoc (spec 3.2),
+ * re-exported under a compliance-side name so it cannot be confused with the
+ * inner ReproducibilityBundle record. The dependency on
+ * `@actuarial-ts/interchange` is TYPE-ONLY (interchange must not import
+ * compliance, and it does not; the outer tag is computed here with core's
+ * canonicalJson/fnv1a64, matching interchange's semanticBodyOf for
+ * kind "bundle" exactly — the wrapped round-trip test parses the emitted doc
+ * with the real interchange parser so any drift fails loudly).
+ */
+export type WrappedBundleDoc = BundleDoc;
 
 /**
  * Every machine-readable code a ComplianceError can carry, across all modules
@@ -55,6 +74,36 @@ export class ComplianceError extends Error {
 
 
 
+/**
+ * The interchange version the wrapped form is written under. Kept in literal
+ * sync with `@actuarial-ts/interchange`'s INTERCHANGE_SPEC_VERSION (the dep
+ * is type-only, so the constant cannot be imported); the wrapped round-trip
+ * test parses the emitted doc with the real interchange parser, which
+ * refuses a wrong-major version — drift fails loudly.
+ */
+export const WRAPPED_BUNDLE_INTERCHANGE_VERSION = "1.0.0";
+
+/**
+ * This package's version, stamped into a wrapped bundle's `generator`
+ * envelope field. A sync test asserts it matches package.json so it cannot
+ * silently drift (mirroring interchange's INTERCHANGE_PACKAGE_VERSION
+ * discipline).
+ */
+export const COMPLIANCE_PACKAGE_VERSION = "0.1.0";
+
+/**
+ * The interchange mirror for a wrapped bundle (spec 3.2): the triangles the
+ * analysis consumed, the selections it applied, and the results it produced,
+ * each as an interchange document. Results are INCLUDED so a non-TS consumer
+ * (`load_bundle`) can honor its contract without ever parsing the TS-native
+ * canonical payload.
+ */
+export interface BundleWrapInput {
+  triangles: TriangleDoc[];
+  selections: SelectionDoc[];
+  results: (MethodResultDoc | StochasticResultDoc)[];
+}
+
 export interface CreateBundleInput {
   /** The data the analysis consumed (triangles, claims, exposures — anything canonicalizable). */
   inputs: unknown;
@@ -68,6 +117,13 @@ export interface CreateBundleInput {
   seeds?: unknown;
   /** Caller-supplied ISO timestamp (purity: no clock reads). */
   createdAt: string;
+  /**
+   * Optional interchange mirror (spec 3.2). When provided, the bundle is
+   * ALSO emitted as a wrapped BundleDoc whose OUTER integrity tag is defined
+   * over `{ bundle, interchange }`. Never enters the inner payload: the
+   * unwrapped bundle is byte-identical with or without `wrap`.
+   */
+  wrap?: BundleWrapInput;
 }
 
 export interface ReproducibilityBundle {
@@ -77,13 +133,29 @@ export interface ReproducibilityBundle {
   hash: string;
 }
 
+/** A ReproducibilityBundle plus its wrapped interchange form (spec 3.2). */
+export interface WrappedBundleResult extends ReproducibilityBundle {
+  /**
+   * The wrapped BundleDoc: `{ bundle: { payload, hash }, interchange }` under
+   * an interchange envelope, with the OUTER integrity tag over the two-field
+   * semantic body `{ bundle, interchange }`.
+   */
+  wrapped: WrappedBundleDoc;
+}
+
 /**
  * Packages an analysis run into a reproducibility bundle. The payload is
  * canonical, so two runs with structurally equal inputs produce byte-identical
  * payloads (and therefore identical hashes) regardless of key insertion order.
  * `seeds` is included only when provided (undefined would be unrepresentable).
+ *
+ * With `wrap` (the interchange mirror, spec 3.2) the same inner bundle is
+ * ALSO returned as a wrapped BundleDoc; the unwrapped `{ payload, hash }` is
+ * byte-identical either way (the v0.1.x compat fixture pins this).
  */
-export function createBundle(input: CreateBundleInput): ReproducibilityBundle {
+export function createBundle(input: CreateBundleInput & { wrap: BundleWrapInput }): WrappedBundleResult;
+export function createBundle(input: CreateBundleInput): ReproducibilityBundle;
+export function createBundle(input: CreateBundleInput): ReproducibilityBundle | WrappedBundleResult {
   const body: Record<string, unknown> = {
     createdAt: input.createdAt,
     inputs: input.inputs,
@@ -93,7 +165,37 @@ export function createBundle(input: CreateBundleInput): ReproducibilityBundle {
   };
   if (input.seeds !== undefined) body["seeds"] = input.seeds;
   const payload = canonicalJson(body);
-  return { payload, hash: fnv1a64(payload) };
+  const inner: ReproducibilityBundle = { payload, hash: fnv1a64(payload) };
+  if (input.wrap === undefined) return inner;
+
+  // The inner record is carried opaquely as the `bundle` segment; the outer
+  // tag is fnv1a64(canonicalJson({ bundle, interchange })) — exactly
+  // interchange's semanticBodyOf for kind "bundle" (spec 3.2).
+  const bundleSegment: Record<string, unknown> = { hash: inner.hash, payload: inner.payload };
+  const interchange = {
+    triangles: [...input.wrap.triangles],
+    selections: [...input.wrap.selections],
+    results: [...input.wrap.results],
+  };
+  const wrapped: WrappedBundleDoc = {
+    interchangeVersion: WRAPPED_BUNDLE_INTERCHANGE_VERSION,
+    kind: "bundle",
+    generator: { name: "@actuarial-ts/compliance", version: COMPLIANCE_PACKAGE_VERSION },
+    createdAt: input.createdAt,
+    bundle: bundleSegment,
+    interchange,
+    integrity: fnv1a64(canonicalJson({ bundle: bundleSegment, interchange })),
+  };
+  return { ...inner, wrapped };
+}
+
+/** Outer-tag verification detail (wrapped mode only; spec 3.2). */
+export interface OuterIntegrityCheck {
+  ok: boolean;
+  /** The tag recomputed from the `{ bundle, interchange }` semantic body. */
+  expected: string;
+  /** The tag the wrapped document claims. */
+  actual: string | null;
 }
 
 export interface VerifyBundleResult {
@@ -103,9 +205,13 @@ export interface VerifyBundleResult {
    * sorted order), e.g. "$.rows[1].ultimate". Present only when not
    * reproduced. A missing/extra object key reports the key's path; an array
    * length mismatch reports the first index past the shared prefix; a type
-   * mismatch reports the node itself.
+   * mismatch reports the node itself. In wrapped mode, an outer-tag failure
+   * reports "$.integrity" (the divergent tag itself; see `outerIntegrity`
+   * for the expected/actual values).
    */
   mismatchPath?: string;
+  /** Present in wrapped mode only: the outer-tag check (spec 3.2). */
+  outerIntegrity?: OuterIntegrityCheck;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -137,17 +243,8 @@ function firstDifference(stored: unknown, rerun: unknown, path: string): string 
   return canonicalJson(stored) === canonicalJson(rerun) ? null : path;
 }
 
-/**
- * Verifies a re-run against a bundle: canonicalizes `rerunResults` and
- * byte-compares it with the bundle's stored `results` segment. On mismatch,
- * reports the FIRST differing path (see VerifyBundleResult.mismatchPath).
- *
- * Throws ComplianceError("BAD_BUNDLE") when the payload is not a valid bundle
- * body, and propagates ComplianceError("UNSUPPORTED_VALUE") when
- * `rerunResults` itself is not canonicalizable — a result that cannot be
- * serialized cannot be verified.
- */
-export function verifyBundle(bundle: ReproducibilityBundle, rerunResults: unknown): VerifyBundleResult {
+/** Inner verification — the pre-wrapped behavior, unchanged byte for byte. */
+function verifyUnwrapped(bundle: ReproducibilityBundle, rerunResults: unknown): VerifyBundleResult {
   let stored: unknown;
   try {
     stored = JSON.parse(bundle.payload);
@@ -162,4 +259,61 @@ export function verifyBundle(bundle: ReproducibilityBundle, rerunResults: unknow
   const storedCanonical = canonicalJson(storedResults);
   if (rerunCanonical === storedCanonical) return { reproduced: true };
   return { reproduced: false, mismatchPath: firstDifference(storedResults, rerunResults, "$") ?? "$" };
+}
+
+function isWrappedBundleDoc(value: ReproducibilityBundle | WrappedBundleDoc): value is WrappedBundleDoc {
+  return (value as { kind?: unknown }).kind === "bundle";
+}
+
+/** Wrapped mode: the outer tag (spec 3.2) AND the inner bundle exactly as today. */
+function verifyWrapped(doc: WrappedBundleDoc, rerunResults: unknown): VerifyBundleResult {
+  const innerRaw: unknown = doc.bundle;
+  if (
+    !isPlainObject(innerRaw) ||
+    typeof innerRaw["payload"] !== "string" ||
+    typeof innerRaw["hash"] !== "string"
+  ) {
+    throw new ComplianceError(
+      "BAD_BUNDLE",
+      'wrapped bundle\'s "bundle" segment must carry the inner { payload, hash } record',
+    );
+  }
+  if (doc.interchange === undefined || doc.interchange === null) {
+    throw new ComplianceError("BAD_BUNDLE", 'wrapped bundle is missing its "interchange" mirror');
+  }
+  // OUTER tag over the two-field semantic body { bundle, interchange } —
+  // exactly interchange's semanticBodyOf for kind "bundle" (spec 3.2).
+  const expected = fnv1a64(canonicalJson({ bundle: doc.bundle, interchange: doc.interchange }));
+  const actual = typeof doc.integrity === "string" ? doc.integrity : null;
+  const outerIntegrity: OuterIntegrityCheck = { ok: expected === actual, expected, actual };
+  if (!outerIntegrity.ok) {
+    return { reproduced: false, mismatchPath: "$.integrity", outerIntegrity };
+  }
+  const inner: ReproducibilityBundle = { payload: innerRaw["payload"], hash: innerRaw["hash"] };
+  return { ...verifyUnwrapped(inner, rerunResults), outerIntegrity };
+}
+
+/**
+ * Verifies a re-run against a bundle: canonicalizes `rerunResults` and
+ * byte-compares it with the bundle's stored `results` segment. On mismatch,
+ * reports the FIRST differing path (see VerifyBundleResult.mismatchPath).
+ *
+ * Wrapped mode (a BundleDoc with `kind: "bundle"`, spec 3.2): additionally
+ * recomputes the OUTER integrity tag over `{ bundle, interchange }` and
+ * refuses on divergence BEFORE the inner check — a drifted interchange
+ * mirror fails verification with mismatchPath "$.integrity" and the
+ * expected/actual tags in `outerIntegrity`, even when the inner bundle is
+ * untouched. When the outer tag holds, the inner bundle is verified exactly
+ * as in unwrapped mode.
+ *
+ * Throws ComplianceError("BAD_BUNDLE") when the payload is not a valid bundle
+ * body, and propagates ReservingError("UNSUPPORTED_VALUE") when
+ * `rerunResults` itself is not canonicalizable — a result that cannot be
+ * serialized cannot be verified.
+ */
+export function verifyBundle(
+  bundle: ReproducibilityBundle | WrappedBundleDoc,
+  rerunResults: unknown,
+): VerifyBundleResult {
+  return isWrappedBundleDoc(bundle) ? verifyWrapped(bundle, rerunResults) : verifyUnwrapped(bundle, rerunResults);
 }

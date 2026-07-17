@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { CrosscheckReportDoc } from "@actuarial-ts/interchange";
 import { generateDisclosure, type DisclosureInput } from "../src/disclosure.js";
 import { MODEL_CARDS, MODEL_CARD_IDS } from "../src/modelCards.js";
 
@@ -24,6 +25,71 @@ describe("model cards (ASOP 56)", () => {
     expect(text).not.toMatch(/ASOP[- ]certified/i);
   });
 });
+
+/**
+ * Two referee reports (interchange spec 5): one full cross-engine agreement,
+ * one value-only replay whose verdict must render as exactly "verified by
+ * value (no independent recomputation)". Envelope tags are static — the
+ * disclosure renderer consumes the report bodies, it does not re-verify them.
+ */
+const crossImplementation: CrosscheckReportDoc[] = [
+  {
+    interchangeVersion: "1.0.0",
+    kind: "crosscheck-report",
+    generator: { name: "@actuarial-ts/interchange", version: "0.1.0" },
+    createdAt: "2026-01-05T10:10:00Z",
+    integrity: "00112233aabbccdd",
+    report: {
+      engines: {
+        a: { name: "actuarial-ts", version: "0.1.0", conventionProfile: "mack1993-vw" },
+        b: { name: "chainladder-python", version: "0.8.24", conventionProfile: "mack1993-vw" },
+      },
+      appliesTo: { triangleIntegrity: "a1b2c3d4e5f60718", selectionIntegrity: null },
+      parameters: {
+        a: { requested: { sigma: "mack" }, effective: { sigma: "mack" } },
+        b: {
+          requested: { average: "volume", sigma_interpolation: "mack" },
+          effective: { average: "volume", sigma_interpolation: "mack" },
+        },
+      },
+      tolerance: { central: 1e-6, standardError: 0.005 },
+      deviations: {
+        perOrigin: [
+          { origin: "2023", ultimate: 3.1e-10, unpaid: 4.2e-10, standardError: 0.0011 },
+          { origin: "2024", ultimate: 1.7e-10, unpaid: 2.5e-10, standardError: 0.0008 },
+        ],
+        totals: { ultimate: 2.4e-10, unpaid: 3.3e-10, standardError: 0.0009 },
+      },
+      verdict: "agree",
+      warnings: [],
+    },
+  },
+  {
+    interchangeVersion: "1.0.0",
+    kind: "crosscheck-report",
+    generator: { name: "@actuarial-ts/interchange", version: "0.1.0" },
+    createdAt: "2026-01-05T10:12:00Z",
+    integrity: "8899aabbccddeeff",
+    report: {
+      engines: {
+        a: { name: "actuarial-ts", version: "0.1.0", conventionProfile: "deterministic-cl" },
+        b: { name: "notebook-study", version: "2026.07", conventionProfile: "deterministic-cl" },
+      },
+      appliesTo: { triangleIntegrity: "a1b2c3d4e5f60718", selectionIntegrity: "f00dfeedbeef0042" },
+      parameters: {
+        a: { requested: { tailFactor: 1.02 }, effective: { tailFactor: 1.02 } },
+        b: { requested: { tailFactor: 1.02 }, effective: null },
+      },
+      tolerance: { central: 1e-6, standardError: null },
+      deviations: {
+        perOrigin: [{ origin: "2024", ultimate: 0, unpaid: 0, standardError: null }],
+        totals: { ultimate: 0, unpaid: 0, standardError: null },
+      },
+      verdict: "verified-by-value",
+      warnings: ["selection is value-only (judgmental intent): factors were applied, not independently recomputed"],
+    },
+  },
+];
 
 const input: DisclosureInput = {
   title: "GL occurrence reserve analysis — 2025-12-31",
@@ -97,6 +163,7 @@ const input: DisclosureInput = {
   },
   reliances: ["Loss run supplied by TPA XYZ as of 2025-12-31; reconciliation to control totals performed"],
   limitations: ["No explicit provision for unreported mass-tort exposure"],
+  crossImplementation,
   sdkVersion: "0.1.0",
   generatedAt: "2026-01-05T10:15:00Z",
 };
@@ -119,6 +186,7 @@ describe("generateDisclosure (ASOP 41)", () => {
     expect(doc).toContain("## 4. Methods and models (ASOP No. 56)");
     expect(doc).toContain("Chain ladder");
     expect(doc).toContain("Mack distribution-free standard errors");
+    expect(doc).toContain("## 4b. Cross-implementation verification");
     expect(doc).toContain("## 5. Assumptions and judgments");
     expect(doc).toContain("judgmentally confirmed");
     expect(doc).toContain("## 6. Changes from the prior analysis");
@@ -141,9 +209,63 @@ describe("generateDisclosure (ASOP 41)", () => {
     expect(bare).toContain("No assumption ledger was attached");
     expect(bare).toContain("No prior-analysis comparison was attached");
     expect(bare).toContain("No reliances on data or analyses supplied by others were recorded");
+    // No referee reports were provided, so Section 4b must not exist — the
+    // disclosure never claims a verification that was not performed.
+    expect(bare).not.toContain("4b");
+    expect(bare).not.toContain("Cross-implementation");
   });
 
   it("matches the golden snapshot", () => {
     expect(generateDisclosure(input)).toMatchSnapshot();
+  });
+});
+
+describe("Section 4b — cross-implementation verification (interchange spec 5)", () => {
+  const doc = generateDisclosure(input);
+
+  it("renders between Section 4 and Section 5", () => {
+    const at4 = doc.indexOf("## 4. Methods and models (ASOP No. 56)");
+    const at4b = doc.indexOf("## 4b. Cross-implementation verification");
+    const at5 = doc.indexOf("## 5. Assumptions and judgments");
+    expect(at4).toBeGreaterThanOrEqual(0);
+    expect(at4b).toBeGreaterThan(at4);
+    expect(at5).toBeGreaterThan(at4b);
+  });
+
+  it("carries the REQUIRED boilerplate verbatim (spec 5)", () => {
+    expect(doc).toContain(
+      "Agreement between independent implementations supports, but does not by itself constitute, the model validation contemplated by ASOP No. 56; model appropriateness to the book remains a separate professional judgment.",
+    );
+  });
+
+  it("tabulates engines with versions, profile, max deviations, tolerance, and verdict", () => {
+    expect(doc).toContain("| Engine A | Engine B | Profile | Max deviation (central) | Max deviation (SE) | Tolerance (central / SE) | Verdict |");
+    expect(doc).toContain("actuarial-ts v0.1.0");
+    expect(doc).toContain("chainladder-python v0.8.24");
+    expect(doc).toContain("mack1993-vw");
+    // Max central = max |ultimate|,|unpaid| across per-origin rows and totals.
+    expect(doc).toContain("4.20e-10");
+    // Max SE deviation and the Mack profile tolerances.
+    expect(doc).toContain("1.10e-3");
+    expect(doc).toContain("1.00e-6 / 5.00e-3");
+    // SE-less tolerance renders as an em dash, zero deviation as 0.
+    expect(doc).toContain("1.00e-6 / —");
+    expect(doc).toContain("| agree |");
+  });
+
+  it("renders verified-by-value verdicts as exactly the no-recomputation label", () => {
+    expect(doc).toContain("verified by value (no independent recomputation)");
+    expect(doc).not.toContain("| verified-by-value |");
+  });
+
+  it("lists per-report warnings", () => {
+    expect(doc).toContain("**Warnings — actuarial-ts v0.1.0 vs notebook-study v2026.07:**");
+    expect(doc).toContain("- selection is value-only (judgmental intent): factors were applied, not independently recomputed");
+  });
+
+  it("omits Section 4b for an empty report list, exactly like an absent one", () => {
+    const empty = generateDisclosure({ ...structuredClone(input), crossImplementation: [] });
+    expect(empty).not.toContain("4b");
+    expect(empty).not.toContain("Cross-implementation");
   });
 });

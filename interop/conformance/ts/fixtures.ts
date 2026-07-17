@@ -15,6 +15,10 @@ import {
   selectionsToDoc,
   triangleToDoc,
 } from "../../../packages/interchange/src/index.js";
+import {
+  type WrappedBundleDoc,
+  createBundle,
+} from "../../../packages/compliance/src/index.js";
 import { mortgage, taylorAshe } from "../../../packages/core/test/fixtures/mack1993.js";
 import { raa } from "../../../packages/core/test/fixtures/mack1994raa.js";
 
@@ -200,4 +204,58 @@ export function authorFixture(fixture: ConformanceFixture): AuthoredFixture {
   };
 
   return { triangleDoc, selectionDoc, clResultDoc, mackResultDoc, expectations };
+}
+
+/**
+ * SDK-version echo frozen into the wrapped bundle's inner body (the fixture
+ * is byte-frozen, so these are part of the public bytes; they state what
+ * authored the run, they are not re-derived at read time).
+ */
+export const WRAPPED_BUNDLE_SDK_VERSIONS = {
+  "@actuarial-ts/compliance": "0.1.0",
+  "@actuarial-ts/core": "0.1.0",
+} as const;
+
+/**
+ * Phase B: the wrapped reproducibility bundle (spec 3.2) for a fixture —
+ * the committed proof document the Python shore's `load_bundle` (Task B3)
+ * runs against. The inner bundle body is a MINIMAL inputs/parameters/results
+ * payload keyed to the fixture documents by integrity tag; the interchange
+ * mirror carries the triangle, the selection, and BOTH TS result docs, so a
+ * non-TS consumer never parses the TS-native canonical payload. Same
+ * authoring rules as everything else here: fixed createdAt, no clock reads,
+ * byte-deterministic regeneration.
+ */
+export function authorWrappedBundleDoc(
+  fixture: ConformanceFixture,
+  authored: AuthoredFixture,
+): WrappedBundleDoc {
+  const { wrapped } = createBundle({
+    inputs: {
+      source: `interop/conformance/fixtures/${fixture.name}`,
+      triangleIntegrity: authored.triangleDoc.integrity,
+    },
+    parameters: {
+      selectionIntegrity: authored.selectionDoc.integrity,
+      tailFactor: 1,
+    },
+    results: {
+      "deterministic-cl": {
+        integrity: authored.clResultDoc.integrity,
+        totals: { ...authored.clResultDoc.result.totals },
+      },
+      "mack1993-vw": {
+        integrity: authored.mackResultDoc.integrity,
+        totals: { ...authored.mackResultDoc.result.totals },
+      },
+    },
+    sdkVersions: { ...WRAPPED_BUNDLE_SDK_VERSIONS },
+    createdAt: CREATED_AT,
+    wrap: {
+      triangles: [authored.triangleDoc],
+      selections: [authored.selectionDoc],
+      results: [authored.clResultDoc, authored.mackResultDoc],
+    },
+  });
+  return wrapped;
 }

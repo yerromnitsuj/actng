@@ -54,6 +54,21 @@ A data review was performed: 2 checks (1 pass, 0 warning, 1 fail). The checks pe
 - **Parameters this analysis ran with:** \`{"tailFactor":1.02}\`
 - **Indicated:** standard error 811,000
 
+## 4b. Cross-implementation verification
+
+The computations were cross-checked against independent implementations via the actuarial-interchange referee. Each row is one referee report (relative deviations; SE = standard error):
+
+| Engine A | Engine B | Profile | Max deviation (central) | Max deviation (SE) | Tolerance (central / SE) | Verdict |
+|---|---|---|---|---|---|---|
+| actuarial-ts v0.1.0 | chainladder-python v0.8.24 | mack1993-vw | 4.20e-10 | 1.10e-3 | 1.00e-6 / 5.00e-3 | agree |
+| actuarial-ts v0.1.0 | notebook-study v2026.07 | deterministic-cl | 0 | — | 1.00e-6 / — | verified by value (no independent recomputation) |
+
+**Warnings — actuarial-ts v0.1.0 vs notebook-study v2026.07:**
+
+- selection is value-only (judgmental intent): factors were applied, not independently recomputed
+
+Agreement between independent implementations supports, but does not by itself constitute, the model validation contemplated by ASOP No. 56; model appropriateness to the book remains a separate professional judgment.
+
 ## 5. Assumptions and judgments
 
 Every recorded assumption, distinguishing machine defaults from human or agent judgment (judgment entries carry their rationale and source):
