@@ -12,7 +12,7 @@
     "eval:advisor": "tsx scripts/eval-advisor.ts"
   },
   "dependencies": {
-    "@actng/core": "*",
+    "@actuarial-ts/core": "*",
     "@ai-sdk/anthropic": "^3.0.58",
     "@mastra/core": "^1.49.0",
     "@mastra/libsql": "^1.15.0",

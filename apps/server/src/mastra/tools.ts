@@ -2,7 +2,7 @@ import { createTool } from "@mastra/core/tools";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra } from "./instanceRegistry.js";
 import { z } from "zod";
-import { isNum, type DevelopmentFactors, type Triangle } from "@actng/core";
+import { isNum, type DevelopmentFactors, type Triangle } from "@actuarial-ts/core";
 import {
   activeBf,
   activeSelections,
@@ -13,7 +13,7 @@ import {
   runSensitivity,
   HttpError,
 } from "../services/workspaceService.js";
-import { claimSizeDiagnostics, fitAllTails } from "@actng/core";
+import { claimSizeDiagnostics, fitAllTails } from "@actuarial-ts/core";
 import {
   getAnalysis,
   getClaims,

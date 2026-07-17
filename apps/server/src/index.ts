@@ -6,7 +6,7 @@ import express, {
 import cors from "cors";
 import { ZodError } from "zod";
 import { MulterError } from "multer";
-import { ReservingError } from "@actng/core";
+import { ReservingError } from "@actuarial-ts/core";
 import { env } from "./env.js";
 import { HttpError } from "./services/workspaceService.js";
 import { projectsRouter } from "./routes/projects.js";

@@ -14,9 +14,9 @@
   "scripts": {
     "dev": "npm run seed --workspace @actng/server -- --if-empty && concurrently -n server,web -c blue,magenta \"npm run dev --workspace @actng/server\" \"npm run dev --workspace @actng/web\"",
     "seed": "npm run seed --workspace @actng/server",
-    "test": "npm run test --workspace @actng/core && npm run test --workspace @actng/server",
+    "test": "npm run test --workspace @actuarial-ts/core && npm run test --workspace @actng/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspace @actng/core && npm run build --workspace @actng/server && npm run build --workspace @actng/web"
+    "build": "npm run build --workspaces --if-present"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

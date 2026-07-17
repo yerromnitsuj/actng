@@ -39,7 +39,7 @@ import {
   type TrendFit,
   type Triangle,
   type TriangleSet,
-} from "@actng/core";
+} from "@actuarial-ts/core";
 import {
   defaultWorkspaceState,
   emptyLayerSelections,

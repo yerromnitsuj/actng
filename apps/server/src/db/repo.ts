@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ClaimSnapshot, ExposureRecord, IlfTableRow, OriginCadence } from "@actng/core";
+import type { ClaimSnapshot, ExposureRecord, IlfTableRow, OriginCadence } from "@actuarial-ts/core";
 import { db } from "./client.js";
 
 /** Typed repository layer. All JSON columns are parsed/serialized here. */

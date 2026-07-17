@@ -1,4 +1,4 @@
-import type { Triangle } from "@actng/core";
+import type { Triangle } from "@actuarial-ts/core";
 import { fmt0, fmtFactor } from "./ui.js";
 
 /**

@@ -1,4 +1,4 @@
-import type { ClaimSnapshot, ExposureRecord } from "@actng/core";
+import type { ClaimSnapshot, ExposureRecord } from "@actuarial-ts/core";
 
 /**
  * Synthetic loss-run generator with a realistic claim lifecycle:

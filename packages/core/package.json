@@ -1,14 +1,49 @@
 {
-  "name": "@actng/core",
-  "version": "1.0.0",
-  "description": "Pure, framework-independent P&C loss reserving engine",
+  "name": "@actuarial-ts/core",
+  "version": "0.1.0",
+  "description": "Pure, zero-dependency P&C loss reserving engine for TypeScript: triangles, chain ladder, Mack, Bornhuetter-Ferguson, Cape Cod, Berquist-Sherman, tails, trend/on-level, ILF, diagnostics — validated against published actuarial literature.",
+  "license": "Apache-2.0",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yerromnitsuj/actng.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "actuarial",
+    "reserving",
+    "chain-ladder",
+    "mack",
+    "bornhuetter-ferguson",
+    "cape-cod",
+    "berquist-sherman",
+    "loss-development",
+    "triangle",
+    "ibnr",
+    "insurance",
+    "property-casualty"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

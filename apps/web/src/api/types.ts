@@ -7,7 +7,7 @@ import type {
   MackResult,
   TailFit,
   Triangle,
-} from "@actng/core";
+} from "@actuarial-ts/core";
 
 /** Server payload shapes (mirrors apps/server responses). */
 

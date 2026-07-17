@@ -1,7 +1,7 @@
 import Papa from "papaparse";
 import ExcelJS from "exceljs";
 import { z } from "zod";
-import type { ClaimSnapshot, ExposureRecord } from "@actng/core";
+import type { ClaimSnapshot, ExposureRecord } from "@actuarial-ts/core";
 import { HttpError } from "./workspaceService.js";
 
 /**

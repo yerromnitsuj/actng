@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../state/store.js";
 import { Button, EmptyState, Section, fmt0, fmtFactor, fmtPct } from "./ui.js";
-import type { ChainLadderResult } from "@actng/core";
+import type { ChainLadderResult } from "@actuarial-ts/core";
 import { resultsAreStale } from "../lib/staleness.js";
 
 /**
