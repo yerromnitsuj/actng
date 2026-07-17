@@ -24,14 +24,14 @@
 
 | Phase | Plan file | Status |
 |---|---|---|
-| Spec + master plan | (this file) | in progress |
+| Spec + master plan | (this file) | DONE 2026-07-17 |
 | 0 — shipping mechanics | 2026-07-16-phase0-shipping-mechanics.md | DONE 2026-07-16 |
 | 1 — Friedland shelf + data pkg | 2026-07-16-phase1-friedland-shelf-data.md | DONE 2026-07-17 |
 | 2 — compliance pkg | 2026-07-17-phase2-compliance.md | DONE 2026-07-17 |
 | 3 — stochastic backbone | docs/research/phase3/ transcriptions + master log | DONE 2026-07-17 |
 | 4 — agents pkg + dogfood | 2026-07-17-phase4-agents.md | DONE 2026-07-17 |
 | 5 — reserve-review completeness | 2026-07-17-phase5-reserve-review.md | DONE 2026-07-17 |
-| Final — review + ship + publish-readiness | write just-in-time | pending |
+| Final — review + ship + publish-readiness | (this log entry) | DONE 2026-07-17 |
 
 ## Phase acceptance criteria (summary; detail lives in phase plans)
 
@@ -46,6 +46,7 @@
 ## Progress Log
 
 - 2026-07-16: Spec approved (founder: ActNG2 home, @actuarial-ts scope, Apache-2.0 all-OSS, P&C only). Master plan created. Pre-work already landed: workflow-snapshot persistence fix + tool envelope normalization (commit 5d8223c).
+- 2026-07-17: **FINAL PHASE DONE — the SDK is production-ready.** Whole-SDK adversarial review (6 lenses, 44 agents, every finding independently verified with executed probes): 35 confirmed, 3 rejected, all fixed. Highlights: off-diagonal/stale-origin and gap-year silent-mistiming guards, fail-closed recursive tenant lint (passthrough/catchall/record rejected), eval timeout cancels the stream, model-card registry completed to every core discriminant + sync test, "not-evaluated" data-check status, npm-range pinning proven by tarball, publishConfig/prepack/exports subpaths, CHANGELOG + docs/publishing.md. Final cold start: 535 tests (289 core, 57 data, 86 compliance, 36 agents, 67 server), all four packages pack-clean. PUBLISHING remains the founder's one manual step (npm org + login; docs/publishing.md).
 - 2026-07-17: **Phase 5 DONE.** Munich CL + ULAE (landed with Phase 4's ship) joined by discounting to the June-2026 ASOP 20 (required rate provenance, nominal+discounted side by side, explicit-only risk margin), case-outstanding development (self-consistency proof), Fisher-Lange (calendar-compounded severity trend, reference invariance), salvage/subro netting (triangle-algebra identity). Core at 281 tests; workspace cold start 520 tests / 5 packages. Root README now presents the SDK (workbench docs at docs/workbench.md). Publish check: name @actuarial-ts/core unclaimed; machine has no npm auth — publishing stays a documented founder step.
 - 2026-07-17: **Phase 4 DONE.** @actuarial-ts/agents shipped (defineActuarialTool with tenant-key schema rejection + never-throw envelopes, tenantOf, toolRegistry, createJudgmentChain writing the compliance AssumptionLedger, createReservingAdvisor with auditable BASE_INSTRUCTIONS, runToolSelectionEvals; 31 LLM-free tests; Mastra accidental-thenable footgun documented). Server dogfooded with zero behavior change (67/67; instruction audit; ELR gates persist the ledger as a note surviving cross-process resume; CSV via @actuarial-ts/data, strictly better validation). Phase-1 deferral (importService CSV) closed. Munich CL + ULAE merged from worktree (Quarg-Mack fire-portfolio pins exact at printed precision, lambdas 0.6360/0.4362 vs 0.64/0.44; Conger-Nolibos exhibits exact at 3dp; paper's own AY4 gap-closing exception + printed-total rounding artifact documented). 451 tests / 5 packages.
 - 2026-07-17: **Phase 3 DONE.** Stochastic backbone in core: seeded RNG (mulberry32 + Box-Muller + Marsaglia-Tsang gamma), StochasticResult/summaries, triangle algebra (cum<->incr, add/subtract). ODP bootstrap (odpFit GLM==CL identity pinned to 1e-6; England 2002 Tables 1-3 pins: total PE ~16%, per-origin pattern, skewed percentiles; refit Jensen mean-bias documented, bounded 2%). Merz-Wuthrich CDR (eq. 3.17/3.18; Table 4 pins to the paper's $1,000 rounding: 81,080 solvency total vs Mack 108,401; shared extrapolateSigma2). Clark 2003 LDF+Cape Cod (both curves, profiled MLE, delta-method variances; ALL pins ~1e-5 incl. CC ELR 59.78%; Clark's digit-transposed 1991@48 cell documented). Primary-source transcriptions committed under docs/research/phase3/. Core 177 tests; workspace cold-start 384 tests / 4 packages.
