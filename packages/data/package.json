@@ -1,0 +1,55 @@
+{
+  "name": "@actuarial-ts/data",
+  "version": "0.1.0",
+  "description": "Data ingestion and ASOP No. 23 data-quality review for the actuarial-ts SDK: RFC 4180 CSV parsing, loss-run import, long-format triangle assembly, and claim/triangle review checks.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yerromnitsuj/actng.git",
+    "directory": "packages/data"
+  },
+  "keywords": [
+    "actuarial",
+    "reserving",
+    "loss-run",
+    "csv",
+    "triangle",
+    "data-quality",
+    "asop-23",
+    "insurance",
+    "property-casualty"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actuarial-ts/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

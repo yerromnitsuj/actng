@@ -6,7 +6,7 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
-data/
+apps/server/data/
 .DS_Store
 coverage/
 *.log

@@ -76,6 +76,8 @@
 - [ ] Implement; server suite green; live smoke (run analysis on seed project, matrix shows 12 methods, blend unchanged when new weights 0)
 - [ ] Commit
 
+**DEVIATION (recorded 2026-07-17):** importService CSV delegation to `@actuarial-ts/data` is deferred to Phase 4's dogfood pass. Reason: importService's throw-with-all-row-problems contract is pinned by server tests and shared with the xlsx path; rewiring it mid-phase risks a stable surface for zero user-visible gain. The data package's `parseLossRunCsv` mirrors the semantics under its own tests.
+
 ### Task 7: Published-value pins + phase gate
 
 - [ ] Fold research-workflow results into fixtures (Mack 2000 Benktander example, Mack 1994 correlation worked example, Gluck formulation check); adjust implementations if transcription contradicts them
