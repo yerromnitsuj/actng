@@ -55,7 +55,7 @@ describe("reviewClaimData", () => {
       expect(c.details).toEqual([]);
       expect(c.description.length).toBeGreaterThan(0);
     }
-    expect(report.summary).toEqual({ pass: 7, warning: 0, fail: 0 });
+    expect(report.summary).toEqual({ pass: 7, warning: 0, fail: 0, notEvaluated: 0 });
   });
 
   it("fails negative-paid", () => {
@@ -124,10 +124,10 @@ describe("reviewClaimData", () => {
     expect(c.details[0]).toContain("2024-06-30");
   });
 
-  it("marks future-dated as not evaluated when no asOfDate is given", () => {
+  it("marks future-dated as not-evaluated when no asOfDate is given", () => {
     const report = reviewClaimData([snap({ evaluationDate: "2099-12-31" })]);
     const c = check(report, "future-dated");
-    expect(c.status).toBe("pass");
+    expect(c.status).toBe("not-evaluated");
     expect(c.details).toHaveLength(1);
     expect(c.details[0]).toContain("not evaluated");
   });
@@ -154,7 +154,9 @@ describe("reviewClaimData", () => {
     ]);
     expect(report.summary.fail).toBe(1); // negative-paid
     expect(report.summary.warning).toBe(1); // negative-case
-    expect(report.summary.pass).toBe(5);
+    // future-dated has no asOfDate here, so it is explicitly not evaluated.
+    expect(report.summary.pass).toBe(4);
+    expect(report.summary.notEvaluated).toBe(1);
   });
 });
 
@@ -187,7 +189,7 @@ describe("reviewTriangles", () => {
       expect(c.status).toBe("pass");
       expect(c.details).toEqual([]);
     }
-    expect(report.summary).toEqual({ pass: 5, warning: 0, fail: 0 });
+    expect(report.summary).toEqual({ pass: 5, warning: 0, fail: 0, notEvaluated: 0 });
   });
 
   it("fails shape-mismatch and skips the remaining checks (still listed)", () => {
@@ -199,10 +201,10 @@ describe("reviewTriangles", () => {
     expect(shape.details.length).toBeGreaterThan(0);
     for (const id of TRIANGLE_CHECK_IDS.slice(1)) {
       const c = check(report, id);
-      expect(c.status).toBe("pass");
+      expect(c.status).toBe("not-evaluated");
       expect(c.details[0]).toContain("not evaluated");
     }
-    expect(report.summary).toEqual({ pass: 4, warning: 0, fail: 1 });
+    expect(report.summary).toEqual({ pass: 0, warning: 0, fail: 1, notEvaluated: 4 });
   });
 
   it("fails shape-mismatch on differing ages too", () => {

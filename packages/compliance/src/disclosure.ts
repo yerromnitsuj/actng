@@ -43,7 +43,7 @@ export interface MethodUse {
  */
 export interface DataReviewLike {
   checks: { id: string; description: string; status: string; details: string[] }[];
-  summary: { pass: number; warning: number; fail: number };
+  summary: { pass: number; warning: number; fail: number; notEvaluated?: number };
 }
 
 export interface PriorComparison {
@@ -157,8 +157,9 @@ export function generateDisclosure(input: DisclosureInput): string {
   L.push("");
   if (input.dataReview) {
     const r = input.dataReview;
+    const notEvaluated = r.summary.notEvaluated ?? 0;
     L.push(
-      `A data review was performed: ${r.checks.length} checks (${r.summary.pass} pass, ${r.summary.warning} warning, ${r.summary.fail} fail). The checks performed, and their findings, were:`,
+      `A data review was performed: ${r.checks.length} checks (${r.summary.pass} pass, ${r.summary.warning} warning, ${r.summary.fail} fail${notEvaluated > 0 ? `, ${notEvaluated} not evaluated` : ""}). The checks performed, and their findings, were:`,
     );
     L.push("");
     L.push(

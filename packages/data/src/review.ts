@@ -22,7 +22,7 @@ import type { ClaimSnapshot, Triangle } from "@actuarial-ts/core";
  * actuary.
  */
 
-export type DataCheckStatus = "pass" | "warning" | "fail";
+export type DataCheckStatus = "pass" | "warning" | "fail" | "not-evaluated";
 
 export interface DataCheck {
   id: string;
@@ -33,7 +33,7 @@ export interface DataCheck {
 
 export interface DataReviewReport {
   checks: DataCheck[];
-  summary: { pass: number; warning: number; fail: number };
+  summary: { pass: number; warning: number; fail: number; notEvaluated: number };
 }
 
 export interface ReviewClaimDataOptions {
@@ -64,12 +64,17 @@ function makeCheck(
 }
 
 function notEvaluated(id: string, description: string, reason: string): DataCheck {
-  return { id, description, status: "pass", details: [`not evaluated: ${reason}`] };
+  // A check that could not run is REPORTED as such - counting it as "pass"
+  // would overstate the review in the very disclosure this feeds.
+  return { id, description, status: "not-evaluated", details: [`not evaluated: ${reason}`] };
 }
 
 function summarize(checks: DataCheck[]): DataReviewReport {
-  const summary = { pass: 0, warning: 0, fail: 0 };
-  for (const c of checks) summary[c.status]++;
+  const summary = { pass: 0, warning: 0, fail: 0, notEvaluated: 0 };
+  for (const c of checks) {
+    if (c.status === "not-evaluated") summary.notEvaluated++;
+    else summary[c.status]++;
+  }
   return { checks, summary };
 }
 

@@ -5,8 +5,10 @@
  *
  *   ACTNG_RUN_EVALS=1 npm run eval:advisor -- [--id <id>]
  *
- * Asserts tool SELECTION, not prose: each case lists tools that must appear
- * among the turn's calls. Failures print the tools actually called.
+ * Asserts tool SELECTION, not prose. The eval loop itself is
+ * @actuarial-ts/agents' runToolSelectionEvals (dogfooding the packaged
+ * harness); this script owns only the environment: scratch data dir,
+ * seeded book, baseline selections and analysis, and the case table.
  */
 import os from "node:os";
 import path from "node:path";
@@ -19,6 +21,7 @@ if (process.env.ACTNG_RUN_EVALS !== "1") {
 process.env.ACTNG_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "actng-eval-"));
 
 const { RequestContext } = await import("@mastra/core/request-context");
+const { runToolSelectionEvals } = await import("@actuarial-ts/agents");
 const repo = await import("../src/db/repo.js");
 const ws = await import("../src/services/workspaceService.js");
 const synthetic = await import("../src/seed/synthetic.js");
@@ -102,54 +105,34 @@ const CASES: GoldenCase[] = [
 const only = process.argv.includes("--id")
   ? process.argv[process.argv.indexOf("--id") + 1]
   : null;
-let pass = 0;
-let fail = 0;
-for (const c of CASES) {
-  if (only && c.id !== only) continue;
-  const requestContext = new RequestContext();
-  requestContext.set("projectId", project.id);
-  const called = new Set<string>();
-  try {
-    // A stalled stream must fail the case, not hang the whole suite.
-    await Promise.race([
-      (async () => {
-        const stream = await advisorAgent.stream(
-          [{ role: "user", content: c.prompt }],
-          {
-            requestContext,
-            maxSteps: 8,
-            memory: { thread: `eval-${c.id}`, resource: project.id },
-          },
-        );
-        for await (const chunk of stream.fullStream) {
-          const type = (chunk as { type?: string }).type;
-          if (type === "tool-call") {
-            const name =
-              (chunk as { payload?: { toolName?: string } }).payload?.toolName ??
-              (chunk as { toolName?: string }).toolName;
-            if (name) called.add(name);
-          }
-        }
-      })(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("case timed out after 180s")), 180_000).unref(),
-      ),
-    ]);
-  } catch (err) {
-    console.log(`FAIL ${c.id}: stream error ${err instanceof Error ? err.message : err}`);
-    fail++;
-    continue;
-  }
-  const missing = c.expectTools.filter((t) => !called.has(t));
-  if (missing.length === 0) {
-    console.log(`PASS ${c.id} (called: ${[...called].join(", ")})`);
-    pass++;
+const cases = only ? CASES.filter((c) => c.id === only) : CASES;
+if (cases.length === 0) {
+  console.error(`No case with id "${only}"`);
+  process.exit(1);
+}
+
+const requestContext = new RequestContext();
+requestContext.set("projectId", project.id);
+
+const report = await runToolSelectionEvals({
+  agent: advisorAgent,
+  cases,
+  requestContext,
+  maxSteps: 8,
+  timeoutMs: 180_000,
+  memoryFor: (c) => ({ thread: `eval-${c.id}`, resource: project.id }),
+});
+
+for (const r of report.results) {
+  if (r.pass) {
+    console.log(`PASS ${r.id} (called: ${r.called.join(", ")})`);
+  } else if (r.error) {
+    console.log(`FAIL ${r.id}: stream error ${r.error}`);
   } else {
     console.log(
-      `FAIL ${c.id}: missing ${missing.join(", ")} (called: ${[...called].join(", ") || "none"})`,
+      `FAIL ${r.id}: missing ${r.missing.join(", ")} (called: ${r.called.join(", ") || "none"})`,
     );
-    fail++;
   }
 }
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail > 0 ? 1 : 0);
+console.log(`\n${report.summary.passed} passed, ${report.summary.failed} failed`);
+process.exit(report.summary.failed > 0 ? 1 : 0);

@@ -1,7 +1,7 @@
 # ActNG - Claude Code Rules
 
 AI-native P&C actuarial reserving workbench. npm-workspaces monorepo:
-`packages/core` = `@actuarial-ts/core` (pure math, published to npm;
+`packages/core` = `@actuarial-ts/core` (pure math, to be published to npm at 0.1.0;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
 `npm install`), `apps/server` (Express 5 + SQLite + Mastra
 advisor), `apps/web` (Vite + React 19 + Tailwind v4).
@@ -12,7 +12,7 @@ advisor), `apps/web` (Vite + React 19 + Tailwind v4).
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run dev` - seed (idempotent, `--if-empty`) + API on :4600 + web on :5175
 - `npm test` - core suite (incl. Mack 1993/1999 published-value validation) + server suite
-- `npm run typecheck` - all three workspaces
+- `npm run typecheck` - every workspace (four @actuarial-ts packages + two apps)
 - `npm run seed --workspace @actng/server` - regenerate demo data (deterministic seed)
 
 ## Non-negotiable domain rules

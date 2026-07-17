@@ -14,7 +14,9 @@ Actuarial Standards of Practice ask for.
   appendix from the analysis itself — written to the "another qualified
   actuary could appraise it" bar, deterministic to the byte.
 - **Model cards** (ASOP 56): intended use, specification, key assumptions,
-  known weaknesses, and sensitivities for every method the SDK ships — the
+  known weaknesses, and sensitivities for every method the SDK ships (a
+  cross-package sync test enforces the completeness, so the registry can
+  never silently fall behind core) — the
   "basic understanding" content an actuary relying on vendor models must
   hold and disclose.
 - **Reproducibility bundles** (ASOP 21 / 56): canonical serialization of

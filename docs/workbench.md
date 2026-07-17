@@ -33,7 +33,7 @@ Optional `.env` settings: `ADVISOR_MODEL` (default `claude-opus-4-8`), `PORT`
 
 ```bash
 npm test          # core math suite (incl. published-value validation) + server suite
-npm run typecheck # all three workspaces
+npm run typecheck # every workspace
 ```
 
 ## The demo walkthrough
@@ -67,7 +67,7 @@ back toward each other.
 
 | Path | What it is |
 |---|---|
-| `packages/core` | Pure, framework-independent reserving engine (zero runtime deps). Triangle builder, age-to-age factors and averages, Chain Ladder, Bornhuetter-Ferguson, tail fitting, Berquist-Sherman (both adjustments), diagnostics with Mack's calendar-year test, Mack standard errors. |
+| `packages/*` | The four @actuarial-ts SDK packages (core, data, compliance, agents) - see the repo-root README for the full inventory. The workbench consumes all four. |
 | `apps/server` | Express 5 API, SQLite persistence, CSV/Excel import with row-level validation, deterministic synthetic loss-run generator, Mastra advisor agent with SSE chat. |
 | `apps/web` | Vite + React 19 + Tailwind v4 workspace UI. |
 
@@ -169,9 +169,7 @@ since user selections describe the unadjusted data.
 **What was deliberately not built.** Authentication (single-analyst local tool),
 Docker (the brief allows containers but the machine this ships on has none;
 `npm run dev` is the one command), Excel export, and quarterly-cadence UI
-polish beyond the working toggle. Mack standard errors made the cut from the
-stretch list because reserve variability is validated against published values;
-bootstrap ODP did not.
+polish beyond the working toggle. Mack standard errors made the original cut because reserve variability is validated against published values; the ODP bootstrap now ships in @actuarial-ts/core (seeded, England-2002-pinned) but is not yet surfaced in the workbench UI.
 
 ## Loss-run format
 
@@ -185,3 +183,16 @@ Dates are ISO (yyyy-mm-dd); `status` is `open` or `closed`. Exposures:
 `origin, earned_premium`. Imports validate every row (with row numbers in
 errors) and replace the project's prior data - a loss run is a point-in-time
 extract, so re-imports stay idempotent.
+
+## Workflow-run persistence proof
+
+Paused advisor derivations survive server restarts (Mastra snapshots persist
+to `workflow-runs.db`). The two-process proof is scripted:
+
+```bash
+SCRATCH=$(mktemp -d)
+ACTNG_DATA_DIR=$SCRATCH npx tsx apps/server/scripts/verify-restart-resume-phase-a.ts   # prints runId + projectId
+ACTNG_DATA_DIR=$SCRATCH npx tsx apps/server/scripts/verify-restart-resume-phase-b.ts <runId> <projectId>
+```
+
+Phase B runs in a fresh process and must print "CROSS-RESTART RESUME: PROVEN".

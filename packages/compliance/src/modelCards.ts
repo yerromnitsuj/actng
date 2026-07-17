@@ -27,7 +27,18 @@ export type MethodId =
   | "tailFitting"
   | "cappingIlf"
   | "trend"
-  | "onLevel";
+  | "onLevel"
+  | "munichChainLadder"
+  | "odpBootstrap"
+  | "merzWuthrich"
+  | "clarkLdf"
+  | "clarkCapeCod"
+  | "ulae"
+  | "discountUnpaid"
+  | "caseOutstanding"
+  | "fisherLange"
+  | "salvageSubro"
+  | "netOfRecoveries";
 
 export interface ModelCard {
   method: MethodId;
@@ -322,6 +333,197 @@ export const MODEL_CARDS: Record<MethodId, ModelCard> = {
     ],
     sensitivities: ["Rate-change dates and magnitudes.", "The premium trend (must be NET of rate action or it double-counts)."],
     literature: ["Werner & Modlin, Basic Ratemaking, ch. 5"],
+  },
+  munichChainLadder: {
+    method: "munichChainLadder",
+    title: "Munich chain ladder",
+    intendedUse:
+      "Joint paid/incurred projection that closes the persistent gap between separate paid and incurred chain ladders by conditioning each side's factors on the current (P/I) position.",
+    specification:
+      "Quarg-Mack (2004): volume-weighted paid and incurred factors with Mack sigmas; incurred-weighted average (P/I) ratios q_s with Mack-style ratio variances rho; correlation parameters lambda^P and lambda^I estimated as through-origin regression slopes of factor residuals on the preceding (I/P) resp. (P/I) ratio residuals; then a SIMULTANEOUS cell-by-cell recursion where each projected paid factor is adjusted by lambda^P (sigma/rho) times the current I/P deviation from average, and symmetrically for incurred. Implemented in the multiplied-out form so zero-paid rows stay projectable; the last inestimable sigma column follows Mack extrapolation or a caller-supplied value.",
+    keyAssumptions: [
+      "The Mack assumptions on both triangles, with joint (not per-triangle) independence across accident years.",
+      "Factor residuals depend linearly on the preceding ratio residuals with constants lambda^P, lambda^I across all ages and origins.",
+    ],
+    weaknesses: [
+      "Small portfolios make the residual regressions noisy; the paper's own example has a year where separate chain ladders were already nearly converged and MCL crosses slightly past parity.",
+      "Zero ratio variance collapses the correction to the separate chain ladder (warned).",
+    ],
+    sensitivities: [
+      "The estimated lambdas.",
+      "The ratio-variance estimates rho in sparse late columns.",
+    ],
+    literature: ["Quarg & Mack (2004), Variance 2:2 — the fire-portfolio example is pinned in tests"],
+  },
+  odpBootstrap: {
+    method: "odpBootstrap",
+    title: "ODP bootstrap of the chain ladder",
+    intendedUse:
+      "A full predictive distribution of unpaid claims (percentiles, ranges, skewness) around the chain ladder central estimate — the standard simulation basis for ranges and risk margins.",
+    specification:
+      "England-Verrall/Shapland: the cross-classified over-dispersed Poisson GLM whose fitted values reproduce the volume-weighted chain ladder exactly (verified to 1e-6 in the result's fit block); unscaled Pearson residuals on incrementals; phi = sum r^2/(n - p) with p = 2I - 1; residuals inflated by sqrt(n/(n-p)) and resampled with replacement onto the fitted past; each pseudo triangle is refit and projected; process variance added per future cell from a Gamma with mean m and variance phi m. Seeded mulberry32 RNG: identical seed and inputs reproduce the distribution bit for bit.",
+    keyAssumptions: [
+      "Incremental claims are independent ODP with variance proportional to mean (no negative column sums).",
+      "Residuals are exchangeable across the triangle (resampling pools them).",
+    ],
+    weaknesses: [
+      "A small upward mean bias is inherent to refitting ratio estimators on resampled data (the result carries the chain ladder reserves alongside for the bias check England-Verrall themselves prescribe).",
+      "Non-positive fitted incrementals fall outside the residual definition and are excluded (warned).",
+    ],
+    sensitivities: [
+      "The residual pool in small triangles.",
+      "The degrees-of-freedom correction convention (p = 2I - 1 documented against Shapland's printed alternative).",
+    ],
+    literature: [
+      "England & Verrall (1999, 2002) — England (2002) Tables 1-3 pinned in tests",
+      "Shapland, CAS Monograph No. 4 (2016)",
+    ],
+  },
+  merzWuthrich: {
+    method: "merzWuthrich",
+    title: "Merz-Wuthrich one-year claims development result MSEP",
+    intendedUse:
+      "The one-year (solvency) view of reserve risk: the prediction uncertainty of next year's claims development result, alongside Mack's full-runoff view. Feeds Solvency-style capital and RMAD discussions.",
+    specification:
+      "Merz-Wuthrich (2008) closed forms: per accident year, msep of the observable CDR around zero per eq. 3.17 (the process term keeps only the next diagonal; later runoff estimation terms scale down by C/S ratios), aggregated with the eq. 3.18 cross terms. Estimators are exactly Mack's (shared code with runMack, including the last-column sigma^2 extrapolation), computed from the current triangle alone. The result reports the one-year and Mack ultimate-view roots side by side with their ratio.",
+    keyAssumptions: [
+      "Mack's three chain-ladder assumptions.",
+      "A regular time-I snapshot (square triangle, full diagonal); irregular inputs are rejected rather than approximated.",
+    ],
+    weaknesses: [
+      "Linear-approximation closed forms (the paper's own presentation); no tail beyond the triangle.",
+      "One-year risk near the full-runoff figure signals a short-tailed book, not an error — interpret the ratio, not just the level.",
+    ],
+    sensitivities: ["sigma^2 in late columns.", "The current diagonal's leverage on next year's factors."],
+    literature: ["Merz & Wuthrich (2008), CAS E-Forum Fall 2008 — Table 4 pinned in tests"],
+  },
+  clarkLdf: {
+    method: "clarkLdf",
+    title: "Clark growth-curve LDF method",
+    intendedUse:
+      "Parametric development: a two-parameter growth curve (loglogistic or Weibull) fitted by maximum likelihood, with per-origin ultimates as free parameters and delta-method process/parameter standard deviations. Useful when factor-by-factor selection over-fits sparse data, and for extrapolation with an explicit truncation age.",
+    specification:
+      "Clark (2003): expected incremental emergence mu = ULT_i x (G(y) - G(x)) with G the loglogistic x^w/(x^w + theta^w) or Weibull 1 - exp(-(x/theta)^w), ages measured to the origin period's AVERAGE accident date (x = max(t-6, t/2) for annual periods); over-dispersed Poisson quasi-likelihood maximized over (omega, theta) with the per-origin ultimates profiled out in closed form; sigma^2 = (1/(n-p)) sum (c - mu)^2/mu; process variance sigma^2 x reserve, parameter variance via the delta method on the numerically-inverted observed information; optional truncation of the curve at a caller age.",
+    keyAssumptions: [
+      "Emergence follows the chosen two-parameter family through all ages.",
+      "ODP variance structure (variance proportional to mean) on incrementals.",
+    ],
+    weaknesses: [
+      "n + 2 parameters over-parameterize small triangles (Clark's own caution; the Cape Cod variant exists for exactly that).",
+      "Untruncated loglogistic tails are heavy; Clark recommends truncation, and untruncated runs warn.",
+    ],
+    sensitivities: ["The truncation age.", "Curve family (Weibull tails are materially lighter)."],
+    literature: ["Clark (2003), CAS Forum Fall 2003 — the worked example is pinned to ~1e-5 in tests"],
+  },
+  clarkCapeCod: {
+    method: "clarkCapeCod",
+    title: "Clark growth-curve Cape Cod method",
+    intendedUse:
+      "Clark's preferred variant: the growth curve with a SINGLE expected loss ratio against an exposure base instead of per-origin ultimates — three parameters total, materially tighter parameter variance on immature years.",
+    specification:
+      "As the LDF method, but expected emergence mu = Premium_i x ELR x (G(y) - G(x)) with the ELR profiled out in closed form (the MLE ELR reproduces the Cape Cod ultimate identity). Same sigma^2, truncation, and delta-method variance machinery over the 3x3 information matrix.",
+    keyAssumptions: [
+      "The LDF-method assumptions, plus: a common expected loss ratio across origins after the exposure base's own adjustments.",
+    ],
+    weaknesses: [
+      "A biased exposure base (unadjusted premium through a rate cycle) biases every origin's reserve.",
+    ],
+    sensitivities: ["The exposure base's on-level quality.", "Truncation age and curve family."],
+    literature: ["Clark (2003), CAS Forum Fall 2003 — Cape Cod pins including the 59.78% ELR in tests"],
+  },
+  ulae: {
+    method: "ulae",
+    title: "ULAE: Conger-Nolibos generalized paid-to-paid",
+    intendedUse:
+      "Unallocated loss adjustment expense reserves from calendar-period ULAE ratios against a claims-activity basis, with the classical paid-to-paid and Kittel methods as special cases.",
+    specification:
+      "Conger-Nolibos (2003): W = M / B with basis B = U1 R + U2 P + U3 C (weights on the ultimate cost of claims reported, paid losses, and the ultimate cost of claims closed in the period); reserve forms: expected (W* L - M), the recommended Bornhuetter-Ferguson form W* x [U1(L - R) + U2(L - P) + U3(L - C)], and development (M x (L/B - 1)). Presets: Kittel {0.5, 0, 0.5}; classical paid-to-paid additionally collapses the basis to paid under its steady-state identity.",
+    keyAssumptions: [
+      "ULAE spend attaches to claim activity in the chosen weights, stable across periods.",
+      "The weight triple reflects the claim department's actual effort profile (opening/maintaining/closing).",
+    ],
+    weaknesses: [
+      "Classical paid-to-paid misleads on growing or shrinking books (its steady-state assumption fails exactly then).",
+      "The development form is over-responsive to random ULAE emergence (paper's own caution).",
+    ],
+    sensitivities: ["The selected W*.", "The weight triple.", "Ultimate-loss inputs L, R, C."],
+    literature: ["Conger & Nolibos (2003), CAS Forum — the worked example is pinned in tests", "Kittel (1981)"],
+  },
+  discountUnpaid: {
+    method: "discountUnpaid",
+    title: "Discounting of unpaid claim estimates",
+    intendedUse:
+      "Present-value view of unpaid claims from a payout pattern, built to the June 2026 edition of ASOP No. 20: nominal and discounted side by side, disclosed rate provenance, explicit-only risk margins.",
+    specification:
+      "Expected payments per development interval derive from chain ladder percent-developed differences (tail cash compressed into one final interval, warned); discount factors (1 + rate)^-t, annual effective, under a flat rate or spot curve with the payment's year selecting the rate; mid-period or end-period timing conventions; rate provenance ({source, asOfDate}) is REQUIRED input; a risk margin passes through as its own field and is never blended into any total. Off-diagonal (stale) origins are detected and warned: their timing assumes their latest cell sits at the valuation date.",
+    keyAssumptions: [
+      "The payout pattern (development-interval timing) is unbiased for cash flow timing and amount.",
+      "All origins sit on one valuation diagonal (warned when not).",
+    ],
+    weaknesses: [
+      "Pattern-based timing is coarse next to a genuine cash flow model; long tails compressed into one interval understate duration (warned).",
+    ],
+    sensitivities: ["The discount rates and their as-of date.", "The timing convention.", "Tail treatment."],
+    literature: ["ASOP No. 20 (revised edition effective June 1, 2026)"],
+  },
+  caseOutstanding: {
+    method: "caseOutstanding",
+    title: "Case-outstanding development technique",
+    intendedUse:
+      "Ultimates for books where case reserves are the reliable signal (e.g. reinsurance with lagged paid data): future paid emerges from the run-off of carried case.",
+    specification:
+      "Friedland ch. 12: caller-selected case run-off ratios roll the current case outstanding forward age by age; caller-selected paid-on-prior-case ratios convert each period's opening case into expected paid; terminal case pays out at a tail ratio (default 1, warned when defaulted with material case). Reserve = sum of projected future paid. Negative seeds or projections warn and carry their sign — never silently zeroed.",
+    keyAssumptions: [
+      "Case adequacy is stable across origins at the same age (the ratios are transferable).",
+      "The selected run-off and paid-on-case patterns describe the future.",
+    ],
+    weaknesses: [
+      "Wholly dependent on case-reserving practice stability; a strengthening or weakening breaks both ratio families at once.",
+    ],
+    sensitivities: ["The tail paid-on-case ratio.", "Early-age case run-off selections."],
+    literature: ["Friedland, ch. 12"],
+  },
+  fisherLange: {
+    method: "fisherLange",
+    title: "Fisher-Lange disposal-rate method",
+    intendedUse:
+      "A claim-count-driven reserve: future closed counts from disposal rates against ultimate counts, priced at trended severities by settlement age. A structural cross-check on dollar development when settlement patterns shift.",
+    specification:
+      "Disposal rates = incremental closed counts / ultimate counts per age (selected from observed diagonals or averages); future closed counts = ultimate counts x selected rates for future ages; severities per settlement age from incremental paid over incremental closed, trended along calendar distance at the caller's severity trend ((1+t)^(months/12)); reserve = sum over future cells of counts x trended severity. Non-consecutive numeric origin labels are detected and warned (they would silently compress trend distances).",
+    keyAssumptions: [
+      "Disposal patterns against ultimate counts are stable.",
+      "Severity varies by settlement age and calendar trend only (no mix shifts within an age).",
+    ],
+    weaknesses: [
+      "Needs credible ultimate count estimates as INPUT; count-development errors propagate.",
+      "Sparse closure cells make age severities volatile (warned).",
+    ],
+    sensitivities: ["The severity trend.", "Ultimate counts.", "Disposal-rate selections."],
+    literature: ["Fisher & Lange (1973), PCAS LX", "Friedland, ch. 11"],
+  },
+  salvageSubro: {
+    method: "salvageSubro",
+    title: "Salvage and subrogation development",
+    intendedUse:
+      "Recovery ultimates developed on their own triangle, for netting against gross results — recoveries develop on their own (usually slower, lumpier) pattern and deserve their own analysis.",
+    specification:
+      "Chain ladder on the cumulative recovery triangle with caller selections and tail; every run warns that recovery development is typically slower and less smooth than loss development; negative cumulative recovery cells are warned. Results carry ultimate recoveries and future recoveries per origin.",
+    keyAssumptions: ["Recovery development patterns are stable across origins."],
+    weaknesses: ["Recovery triangles are thin and lumpy; single large recoveries distort factors."],
+    sensitivities: ["Late-age recovery factors and the tail."],
+    literature: ["Friedland, ch. 14"],
+  },
+  netOfRecoveries: {
+    method: "netOfRecoveries",
+    title: "Net-of-recoveries combination",
+    intendedUse:
+      "Combines a gross projection and a recovery projection into net ultimates and net unpaid, origin by origin.",
+    specification:
+      "Net ultimate = gross ultimate - ultimate recoveries; net unpaid = gross unpaid - future recoveries; origins aligned by label, one-sided origins excluded with a warning (never zero-filled), mismatched valuation ages warned, negative nets flagged for review.",
+    keyAssumptions: ["The gross and recovery projections describe the same book at the same valuation date."],
+    weaknesses: ["A netting is only as good as its two inputs; it adds no information of its own."],
+    sensitivities: ["Both input projections."],
+    literature: ["Friedland, ch. 14"],
   },
 };
 
