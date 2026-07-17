@@ -64,8 +64,27 @@ export interface ExposureRecord {
 }
 
 /** How a link-ratio average is computed for a development column. */
+/**
+ * Keys of the standard averages menu (DEFAULT_AVERAGES). Custom AverageSpec
+ * keys remain legal; these are the ones every exhibit and consumer can rely
+ * on being present.
+ */
+export const AVERAGE_KEYS = [
+  "all-wtd",
+  "all-str",
+  "5-wtd",
+  "5-str",
+  "3-wtd",
+  "3-str",
+  "med-5x1",
+  "geo-all",
+] as const;
+
+export type AverageKey = (typeof AVERAGE_KEYS)[number];
+
 export interface AverageSpec {
-  key: string;
+  /** One of AVERAGE_KEYS for the standard menu; custom keys are permitted. */
+  key: AverageKey | (string & {});
   label: string;
   kind: "straight" | "weighted" | "medial" | "geometric";
   /** Number of most recent origin periods to include; omit for all-year. */
@@ -241,10 +260,47 @@ export interface DiagnosticFinding {
   message: string;
 }
 
+/**
+ * Every machine-readable code a ReservingError can carry. This registry is
+ * public contract: consumers may switch exhaustively on ReservingErrorCode,
+ * and test/registry.test.ts enforces that the list matches every constructor
+ * site in source. Add the code here when introducing a new throw.
+ */
+export const RESERVING_ERROR_CODES = [
+  "BAD_ADJ",
+  "BAD_CAP",
+  "BAD_CDF",
+  "BAD_DATE",
+  "BAD_ELR",
+  "BAD_FIT",
+  "BAD_LIMIT",
+  "BAD_LOSSES",
+  "BAD_ORIGIN",
+  "BAD_PREMIUM",
+  "BAD_RATE_CHANGE",
+  "BAD_TABLE",
+  "BAD_TAIL",
+  "BAD_TREND",
+  "INFINITE_MEAN",
+  "NO_APRIORI",
+  "NO_BF_ROWS",
+  "NO_CLAIMS",
+  "NO_DATA",
+  "NO_DEVELOPMENT",
+  "NO_FACTOR",
+  "NO_SELECTIONS",
+  "SELECTION_SHAPE",
+  "SHAPE",
+  "TABLE_RANGE",
+  "TOO_SMALL",
+] as const;
+
+export type ReservingErrorCode = (typeof RESERVING_ERROR_CODES)[number];
+
 /** Thrown for invalid analysis input (all-missing selections, shape mismatches). */
 export class ReservingError extends Error {
-  readonly code: string;
-  constructor(code: string, message: string) {
+  readonly code: ReservingErrorCode;
+  constructor(code: ReservingErrorCode, message: string) {
     super(message);
     this.name = "ReservingError";
     this.code = code;
