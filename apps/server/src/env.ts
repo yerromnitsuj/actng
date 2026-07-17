@@ -20,6 +20,7 @@ export const env = {
   dataDir,
   dbPath: path.join(dataDir, "actng.db"),
   memoryDbPath: path.join(dataDir, "advisor-memory.db"),
+  workflowDbPath: path.join(dataDir, "workflow-runs.db"),
   demoDir: path.join(dataDir, "demo"),
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   advisorModel: process.env.ADVISOR_MODEL ?? "claude-opus-4-8",

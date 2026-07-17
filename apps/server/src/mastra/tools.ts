@@ -898,8 +898,12 @@ export const analyzeTrends = createTool({
       if (!review) {
         return {
           success: false,
-          error: "No analysis run yet; the trend exhibit derives from the latest run's selected ultimates",
-        };
+          error: {
+            code: "NOT_FOUND",
+            message:
+              "No analysis run yet; the trend exhibit derives from the latest run's selected ultimates",
+          },
+        } satisfies ToolFailure;
       }
       return {
         success: true,
@@ -1050,8 +1054,11 @@ export const analyzeElr = createTool({
         const isPP = view.state.elr.method === "pure-premium";
         return {
           success: false,
-          error: `The a-priori exhibit needs an analysis run and ${isPP ? "exposure units (import exposure_units)" : "premium data (import exposures)"} first`,
-        };
+          error: {
+            code: "NOT_FOUND",
+            message: `The a-priori exhibit needs an analysis run and ${isPP ? "exposure units (import exposure_units)" : "premium data (import exposures)"} first`,
+          },
+        } satisfies ToolFailure;
       }
       const isPP = review.method === "pure-premium";
       // Loss ratios are reported in percent; pure premiums as whole dollars.
@@ -1245,7 +1252,10 @@ function describeRunState(runId: string, result: WorkflowRunResult) {
     success: false as const,
     status: result.status,
     runId,
-    error: String((result as { error?: unknown }).error ?? "workflow did not suspend or complete"),
+    error: {
+      code: "WORKFLOW_ERROR",
+      message: String((result as { error?: unknown }).error ?? "workflow did not suspend or complete"),
+    },
   };
 }
 

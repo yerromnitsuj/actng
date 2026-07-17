@@ -1240,6 +1240,18 @@ describe("phase-4 review fixes: level coherence, zod weights, on-level frequency
   });
 });
 
+describe("mastra instance storage", () => {
+  it("uses durable LibSQL storage so paused workflow runs survive restarts", async () => {
+    // Without an explicit storage adapter Mastra falls back to an in-memory
+    // store and a suspended ELR derivation dies with the process, breaking the
+    // advisor's resume-by-runId promise (proven by cross-process resume: the
+    // rehydrated run throws "This workflow run was not suspended").
+    const { LibSQLStore } = await import("@mastra/libsql");
+    const { mastra } = await import("../src/mastra/index.js");
+    expect(mastra.getStorage()).toBeInstanceOf(LibSQLStore);
+  });
+});
+
 describe("derive-expected-losses workflow (phase 5)", () => {
   let projectId: string;
 
