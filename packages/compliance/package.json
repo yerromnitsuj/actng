@@ -1,0 +1,52 @@
+{
+  "name": "@actuarial-ts/compliance",
+  "version": "0.1.0",
+  "description": "ASOP-compliance-support layer for the actuarial-ts SDK: estimate metadata, assumption ledger, ASOP 41 disclosure generation, ASOP 56 model cards, reproducibility bundles, and actual-vs-expected roll-forward. Responsibility for compliance remains with the credentialed actuary.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yerromnitsuj/actng.git",
+    "directory": "packages/data"
+  },
+  "keywords": [
+    "actuarial",
+    "asop",
+    "compliance",
+    "disclosure",
+    "reserving",
+    "documentation",
+    "audit"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actuarial-ts/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
