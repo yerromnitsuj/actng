@@ -16,6 +16,7 @@ export const AGENTS_ERROR_CODES = [
   "NO_TENANT_CONTEXT",
   /** A tool's input schema declares a tenant-id key (projectId/tenantId); tenant ids travel only via RequestContext. */
   "TENANT_IN_SCHEMA",
+  "BAD_INPUT_SCHEMA",
   /** A judgment chain was defined with an invalid gate list or gate spec. */
   "BAD_GATE",
   /** A judgment gate was resumed without a non-blank rationale. */

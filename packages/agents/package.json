@@ -10,7 +10,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -25,7 +26,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yerromnitsuj/actng.git",
-    "directory": "packages/data"
+    "directory": "packages/agents"
   },
   "keywords": [
     "actuarial",
@@ -40,10 +41,10 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.1.0",
     "@actuarial-ts/compliance": "^0.1.0"
   },
   "devDependencies": {
@@ -53,7 +54,10 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@mastra/core": ">=1.49.0",
+    "@mastra/core": ">=1.49.0 <2",
     "zod": "^3.25.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

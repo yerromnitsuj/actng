@@ -106,6 +106,12 @@ export async function runToolSelectionEvals(
     const called = new Set<string>();
     let error: string | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // On timeout the underlying stream is CANCELLED, not abandoned: the
+    // iterator's return() is invoked so a well-behaved provider stops
+    // generating (and billing), and no chunks bleed into the next case.
+    // Hosts whose models accept an abort signal should prefer abortable
+    // models; the iterator return() is the portable floor.
+    let activeIterator: AsyncIterator<unknown> | undefined;
     try {
       await Promise.race([
         (async () => {
@@ -114,8 +120,12 @@ export async function runToolSelectionEvals(
             maxSteps,
             ...(options.memoryFor ? { memory: options.memoryFor(evalCase) } : {}),
           });
-          for await (const chunk of stream.fullStream) {
-            const name = toolCallName(chunk);
+          const iterator = stream.fullStream[Symbol.asyncIterator]();
+          activeIterator = iterator;
+          for (;;) {
+            const next = await iterator.next();
+            if (next.done) break;
+            const name = toolCallName(next.value);
             if (name) called.add(name);
           }
         })(),
@@ -128,6 +138,8 @@ export async function runToolSelectionEvals(
       ]);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
+      // Best-effort cancellation of a stream that outlived its race.
+      void activeIterator?.return?.().catch(() => undefined);
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }

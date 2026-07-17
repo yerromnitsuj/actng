@@ -211,3 +211,59 @@ describe("toolRegistry", () => {
     expectAgentsError(() => toolRegistry([read, read]), "DUPLICATE_TOOL_ID");
   });
 });
+
+describe("tenant-key lint: fail-closed and recursive (adversarial-review hardening)", () => {
+  const define = (inputSchema: z.ZodObject<z.ZodRawShape>) =>
+    defineActuarialTool({
+      id: "probe",
+      description: "probe",
+      kind: "read",
+      inputSchema,
+      execute: async () => ({ success: true as const }),
+    });
+
+  it("rejects a schema whose shape cannot be inspected (fail closed)", () => {
+    expect(() =>
+      defineActuarialTool({
+        id: "probe",
+        description: "probe",
+        kind: "read",
+        // Not an object schema at all; cast past the types like a JS caller could.
+        inputSchema: z.string() as unknown as z.ZodObject<z.ZodRawShape>,
+        execute: async () => ({ success: true as const }),
+      }),
+    ).toThrowError(/BAD_INPUT_SCHEMA|shape is unreadable/);
+  });
+
+  it("finds tenant keys nested inside objects, arrays, and wrappers", () => {
+    expect(() => define(z.object({ filter: z.object({ projectId: z.string() }) }))).toThrowError(
+      /filter\.projectId/,
+    );
+    expect(() =>
+      define(z.object({ items: z.array(z.object({ tenant_id: z.string() })) })),
+    ).toThrowError(/items\[\]\.tenant_id/);
+    expect(() =>
+      define(z.object({ maybe: z.object({ TenantId: z.string() }).nullable().optional() })),
+    ).toThrowError(/maybe\.TenantId/);
+  });
+
+  it("rejects passthrough, catchall, and record escape hatches", () => {
+    expect(() => define(z.object({ q: z.string() }).passthrough())).toThrowError(/passthrough/);
+    expect(() => define(z.object({ q: z.string() }).catchall(z.string()))).toThrowError(
+      /catchall/,
+    );
+    expect(() => define(z.object({ bag: z.record(z.string()) }))).toThrowError(/arbitrary string keys/);
+  });
+
+  it("still accepts the plain schemas real tools use", () => {
+    expect(() =>
+      define(
+        z.object({
+          basis: z.enum(["paid", "incurred"]).nullable(),
+          selected: z.array(z.number().nullable()),
+          label: z.string().optional(),
+        }),
+      ),
+    ).not.toThrow();
+  });
+});

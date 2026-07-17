@@ -102,6 +102,85 @@ export function zodObjectShape(schema: unknown): Record<string, unknown> | null 
   return shape as Record<string, unknown>;
 }
 
+type ZodDefLike = {
+  typeName?: unknown;
+  unknownKeys?: unknown;
+  catchall?: { _def?: { typeName?: unknown } };
+  type?: unknown;
+  innerType?: unknown;
+  schema?: unknown;
+  options?: unknown[];
+};
+
+/**
+ * The recursive tenant-key lint behind defineActuarialTool. Walks every
+ * container the model could reach — nested objects, arrays, optional /
+ * nullable / default / effects wrappers, unions — and rejects:
+ * - any object key matching TENANT_KEY_PATTERN at any depth;
+ * - .passthrough() objects and non-never .catchall(...) (they let the model
+ *   smuggle arbitrary keys past the lint);
+ * - z.record(...) (dynamic string keys — same smuggling surface).
+ * Leaves (strings, numbers, enums, literals) end recursion. Anything with
+ * an unrecognized CONTAINER shape simply is not traversed further; the
+ * fail-closed top-level check in defineActuarialTool guarantees the root is
+ * an inspectable plain object.
+ */
+function assertNoTenantKeys(schema: unknown, toolId: string, path: string): void {
+  if (typeof schema !== "object" || schema === null) return;
+  const def = (schema as { _def?: ZodDefLike })._def;
+  if (!def) return;
+  const typeName = def.typeName;
+
+  if (typeName === "ZodObject") {
+    if (def.unknownKeys === "passthrough") {
+      throw new AgentsError(
+        "TENANT_IN_SCHEMA",
+        `Tool "${toolId}": the object at "${path}" uses .passthrough(), which lets the model smuggle arbitrary keys (including tenant ids) past the seam; declare every key explicitly`,
+      );
+    }
+    const catchallType = def.catchall?._def?.typeName;
+    if (catchallType !== undefined && catchallType !== "ZodNever") {
+      throw new AgentsError(
+        "TENANT_IN_SCHEMA",
+        `Tool "${toolId}": the object at "${path}" uses .catchall(...), which admits undeclared keys; declare every key explicitly`,
+      );
+    }
+    const shape = zodObjectShape(schema) ?? {};
+    for (const [key, value] of Object.entries(shape)) {
+      if (TENANT_KEY_PATTERN.test(key)) {
+        throw new AgentsError(
+          "TENANT_IN_SCHEMA",
+          `Tool "${toolId}" declares input key "${path}.${key}": tenant ids travel only via the server-set RequestContext (read them with tenantOf), never through the model-facing input schema`,
+        );
+      }
+      assertNoTenantKeys(value, toolId, `${path}.${key}`);
+    }
+    return;
+  }
+  if (typeName === "ZodRecord") {
+    throw new AgentsError(
+      "TENANT_IN_SCHEMA",
+      `Tool "${toolId}": the record at "${path}" admits arbitrary string keys (including tenant ids); use an explicit z.object shape`,
+    );
+  }
+  if (typeName === "ZodArray") {
+    assertNoTenantKeys(def.type, toolId, `${path}[]`);
+    return;
+  }
+  if (typeName === "ZodOptional" || typeName === "ZodNullable" || typeName === "ZodDefault") {
+    assertNoTenantKeys(def.innerType, toolId, path);
+    return;
+  }
+  if (typeName === "ZodEffects") {
+    assertNoTenantKeys(def.schema, toolId, path);
+    return;
+  }
+  if (typeName === "ZodUnion" || typeName === "ZodDiscriminatedUnion") {
+    for (const opt of def.options ?? []) assertNoTenantKeys(opt, toolId, path);
+    return;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tool factory
 
@@ -143,17 +222,16 @@ export interface DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResul
 export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
   options: DefineActuarialToolOptions<TShape, TResult>,
 ) {
+  // FAIL CLOSED: a schema the seam cannot inspect is not definable, and the
+  // tenant-key lint recurses through every container the model could reach.
   const shape = zodObjectShape(options.inputSchema);
-  if (shape) {
-    for (const key of Object.keys(shape)) {
-      if (TENANT_KEY_PATTERN.test(key)) {
-        throw new AgentsError(
-          "TENANT_IN_SCHEMA",
-          `Tool "${options.id}" declares input key "${key}": tenant ids travel only via the server-set RequestContext (read them with tenantOf), never through the model-facing input schema`,
-        );
-      }
-    }
+  if (!shape) {
+    throw new AgentsError(
+      "BAD_INPUT_SCHEMA",
+      `Tool "${options.id}": inputSchema must be a plain z.object(...) the tenant seam can inspect; got a schema whose shape is unreadable`,
+    );
   }
+  assertNoTenantKeys(options.inputSchema, options.id, "input");
   const tool = createTool({
     id: options.id,
     description: options.description,

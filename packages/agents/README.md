@@ -12,7 +12,7 @@ These utilities are designed to support the actuary's compliance with the ASOPs;
 npm install @actuarial-ts/agents @mastra/core zod
 ```
 
-`@mastra/core` (>= 1.49) and `zod` are peer dependencies: the HOST application owns the Mastra version. `@actuarial-ts/core` and `@actuarial-ts/compliance` are regular dependencies.
+`@mastra/core` (>= 1.49, < 2) and `zod` are peer dependencies: the HOST application owns the Mastra version. `@actuarial-ts/compliance` is a regular dependency (and brings `@actuarial-ts/core` with it).
 
 ## Security model
 

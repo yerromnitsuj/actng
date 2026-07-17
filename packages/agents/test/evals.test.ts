@@ -139,3 +139,33 @@ describe("runToolSelectionEvals", () => {
     });
   });
 });
+
+describe("timeout cancellation (adversarial-review hardening)", () => {
+  it("invokes the stream iterator's return() when a case times out", async () => {
+    let returned = false;
+    const neverEndingStream = {
+      fullStream: {
+        [Symbol.asyncIterator]() {
+          return {
+            next: () => new Promise<IteratorResult<unknown>>(() => undefined),
+            return: async (): Promise<IteratorResult<unknown>> => {
+              returned = true;
+              return { done: true, value: undefined };
+            },
+          };
+        },
+      },
+    };
+    const agent = { stream: async () => neverEndingStream };
+    const report = await runToolSelectionEvals({
+      agent,
+      cases: [{ id: "stall", prompt: "p", expectTools: ["x"] }],
+      timeoutMs: 50,
+    });
+    expect(report.results[0]!.pass).toBe(false);
+    expect(report.results[0]!.error).toMatch(/timed out/);
+    // Give the fire-and-forget cancellation a tick to land.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(returned).toBe(true);
+  });
+});
