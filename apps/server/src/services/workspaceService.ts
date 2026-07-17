@@ -39,6 +39,11 @@ import {
   type TrendFit,
   type Triangle,
   type TriangleSet,
+  runBenktander,
+  runFrequencySeverity,
+  severityTriangle,
+  type BenktanderResult,
+  type FrequencySeverityResult,
 } from "@actuarial-ts/core";
 import {
   defaultWorkspaceState,
@@ -698,7 +703,9 @@ export function computeElrReview(
   for (const selRow of selectionView.rows) {
     for (const [key, w] of Object.entries(selRow.weights)) {
       totalWeight += w;
-      if (["bfPaid", "bfIncurred", "ccPaid", "ccIncurred", "expectedClaims"].includes(key)) {
+      if (
+        ["bfPaid", "bfIncurred", "gbPaid", "gbIncurred", "ccPaid", "ccIncurred", "expectedClaims"].includes(key)
+      ) {
         aprioriWeight += w;
       }
     }
@@ -764,11 +771,14 @@ export const SELECTION_METHODS: { key: SelectionMethodKey; label: string }[] = [
   { key: "clIncurred", label: "Chain Ladder - incurred" },
   { key: "bfPaid", label: "Bornhuetter-Ferguson - paid" },
   { key: "bfIncurred", label: "Bornhuetter-Ferguson - incurred" },
+  { key: "gbPaid", label: "Benktander - paid" },
+  { key: "gbIncurred", label: "Benktander - incurred" },
   { key: "bsCase", label: "Berquist-Sherman case adequacy - incurred" },
   { key: "bsSettlement", label: "Berquist-Sherman settlement rate - paid" },
   { key: "ccPaid", label: "Cape Cod - paid" },
   { key: "ccIncurred", label: "Cape Cod - incurred" },
   { key: "expectedClaims", label: "Expected Claims (a-priori)" },
+  { key: "freqSev", label: "Frequency-severity - incurred" },
 ];
 
 export interface UltimateSelectionRow {
@@ -870,6 +880,15 @@ export function computeUltimateSelection(
   }
   for (const row of results.bornhuetterFerguson.incurred?.rows ?? []) {
     ensure(row.origin).ultimates.bfIncurred = row.ultimate;
+  }
+  for (const row of results.benktander?.paid?.rows ?? []) {
+    ensure(row.origin).ultimates.gbPaid = row.ultimate;
+  }
+  for (const row of results.benktander?.incurred?.rows ?? []) {
+    ensure(row.origin).ultimates.gbIncurred = row.ultimate;
+  }
+  for (const row of results.frequencySeverity?.result?.rows ?? []) {
+    ensure(row.origin).ultimates.freqSev = row.ultimate;
   }
   for (const row of results.berquistSherman.caseAdequacy?.chainLadder.rows ?? []) {
     ensure(row.origin).ultimates.bsCase = row.ultimate;
@@ -1807,6 +1826,13 @@ export interface AnalysisResults {
     incurred: BornhuetterFergusonResult | null;
     skippedReason?: string;
   };
+  /** Benktander (BF iterated once); null wherever BF was skipped/null. */
+  benktander?: {
+    paid: BenktanderResult | null;
+    incurred: BenktanderResult | null;
+  };
+  /** Frequency-severity on incurred (VW count + severity development, no tails). */
+  frequencySeverity?: { result: FrequencySeverityResult | null; skippedReason?: string };
   berquistSherman: {
     caseAdequacy: {
       severityTrend: number;
@@ -1960,6 +1986,18 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     warnings.push(...bfPaid.warnings, ...bfIncurred.warnings);
   }
 
+  // Benktander (Mack 2000): BF iterated once. Derivable exactly when BF ran.
+  let gbPaid: BenktanderResult | null = null;
+  let gbIncurred: BenktanderResult | null = null;
+  if (bfPaid) {
+    gbPaid = runBenktander(paidCl, bfPaid);
+    warnings.push(...gbPaid.warnings);
+  }
+  if (bfIncurred) {
+    gbIncurred = runBenktander(incurredCl, bfIncurred);
+    warnings.push(...gbIncurred.warnings);
+  }
+
   // Berquist-Sherman. Adjusted triangles get fresh volume-weighted selections
   // (the user's selections describe the unadjusted data, not the restated one).
   // Ultimate claim counts: chain ladder on reported counts, no tail. Used by
@@ -1981,6 +2019,26 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   } catch (err) {
     ultimateCountsByOrigin = undefined;
     countError = err instanceof Error ? err.message : String(err);
+  }
+
+  // Frequency-severity (Friedland ch. 11) on the incurred basis. WORKBENCH
+  // CONVENTION (stated in the summary note and the method warning): both the
+  // count and the average-severity triangles develop on all-year volume-
+  // weighted factors with no tails - the exhibit is an indication, and the
+  // grid offers no count/severity selection surface. The SDK method itself
+  // takes explicit selections.
+  let freqSev: FrequencySeverityResult | null = null;
+  let freqSevSkipped: string | undefined;
+  try {
+    const sevTri = severityTriangle(triangles.incurred, triangles.reportedCount);
+    freqSev = runFrequencySeverity(triangles.incurred, triangles.reportedCount, {
+      countSelected: volumeWeightedSelections(triangles.reportedCount),
+      severitySelected: volumeWeightedSelections(sevTri),
+    });
+    warnings.push(...freqSev.warnings.map((w) => `frequency-severity: ${w}`));
+  } catch (err) {
+    freqSevSkipped = `Frequency-severity was skipped: ${err instanceof Error ? err.message : String(err)}`;
+    warnings.push(freqSevSkipped);
   }
 
   let bsCase: AnalysisResults["berquistSherman"]["caseAdequacy"] = null;
@@ -2139,6 +2197,16 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
   push("Chain Ladder", "incurred", incurredCl.totals);
   if (bfPaid) push("Bornhuetter-Ferguson", "paid", bfPaid.totals);
   if (bfIncurred) push("Bornhuetter-Ferguson", "incurred", bfIncurred.totals);
+  if (gbPaid) push("Benktander", "paid", gbPaid.totals, "BF iterated once (Mack 2000)");
+  if (gbIncurred) push("Benktander", "incurred", gbIncurred.totals, "BF iterated once (Mack 2000)");
+  if (freqSev) {
+    push(
+      "Frequency-severity",
+      "incurred",
+      freqSev.totals,
+      "ultimate counts x ultimate severity, VW development, no tails",
+    );
+  }
   if (bsCase) {
     push(
       "Berquist-Sherman (case adequacy)",
@@ -2235,6 +2303,8 @@ export function runFullAnalysis(projectId: string, label?: string): AnalysisReco
     unlimitedDiagonals,
     chainLadder: { paid: paidCl, incurred: incurredCl },
     bornhuetterFerguson: { paid: bfPaid, incurred: bfIncurred, skippedReason: bfSkipped },
+    benktander: { paid: gbPaid, incurred: gbIncurred },
+    frequencySeverity: { result: freqSev, skippedReason: freqSevSkipped },
     berquistSherman: { caseAdequacy: bsCase, settlement: bsSettlement, skippedReason: bsSkipped },
     mack: { paid: mackPaid, incurred: mackIncurred, skippedReason: mackSkipped },
     diagnostics: view.diagnostics,

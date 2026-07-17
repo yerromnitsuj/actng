@@ -162,6 +162,33 @@ describe("workspace service end to end", () => {
     expect(repo.getAnalysis(record.id)?.id).toBe(record.id);
   });
 
+  it("carries Benktander and frequency-severity at default weight 0 without moving the blend", () => {
+    const view = ws.getWorkspaceView(projectId);
+    const sel = view.ultimateSelection!;
+    // 12 methods in the matrix, new ones present with zero default weight.
+    expect(sel.methods.map((m) => m.key)).toEqual(
+      expect.arrayContaining(["gbPaid", "gbIncurred", "freqSev"]),
+    );
+    expect(sel.methods.length).toBe(12);
+    for (const key of ["gbPaid", "gbIncurred", "freqSev"] as const) {
+      expect(sel.methods.find((m) => m.key === key)!.weight).toBe(0);
+    }
+    const firstRow = sel.rows[0]!;
+    // The new indications exist and Benktander sits between CL and BF.
+    expect(firstRow.ultimates.gbPaid).not.toBeNull();
+    expect(firstRow.ultimates.gbIncurred).not.toBeNull();
+    expect(firstRow.ultimates.freqSev).not.toBeNull();
+    const lo = Math.min(firstRow.ultimates.clPaid!, firstRow.ultimates.bfPaid!) - 1e-6;
+    const hi = Math.max(firstRow.ultimates.clPaid!, firstRow.ultimates.bfPaid!) + 1e-6;
+    expect(firstRow.ultimates.gbPaid!).toBeGreaterThanOrEqual(lo);
+    expect(firstRow.ultimates.gbPaid!).toBeLessThanOrEqual(hi);
+    // Zero weight = the blend is still exactly the CL-paid/CL-incurred mean.
+    expect(firstRow.weighted).toBeCloseTo(
+      (firstRow.ultimates.clPaid! + firstRow.ultimates.clIncurred!) / 2,
+      6,
+    );
+  });
+
   it("computes the selection-of-ultimates exhibit with renormalized weights and overrides", () => {
     // Default weights: CL paid 1, CL incurred 1 -> weighted = mean of the two.
     let view = ws.getWorkspaceView(projectId);

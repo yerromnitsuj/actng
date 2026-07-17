@@ -20,11 +20,14 @@ export type SelectionMethodKey =
   | "clIncurred"
   | "bfPaid"
   | "bfIncurred"
+  | "gbPaid"
+  | "gbIncurred"
   | "bsCase"
   | "bsSettlement"
   | "ccPaid"
   | "ccIncurred"
-  | "expectedClaims";
+  | "expectedClaims"
+  | "freqSev";
 
 export interface UltimateSelectionState {
   /**
@@ -46,11 +49,14 @@ export function defaultUltimateSelection(): UltimateSelectionState {
       clIncurred: 1,
       bfPaid: 0,
       bfIncurred: 0,
+      gbPaid: 0,
+      gbIncurred: 0,
       bsCase: 0,
       bsSettlement: 0,
       ccPaid: 0,
       ccIncurred: 0,
       expectedClaims: 0,
+      freqSev: 0,
     },
     weightsByOrigin: {},
     overrides: {},
@@ -503,7 +509,14 @@ export function getWorkspaceState(projectId: string): WorkspaceState | null {
   // New method keys join the weights records with zero weight - AFTER the
   // pre-matrix migration above, so legacy flat-weights states get them too.
   if (state.ultimateSelection?.defaultWeights) {
-    for (const key of ["ccPaid", "ccIncurred", "expectedClaims"] as const) {
+    for (const key of [
+      "ccPaid",
+      "ccIncurred",
+      "expectedClaims",
+      "gbPaid",
+      "gbIncurred",
+      "freqSev",
+    ] as const) {
       if (state.ultimateSelection.defaultWeights[key] === undefined) {
         state.ultimateSelection.defaultWeights[key] = 0;
       }

@@ -26,11 +26,14 @@ export type SelectionMethodKey =
   | "clIncurred"
   | "bfPaid"
   | "bfIncurred"
+  | "gbPaid"
+  | "gbIncurred"
   | "bsCase"
   | "bsSettlement"
   | "ccPaid"
   | "ccIncurred"
-  | "expectedClaims";
+  | "expectedClaims"
+  | "freqSev";
 
 export interface UltimateSelectionState {
   defaultWeights: Record<SelectionMethodKey, number>;

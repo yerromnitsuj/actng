@@ -455,7 +455,7 @@ export const setTailFactor = createTool({
 export const runAnalysisTool = createTool({
   id: "run_analysis",
   description:
-    "Run the full reserving analysis with the currently applied selections and tails: Chain Ladder (paid and incurred), Bornhuetter-Ferguson, Berquist-Sherman (both adjustments), Mack standard errors, and diagnostics. Persists the run and returns the summary.",
+    "Run the full reserving analysis with the currently applied selections and tails: Chain Ladder (paid and incurred), Bornhuetter-Ferguson, Benktander (BF iterated once), frequency-severity (counts x severity), Berquist-Sherman (both adjustments), Cape Cod, Expected Claims, Mack standard errors, and diagnostics. Persists the run and returns the summary.",
   inputSchema: z.object({
     label: z.string().nullable().describe("Optional label for this analysis run"),
   }),

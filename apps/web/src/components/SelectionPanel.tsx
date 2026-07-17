@@ -9,11 +9,14 @@ const METHOD_COLUMNS: { key: SelectionMethodKey; short: string; full: string }[]
   { key: "clIncurred", short: "CL Inc", full: "Chain Ladder - incurred" },
   { key: "bfPaid", short: "BF Paid", full: "Bornhuetter-Ferguson - paid" },
   { key: "bfIncurred", short: "BF Inc", full: "Bornhuetter-Ferguson - incurred" },
+  { key: "gbPaid", short: "GB Paid", full: "Benktander - paid" },
+  { key: "gbIncurred", short: "GB Inc", full: "Benktander - incurred" },
   { key: "bsCase", short: "B-S Case", full: "Berquist-Sherman case adequacy - incurred" },
   { key: "bsSettlement", short: "B-S Settle", full: "Berquist-Sherman settlement rate - paid" },
   { key: "ccPaid", short: "CC Paid", full: "Cape Cod - paid" },
   { key: "ccIncurred", short: "CC Inc", full: "Cape Cod - incurred" },
   { key: "expectedClaims", short: "Exp Clms", full: "Expected Claims (a-priori)" },
+  { key: "freqSev", short: "Freq-Sev", full: "Frequency-severity - incurred" },
 ];
 
 /**
@@ -163,7 +166,12 @@ export default function SelectionPanel() {
   const totalWeight = (key: SelectionMethodKey) =>
     selection.rows.reduce((a, r) => a + (r.weights[key] ?? 0), 0);
   const adjustedWeight =
-    totalWeight("bsCase") + totalWeight("bsSettlement") + totalWeight("bfPaid") + totalWeight("bfIncurred");
+    totalWeight("bsCase") +
+    totalWeight("bsSettlement") +
+    totalWeight("bfPaid") +
+    totalWeight("bfIncurred") +
+    totalWeight("gbPaid") +
+    totalWeight("gbIncurred");
   const distortedCarryWeight =
     (settlementFlagged && totalWeight("clPaid") > 0) ||
     (caseFlagged && totalWeight("clIncurred") > 0);
