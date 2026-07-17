@@ -26,7 +26,7 @@
 |---|---|---|
 | Spec + master plan | (this file) | in progress |
 | 0 — shipping mechanics | 2026-07-16-phase0-shipping-mechanics.md | DONE 2026-07-16 |
-| 1 — Friedland shelf + data pkg | write just-in-time | pending |
+| 1 — Friedland shelf + data pkg | 2026-07-16-phase1-friedland-shelf-data.md | DONE 2026-07-17 |
 | 2 — compliance pkg | write just-in-time | pending |
 | 3 — stochastic backbone | write just-in-time | pending |
 | 4 — agents pkg + dogfood | write just-in-time | pending |
@@ -46,4 +46,5 @@
 ## Progress Log
 
 - 2026-07-16: Spec approved (founder: ActNG2 home, @actuarial-ts scope, Apache-2.0 all-OSS, P&C only). Master plan created. Pre-work already landed: workflow-snapshot persistence fix + tool envelope normalization (commit 5d8223c).
+- 2026-07-17: **Phase 1 DONE.** Core: runBenktander (pinned to Mack 2000's published example + identities), Generalized Cape Cod decay (pinned to Gluck 1997 Tables 1-4: 1.9621 pooled PP, D=0.75 per-year vector, 38,208 ultimate total; D=0 collapses to development), runFrequencySeverity + severityTriangle (constant-severity identity), factorCorrelationTest (pinned to Mack 1994 Appendix G on the transcribed RAA fixture) and mackResiduals (VW identity pinned), calendarYearTest additionally pinned to Appendix H. @actuarial-ts/data shipped (CSV, loss-run, long-format, ASOP 23 review; 57 tests). Workbench: Benktander paid/incurred + freq-sev join the 12-method selection matrix at weight 0 (blend numerically unchanged, proven by untouched prior tests + live smoke). DEVIATION: importService CSV delegation deferred to Phase 4 dogfood (pinned surface). Root .gitignore data/ anchoring fix. 242 tests, 3 packages.
 - 2026-07-16: **Phase 0 DONE.** @actuarial-ts/core@0.1.0 (Apache-2.0, dist build via prepare, exports map, pack-clean), RESERVING_ERROR_CODES + AverageKey typed surface with self-enforcing registry test, dead code pruned, trend→util.ols consolidation, Mack warning parity, SSE disconnect aborts the advisor stream (proven live), core README, CLAUDE/AGENTS refresh, GitHub Actions CI. Cold-start proof: rm -rf node_modules+dist → npm install → 94 core + 65 server tests green, typecheck clean.
