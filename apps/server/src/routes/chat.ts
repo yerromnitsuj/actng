@@ -84,9 +84,14 @@ chatRouter.post("/:threadId/chat", async (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
+  // When the client disconnects, abort the underlying agent stream too —
+  // otherwise the model keeps generating (and billing) to completion with
+  // nobody listening.
   let clientGone = false;
+  const abort = new AbortController();
   res.on("close", () => {
     clientGone = true;
+    abort.abort();
   });
 
   const requestContext = new RequestContext();
@@ -101,6 +106,7 @@ chatRouter.post("/:threadId/chat", async (req, res) => {
       memory: { thread: thread.id, resource: `project-${project.id}` },
       requestContext,
       maxSteps: 16,
+      abortSignal: abort.signal,
     });
 
     for await (const chunk of stream.fullStream as AsyncIterable<Record<string, any>>) {
@@ -146,25 +152,41 @@ chatRouter.post("/:threadId/chat", async (req, res) => {
       }
     }
 
-    const content = textParts.join("");
-    const saved = insertChatMessage(thread.id, "assistant", content, toolEvents);
-    sseWrite(res, "done", {
-      messageId: saved.id,
-      workspaceChanged: toolEvents.some((e) => e.isAction),
-    });
+    if (clientGone) {
+      // The loop broke on disconnect; keep the transcript honest.
+      if (textParts.length > 0 || toolEvents.length > 0) {
+        insertChatMessage(
+          thread.id,
+          "assistant",
+          `${textParts.join("")}\n\n[The advisor was interrupted: the client disconnected]`,
+          toolEvents,
+        );
+      }
+    } else {
+      const content = textParts.join("");
+      const saved = insertChatMessage(thread.id, "assistant", content, toolEvents);
+      sseWrite(res, "done", {
+        messageId: saved.id,
+        workspaceChanged: toolEvents.some((e) => e.isAction),
+      });
+    }
   } catch (err) {
-    const messageText = err instanceof Error ? err.message : "Advisor turn failed";
-    console.error("[chat] advisor turn failed:", err);
+    const messageText = clientGone
+      ? "the client disconnected"
+      : err instanceof Error
+        ? err.message
+        : "Advisor turn failed";
+    if (!clientGone) console.error("[chat] advisor turn failed:", err);
     // Persist whatever partial content exists so the transcript stays honest.
     if (textParts.length > 0 || toolEvents.length > 0) {
       insertChatMessage(
         thread.id,
         "assistant",
-        `${textParts.join("")}\n\n[The advisor was interrupted by an error: ${messageText}]`,
+        `${textParts.join("")}\n\n[The advisor was interrupted${clientGone ? "" : " by an error"}: ${messageText}]`,
         toolEvents,
       );
     }
-    sseWrite(res, "error", { message: messageText });
+    if (!clientGone) sseWrite(res, "error", { message: messageText });
   } finally {
     if (!res.writableEnded) res.end();
   }
