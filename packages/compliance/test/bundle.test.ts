@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CreateBundleInput } from "../src/bundle.js";
 import { canonicalJson, ComplianceError, createBundle, fnv1a64, verifyBundle } from "../src/bundle.js";
+import { ReservingError } from "@actuarial-ts/core";
 
 function expectComplianceError(fn: () => unknown, code: string): ComplianceError {
   let thrown: unknown;
@@ -13,6 +14,21 @@ function expectComplianceError(fn: () => unknown, code: string): ComplianceError
   const complianceError = thrown as ComplianceError;
   expect(complianceError.code).toBe(code);
   return complianceError;
+}
+
+// canonicalJson relocated to @actuarial-ts/core in 0.2.0; invalid input now
+// throws core's ReservingError with the same UNSUPPORTED_VALUE code.
+function expectCanonicalError(fn: () => unknown, code: string): ReservingError {
+  let thrown: unknown;
+  try {
+    fn();
+  } catch (e) {
+    thrown = e;
+  }
+  expect(thrown).toBeInstanceOf(ReservingError);
+  const err = thrown as ReservingError;
+  expect(err.code).toBe(code);
+  return err;
 }
 
 describe("canonicalJson", () => {
@@ -49,13 +65,13 @@ describe("canonicalJson", () => {
     [() => 1, "function"],
     [10n, "bigint"],
   ])("throws UNSUPPORTED_VALUE for %s", (bad, fragment) => {
-    const err = expectComplianceError(() => canonicalJson({ x: bad }), "UNSUPPORTED_VALUE");
+    const err = expectCanonicalError(() => canonicalJson({ x: bad }), "UNSUPPORTED_VALUE");
     expect(err.message).toContain(fragment);
     expect(err.message).toContain("$.x");
   });
 
   it("reports the full offending path, including array indices", () => {
-    const err = expectComplianceError(
+    const err = expectCanonicalError(
       () => canonicalJson({ results: { rows: [{ x: 1 }, { x: Number.NaN }] } }),
       "UNSUPPORTED_VALUE",
     );
@@ -63,16 +79,16 @@ describe("canonicalJson", () => {
   });
 
   it("rejects non-plain objects rather than silently mis-serializing them", () => {
-    const err = expectComplianceError(() => canonicalJson({ at: new Date(0) }), "UNSUPPORTED_VALUE");
+    const err = expectCanonicalError(() => canonicalJson({ at: new Date(0) }), "UNSUPPORTED_VALUE");
     expect(err.message).toContain("Date");
     expect(err.message).toContain("$.at");
-    expectComplianceError(() => canonicalJson(new Map()), "UNSUPPORTED_VALUE");
+    expectCanonicalError(() => canonicalJson(new Map()), "UNSUPPORTED_VALUE");
   });
 
   it("rejects circular references instead of recursing forever", () => {
     const cyclic: { self?: unknown } = {};
     cyclic.self = cyclic;
-    const err = expectComplianceError(() => canonicalJson(cyclic), "UNSUPPORTED_VALUE");
+    const err = expectCanonicalError(() => canonicalJson(cyclic), "UNSUPPORTED_VALUE");
     expect(err.message).toContain("circular");
   });
 
@@ -130,7 +146,7 @@ describe("createBundle", () => {
   });
 
   it("propagates canonicalization failures with the offending path", () => {
-    const err = expectComplianceError(
+    const err = expectCanonicalError(
       () => createBundle(bundleInput({ results: { total: Number.NaN } })),
       "UNSUPPORTED_VALUE",
     );

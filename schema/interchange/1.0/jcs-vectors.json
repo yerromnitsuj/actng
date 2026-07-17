@@ -1,0 +1,167 @@
+{
+  "description": "Canonicalization vectors for the actuarial-interchange spec v1. Every adapter must reproduce `canonical` byte-for-byte from `value`. Reference: RFC 8785 (JCS) semantics as implemented by @actuarial-ts/core canonicalJson.",
+  "vectors": [
+    {
+      "name": "null",
+      "value": null,
+      "canonical": "null"
+    },
+    {
+      "name": "booleans",
+      "value": [
+        true,
+        false
+      ],
+      "canonical": "[true,false]"
+    },
+    {
+      "name": "integer",
+      "value": 42,
+      "canonical": "42"
+    },
+    {
+      "name": "negative-integer",
+      "value": -7,
+      "canonical": "-7"
+    },
+    {
+      "name": "zero-and-negative-zero",
+      "value": [
+        0,
+        0
+      ],
+      "canonical": "[0,0]"
+    },
+    {
+      "name": "max-safe-integer",
+      "value": 9007199254740991,
+      "canonical": "9007199254740991"
+    },
+    {
+      "name": "large-integer-no-exponent",
+      "value": 100000000000000000000,
+      "canonical": "100000000000000000000"
+    },
+    {
+      "name": "exponent-boundary-1e21",
+      "value": 1e+21,
+      "canonical": "1e+21"
+    },
+    {
+      "name": "small-decimal-no-exponent",
+      "value": 0.000001,
+      "canonical": "0.000001"
+    },
+    {
+      "name": "exponent-boundary-1e-7",
+      "value": 1e-7,
+      "canonical": "1e-7"
+    },
+    {
+      "name": "float-artifact",
+      "value": 0.30000000000000004,
+      "canonical": "0.30000000000000004"
+    },
+    {
+      "name": "one-third",
+      "value": 0.3333333333333333,
+      "canonical": "0.3333333333333333"
+    },
+    {
+      "name": "plain-decimal",
+      "value": 123.456,
+      "canonical": "123.456"
+    },
+    {
+      "name": "negative-decimal",
+      "value": -0.5,
+      "canonical": "-0.5"
+    },
+    {
+      "name": "string-escapes",
+      "value": "line1\nline2\t\"quoted\" \\ backslash",
+      "canonical": "\"line1\\nline2\\t\\\"quoted\\\" \\\\ backslash\""
+    },
+    {
+      "name": "unicode-string",
+      "value": "réserve — 三角形 😀",
+      "canonical": "\"réserve — 三角形 😀\""
+    },
+    {
+      "name": "key-sort-ascii",
+      "value": {
+        "b": 1,
+        "a": 2,
+        "Z": 3
+      },
+      "canonical": "{\"Z\":3,\"a\":2,\"b\":1}"
+    },
+    {
+      "name": "key-sort-unicode-utf16",
+      "value": {
+        "é": 1,
+        "z": 2,
+        "😀": 3,
+        "A": 4
+      },
+      "canonical": "{\"A\":4,\"z\":2,\"é\":1,\"😀\":3}"
+    },
+    {
+      "name": "nested-sorting",
+      "value": {
+        "outer": {
+          "z": [
+            1,
+            {
+              "b": 2,
+              "a": 3
+            }
+          ],
+          "a": null
+        }
+      },
+      "canonical": "{\"outer\":{\"a\":null,\"z\":[1,{\"a\":3,\"b\":2}]}}"
+    },
+    {
+      "name": "array-order-preserved",
+      "value": [
+        3,
+        1,
+        2
+      ],
+      "canonical": "[3,1,2]"
+    },
+    {
+      "name": "empty-containers",
+      "value": {
+        "emptyArray": [],
+        "emptyObject": {}
+      },
+      "canonical": "{\"emptyArray\":[],\"emptyObject\":{}}"
+    },
+    {
+      "name": "triangle-like-payload",
+      "value": {
+        "measure": "paid",
+        "values": [
+          [
+            100,
+            160.5,
+            null
+          ],
+          [
+            110,
+            null,
+            null
+          ]
+        ],
+        "originLengthMonths": 12,
+        "units": {
+          "currency": "USD",
+          "scale": 1
+        }
+      },
+      "canonical": "{\"measure\":\"paid\",\"originLengthMonths\":12,\"units\":{\"currency\":\"USD\",\"scale\":1},\"values\":[[100,160.5,null],[110,null,null]]}"
+    }
+  ]
+}

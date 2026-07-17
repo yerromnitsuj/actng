@@ -1,0 +1,4 @@
+{
+  "payload": "{\"createdAt\":\"2026-07-17T12:00:00Z\",\"inputs\":{\"triangle\":{\"ages\":[12,24],\"origins\":[\"2023\",\"2024\"],\"values\":[[100,160],[110,null]]}},\"parameters\":{\"note\":\"compat fixture — do not regenerate\",\"selected\":[1.6],\"tailFactor\":1.02},\"results\":{\"byOrigin\":[{\"origin\":\"2024\",\"unpaid\":23.76}],\"totals\":{\"ultimate\":293.76,\"unpaid\":23.76}},\"sdkVersions\":{\"@actuarial-ts/compliance\":\"0.1.0\",\"@actuarial-ts/core\":\"0.1.0\"},\"seeds\":{\"odp\":42}}",
+  "hash": "f85f66c03334f418"
+}

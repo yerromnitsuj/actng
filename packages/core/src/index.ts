@@ -1,5 +1,6 @@
 export * from "./types.js";
 export * from "./util.js";
+export * from "./canonical.js";
 export * from "./triangle.js";
 export * from "./factors.js";
 export * from "./chainladder.js";

@@ -338,6 +338,7 @@ export const RESERVING_ERROR_CODES = [
   "SHAPE",
   "TABLE_RANGE",
   "TOO_SMALL",
+  "UNSUPPORTED_VALUE",
 ] as const;
 
 export type ReservingErrorCode = (typeof RESERVING_ERROR_CODES)[number];
