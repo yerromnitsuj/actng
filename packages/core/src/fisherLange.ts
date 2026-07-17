@@ -161,6 +161,23 @@ export function runFisherLange(
   const incClosed = cumulativeToIncremental(closedCounts).values;
   const calMonths = (i: number, j: number): number => i * step + paid.ages[j]!;
 
+  // Calendar guard: calMonths places origins by array index, which assumes
+  // consecutive origin periods. For annual triangles with numeric year
+  // labels the assumption is checkable for free - a gap (e.g. 2020, 2023,
+  // 2024) silently compresses severity-trend distances, so warn loudly.
+  // Quarterly/non-numeric labels stay unchecked (integer label spacing can
+  // never equal a quarterly step; the cadence inference is documented above).
+  if (step === 12 && paid.origins.every((o) => /^\d+$/.test(o))) {
+    for (let i = 1; i < nOrigins; i++) {
+      const gap = Number(paid.origins[i]) - Number(paid.origins[i - 1]);
+      if (gap !== 1) {
+        warnings.push(
+          `Origins ${paid.origins[i - 1]} and ${paid.origins[i]} are ${gap} years apart but are trended as consecutive; with a nonzero severity trend the reserve is misstated - insert explicit null rows for the missing years`,
+        );
+      }
+    }
+  }
+
   // Historical severity and disposal-rate triangles (null-safe by safeRatio).
   const severities: (number | null)[][] = [];
   const disposalRates: (number | null)[][] = [];

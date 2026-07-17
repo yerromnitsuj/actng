@@ -156,6 +156,9 @@ export interface ClaimSizeDiagnosticsOptions {
 
 const PERCENTILES = [0.5, 0.75, 0.9, 0.95, 0.99];
 
+// Crude empirical convention (ceil-rank, no interpolation) is deliberate:
+// candidate caps get rounded to 1-2 significant digits right after, so the
+// interpolated refinement in stochastic.ts's percentileOfSorted buys nothing.
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1));

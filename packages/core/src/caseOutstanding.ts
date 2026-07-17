@@ -201,15 +201,27 @@ export function runCaseOutstanding(
 
     const paidToDate = paidRow[k]!;
     const seedCase = caseRow[k]!;
+    if (seedCase < 0) {
+      warnings.push(
+        `Origin ${paid.origins[i]}: case outstanding at the seed age is negative (${seedCase}); the projection carries the sign through, so review whether net recoveries are genuinely expected`,
+      );
+    }
     const futurePaid: number[] = [];
     const projectedCase: number[] = [];
     let current = seedCase;
+    let warnedNegativeProjection = seedCase < 0;
     for (let j = k; j < nIntervals; j++) {
       futurePaid.push(current * effectivePaid[j]!);
       current *= effectiveCase[j]!;
       projectedCase.push(current);
+      if (current < 0 && !warnedNegativeProjection) {
+        warnedNegativeProjection = true;
+        warnings.push(
+          `Origin ${paid.origins[i]}: projected case outstanding turns negative (${current}) at age ${paid.ages[j + 1] ?? "tail"}; downstream reserves inherit the sign`,
+        );
+      }
     }
-    if (current > 0 && options.tailPaidOnCase === undefined) tailDefaultRelevant = true;
+    if (current !== 0 && options.tailPaidOnCase === undefined) tailDefaultRelevant = true;
     futurePaid.push(current * tailPaidOnCase);
 
     const unpaid = futurePaid.reduce((a, v) => a + v, 0);

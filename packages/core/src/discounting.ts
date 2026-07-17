@@ -143,6 +143,26 @@ export function payoutPatternFromChainLadder(
     }
     rows.push({ origin: row.origin, latestAge: row.latestAge, unpaid: row.unpaid, cashflows });
   }
+
+  // Off-diagonal guard: cashflow timing measures every row from its OWN
+  // latest observed age, which is only calendar-correct when all rows sit on
+  // one valuation diagonal. A stale origin (data feed stopped early) has a
+  // latest age at or below a YOUNGER origin's — its calendar-past
+  // development would be discounted as future. Rows clamped at the final age
+  // column are legitimate (fully-developed old origins on truncated-wide
+  // grids), so equality at the last age never flags. Warn, never re-time.
+  const maxAge = ages[K - 1]!;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]!;
+    if (r.latestAge >= maxAge) continue;
+    if (!r.cashflows.some((c) => Math.abs(c.amount) > 1e-9)) continue;
+    const shadowedBy = rows.slice(i + 1).find((later) => later.latestAge >= r.latestAge);
+    if (shadowedBy) {
+      warnings.push(
+        `Origin ${r.origin} appears stale (latest age ${r.latestAge} months, at or below younger origin ${shadowedBy.origin}'s ${shadowedBy.latestAge}); its cashflow timing assumes its latest cell sits AT the valuation date, so calendar-past development may be discounted as future`,
+      );
+    }
+  }
   return { rows, warnings };
 }
 
@@ -213,7 +233,7 @@ export interface DiscountedUnpaidRow {
 }
 
 export interface DiscountUnpaidResult {
-  method: "discountedUnpaid";
+  method: "discountUnpaid";
   convention: DiscountConvention;
   rates: DiscountRates;
   provenance: RateProvenance;
@@ -385,7 +405,7 @@ export function discountUnpaid(input: DiscountUnpaidInput): DiscountUnpaidResult
   );
 
   return {
-    method: "discountedUnpaid",
+    method: "discountUnpaid",
     convention: input.convention,
     rates: input.rates,
     provenance,

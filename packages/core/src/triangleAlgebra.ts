@@ -8,10 +8,12 @@ import { isNum } from "./util.js";
  * on incrementals) and for gross/ceded/net and paid+case identities.
  *
  * Ground truth:
- * - Cumulative rows may contain nulls ONLY as a trailing unobserved block
- *   for conversion purposes; an interior null makes the incremental
- *   undefined and yields null for every cell from the hole onward (with
- *   the hole reported), never a fabricated value.
+ * - cumulativeToIncremental: an interior null makes the increments touching
+ *   it undefined - the hole's cell and the cell immediately after it are
+ *   null, and increments RESUME wherever two consecutive cells are both
+ *   observed. Nothing is ever fabricated to bridge a hole.
+ * - incrementalToCumulative: accumulation stops at the FIRST null in a row
+ *   (a later observed increment has no defined cumulative base).
  * - Incremental[0] = cumulative[0] (the first cell is its own increment).
  */
 

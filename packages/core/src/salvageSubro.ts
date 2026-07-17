@@ -146,6 +146,11 @@ export function netOfRecoveries(
       );
       continue;
     }
+    if (g.latestAge !== rec.latestAge) {
+      warnings.push(
+        `Origin ${g.origin}: gross projected from age ${g.latestAge} months but recoveries from age ${rec.latestAge}; the net mixes valuation dates`,
+      );
+    }
     const row: NetOfRecoveriesRow = {
       origin: g.origin,
       grossUltimate: g.ultimate,

@@ -459,7 +459,7 @@ export function validateIlfTable(table: IlfTableRow[]): IlfTableRow[] {
     if (rows[i]!.limit === rows[i - 1]!.limit) {
       throw new ReservingError(
         "BAD_TABLE",
-        `Duplicate limit ${rows[i]!.limit.toLocaleString()} in the ILF table`,
+        `Duplicate limit ${rows[i]!.limit.toLocaleString("en-US")} in the ILF table`,
       );
     }
     if (rows[i]!.factor < rows[i - 1]!.factor) {
@@ -514,7 +514,7 @@ export function interpolateIlf(table: IlfTableRow[], limit: number): number {
   if (limit < rows[0]!.limit || limit > rows[rows.length - 1]!.limit) {
     throw new ReservingError(
       "TABLE_RANGE",
-      `The table covers limits ${rows[0]!.limit.toLocaleString()} to ${rows[rows.length - 1]!.limit.toLocaleString()}; ${limit.toLocaleString()} is outside it`,
+      `The table covers limits ${rows[0]!.limit.toLocaleString("en-US")} to ${rows[rows.length - 1]!.limit.toLocaleString("en-US")}; ${limit.toLocaleString("en-US")} is outside it`,
     );
   }
   for (let i = 1; i < rows.length; i++) {

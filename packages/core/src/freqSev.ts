@@ -1,4 +1,4 @@
-import type { LdfSelections, Triangle } from "./types.js";
+import type { TriangleKind, LdfSelections, Triangle } from "./types.js";
 import { ReservingError } from "./types.js";
 import { isNum, lastObservedIndex, safeRatio } from "./util.js";
 import { runChainLadder } from "./chainladder.js";
@@ -46,7 +46,7 @@ export interface FrequencySeverityRow {
 
 export interface FrequencySeverityResult {
   method: "frequencySeverity";
-  basis: Triangle["kind"];
+  basis: TriangleKind;
   rows: FrequencySeverityRow[];
   totals: { latest: number; ultimate: number; unpaid: number };
   warnings: string[];

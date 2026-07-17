@@ -120,7 +120,7 @@ describe("triangle algebra", () => {
     expect(incr.values[0]![1]).toBe(raa.values[0]![1]! - raa.values[0]![0]!);
   });
 
-  it("an interior hole yields nulls from the hole onward (no fabrication)", () => {
+  it("an interior hole nulls the touching increments and resumes after (no fabrication)", () => {
     const holed = triangleFromGrid(
       "paid",
       ["a"],
@@ -128,6 +128,8 @@ describe("triangle algebra", () => {
       [[100, null, 300, 350]],
     );
     const incr = cumulativeToIncremental(holed);
+    // The hole and the cell after it are undefined; the 36->48 increment
+    // resumes because both neighbors are observed.
     expect(incr.values[0]).toEqual([100, null, null, 50]);
     const cum = incrementalToCumulative(incr);
     // Accumulation stops at the first null.
