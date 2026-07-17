@@ -43,7 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@actuarial-ts/core": "*"
+    "@actuarial-ts/core": "^0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
