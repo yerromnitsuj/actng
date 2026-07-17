@@ -1,4 +1,4 @@
-# actuarial-interchange: cross-ecosystem interop (full design, rev 2)
+# actuarial-interchange: cross-ecosystem interop (full design, rev 2.1)
 
 Status: DESIGN — approved direction (founder, 2026-07-17: "spec the entire
 thing"), not yet scheduled for build. Rev 2 incorporates a 3-lens
@@ -226,7 +226,7 @@ incoherent on every shore, in the same way.
 | volume-weighted, n | `5-wtd`/`3-wtd` for n∈{5,3} on 12-month cadence, else value-only | `average="volume", n_periods=n` (exact) | weights window (approx) |
 | simple, all/n | `all-str`/`5-str`/`3-str` (exact, same cadence caveat) | `average="simple"` (exact) | `alpha=0` (simple average) (exact) |
 | regression (through origin) | value-only (not in menu) | `average="regression"` (exact) | `alpha=2` (regression of C_{k+1} on C_k) (exact) |
-| geometric | `geo-all` (exact) | `average="geometric"` — VERIFY-BEFORE-FREEZE: research flags its computation path as untested; a Phase A conformance fixture must prove equivalence before this cell is claimed | (manual) (value-only) |
+| geometric | `geo-all` (exact) | value-only — SETTLED empirically in Phase A: `average="geometric"` raises KeyError in chainladder 0.9.2; the bridge demotes to value-only with a warning | (manual) (value-only) |
 | medial (excludeHigh/Low) | `med-5x1` for {5,1,1} (exact); others value-only | approx via `drop_high/drop_low/n_periods` | (manual) (value-only) |
 | judgmental/external values | typed vector (exact) | `DevelopmentConstant(patterns={ageMonths: ldf}, style="ldf")` (exact) | `CLFMdelta(Triangle, selected)` → per-period `delta` (exact WHEN feasible) |
 | fitted tail exp-decay | `exponentialDecay` (exact) | `TailCurve(curve="exponential")` (exact) | `tail=TRUE` (log-linear) (approx) |
@@ -318,7 +318,8 @@ checks the inner bundle exactly as today AND the outer tag, so the mirror
 
 #### CrosscheckReportDoc
 
-Referee output: engines compared (with versions and profiles), the
+Semantic body key: `report` (the head-noun rule made explicit; settled
+during Phase A implementation). Referee output: engines compared (with versions and profiles), the
 `appliesTo` tags matched, requested and effective parameter sets,
 per-origin and total relative deviations, tolerance applied, and verdict
 `agree | disagree | not-comparable | verified-by-value` (the last for
@@ -373,7 +374,11 @@ Same-major unknown minors: accept, ignore unknown fields, round-trip
   uses `Triangle.to_json()` as the wire format — source-verified to emit
   incremental values in valuation layout with `fillna(0)`, destroying the
   null-vs-zero distinction (fine for cl↔cl persistence; not the
-  interchange).
+  interchange). SECOND hazard found empirically in Phase A: the
+  long-frame CONSTRUCTOR passes through a sparse intermediate that
+  converts explicit 0.0 cells to NaN (a silent zero→missing corruption);
+  the bridge restores observed zeros post-construction, tested both
+  directions.
 - Selection bridge OUT: `extract_selections(fitted_dev, fitted_tail)`
   reads `ldf_` and estimator `get_params()` to emit intent + values.
   Selection bridge IN: computable intents → native `Development(...)`

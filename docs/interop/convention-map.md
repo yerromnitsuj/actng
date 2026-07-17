@@ -15,7 +15,7 @@ CRAN docs (transcriptions: `docs/research/interop/`).
 | `volume-weighted` (n periods) | `5-wtd`/`3-wtd` (annual, n∈{5,3}); otherwise value-only | `average="volume", n_periods=n` | weights window (approximate) |
 | `simple` | `all-str`/`5-str`/`3-str` | `average="simple"` | `alpha=0` |
 | `regression` (through origin) | value-only (not in the menu) | `average="regression"` | `alpha=2` |
-| `geometric` | `geo-all` | `average="geometric"` — VERIFY-BEFORE-FREEZE (see spec 3.2) | manual |
+| `geometric` | `geo-all` | value-only: `average="geometric"` raises KeyError in 0.9.2 (verified) | manual |
 | `medial` (excludeHigh/Low trims) | `med-5x1` for {5,1,1}; others value-only | approx: `drop_high`, `drop_low`, `n_periods` | manual |
 | `judgmental` / `external` values | typed selection vector | `DevelopmentConstant(patterns={ageMonths: ldf}, style="ldf")` | `CLFMdelta(Triangle, selected)` → per-period `delta` |
 
@@ -64,5 +64,10 @@ adversarial review caught it. Respect the trap.)
   profile-documented expected delta.
 - chainladder-python's `Triangle.to_json()` fills missing cells with 0 —
   fine for its own persistence, forbidden as interchange (null ≠ zero).
+- chainladder-python's long-frame CONSTRUCTOR converts explicit 0.0 cells
+  to NaN via a sparse intermediate (zero → missing, the reverse
+  corruption); the Python bridge restores observed zeros post-construction.
+- `Development(average="geometric")` raises KeyError in 0.9.2 — geometric
+  intents are value-only on that engine.
 - Drop semantics differ subtly (`drop_high` ranks link ratios per column;
   medial trims are per-window) — hence `medial` maps as approximate.
