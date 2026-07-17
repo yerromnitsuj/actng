@@ -1,7 +1,9 @@
 # ActNG - Claude Code Rules
 
 AI-native P&C actuarial reserving workbench. npm-workspaces monorepo:
-`packages/core` (pure math), `apps/server` (Express 5 + SQLite + Mastra
+`packages/core` = `@actuarial-ts/core` (pure math, published to npm;
+builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
+`npm install`), `apps/server` (Express 5 + SQLite + Mastra
 advisor), `apps/web` (Vite + React 19 + Tailwind v4).
 
 ## Commands
@@ -54,4 +56,8 @@ advisor), `apps/web` (Vite + React 19 + Tailwind v4).
 - Web store: project switches go through `openProject` (full project-scoped
   reset); every async load carries a staleness guard against the current
   `workspaceProjectId`.
-- No git remote is configured; commits are local until one is added.
+- Remote: origin = https://github.com/yerromnitsuj/actng.git (main is pushed).
+- The SDK spec and phased plans live in `docs/superpowers/specs/` and
+  `docs/superpowers/plans/` (actuarial-ts SDK: @actuarial-ts scope,
+  Apache-2.0, P&C only; never claim "ASOP-approved" — the sanctioned phrase
+  is "designed to support the actuary's compliance with the ASOPs").
