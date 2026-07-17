@@ -6,6 +6,8 @@ export * from "./chainladder.js";
 export * from "./bf.js";
 export * from "./benktander.js";
 export * from "./freqSev.js";
+export * from "./stochastic.js";
+export * from "./triangleAlgebra.js";
 export * from "./tail.js";
 export * from "./berquist.js";
 export * from "./diagnostics.js";
