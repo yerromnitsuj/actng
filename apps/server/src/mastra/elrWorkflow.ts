@@ -1,6 +1,12 @@
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 import {
+  recordAssumption,
+  type AssumptionEntry,
+  type AssumptionLedger,
+  type JsonValue,
+} from "@actuarial-ts/compliance";
+import {
   getWorkspaceView,
   patchWorkspace,
   runFullAnalysis,
@@ -16,6 +22,21 @@ import { insertNote } from "../db/repo.js";
  * resumes with the human's decision. Nothing is applied without a decision,
  * and the accepted trail is persisted as a note at the end.
  *
+ * Each decided gate ALSO records its applied assumptions into an
+ * @actuarial-ts/compliance ledger threaded through step outputs (the package's
+ * recordAssumption helper assigns seq, requires the rationale, and freezes).
+ * On completion the ledger JSON is persisted as a second advisor note next to
+ * the trail note, so the ASOP 41 assumptions-and-judgments record falls out
+ * of running the derivation.
+ *
+ * NOTE deliberately NOT re-expressed through @actuarial-ts/agents
+ * createJudgmentChain: the chain factory's surface (skip gates add trail
+ * notes, the outcome is { trail, ledger }, blank rationales hard-fail) would
+ * change the suspend/resume/result contract that the advisor tools, the web
+ * client, and the integration tests pin ({ trail, selectedElr, noteId },
+ * 3-entry trail on the skip path). The workflow keeps its own createWorkflow
+ * and borrows the package's ledger-recording helper instead.
+ *
  * projectId travels in the workflow requestContext, never in step inputs -
  * the same security seam as every advisor tool.
  */
@@ -28,6 +49,61 @@ const trailEntry = z.object({
   rationale: z.string(),
 });
 type Trail = z.infer<typeof trailEntry>[];
+
+// Declares EVERY AssumptionEntry field: zod strips undeclared keys when a
+// step's output passes to the next step, and losing previousValue/source
+// between gates would corrupt the ledger.
+const ledgerEntry = z.object({
+  seq: z.number().int().positive(),
+  timestamp: z.string(),
+  actor: z.enum(["default", "actuary", "agent"]),
+  field: z.string(),
+  value: z.unknown(),
+  previousValue: z.unknown().optional(),
+  source: z.string().optional(),
+  rationale: z.string().optional(),
+});
+
+/** The chain state threaded between gates: the human trail plus the compliance ledger. */
+const gateState = z.object({
+  trail: z.array(trailEntry),
+  ledgerEntries: z.array(ledgerEntry),
+});
+
+/** Snapshot storage may JSON round-trip step state; restore the concrete entry type. */
+function entriesOf(input: { ledgerEntries?: unknown }): AssumptionEntry[] {
+  return Array.isArray(input.ledgerEntries) ? (input.ledgerEntries as AssumptionEntry[]) : [];
+}
+
+/**
+ * Appends one gate's applied assumptions to the threaded ledger via the
+ * compliance package's recordAssumption (seq assignment, rationale
+ * enforcement, freezing). A blank rationale records nothing rather than
+ * failing the gate: recordAssumption refuses undocumented judgment, and this
+ * workflow has always tolerated a blank rationale - the trail note still
+ * captures the decision either way.
+ */
+function recordGateEntries(
+  existing: readonly AssumptionEntry[],
+  stage: string,
+  rationale: string,
+  fields: { field: string; value: JsonValue }[],
+): AssumptionEntry[] {
+  if (rationale.trim() === "") return [...existing];
+  let ledger: AssumptionLedger = { entries: existing };
+  const timestamp = new Date().toISOString();
+  for (const f of fields) {
+    ledger = recordAssumption(ledger, {
+      timestamp,
+      actor: "actuary",
+      field: f.field,
+      value: f.value,
+      source: `derive-expected-losses ${stage} gate`,
+      rationale,
+    });
+  }
+  return [...ledger.entries];
+}
 
 function projectIdOf(requestContext: { get(key: string): unknown }): string {
   const projectId = requestContext.get("projectId");
@@ -43,7 +119,7 @@ function projectIdOf(requestContext: { get(key: string): unknown }): string {
 const capGate = createStep({
   id: "cap-gate",
   inputSchema: z.object({}),
-  outputSchema: z.object({ trail: z.array(trailEntry) }),
+  outputSchema: gateState,
   suspendSchema: z.object({
     stage: z.literal("cap"),
     recommendation: z.string(),
@@ -69,7 +145,7 @@ const capGate = createStep({
         ? `Cap at ${candidate.cap.toLocaleString()} per occurrence (${(candidate.totalPierceShare * 100).toFixed(1)}% of claims pierce, ${(candidate.totalExcessShare * 100).toFixed(1)}% of dollars excess); index it at roughly the severity trend once one is selected`
         : "No candidate cap removes only a thin tail; recommend staying on the unlimited layer";
       await suspend({ stage: "cap", recommendation, evidence: review.diagnostics.candidates });
-      return { trail: [] };
+      return { trail: [], ledgerEntries: [] };
     }
     const trail: Trail = [];
     if (resumeData.decision === "skip") {
@@ -78,7 +154,7 @@ const capGate = createStep({
         decision: "stay unlimited",
         rationale: resumeData.rationale,
       });
-      return { trail };
+      return { trail, ledgerEntries: [] };
     }
     if (resumeData.cap == null) {
       throw new Error("accept/adjust at the cap gate needs a cap value");
@@ -102,7 +178,13 @@ const capGate = createStep({
       decision: `capped at ${resumeData.cap.toLocaleString()}${resumeData.indexRate !== undefined ? ` indexed ${(resumeData.indexRate * 100).toFixed(1)}%/yr` : ""}`,
       rationale: resumeData.rationale,
     });
-    return { trail };
+    const ledgerEntries = recordGateEntries([], "cap", resumeData.rationale, [
+      { field: "layer.cap", value: resumeData.cap },
+      ...(resumeData.indexRate !== undefined
+        ? [{ field: "layer.indexRate", value: resumeData.indexRate }]
+        : []),
+    ]);
+    return { trail, ledgerEntries };
   },
 });
 
@@ -111,8 +193,8 @@ const capGate = createStep({
 
 const ilfGate = createStep({
   id: "ilf-gate",
-  inputSchema: z.object({ trail: z.array(trailEntry) }),
-  outputSchema: z.object({ trail: z.array(trailEntry) }),
+  inputSchema: gateState,
+  outputSchema: gateState,
   suspendSchema: z.object({
     stage: z.literal("ilf"),
     recommendation: z.string(),
@@ -128,9 +210,11 @@ const ilfGate = createStep({
   }),
   execute: async ({ inputData, resumeData, suspend, requestContext }) => {
     const projectId = projectIdOf(requestContext);
+    const priorEntries = entriesOf(inputData);
     const view = getWorkspaceView(projectId);
     if (view.state.layer.active !== "capped") {
-      return { trail: inputData.trail }; // unlimited path: nothing to restore
+      // unlimited path: nothing to restore
+      return { trail: inputData.trail, ledgerEntries: priorEntries };
     }
     if (!resumeData) {
       const fits = view.ilfReview.fits;
@@ -146,7 +230,7 @@ const ilfGate = createStep({
         recommendation,
         evidence: { fits, unresolvedReason: view.ilfReview.unresolvedReason },
       });
-      return { trail: inputData.trail };
+      return { trail: inputData.trail, ledgerEntries: priorEntries };
     }
     const trail = [...inputData.trail];
     if (resumeData.decision === "skip") {
@@ -155,7 +239,7 @@ const ilfGate = createStep({
         decision: "stay LIMITED (no restoration)",
         rationale: resumeData.rationale,
       });
-      return { trail };
+      return { trail, ledgerEntries: priorEntries };
     }
     patchWorkspace(projectId, {
       ilf: {
@@ -173,7 +257,17 @@ const ilfGate = createStep({
       decision: `restore via ${resumeData.source ?? "configured source"}${resumeData.targetLimit ? ` to ${resumeData.targetLimit.toLocaleString()}` : " to unlimited"}`,
       rationale: resumeData.rationale,
     });
-    return { trail };
+    const ledgerEntries = recordGateEntries(priorEntries, "ilf", resumeData.rationale, [
+      ...(resumeData.source !== undefined ? [{ field: "ilf.source", value: resumeData.source }] : []),
+      ...(resumeData.fittedKind !== undefined
+        ? [{ field: "ilf.fittedKind", value: resumeData.fittedKind }]
+        : []),
+      ...(resumeData.curveId !== undefined ? [{ field: "ilf.curveId", value: resumeData.curveId }] : []),
+      ...(resumeData.targetLimit !== undefined
+        ? [{ field: "ilf.targetLimit", value: resumeData.targetLimit }]
+        : []),
+    ]);
+    return { trail, ledgerEntries };
   },
 });
 
@@ -182,8 +276,8 @@ const ilfGate = createStep({
 
 const trendGate = createStep({
   id: "trend-gate",
-  inputSchema: z.object({ trail: z.array(trailEntry) }),
-  outputSchema: z.object({ trail: z.array(trailEntry) }),
+  inputSchema: gateState,
+  outputSchema: gateState,
   suspendSchema: z.object({
     stage: z.literal("trends"),
     recommendation: z.string(),
@@ -213,7 +307,7 @@ const trendGate = createStep({
         recommendation,
         evidence: review ? { severity: review.severity.fits, frequency: review.frequency.fits, level: review.level } : null,
       });
-      return { trail: inputData.trail };
+      return { trail: inputData.trail, ledgerEntries: entriesOf(inputData) };
     }
     const view = getWorkspaceView(projectId);
     const layer = view.state.layer.active;
@@ -231,7 +325,14 @@ const trendGate = createStep({
       decision: `frequency ${resumeData.frequency !== null ? `${(resumeData.frequency * 100).toFixed(1)}%/yr` : "none"}, severity ${resumeData.severity !== null ? `${(resumeData.severity * 100).toFixed(1)}%/yr` : "none"}`,
       rationale: resumeData.rationale,
     });
-    return { trail };
+    const ledgerEntries = recordGateEntries(entriesOf(inputData), "trends", resumeData.rationale, [
+      { field: "trend.frequency", value: resumeData.frequency },
+      { field: `trend.severity.${layer}`, value: resumeData.severity },
+      ...(resumeData.targetYear !== undefined
+        ? [{ field: "trend.targetYear", value: resumeData.targetYear }]
+        : []),
+    ]);
+    return { trail, ledgerEntries };
   },
 });
 
@@ -240,7 +341,7 @@ const trendGate = createStep({
 
 const elrGate = createStep({
   id: "elr-gate",
-  inputSchema: z.object({ trail: z.array(trailEntry) }),
+  inputSchema: gateState,
   outputSchema: z.object({
     trail: z.array(trailEntry),
     selectedElr: z.number().nullable(),
@@ -302,6 +403,16 @@ const elrGate = createStep({
       `ELR derivation trail:\n${trail
         .map((t) => `- ${t.stage}: ${t.decision}${t.rationale ? ` - ${t.rationale}` : ""}`)
         .join("\n")}`,
+    );
+    // The compliance fusion: persist the derivation's assumption ledger next
+    // to the trail note, entries carrying each gate's verbatim rationale.
+    const ledgerEntries = recordGateEntries(entriesOf(inputData), "elr", resumeData.rationale, [
+      { field: "elr.selected", value: resumeData.selected },
+    ]);
+    insertNote(
+      projectId,
+      "advisor",
+      `ELR derivation assumption ledger:\n${JSON.stringify({ entries: ledgerEntries }, null, 2)}`,
     );
     return { trail, selectedElr: resumeData.selected, noteId: note.id };
   },

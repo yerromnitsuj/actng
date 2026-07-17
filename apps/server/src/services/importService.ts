@@ -1,7 +1,8 @@
 import Papa from "papaparse";
 import ExcelJS from "exceljs";
 import { z } from "zod";
-import type { ClaimSnapshot, ExposureRecord } from "@actuarial-ts/core";
+import { ReservingError, type ClaimSnapshot, type ExposureRecord } from "@actuarial-ts/core";
+import { parseLossRunCsv, type LossRunRowError } from "@actuarial-ts/data";
 import { HttpError } from "./workspaceService.js";
 
 /**
@@ -14,6 +15,10 @@ import { HttpError } from "./workspaceService.js";
  *
  * Every row is schema-validated; failures are reported with row numbers and
  * abort the import (no partial loads, no silently dropped rows).
+ *
+ * The loss-run CSV path delegates parsing and row validation to
+ * @actuarial-ts/data's parseLossRunCsv; this service adapts that parser's
+ * collect-errors contract back to its own throw-everything contract.
  */
 
 const isoDate = z
@@ -193,10 +198,73 @@ function validateRows<T>(
   return out;
 }
 
+/**
+ * Loss-run CSV path: delegates parsing and per-row validation (including the
+ * date-order cross-checks) to @actuarial-ts/data's parseLossRunCsv, then
+ * adapts its collected LossRunRowError list into this service's contract:
+ * every problem reported with its 1-based row number (header = row 1) and
+ * NOTHING imported on any failure.
+ */
+function parseClaimsCsv(text: string): ClaimSnapshot[] {
+  let parsed: { claims: ClaimSnapshot[]; errors: LossRunRowError[] };
+  try {
+    parsed = parseLossRunCsv(text);
+  } catch (err) {
+    if (err instanceof ReservingError) {
+      // Missing required columns; same message text this service always threw.
+      throw new HttpError(422, "MISSING_COLUMNS", err.message);
+    }
+    throw err;
+  }
+  const errorRows = new Set(parsed.errors.map((e) => e.row));
+  const dataRows = parsed.claims.length + errorRows.size;
+  if (dataRows > MAX_IMPORT_ROWS) {
+    throw new HttpError(
+      422,
+      "TOO_MANY_ROWS",
+      `The file has ${dataRows.toLocaleString()} rows; the import limit is ${MAX_IMPORT_ROWS.toLocaleString()}`,
+    );
+  }
+  if (dataRows === 0) {
+    throw new HttpError(422, "EMPTY_FILE", "The file has a header but no data rows");
+  }
+  // parseLossRunCsv deliberately accepts negative amounts (its ASOP 23 review
+  // layer flags them downstream); this import contract rejects them, so
+  // re-impose the floor. Clean claims map onto the contiguous data-row
+  // numbers with the error rows skipped.
+  const errors: LossRunRowError[] = [...parsed.errors];
+  let row = 2;
+  for (const claim of parsed.claims) {
+    while (errorRows.has(row)) row += 1;
+    if (claim.paidToDate < 0) errors.push({ row, message: "paid_to_date must be >= 0" });
+    if (claim.caseReserve < 0) errors.push({ row, message: "case_reserve must be >= 0" });
+    row += 1;
+  }
+  if (errors.length > 0) {
+    errors.sort((a, b) => a.row - b.row);
+    const failedRows = new Set(errors.map((e) => e.row)).size;
+    const preview = errors
+      .slice(0, 10)
+      .map((e) => `row ${e.row}: ${e.message}`)
+      .join("; ");
+    throw new HttpError(
+      422,
+      "ROW_VALIDATION",
+      `${failedRows} of ${dataRows} rows failed validation (nothing was imported): ${preview}${errors.length > 10 ? "; ..." : ""}`,
+    );
+  }
+  return parsed.claims;
+}
+
 export async function parseClaimsUpload(
   filename: string,
   buffer: Buffer,
 ): Promise<ClaimSnapshot[]> {
+  const lower = filename.toLowerCase();
+  if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) {
+    return parseClaimsCsv(buffer.toString("utf8"));
+  }
+  // Excel path (parseUpload also rejects legacy .xls with guidance).
   const table = await parseUpload(filename, buffer);
   const rows = validateRows(table, claimRowSchema, [
     "claim_id",

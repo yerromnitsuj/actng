@@ -1363,6 +1363,96 @@ describe("derive-expected-losses workflow (phase 5)", () => {
   }, 30_000);
 });
 
+describe("elr derivation compliance ledger (dogfood addition)", () => {
+  it("persists the assumption ledger as a second advisor note whose entries carry the rationale verbatim", async () => {
+    const project = repo.createProject("Ledger note test", "");
+    const projectId = project.id;
+    const { claims, exposures } = synthetic.generateSyntheticLossRun({
+      seed: 101,
+      nYears: 6,
+      startYear: 2020,
+      asOfDate: "2025-12-31",
+    });
+    repo.insertClaims(projectId, claims);
+    repo.replaceExposures(projectId, exposures);
+    const view = ws.getWorkspaceView(projectId);
+    const allWtd = (basis: "paid" | "incurred") =>
+      view.factors[basis].averages.find((a) => a.spec.key === "all-wtd")!.values;
+    ws.patchWorkspace(projectId, { selections: { basis: "paid", selected: allWtd("paid") } });
+    ws.patchWorkspace(projectId, {
+      selections: { basis: "incurred", selected: allWtd("incurred") },
+    });
+    ws.runFullAnalysis(projectId, "ledger base");
+
+    const { RequestContext } = await import("@mastra/core/request-context");
+    const { mastra } = await import("../src/mastra/index.js");
+    const rc = new RequestContext<{ projectId: string }>();
+    rc.set("projectId", projectId);
+    const wf = mastra.getWorkflow("deriveExpectedLossesWorkflow");
+    const run = await wf.createRun();
+
+    const trendRationale = "severity 5%/yr from the all-years fit";
+    const elrRationale = "anchored on the premium-weighted average";
+    let result = (await run.start({ inputData: {}, requestContext: rc })) as { status: string };
+    expect(result.status).toBe("suspended");
+    result = (await run.resume({
+      step: "cap-gate",
+      resumeData: { decision: "skip", rationale: "ledger test: stay unlimited" },
+      requestContext: rc,
+    })) as typeof result;
+    result = (await run.resume({
+      step: "trend-gate",
+      resumeData: { decision: "accept", frequency: null, severity: 0.05, rationale: trendRationale },
+      requestContext: rc,
+    })) as typeof result;
+    result = (await run.resume({
+      step: "elr-gate",
+      resumeData: { decision: "accept", selected: 0.68, rationale: elrRationale },
+      requestContext: rc,
+    })) as typeof result;
+    expect(result.status).toBe("success");
+
+    // Both notes exist: the human-readable trail and the compliance ledger.
+    const notes = repo.listNotes(projectId);
+    expect(notes.find((n) => n.text.includes("ELR derivation trail"))).toBeDefined();
+    const ledgerNote = notes.find((n) => n.text.startsWith("ELR derivation assumption ledger:"));
+    expect(ledgerNote).toBeDefined();
+    expect(ledgerNote!.author).toBe("advisor");
+
+    const ledger = JSON.parse(
+      ledgerNote!.text.slice("ELR derivation assumption ledger:\n".length),
+    ) as {
+      entries: {
+        seq: number;
+        timestamp: string;
+        actor: string;
+        field: string;
+        value: unknown;
+        rationale?: string;
+      }[];
+    };
+    const byField = new Map(ledger.entries.map((e) => [e.field, e]));
+    expect(byField.get("trend.frequency")).toMatchObject({
+      actor: "actuary",
+      value: null,
+      rationale: trendRationale,
+    });
+    expect(byField.get("trend.severity.unlimited")).toMatchObject({
+      actor: "actuary",
+      value: 0.05,
+      rationale: trendRationale,
+    });
+    expect(byField.get("elr.selected")).toMatchObject({
+      actor: "actuary",
+      value: 0.68,
+      rationale: elrRationale,
+    });
+    // seq assigned contiguously by the recorder; timestamps are ISO strings.
+    expect(ledger.entries.map((e) => e.seq)).toEqual(ledger.entries.map((_, i) => i + 1));
+    for (const e of ledger.entries) expect(e.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  }, 30_000);
+});
+
 describe("pure-premium method", () => {
   let projectId: string;
   const allWtdOf = (view: ReturnType<WorkspaceService["getWorkspaceView"]>, basis: "paid" | "incurred") =>
