@@ -5,6 +5,7 @@ import type {
   Triangle,
 } from "./types.js";
 import { isNum, ols, safeRatio } from "./util.js";
+import { mackEstimators } from "./mack.js";
 
 /**
  * Data diagnostics an actuary uses to see when the data violates method
@@ -250,4 +251,185 @@ export function runDiagnostics(input: DiagnosticsInput): DiagnosticsResult {
     calendarYearTest: cyTest,
     findings,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Mack (1994) Appendix G: test for correlations between subsequent
+// development factors.
+
+export interface FactorCorrelationColumn {
+  /** Development year k in Mack's 1-indexed notation (subsequent factors F_k vs preceding F_{k-1}). */
+  k: number;
+  /** Number of (preceding, subsequent) factor pairs used. */
+  pairs: number;
+  /** Spearman rank correlation T_k. */
+  statistic: number;
+}
+
+export interface FactorCorrelationResult {
+  columns: FactorCorrelationColumn[];
+  /** T: the (pairs-1)-weighted average of the T_k. E[T] = 0 under the null. */
+  statistic: number;
+  /** Var(T) = 1 / sum of weights. */
+  variance: number;
+  /** Half-width of the 50% interval: 0.67 x sqrt(Var(T)). */
+  bound50: number;
+  /** True when |T| exceeds the 50% bound (be reluctant with chain ladder). */
+  correlated: boolean;
+  warnings: string[];
+}
+
+/** Average ranks (ties averaged), 1-based. */
+function averageRanks(values: number[]): number[] {
+  const order = values
+    .map((v, idx) => ({ v, idx }))
+    .sort((a, b) => a.v - b.v);
+  const ranks = new Array<number>(values.length).fill(0);
+  let pos = 0;
+  while (pos < order.length) {
+    let end = pos;
+    while (end + 1 < order.length && order[end + 1]!.v === order[pos]!.v) end++;
+    const avg = (pos + end) / 2 + 1;
+    for (let x = pos; x <= end; x++) ranks[order[x]!.idx] = avg;
+    pos = end + 1;
+  }
+  return ranks;
+}
+
+/**
+ * Mack's Spearman test for correlation between subsequent development
+ * factors (Mack 1994, CAS Forum Spring 1994, Appendix G).
+ *
+ * For each development year k = 2..I-2: rank the subsequent factors F_k over
+ * the rows where the NEXT factor exists, rank the preceding factors F_{k-1}
+ * over those same rows (re-ranked after dropping the deeper rows), and take
+ * T_k = 1 - 6 sum(d^2) / (n(n^2-1)). Combine with weights (pairs - 1) —
+ * inverse to Var(T_k) = 1/(n_k - 1). Under the null E[T] = 0 and
+ * Var(T) = 1/sum(weights); the DELIBERATELY tight 50% interval
+ * (|T| <= 0.67 sqrt(Var)) screens for correlation in a substantial part of
+ * the triangle rather than formally testing at 5%.
+ *
+ * Returns null when no column pair has at least two factor pairs.
+ */
+export function factorCorrelationTest(tri: Triangle): FactorCorrelationResult | null {
+  const n = tri.origins.length;
+  const nCols = tri.ages.length - 1;
+  const warnings: string[] = [];
+
+  // F[i][c] = C[i][c+1] / C[i][c] (0-indexed column c holds Mack's F_{c+1}).
+  const F: (number | null)[][] = tri.origins.map((_, i) =>
+    Array.from({ length: nCols }, (_, c) =>
+      safeRatio(tri.values[i]?.[c + 1] ?? null, tri.values[i]?.[c] ?? null),
+    ),
+  );
+
+  const columns: FactorCorrelationColumn[] = [];
+  for (let k = 2; k <= Math.min(n - 2, nCols); k++) {
+    const cs = k - 1; // 0-indexed subsequent column (F_k)
+    const cp = k - 2; // 0-indexed preceding column (F_{k-1})
+    const sub: number[] = [];
+    const pre: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = F[i]![cs] ?? null;
+      const b = F[i]![cp] ?? null;
+      if (isNum(a) && isNum(b)) {
+        sub.push(a);
+        pre.push(b);
+      }
+    }
+    const m = sub.length;
+    if (m < 2) continue;
+    const hasTies =
+      new Set(sub).size !== sub.length || new Set(pre).size !== pre.length;
+    if (hasTies) {
+      warnings.push(
+        `Development year ${k}: tied factors; the Spearman statistic is approximate under ties`,
+      );
+    }
+    const r = averageRanks(sub);
+    const s = averageRanks(pre);
+    let d2 = 0;
+    for (let x = 0; x < m; x++) d2 += (r[x]! - s[x]!) ** 2;
+    const Tk = 1 - (6 * d2) / (m * (m * m - 1));
+    columns.push({ k, pairs: m, statistic: Tk });
+  }
+
+  if (columns.length === 0) return null;
+  const weightSum = columns.reduce((a, c) => a + (c.pairs - 1), 0);
+  if (weightSum <= 0) return null;
+  const statistic = columns.reduce((a, c) => a + (c.pairs - 1) * c.statistic, 0) / weightSum;
+  const variance = 1 / weightSum;
+  const bound50 = 0.67 * Math.sqrt(variance);
+  return {
+    columns,
+    statistic,
+    variance,
+    bound50,
+    correlated: Math.abs(statistic) > bound50,
+    warnings,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mack residuals: standardized development residuals for plotting and for
+// eyeballing origin / development / calendar structure.
+
+export interface MackResidualCell {
+  origin: string;
+  fromAge: number;
+  toAge: number;
+  /** 1-based calendar diagonal of the factor's numerator cell. */
+  calendar: number;
+  factor: number;
+  /** (F - f_k) sqrt(C_ik) / sigma_k; null where sigma^2 is not data-estimable or zero. */
+  residual: number | null;
+}
+
+export interface MackResidualsResult {
+  cells: MackResidualCell[];
+  warnings: string[];
+}
+
+/**
+ * Standardized Mack residuals r_ik = (F_ik - f_k) sqrt(C_ik) / sigma_k
+ * around the volume-weighted factors, with sigma^2_k estimated from the
+ * data (Mack 1994). Columns whose sigma^2 cannot be estimated from at least
+ * two factors — or where the factors show no dispersion at all — yield null
+ * residuals with a warning; extrapolated sigma^2 is deliberately NOT used
+ * here (a residual against an extrapolated scale is not a diagnostic).
+ *
+ * Structural property: within each column, sum_i residual_ik x sqrt(C_ik)
+ * = 0 exactly, because f_k is the volume-weighted average.
+ */
+export function mackResiduals(tri: Triangle): MackResidualsResult {
+  const warnings: string[] = [];
+  const { f, sigma2 } = mackEstimators(tri);
+  const cells: MackResidualCell[] = [];
+  const flaggedColumns = new Set<number>();
+
+  for (let c = 0; c < tri.ages.length - 1; c++) {
+    const s2 = sigma2[c] ?? null;
+    const usable = isNum(s2) && s2 > 0;
+    if (!usable && !flaggedColumns.has(c)) {
+      flaggedColumns.add(c);
+      warnings.push(
+        `Column ${tri.ages[c]}-${tri.ages[c + 1]}: sigma^2 is ${s2 === null ? "not estimable from the data" : "zero (no dispersion)"}; residuals are null there`,
+      );
+    }
+    for (let i = 0; i < tri.origins.length; i++) {
+      const c0 = tri.values[i]?.[c] ?? null;
+      const c1 = tri.values[i]?.[c + 1] ?? null;
+      if (!isNum(c0) || !isNum(c1) || c0 <= 0) continue;
+      const factor = c1 / c0;
+      cells.push({
+        origin: tri.origins[i]!,
+        fromAge: tri.ages[c]!,
+        toAge: tri.ages[c + 1]!,
+        calendar: i + c + 1,
+        factor,
+        residual: usable ? ((factor - f[c]!) * Math.sqrt(c0)) / Math.sqrt(s2!) : null,
+      });
+    }
+  }
+  return { cells, warnings };
 }

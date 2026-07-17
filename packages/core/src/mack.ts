@@ -30,26 +30,38 @@ export interface MackOptions {
  *   as its denominator - an approximation, flagged in warnings
  * - the total includes Mack's cross-covariance term between accident years
  */
-export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
+/**
+ * Mack's base estimators: volume-weighted development factors f_k, their
+ * column volumes (sum of C_{i,k} over the rows used), the per-column pair
+ * counts, and the DATA-ESTIMATED sigma^2_k (null where fewer than two
+ * factors exist — extrapolation is runMack's business, not the estimator's).
+ * Shared by runMack and the residual diagnostics so the two can never drift.
+ */
+export function mackEstimators(tri: Triangle): {
+  f: number[];
+  denomSums: number[];
+  counts: number[];
+  sigma2: (number | null)[];
+} {
   const n = tri.origins.length;
   const K = tri.ages.length;
   if (K < 2) {
     throw new ReservingError("TOO_SMALL", "Mack requires at least two development ages");
   }
-  const warnings: string[] = [];
-
-  // Column sums restricted to rows where both cells are observed.
   const f: number[] = [];
-  const denomSums: number[] = []; // sum over rows used for f_k of C_{i,k}
+  const denomSums: number[] = [];
+  const counts: number[] = [];
   for (let k = 0; k < K - 1; k++) {
     let num = 0;
     let den = 0;
+    let count = 0;
     for (let i = 0; i < n; i++) {
       const c0 = tri.values[i]![k] ?? null;
       const c1 = tri.values[i]![k + 1] ?? null;
       if (isNum(c0) && isNum(c1) && c0 > 0) {
         num += c1;
         den += c0;
+        count++;
       }
     }
     if (den <= 0) {
@@ -60,7 +72,34 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
     }
     f.push(num / den);
     denomSums.push(den);
+    counts.push(count);
   }
+  const sigma2: (number | null)[] = new Array(K - 1).fill(null);
+  for (let k = 0; k < K - 1; k++) {
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < n; i++) {
+      const c0 = tri.values[i]![k] ?? null;
+      const c1 = tri.values[i]![k + 1] ?? null;
+      if (isNum(c0) && isNum(c1) && c0 > 0) {
+        const F = c1 / c0;
+        sum += c0 * (F - f[k]!) ** 2;
+        count++;
+      }
+    }
+    sigma2[k] = count > 1 ? sum / (count - 1) : null;
+  }
+  return { f, denomSums, counts, sigma2 };
+}
+
+export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
+  const n = tri.origins.length;
+  const K = tri.ages.length;
+  const warnings: string[] = [];
+
+  const estimators = mackEstimators(tri);
+  const f = estimators.f;
+  const denomSums = estimators.denomSums;
 
   // Projection factors: the caller's selections when provided (nulls and
   // non-positive values become 1.000, mirroring the chain ladder), else the
@@ -95,26 +134,9 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
     throw new ReservingError("BAD_TAIL", "Tail factor must be a positive number");
   }
 
-  // sigma^2_k estimates.
-  const sigma2: number[] = new Array(K - 1).fill(0);
-  for (let k = 0; k < K - 1; k++) {
-    let sum = 0;
-    let count = 0;
-    for (let i = 0; i < n; i++) {
-      const c0 = tri.values[i]![k] ?? null;
-      const c1 = tri.values[i]![k + 1] ?? null;
-      if (isNum(c0) && isNum(c1) && c0 > 0) {
-        const F = c1 / c0;
-        sum += c0 * (F - f[k]!) ** 2;
-        count++;
-      }
-    }
-    if (count > 1) {
-      sigma2[k] = sum / (count - 1);
-    } else {
-      sigma2[k] = NaN; // extrapolated below
-    }
-  }
+  // sigma^2_k estimates: data-estimated where possible, NaN marks columns
+  // needing Mack's extrapolation below.
+  const sigma2: number[] = estimators.sigma2.map((s) => (s === null ? NaN : s));
   // Mack's extrapolation for columns with a single factor (usually the last).
   for (let k = 0; k < K - 1; k++) {
     if (!Number.isNaN(sigma2[k]!)) continue;
