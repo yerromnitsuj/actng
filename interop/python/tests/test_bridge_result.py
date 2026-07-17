@@ -25,9 +25,17 @@ def mack(genins) -> "cl.MackChainladder":
     )
 
 
+@pytest.fixture(scope="module")
+def genins_integrity(genins) -> str:
+    """The genins TriangleDoc tag — extract_result REQUIRES the triangle
+    linkage (a result that does not say what it applies to is not
+    comparable to anything)."""
+    return cl_to_triangle_doc(genins, measure="paid", created_at=CREATED_AT).integrity()
+
+
 class TestMackExtraction:
-    def test_totals_match_chainladders_own_numbers(self, genins, mack) -> None:
-        doc = extract_result(mack, created_at=CREATED_AT)
+    def test_totals_match_chainladders_own_numbers(self, genins, mack, genins_integrity) -> None:
+        doc = extract_result(mack, created_at=CREATED_AT, triangle_integrity=genins_integrity)
         totals = doc.payload.totals
         assert totals.ultimate == pytest.approx(float(np.nansum(mack.ultimate_.values)))
         assert totals.unpaid == pytest.approx(float(np.nansum(mack.ibnr_.values)))
@@ -35,8 +43,8 @@ class TestMackExtraction:
             float(np.asarray(mack.total_mack_std_err_).ravel()[0])
         )
 
-    def test_rows_cover_every_origin_including_fully_developed(self, mack) -> None:
-        doc = extract_result(mack, created_at=CREATED_AT)
+    def test_rows_cover_every_origin_including_fully_developed(self, mack, genins_integrity) -> None:
+        doc = extract_result(mack, created_at=CREATED_AT, triangle_integrity=genins_integrity)
         rows = doc.payload.rows
         assert [row.origin for row in rows] == [str(y) for y in range(2001, 2011)]
         # 2001 is fully developed: chainladder omits it from ibnr_ and
@@ -46,8 +54,8 @@ class TestMackExtraction:
         assert rows[0].standard_error is None
         assert all(row.standard_error is not None for row in rows[1:])
 
-    def test_per_origin_rows_match_summary(self, mack) -> None:
-        doc = extract_result(mack, created_at=CREATED_AT)
+    def test_per_origin_rows_match_summary(self, mack, genins_integrity) -> None:
+        doc = extract_result(mack, created_at=CREATED_AT, triangle_integrity=genins_integrity)
         summary = mack.summary_.to_frame(origin_as_datetime=False)
         for row, (_, expected) in zip(doc.payload.rows, summary.iterrows()):
             assert row.ultimate == pytest.approx(float(expected["Ultimate"]))
@@ -73,19 +81,19 @@ class TestMackExtraction:
         assert payload.applies_to.selection_integrity == "d" * 16
         assert payload.parameters == {"average": "volume", "n_periods": -1}
 
-    def test_document_round_trips(self, mack) -> None:
-        doc = extract_result(mack, created_at=CREATED_AT)
+    def test_document_round_trips(self, mack, genins_integrity) -> None:
+        doc = extract_result(mack, created_at=CREATED_AT, triangle_integrity=genins_integrity)
         parsed = parse_document(serialize_document(doc))
         assert parsed.payload == doc.payload
         assert parsed.integrity() == doc.integrity()
 
 
 class TestOtherEstimators:
-    def test_plain_chainladder_is_se_less(self, genins) -> None:
+    def test_plain_chainladder_is_se_less(self, genins, genins_integrity) -> None:
         fitted = cl.Chainladder().fit(
             cl.Development(average="volume").fit_transform(genins)
         )
-        doc = extract_result(fitted, created_at=CREATED_AT)
+        doc = extract_result(fitted, created_at=CREATED_AT, triangle_integrity=genins_integrity)
         assert doc.payload.method == "clpy:Chainladder"
         assert all(row.standard_error is None for row in doc.payload.rows)
         assert doc.payload.totals.standard_error is None
@@ -93,13 +101,13 @@ class TestOtherEstimators:
             float(np.nansum(fitted.ultimate_.values))
         )
 
-    def test_bornhuetter_ferguson_extracts_with_parameter_echo(self, genins) -> None:
+    def test_bornhuetter_ferguson_extracts_with_parameter_echo(self, genins, genins_integrity) -> None:
         transformed = cl.Development(average="volume").fit_transform(genins)
         base = cl.Chainladder().fit(transformed)
         fitted = cl.BornhuetterFerguson(apriori=1.0).fit(
             transformed, sample_weight=base.ultimate_ * 1.0
         )
-        doc = extract_result(fitted, created_at=CREATED_AT)
+        doc = extract_result(fitted, created_at=CREATED_AT, triangle_integrity=genins_integrity)
         assert doc.payload.method == "clpy:BornhuetterFerguson"
         assert doc.payload.parameters["apriori"] == 1.0
         assert doc.payload.totals.unpaid == pytest.approx(
@@ -110,14 +118,23 @@ class TestOtherEstimators:
             float(np.nansum(base.ultimate_.values)), rel=1e-6
         )
 
-    def test_unsupported_estimator_is_refused(self, genins) -> None:
+    def test_unsupported_estimator_is_refused(self, genins, genins_integrity) -> None:
         fitted = cl.Development(average="volume").fit(genins)
         with pytest.raises(BadInterchangeError, match="unsupported estimator"):
-            extract_result(fitted, created_at=CREATED_AT)
+            extract_result(fitted, created_at=CREATED_AT, triangle_integrity=genins_integrity)
 
-    def test_warnings_travel(self, mack) -> None:
+    def test_triangle_integrity_is_required(self, mack) -> None:
+        # A result without its triangle linkage is not comparable to
+        # anything; the kwarg has no default (finding: TS schema parity).
+        with pytest.raises(TypeError, match="triangle_integrity"):
+            extract_result(mack, created_at=CREATED_AT)
+
+    def test_warnings_travel(self, mack, genins_integrity) -> None:
         doc = extract_result(
-            mack, created_at=CREATED_AT, warnings=["replayed at 1e-6 tolerance"]
+            mack,
+            created_at=CREATED_AT,
+            triangle_integrity=genins_integrity,
+            warnings=["replayed at 1e-6 tolerance"],
         )
         assert doc.payload.warnings == ["replayed at 1e-6 tolerance"]
         assert parse_document(serialize_document(doc)).payload.warnings == [

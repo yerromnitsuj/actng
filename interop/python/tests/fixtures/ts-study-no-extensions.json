@@ -1,0 +1,305 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "study",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "integrity": "1794d33f0837d5a6",
+  "study": {
+    "title": "Taylor/Ashe conformance study (no-extensions probe)",
+    "narrative": {
+      "analyst": "TS shore",
+      "summary": "VW all-period factors on the Taylor/Ashe triangle; authored WITHOUT an envelope extensions field to pin absence-preservation."
+    },
+    "triangles": [
+      {
+        "interchangeVersion": "1.0.0",
+        "kind": "triangle",
+        "generator": {
+          "name": "@actuarial-ts/interchange",
+          "version": "0.1.0"
+        },
+        "createdAt": "2026-07-17T00:00:00Z",
+        "extensions": {},
+        "integrity": "c568b1bbca929611",
+        "triangle": {
+          "measure": "paid",
+          "cumulative": true,
+          "originLengthMonths": 12,
+          "origins": [
+            {
+              "label": "2001",
+              "start": "2001-01-01"
+            },
+            {
+              "label": "2002",
+              "start": "2002-01-01"
+            },
+            {
+              "label": "2003",
+              "start": "2003-01-01"
+            },
+            {
+              "label": "2004",
+              "start": "2004-01-01"
+            },
+            {
+              "label": "2005",
+              "start": "2005-01-01"
+            },
+            {
+              "label": "2006",
+              "start": "2006-01-01"
+            },
+            {
+              "label": "2007",
+              "start": "2007-01-01"
+            },
+            {
+              "label": "2008",
+              "start": "2008-01-01"
+            },
+            {
+              "label": "2009",
+              "start": "2009-01-01"
+            },
+            {
+              "label": "2010",
+              "start": "2010-01-01"
+            }
+          ],
+          "agesMonths": [
+            12,
+            24,
+            36,
+            48,
+            60,
+            72,
+            84,
+            96,
+            108,
+            120
+          ],
+          "values": [
+            [
+              357848,
+              1124788,
+              1735330,
+              2218270,
+              2745596,
+              3319994,
+              3466336,
+              3606286,
+              3833515,
+              3901463
+            ],
+            [
+              352118,
+              1236139,
+              2170033,
+              3353322,
+              3799067,
+              4120063,
+              4647867,
+              4914039,
+              5339085,
+              null
+            ],
+            [
+              290507,
+              1292306,
+              2218525,
+              3235179,
+              3985995,
+              4132918,
+              4628910,
+              4909315,
+              null,
+              null
+            ],
+            [
+              310608,
+              1418858,
+              2195047,
+              3757447,
+              4029929,
+              4381982,
+              4588268,
+              null,
+              null,
+              null
+            ],
+            [
+              443160,
+              1136350,
+              2128333,
+              2897821,
+              3402672,
+              3873311,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              396132,
+              1333217,
+              2180715,
+              2985752,
+              3691712,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              440832,
+              1288463,
+              2419861,
+              3483130,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              359480,
+              1421128,
+              2864498,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              376686,
+              1363294,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              344014,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          ],
+          "valuationDate": "2010-12-31"
+        }
+      }
+    ],
+    "selections": [
+      {
+        "interchangeVersion": "1.0.0",
+        "kind": "selection",
+        "generator": {
+          "name": "@actuarial-ts/interchange",
+          "version": "0.1.0"
+        },
+        "createdAt": "2026-07-17T00:00:00Z",
+        "extensions": {},
+        "integrity": "16aa90b6c1298de2",
+        "selection": {
+          "appliesTo": {
+            "measure": "paid",
+            "triangleIntegrity": "c568b1bbca929611"
+          },
+          "development": [
+            {
+              "fromAgeMonths": 12,
+              "toAgeMonths": 24,
+              "value": 3.4906065479322863,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 24,
+              "toAgeMonths": 36,
+              "value": 1.7473326421004893,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 36,
+              "toAgeMonths": 48,
+              "value": 1.4574128360182361,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 48,
+              "toAgeMonths": 60,
+              "value": 1.1738517093997867,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 60,
+              "toAgeMonths": 72,
+              "value": 1.103823532244344,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 72,
+              "toAgeMonths": 84,
+              "value": 1.0862693644363943,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 84,
+              "toAgeMonths": 96,
+              "value": 1.0538743555048127,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 96,
+              "toAgeMonths": 108,
+              "value": 1.0765551783529383,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            },
+            {
+              "fromAgeMonths": 108,
+              "toAgeMonths": 120,
+              "value": 1.017724725219544,
+              "intent": {
+                "kind": "volume-weighted"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

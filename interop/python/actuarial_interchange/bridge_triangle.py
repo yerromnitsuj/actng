@@ -52,16 +52,10 @@ def _triangle_payload(source: Union[Document, TrianglePayload]) -> TrianglePaylo
 
 
 def _origin_start(origin: Origin) -> pd.Timestamp:
-    """The origin period's start date: explicit ``start`` when present,
-    else derived from a plain-year label (the only unambiguous fallback)."""
-    if origin.start is not None:
-        return pd.Timestamp(origin.start)
-    if origin.label.isdigit() and len(origin.label) == 4:
-        return pd.Timestamp(int(origin.label), 1, 1)
-    raise BadInterchangeError(
-        f"origin '{origin.label}' has no start date and its label is not a "
-        "plain year; supply origins[].start"
-    )
+    """The origin period's start date. ``Origin.start`` is required on the
+    dataclass (``Origin.from_dict`` supplies the lenient plain-year-label
+    fallback for foreign docs), so this is a direct read."""
+    return pd.Timestamp(origin.start)
 
 
 def _period_end(start: pd.Timestamp, age_months: int) -> pd.Timestamp:
@@ -77,25 +71,24 @@ def triangle_doc_to_cl(source: Union[Document, TrianglePayload]) -> cl.Triangle:
     """Build a ``cl.Triangle`` from a TriangleDoc.
 
     Only observed cells become rows in the long frame; ``None`` cells stay
-    NaN in the triangle. Raises ``BadInterchangeError`` when the payload
-    grid is malformed or when chainladder would silently drop an all-null
-    origin row or age column.
+    NaN in the triangle (grid shape is validated by ``TrianglePayload``
+    itself). Raises ``BadInterchangeError`` for bulk-lane (valuesRef-only)
+    payloads — a capability limit, not a format error — and when
+    chainladder would silently drop an all-null origin row or age column.
     """
     payload = _triangle_payload(source)
+    if payload.values is None:
+        raise BadInterchangeError(
+            "this triangle carries only a bulk-lane valuesRef (spec 3.3); the "
+            "chainladder bridge requires inline values — Phase A converters do "
+            "not read the bulk lane"
+        )
     n_origins = len(payload.origins)
     n_ages = len(payload.ages_months)
-    if len(payload.values) != n_origins:
-        raise BadInterchangeError(
-            f"values has {len(payload.values)} rows for {n_origins} origins"
-        )
 
     rows: list[tuple[pd.Timestamp, pd.Timestamp, float]] = []
     zero_cells: list[tuple[pd.Timestamp, int]] = []
-    for row_index, (origin, row) in enumerate(zip(payload.origins, payload.values)):
-        if len(row) != n_ages:
-            raise BadInterchangeError(
-                f"values[{row_index}] has {len(row)} cells for {n_ages} ages"
-            )
+    for origin, row in zip(payload.origins, payload.values):
         start = _origin_start(origin)
         for age, cell in zip(payload.ages_months, row):
             if cell is None:

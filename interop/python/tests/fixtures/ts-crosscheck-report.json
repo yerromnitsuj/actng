@@ -1,0 +1,122 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "crosscheck-report",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "extensions": {},
+  "integrity": "e31c8dd6f2a2988b",
+  "report": {
+    "engines": {
+      "a": {
+        "name": "actuarial-ts",
+        "version": "0.1.0",
+        "conventionProfile": "mack1993-vw"
+      },
+      "b": {
+        "name": "chainladder-python",
+        "version": "0.9.2",
+        "conventionProfile": "mack1993-vw"
+      }
+    },
+    "appliesTo": {
+      "triangleIntegrity": "c568b1bbca929611",
+      "selectionIntegrity": null
+    },
+    "parameters": {
+      "a": {
+        "requested": {
+          "selected": "omitted (volume-weighted per Mack 1993)",
+          "sigma": "Mack last-column extrapolation (built in)",
+          "tailFactor": 1
+        },
+        "effective": null
+      },
+      "b": {
+        "requested": {
+          "average": "volume",
+          "n_periods": -1,
+          "sigma_interpolation": "log-linear"
+        },
+        "effective": null
+      }
+    },
+    "tolerance": {
+      "central": 0.000001,
+      "standardError": 0.005
+    },
+    "deviations": {
+      "perOrigin": [
+        {
+          "ultimate": 0,
+          "unpaid": 0,
+          "standardError": null,
+          "origin": "2001"
+        },
+        {
+          "ultimate": 0,
+          "unpaid": 0,
+          "standardError": 0.04898194963861193,
+          "origin": "2002"
+        },
+        {
+          "ultimate": 1.7314605908278098e-16,
+          "unpaid": 1.9835999566443913e-15,
+          "standardError": 0.01828144482596471,
+          "origin": "2003"
+        },
+        {
+          "ultimate": 1.7579070034702313e-16,
+          "unpaid": 1.3123914020424518e-15,
+          "standardError": 0.014796234258663324,
+          "origin": "2004"
+        },
+        {
+          "ultimate": 3.834023481166141e-16,
+          "unpaid": 1.8912241195391534e-15,
+          "standardError": 0.0033527652740867353,
+          "origin": "2005"
+        },
+        {
+          "ultimate": 3.644262699187768e-16,
+          "unpaid": 1.3122214510440282e-15,
+          "standardError": 0.0014666652699469264,
+          "origin": "2006"
+        },
+        {
+          "ultimate": 3.2904444893164667e-16,
+          "unpaid": 8.553501124143323e-16,
+          "standardError": 0.000933728429038972,
+          "origin": "2007"
+        },
+        {
+          "ultimate": 1.3726605209304003e-16,
+          "unpaid": 2.375640471933135e-16,
+          "standardError": 0.0005087172705137466,
+          "origin": "2008"
+        },
+        {
+          "ultimate": 1.650617909827435e-16,
+          "unpaid": 2.176509959205902e-16,
+          "standardError": 0.0003068411707735835,
+          "origin": "2009"
+        },
+        {
+          "ultimate": 3.747909159291913e-16,
+          "unpaid": 4.0266350533451694e-16,
+          "standardError": 0.00012752911759286487,
+          "origin": "2010"
+        }
+      ],
+      "totals": {
+        "ultimate": 0,
+        "unpaid": 3.9883508291600914e-16,
+        "standardError": 0.0023418515040700273
+      }
+    },
+    "verdict": "disagree",
+    "warnings": []
+  }
+}

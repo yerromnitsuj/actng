@@ -22,9 +22,12 @@ Ground truth (mirrors the TS implementation):
 - Integers are serialized through IEEE-754 double semantics (JSON numbers
   ARE doubles in ECMAScript); ints beyond 2^53 round exactly as they would
   in a JS engine.
-- Strings escape only what JSON.stringify escapes: ``"``, ``\\``, and
-  control characters U+0000..U+001F (named escapes for \\b \\t \\n \\f \\r,
-  ``\\u00XX`` otherwise). Everything else is emitted literally as UTF-8.
+- Strings escape only what JSON.stringify escapes: ``"``, ``\\``, control
+  characters U+0000..U+001F (named escapes for \\b \\t \\n \\f \\r,
+  ``\\u00XX`` otherwise), and — per ES2019 well-formed JSON.stringify —
+  UNPAIRED surrogate code units as ``\\udXXX`` (a high+low surrogate pair
+  is the astral character and is emitted literally). Everything else is
+  emitted literally as UTF-8.
 - Anything JSON cannot faithfully represent (NaN, infinities, non-string
   keys, unsupported types, circular references) raises ``ValueError`` with
   the offending path instead of being silently coerced.
@@ -108,15 +111,37 @@ _NAMED_ESCAPES = {
 
 
 def _format_string(value: str) -> str:
+    """JSON.stringify's minimal escaping, including its WELL-FORMED rule
+    (ES2019): an UNPAIRED surrogate code unit is escaped as ``\\udXXX``
+    (lowercase hex) instead of being emitted raw — raw lone surrogates are
+    not UTF-8-encodable, so without this rule ``fnv1a64`` over the
+    canonical text would raise ``UnicodeEncodeError``. A high surrogate
+    immediately followed by a low surrogate is a valid pair (JS string
+    semantics) and is emitted literally as the astral character it encodes.
+    """
     parts: list[str] = ['"']
-    for ch in value:
+    i = 0
+    length = len(value)
+    while i < length:
+        ch = value[i]
+        code = ord(ch)
         escape = _NAMED_ESCAPES.get(ch)
         if escape is not None:
             parts.append(escape)
         elif ch < "\x20":
-            parts.append(f"\\u{ord(ch):04x}")
+            parts.append(f"\\u{code:04x}")
+        elif 0xD800 <= code <= 0xDBFF:
+            if i + 1 < length and 0xDC00 <= ord(value[i + 1]) <= 0xDFFF:
+                low = ord(value[i + 1])
+                parts.append(chr(0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00)))
+                i += 2
+                continue
+            parts.append(f"\\u{code:04x}")
+        elif 0xDC00 <= code <= 0xDFFF:
+            parts.append(f"\\u{code:04x}")
         else:
             parts.append(ch)
+        i += 1
     parts.append('"')
     return "".join(parts)
 

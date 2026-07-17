@@ -98,3 +98,32 @@ class TestFnv1a64:
     def test_hashes_utf8_bytes(self) -> None:
         assert fnv1a64("é") != fnv1a64("e")
         assert len(fnv1a64("réserve")) == 16
+
+
+class TestLoneSurrogates:
+    """Well-formed JSON.stringify (ES2019): unpaired surrogate code units
+    escape as \\udXXX so the canonical text is always UTF-8-encodable and
+    fnv1a64 can never hit UnicodeEncodeError. The committed
+    lone-surrogate-escaped vector pins the cross-language bytes."""
+
+    def test_lone_high_surrogate_escapes(self) -> None:
+        assert canonical_json("\ud800") == '"\\ud800"'
+        assert canonical_json({"k": "\ud800"}) == '{"k":"\\ud800"}'
+
+    def test_lone_low_surrogate_escapes(self) -> None:
+        assert canonical_json("\udc00") == '"\\udc00"'
+
+    def test_fnv1a64_over_canonical_text_never_raises(self) -> None:
+        # Before the escape, this path raised UnicodeEncodeError.
+        assert len(fnv1a64(canonical_json({"k": "\ud800"}))) == 16
+
+    def test_paired_surrogates_combine_like_a_js_string(self) -> None:
+        # In JS string semantics a high+low pair IS the astral character;
+        # byte parity requires emitting it literally, not as two escapes.
+        # (Python keeps "\ud83d\ude00" as two adjacent surrogate code
+        # points — exactly the JS pair — so the emitter must combine.)
+        assert canonical_json("\ud83d\ude00") == canonical_json("\U0001f600") == '"😀"'
+
+    def test_surrogate_keys_still_sort_by_utf16_code_units(self) -> None:
+        # A lone-surrogate KEY sorts by its code unit and escapes in output.
+        assert canonical_json({"�": 1, "\ud800": 2}) == '{"\\ud800":2,"�":1}'

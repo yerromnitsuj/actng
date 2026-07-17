@@ -201,3 +201,33 @@ describe("conformance: deliberately misaligned run (spec 13 Phase A acceptance 3
     expect(Math.max(...seDeviations)).toBeGreaterThan(0.005);
   });
 });
+
+describe("conformance: cross-engine ALIGNED runs referee to agree (both directions closed)", () => {
+  // The two clpy-*.json docs are authored by the Python runner under the
+  // same author-once-then-freeze policy as the misaligned one: chainladder
+  // replaying the SAME committed selection on the SAME committed triangle,
+  // profile requirements satisfied (sigma_interpolation="mack" for the
+  // Mack profile). The TS referee must call the agreement.
+  const cases = [
+    { profile: "deterministic-cl", clpyFile: "clpy-deterministic-cl.json", tsFile: "deterministic-cl.json" },
+    { profile: "mack1993-vw", clpyFile: "clpy-mack1993-vw.json", tsFile: "mack1993-vw.json" },
+  ] as const;
+
+  for (const c of cases) {
+    it(`taylor-ashe ${c.profile}: TS vs chainladder-python -> verdict agree`, () => {
+      const clpyPath = path.join(FIXTURES_DIR, "taylor-ashe", c.clpyFile);
+      expect(
+        existsSync(clpyPath),
+        `${c.clpyFile} is missing - run the Python conformance suite once (npm run test:py) to author it`,
+      ).toBe(true);
+      const clpy = parseDocument(JSON.parse(readFileSync(clpyPath, "utf8"))).doc as MethodResultDoc;
+      const ts = parseDocument(
+        JSON.parse(readFileSync(path.join(FIXTURES_DIR, "taylor-ashe", c.tsFile), "utf8")),
+      ).doc as MethodResultDoc;
+      expect(clpy.result.engine.name).toBe("chainladder-python");
+      const report = crosscheck({ a: ts, b: clpy, createdAt: "2026-07-17T00:00:00Z" });
+      expect(report.report.verdict).toBe("agree");
+      expect(report.report.warnings.join("\n")).not.toContain("effective");
+    });
+  }
+});

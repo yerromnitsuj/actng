@@ -289,3 +289,120 @@ class TestExtraction:
             float(np.asarray(tail.tail_).ravel()[0])
         )
         assert set(doc.payload.tail.intent.params) == {"intercept", "slope"}
+
+
+class TestCoherenceOnImport:
+    """Finding 4: selection_doc_to_estimators enforces the coherence rule
+    when the referenced triangle is supplied, and says so when it cannot."""
+
+    def test_without_triangle_warns_coherence_not_verified(self) -> None:
+        triangle_doc = make_triangle_doc()
+        doc = make_selection_doc(triangle_doc.integrity())
+        with pytest.warns(InterchangeWarning, match="coherence NOT verified"):
+            selection_doc_to_estimators(doc)
+
+    def test_with_triangle_verifies_silently_when_coherent(self) -> None:
+        triangle_doc = make_triangle_doc()
+        doc = make_selection_doc(triangle_doc.integrity())
+        import warnings as _w
+
+        with _w.catch_warnings():
+            _w.simplefilter("error", InterchangeWarning)
+            development, tail = selection_doc_to_estimators(doc, triangle=triangle_doc)
+        assert isinstance(development, cl.Development)
+        assert tail is None
+
+    def test_with_triangle_warns_on_incoherence(self) -> None:
+        triangle_doc = make_triangle_doc()
+        payload = make_selection_payload(triangle_doc.integrity())
+        payload.development[0].value = 1.999  # edited value, stale intent
+        with pytest.warns(InterchangeWarning, match="incoherent"):
+            selection_doc_to_estimators(payload, triangle=triangle_doc)
+
+    def test_with_triangle_strict_raises_on_incoherence(self) -> None:
+        triangle_doc = make_triangle_doc()
+        payload = make_selection_payload(triangle_doc.integrity())
+        payload.development[0].value = 1.999
+        with pytest.raises(IncoherentSelectionError):
+            selection_doc_to_estimators(payload, triangle=triangle_doc, strict=True)
+
+
+class TestStrictRefusesDemotedReplays:
+    """Finding 22: strict=True means demoted/approximate replays RAISE
+    instead of warn — never a silently degraded estimator."""
+
+    def test_strict_refuses_geometric_demotion(self, genins_doc) -> None:
+        doc = make_selection_doc(
+            genins_doc.integrity(),
+            development=[
+                DevelopmentSelection(
+                    from_age_months=12,
+                    to_age_months=24,
+                    value=3.49,
+                    intent=DevelopmentIntent(kind="geometric"),
+                )
+            ],
+        )
+        with pytest.raises(InterchangeError, match="DEMOTED"):
+            selection_doc_to_estimators(doc, strict=True)
+
+    def test_strict_refuses_approximate_medial(self, genins_doc) -> None:
+        doc = make_selection_doc(
+            genins_doc.integrity(),
+            development=[
+                DevelopmentSelection(
+                    from_age_months=12,
+                    to_age_months=24,
+                    value=3.2,
+                    intent=DevelopmentIntent(
+                        kind="medial",
+                        window_origin_periods=5,
+                        exclude_high=1,
+                        exclude_low=1,
+                    ),
+                )
+            ],
+        )
+        with pytest.raises(InterchangeError, match="APPROXIMATELY"):
+            selection_doc_to_estimators(doc, strict=True)
+
+    def test_strict_refuses_computable_intents_flattened_in_a_mixed_selection(
+        self, genins_doc
+    ) -> None:
+        doc = make_selection_doc(
+            genins_doc.integrity(),
+            development=[
+                DevelopmentSelection(
+                    from_age_months=12,
+                    to_age_months=24,
+                    value=3.49,
+                    intent=DevelopmentIntent(kind="volume-weighted"),
+                ),
+                DevelopmentSelection(
+                    from_age_months=24,
+                    to_age_months=36,
+                    value=1.75,
+                    intent=DevelopmentIntent(kind="judgmental", rationale="board pick"),
+                ),
+            ],
+        )
+        with pytest.raises(InterchangeError, match="DEMOTED"):
+            selection_doc_to_estimators(doc, strict=True)
+
+    def test_strict_allows_pure_value_only_selections(self, genins_doc) -> None:
+        # judgmental/external -> DevelopmentConstant IS the exact spec
+        # replay, not a compromise: strict must not refuse it.
+        doc = make_selection_doc(
+            genins_doc.integrity(),
+            development=[
+                DevelopmentSelection(
+                    from_age_months=12,
+                    to_age_months=24,
+                    value=3.5,
+                    intent=DevelopmentIntent(kind="external", rationale="benchmark"),
+                )
+            ],
+        )
+        with pytest.warns(InterchangeWarning, match="value-only"):
+            development, _ = selection_doc_to_estimators(doc, strict=True)
+        assert isinstance(development, cl.DevelopmentConstant)

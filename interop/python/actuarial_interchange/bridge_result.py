@@ -96,7 +96,7 @@ def extract_result(
     fitted: object,
     *,
     created_at: str,
-    triangle_integrity: Optional[str] = None,
+    triangle_integrity: str,
     selection_integrity: Optional[str] = None,
     parameters: Optional[dict] = None,
     convention_profile: Optional[str] = None,
@@ -104,11 +104,14 @@ def extract_result(
 ) -> Document:
     """Fitted estimator -> MethodResultDoc.
 
-    ``parameters`` overrides the echo when the caller knows the true
-    requested configuration (e.g. the upstream Development's average and
-    n_periods, which the IBNR estimator itself does not carry); the default
-    echo is the estimator's own ``get_params()``. ``created_at`` is
-    caller-supplied (purity rule).
+    ``triangle_integrity`` is REQUIRED: a result that does not say which
+    triangle it applies to is not comparable to anything (the TS schema
+    makes the tag non-nullable, and ``ResultAppliesTo`` never emits a null
+    triangleIntegrity). ``parameters`` overrides the echo when the caller
+    knows the true requested configuration (e.g. the upstream
+    Development's average and n_periods, which the IBNR estimator itself
+    does not carry); the default echo is the estimator's own
+    ``get_params()``. ``created_at`` is caller-supplied (purity rule).
     """
     if not isinstance(fitted, SUPPORTED_ESTIMATORS):
         raise BadInterchangeError(

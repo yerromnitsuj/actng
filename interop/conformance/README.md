@@ -23,7 +23,9 @@ interop/conformance/
     ├── deterministic-cl.json  TS runChainLadder MethodResultDoc
     ├── mack1993-vw.json       TS runMack MethodResultDoc
     ├── expectations.json      TS-engine totals + integrity tags + tolerances
-    └── misaligned-mack-loglinear.json   (taylor-ashe only; see below)
+    ├── misaligned-mack-loglinear.json   (taylor-ashe only; see below)
+    ├── clpy-deterministic-cl.json       (taylor-ashe only; see below)
+    └── clpy-mack1993-vw.json            (taylor-ashe only; see below)
 ```
 
 ## The fixtures
@@ -52,6 +54,15 @@ return verdict `disagree` on it — the cross-language closure of spec 13
 Phase A acceptance 3. Central estimates agree (sigma does not touch the
 projection); the standard errors betray the misalignment (max per-origin
 deviation ≈ 4.9% against the 0.5% profile tolerance).
+
+`clpy-deterministic-cl.json` and `clpy-mack1993-vw.json` are the ALIGNED
+mirror, also authored by the PYTHON runner with the same
+author-once-then-freeze pattern: the committed selection replayed
+natively (`deterministic-cl`) and a Mack run with
+`sigma_interpolation="mack"` pinned (`mack1993-vw`), on the same
+committed Taylor/Ashe triangle. The TS referee must return verdict
+`agree` on each against the TS-authored result of the same profile —
+cross-engine agreement proven on committed bytes, not on a transient run.
 
 ## Running
 
@@ -100,7 +111,10 @@ Python (`py/test_conformance.py`), per fixture:
   (`mack1993-vw`); a fully developed origin's SE is `null`-vs-`0` by
   documented convention (chainladder omits, actuarial-ts reports 0);
 - the misaligned document is reproducible and genuinely misaligned on
-  this engine before the TS referee ever sees it.
+  this engine before the TS referee ever sees it;
+- the aligned Python-authored documents (`clpy-*.json`) are reproducible
+  (semantic freeze at 1e-9) and carry the committed appliesTo tags and
+  convention profiles the TS referee needs to return `agree`.
 
 ## Update policy: the fixtures are FROZEN
 
@@ -108,7 +122,8 @@ The committed fixture documents are frozen expectations — the compatibility
 statement other parties can hold us to. Do NOT regenerate them casually.
 
 Regeneration (`npx tsx interop/conformance/generate-fixtures.mts`, plus a
-pytest run to re-author the misaligned document if its inputs changed) is
+pytest run to re-author the Python-authored documents — misaligned and
+`clpy-*` — if their inputs changed) is
 legitimate ONLY when a spec or convention change alters what the documents
 must contain — a new spec minor, a profile change (spec MAJOR), or a
 deliberate authoring-convention change — and the commit message must say

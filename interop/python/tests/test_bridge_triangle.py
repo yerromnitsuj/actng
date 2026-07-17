@@ -73,10 +73,23 @@ class TestDocToTriangle:
         with pytest.raises(BadInterchangeError, match="NaN"):
             triangle_doc_to_cl(doc)
 
-    def test_ragged_row_is_refused(self) -> None:
-        doc = make_triangle_doc(values=[[100.0, 160.0], [110.0, 170.0, None], [120.0, None, None]])
-        with pytest.raises(BadInterchangeError, match="cells for 3 ages"):
-            triangle_doc_to_cl(doc)
+    def test_ragged_row_is_refused_at_construction(self) -> None:
+        # Grid-shape validation moved into TrianglePayload itself (TS
+        # superRefine parity): a ragged grid never becomes a payload, so
+        # the bridge never sees one.
+        with pytest.raises(BadInterchangeError, match=r"values\[0\] has 2 column"):
+            make_triangle_doc(values=[[100.0, 160.0], [110.0, 170.0, None], [120.0, None, None]])
+
+    def test_bulk_lane_triangle_is_refused_with_a_capability_message(self) -> None:
+        # valuesRef-only triangles are VALID documents (spec 3.3) but the
+        # Phase A chainladder bridge cannot read the bulk lane — the
+        # refusal names the capability limit, not a format error.
+        payload = make_triangle_payload(
+            values=None,
+            values_ref={"format": "arrow", "path": "values.arrow", "sha256": "ab" * 32},
+        )
+        with pytest.raises(BadInterchangeError, match="bulk-lane valuesRef"):
+            triangle_doc_to_cl(payload)
 
     def test_quarterly_cadence(self) -> None:
         from actuarial_interchange import Origin

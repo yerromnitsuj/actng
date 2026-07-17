@@ -16,13 +16,35 @@ Replay policy (injection honesty rules, spec 3.2):
   column shares one trim configuration; otherwise value-only.
 - The Mack-SE-less rule: a Mack request atop a value-only replay is
   answered SE-less (plain ``Chainladder``) with an explicit
-  ``InterchangeWarning``, or refused under ``strict=True`` — never
-  silently approximated. ``fit_mack`` enforces it.
+  ``InterchangeWarning``, or refused under ``fit_mack``'s own
+  ``strict=True`` — never silently approximated. ``fit_mack`` enforces it.
+
+What ``strict=True`` on ``selection_doc_to_estimators`` DOES cover — every
+replay compromise raises instead of warning:
+
+- an unknown fitted-tail family (no native replay exists);
+- the approximate medial replay via drop_high/drop_low;
+- the geometric demotion to value-only;
+- any COMPUTABLE intent demoted to value-only because it appears in a
+  mixed selection that must flatten to ``DevelopmentConstant``;
+- an incoherent selection, when the referenced triangle is supplied
+  (``IncoherentSelectionError``).
+
+What it does NOT cover:
+
+- pure judgmental/external selections replaying via
+  ``DevelopmentConstant`` — that IS the exact spec replay for value-only
+  intents, not a compromise (the sigma-availability warning still fires);
+- the Mack-SE-less rule, which is ``fit_mack``'s own ``strict`` flag;
+- coherence when NO triangle is supplied — an ``InterchangeWarning``
+  states that coherence was not verified, strict or not.
 
 The coherence rule (spec 3.2): for exact-computable intents the stored
 ``value`` must equal its recomputation on the referenced triangle within
 1e-9 relative. ``verify_coherence`` recomputes and, per the strictness
 flag, warns or raises ``IncoherentSelectionError``.
+``selection_doc_to_estimators`` runs it on import whenever the referenced
+triangle is supplied, and warns that it could not when it is not.
 
 Requires the ``[chainladder]`` extra.
 """
@@ -43,6 +65,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without the extr
 
 from .bridge_triangle import triangle_doc_to_cl
 from .documents import (
+    VALUE_ONLY_INTENT_KINDS,
     Document,
     DevelopmentIntent,
     DevelopmentSelection,
@@ -146,11 +169,17 @@ def _development_estimator(
         }
         if len(trims) == 1:
             high, low, window = next(iter(trims))
-            _warn(
+            message = (
                 "medial intent replays APPROXIMATELY on chainladder via "
                 "drop_high/drop_low (rank-based, with preserve relaxation) — "
                 "spec 3.2 marks this cell approx, not exact"
             )
+            if strict:
+                raise InterchangeError(
+                    message + " (strict mode refuses approximate replays; rerun "
+                    "without strict to accept the approximation)"
+                )
+            _warn(message)
             return cl.Development(
                 average="simple",
                 n_periods=-1 if window is None else window,
@@ -159,16 +188,29 @@ def _development_estimator(
                 drop=_drop_list(ordered),
             )
 
-    if "geometric" in kinds:
-        _warn(
-            "geometric intent is DEMOTED to value-only on chainladder 0.9.2: "
-            "Development(average='geometric') raises KeyError on this engine"
-        )
     non_native = kinds - set(_NATIVE_AVERAGE)
     if non_native - {"judgmental", "external", "geometric", "medial"}:
         raise BadInterchangeError(
             f"unknown development intent kind(s): {sorted(non_native)}"
         )
+    # Kinds about to be flattened to DevelopmentConstant that are NOT
+    # value-only by nature: geometric (engine demotion), medial with
+    # non-uniform trims, and computable natives caught in a mixed
+    # selection. Under strict, a demotion is a refusal, not a warning.
+    demoted = sorted(kinds - VALUE_ONLY_INTENT_KINDS)
+    if demoted:
+        if strict:
+            raise InterchangeError(
+                f"selection intents {demoted} have no exact replay on this engine "
+                "and would be DEMOTED to a value-only DevelopmentConstant; strict "
+                "mode refuses demoted/approximate replays (rerun without strict "
+                "to accept the demotion)"
+            )
+        if "geometric" in kinds:
+            _warn(
+                "geometric intent is DEMOTED to value-only on chainladder 0.9.2: "
+                "Development(average='geometric') raises KeyError on this engine"
+            )
     _warn(
         "selection replays value-only via DevelopmentConstant "
         f"(intent kinds: {sorted(kinds)}); sigma_/std_err_ are unavailable, "
@@ -201,19 +243,41 @@ def _tail_estimator(tail: Optional[TailSelection], strict: bool) -> Optional[obj
 
 
 def selection_doc_to_estimators(
-    source: Union[Document, SelectionPayload], *, strict: bool = False
+    source: Union[Document, SelectionPayload],
+    *,
+    triangle: Union[Document, TrianglePayload, "cl.Triangle", None] = None,
+    strict: bool = False,
 ) -> tuple[object, Optional[object]]:
     """SelectionDoc -> ``(development_estimator, tail_estimator_or_None)``.
 
     Computable intents with exact replays become native ``Development``
     estimators (per the spec 3.2 equivalence table); everything else
     becomes ``DevelopmentConstant``/``TailConstant`` with an explicit
-    ``InterchangeWarning``. Under ``strict=True``, replay compromises that
-    would otherwise warn (unknown tail family) raise instead.
+    ``InterchangeWarning``. Under ``strict=True``, every replay compromise
+    that would otherwise warn — unknown tail family, approximate medial,
+    geometric demotion, computable intents flattened in a mixed
+    selection — raises instead (see the module docstring for the full
+    strict policy).
+
+    The coherence rule (spec 3.2) is enforced ON IMPORT when ``triangle``
+    (the referenced triangle document, payload, or an already-bridged
+    ``cl.Triangle``) is supplied: ``verify_coherence`` runs with the same
+    strictness (warn, or ``IncoherentSelectionError`` under strict). When
+    no triangle is supplied, an ``InterchangeWarning`` states that
+    coherence was NOT verified — never silently skipped.
     """
     payload = _selection_payload(source)
     if not payload.development:
         raise BadInterchangeError("selection has no development factors")
+    if triangle is not None:
+        verify_coherence(payload, triangle, strict=strict)
+    else:
+        _warn(
+            "coherence NOT verified: no triangle was supplied to "
+            "selection_doc_to_estimators, so the spec 3.2 coherence rule was "
+            "not checked against the referenced triangle (pass triangle= to "
+            "enforce it)"
+        )
     development = _development_estimator(payload.development, strict)
     tail = _tail_estimator(payload.tail, strict)
     return development, tail
@@ -271,7 +335,10 @@ def verify_coherence(
 
     Recomputes each volume-weighted/simple/regression factor natively on
     the triangle and compares to the stored value at ``tolerance``
-    (relative). Divergences raise ``IncoherentSelectionError`` under
+    (relative), using the cross-shore relative-deviation definition shared
+    with the TS referee and the conformance runners:
+    ``|a - b| / max(|a|, |b|)``, defined as 0 when both are 0.
+    Divergences raise ``IncoherentSelectionError`` under
     ``strict=True``, otherwise warn (``InterchangeWarning``) and are
     returned as messages. Intents whose chainladder replay is not exact
     (medial, geometric) and value-only intents (judgmental/external —
@@ -308,7 +375,8 @@ def verify_coherence(
                 "referenced triangle"
             )
             continue
-        relative = abs(selection_item.value - recomputed) / abs(recomputed)
+        scale = max(abs(selection_item.value), abs(recomputed))
+        relative = 0.0 if scale == 0 else abs(selection_item.value - recomputed) / scale
         if relative > tolerance:
             divergences.append(
                 f"{selection_item.from_age_months}-{selection_item.to_age_months} "

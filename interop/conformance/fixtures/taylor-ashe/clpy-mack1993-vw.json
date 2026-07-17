@@ -1,0 +1,94 @@
+{
+  "interchangeVersion": "1.0.0",
+  "kind": "method-result",
+  "generator": {
+    "name": "actuarial-interchange",
+    "version": "0.1.0"
+  },
+  "createdAt": "2026-07-17T00:00:00Z",
+  "result": {
+    "appliesTo": {
+      "triangleIntegrity": "c568b1bbca929611",
+      "selectionIntegrity": null
+    },
+    "engine": {
+      "name": "chainladder-python",
+      "version": "0.9.2",
+      "conventionProfile": "mack1993-vw"
+    },
+    "method": "clpy:MackChainladder",
+    "parameters": {
+      "average": "volume",
+      "n_periods": -1,
+      "sigma_interpolation": "mack"
+    },
+    "rows": [
+      {
+        "origin": "2001",
+        "ultimate": 3901463.0,
+        "unpaid": 0.0
+      },
+      {
+        "origin": "2002",
+        "ultimate": 5433718.8145487895,
+        "unpaid": 94633.81454878952,
+        "standardError": 75535.04075748847
+      },
+      {
+        "origin": "2003",
+        "ultimate": 5378826.290064239,
+        "unpaid": 469511.29006423894,
+        "standardError": 121698.56164542316
+      },
+      {
+        "origin": "2004",
+        "ultimate": 5297905.820825462,
+        "unpaid": 709637.8208254622,
+        "standardError": 133548.85301207818
+      },
+      {
+        "origin": "2005",
+        "ultimate": 4858199.639049739,
+        "unpaid": 984888.6390497386,
+        "standardError": 261406.44934268497
+      },
+      {
+        "origin": "2006",
+        "ultimate": 5111171.457661663,
+        "unpaid": 1419459.4576616632,
+        "standardError": 411009.70388105337
+      },
+      {
+        "origin": "2007",
+        "ultimate": 5660770.620135548,
+        "unpaid": 2177640.6201355476,
+        "standardError": 558316.8580711902
+      },
+      {
+        "origin": "2008",
+        "ultimate": 6784799.0119525,
+        "unpaid": 3920301.0119525,
+        "standardError": 875327.5119113588
+      },
+      {
+        "origin": "2009",
+        "ultimate": 5642266.263261643,
+        "unpaid": 4278972.263261643,
+        "standardError": 971257.8064699423
+      },
+      {
+        "origin": "2010",
+        "ultimate": 4969824.694424728,
+        "unpaid": 4625810.694424728,
+        "standardError": 1363154.9117323074
+      }
+    ],
+    "totals": {
+      "ultimate": 53038945.61192431,
+      "unpaid": 18680855.611924313,
+      "standardError": 2447094.860834665
+    }
+  },
+  "extensions": {},
+  "integrity": "370f26573580464c"
+}

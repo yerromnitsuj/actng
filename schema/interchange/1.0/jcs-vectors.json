@@ -162,6 +162,13 @@
         }
       },
       "canonical": "{\"measure\":\"paid\",\"originLengthMonths\":12,\"units\":{\"currency\":\"USD\",\"scale\":1},\"values\":[[100,160.5,null],[110,null,null]]}"
+    },
+    {
+      "name": "lone-surrogate-escaped",
+      "value": {
+        "k": "\ud800"
+      },
+      "canonical": "{\"k\":\"\\ud800\"}"
     }
   ]
 }

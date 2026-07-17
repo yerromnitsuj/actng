@@ -18,7 +18,12 @@ Parses the SAME committed fixture documents the TS runner asserts against
 - the deliberately misaligned run (DEFAULT log-linear sigma, deliberately
   claiming the mack1993-vw profile) is authored and committed at
   ``fixtures/taylor-ashe/misaligned-mack-loglinear.json`` for the TS
-  referee to return verdict "disagree" on (spec 13 Phase A acceptance 3).
+  referee to return verdict "disagree" on (spec 13 Phase A acceptance 3);
+- the ALIGNED Python-authored result documents (taylor-ashe
+  deterministic-cl and mack1993-vw with sigma_interpolation="mack") are
+  authored and committed at ``fixtures/taylor-ashe/clpy-{deterministic-cl,
+  mack1993-vw}.json`` with the same author-once-then-freeze pattern, for
+  the TS referee to return verdict "agree" on.
 
 Requires the ``.venv-interop`` environment (chainladder 0.9.2 pinned):
 
@@ -85,9 +90,12 @@ def bridged_triangle(name: str) -> "cl.Triangle":
 
 @lru_cache(maxsize=None)
 def fitted_cl(name: str) -> "cl.Chainladder":
-    """deterministic-cl: the committed selection replayed natively, then a
-    plain Chainladder fit."""
-    development, tail = selection_doc_to_estimators(fixture_docs(name)["selection"])
+    """deterministic-cl: the committed selection replayed natively (with the
+    coherence rule enforced against the referenced triangle on import),
+    then a plain Chainladder fit."""
+    development, tail = selection_doc_to_estimators(
+        fixture_docs(name)["selection"], triangle=bridged_triangle(name), strict=True
+    )
     assert tail is None
     return cl.Chainladder().fit(development.fit_transform(bridged_triangle(name)))
 
@@ -135,6 +143,35 @@ def rows_by_origin(payload) -> dict:
     return {row.origin: row for row in payload.rows}
 
 
+def assert_frozen_payload_matches(frozen, fresh) -> None:
+    """Semantic freeze for a committed Python-authored result doc: structure
+    and provenance exactly; numbers at REPRODUCTION_TOLERANCE (numpy/BLAS
+    builds may differ in last ulps across machines)."""
+    assert frozen.method == fresh.method
+    assert frozen.engine == fresh.engine
+    assert frozen.parameters == fresh.parameters
+    assert frozen.applies_to == fresh.applies_to
+    assert frozen.warnings == fresh.warnings
+    assert [row.origin for row in frozen.rows] == [row.origin for row in fresh.rows]
+    for frozen_row, fresh_row in zip(frozen.rows, fresh.rows):
+        assert relative_deviation(frozen_row.ultimate, fresh_row.ultimate) <= REPRODUCTION_TOLERANCE
+        assert relative_deviation(frozen_row.unpaid, fresh_row.unpaid) <= REPRODUCTION_TOLERANCE
+        assert (frozen_row.standard_error is None) == (fresh_row.standard_error is None)
+        if frozen_row.standard_error is not None:
+            assert (
+                relative_deviation(frozen_row.standard_error, fresh_row.standard_error)
+                <= REPRODUCTION_TOLERANCE
+            )
+    assert relative_deviation(frozen.totals.ultimate, fresh.totals.ultimate) <= REPRODUCTION_TOLERANCE
+    assert relative_deviation(frozen.totals.unpaid, fresh.totals.unpaid) <= REPRODUCTION_TOLERANCE
+    assert (frozen.totals.standard_error is None) == (fresh.totals.standard_error is None)
+    if frozen.totals.standard_error is not None:
+        assert (
+            relative_deviation(frozen.totals.standard_error, fresh.totals.standard_error)
+            <= REPRODUCTION_TOLERANCE
+        )
+
+
 @pytest.mark.parametrize("name", FIXTURE_NAMES)
 class TestDocumentHop:
     def test_reserialize_preserves_the_committed_integrity_tag(self, name) -> None:
@@ -178,7 +215,9 @@ class TestTriangleBridge:
 @pytest.mark.parametrize("name", FIXTURE_NAMES)
 class TestSelectionReplay:
     def test_intent_replays_natively_as_volume_weighted_all_periods(self, name) -> None:
-        development, tail = selection_doc_to_estimators(fixture_docs(name)["selection"])
+        development, tail = selection_doc_to_estimators(
+            fixture_docs(name)["selection"], triangle=bridged_triangle(name)
+        )
         assert isinstance(development, cl.Development)
         params = development.get_params()
         assert params["average"] == "volume"
@@ -304,27 +343,43 @@ class TestMisalignedRun:
                 f"authored {MISALIGNED_PATH.name}; commit it and rerun (the file is a frozen fixture)"
             )
         committed = parse_document(load_raw("taylor-ashe", "misaligned-mack-loglinear.json"))
-        fresh, frozen = document.payload, committed.payload
-        # Semantic freeze: structure and provenance exactly; numbers at
-        # REPRODUCTION_TOLERANCE (numpy/BLAS builds may differ in last ulps).
-        assert frozen.method == fresh.method
-        assert frozen.engine == fresh.engine
-        assert frozen.parameters == fresh.parameters
-        assert frozen.applies_to == fresh.applies_to
-        assert frozen.warnings == fresh.warnings
-        assert [row.origin for row in frozen.rows] == [row.origin for row in fresh.rows]
-        for frozen_row, fresh_row in zip(frozen.rows, fresh.rows):
-            assert relative_deviation(frozen_row.ultimate, fresh_row.ultimate) <= REPRODUCTION_TOLERANCE
-            assert relative_deviation(frozen_row.unpaid, fresh_row.unpaid) <= REPRODUCTION_TOLERANCE
-            assert (frozen_row.standard_error is None) == (fresh_row.standard_error is None)
-            if frozen_row.standard_error is not None:
-                assert (
-                    relative_deviation(frozen_row.standard_error, fresh_row.standard_error)
-                    <= REPRODUCTION_TOLERANCE
-                )
-        assert relative_deviation(frozen.totals.ultimate, fresh.totals.ultimate) <= REPRODUCTION_TOLERANCE
-        assert relative_deviation(frozen.totals.unpaid, fresh.totals.unpaid) <= REPRODUCTION_TOLERANCE
-        assert (
-            relative_deviation(frozen.totals.standard_error, fresh.totals.standard_error)
-            <= REPRODUCTION_TOLERANCE
-        )
+        assert_frozen_payload_matches(committed.payload, document.payload)
+
+
+class TestAlignedRuns:
+    """The ALIGNED cross-engine fixtures: Python-authored taylor-ashe result
+    documents on the SAME committed triangle/selection the TS shore froze —
+    deterministic-cl (native volume-weighted replay of the committed
+    selection) and mack1993-vw (sigma_interpolation="mack" pinned). Authored
+    here with the same author-once-then-freeze pattern as the misaligned
+    doc; a TS test referees them against the TS-authored results to
+    verdict "agree" (cross-engine agreement, the mirror of acceptance 3)."""
+
+    CASES = {
+        "clpy-deterministic-cl.json": lambda: python_cl_result_doc("taylor-ashe"),
+        "clpy-mack1993-vw.json": lambda: python_mack_result_doc("taylor-ashe", "mack"),
+    }
+
+    @pytest.mark.parametrize("filename", sorted(CASES))
+    def test_committed_aligned_doc_exists_and_matches_a_fresh_run(self, filename) -> None:
+        document = self.CASES[filename]()
+        path = FIXTURES_DIR / "taylor-ashe" / filename
+        if not path.exists():
+            path.write_text(json.dumps(document.to_dict(), indent=2) + "\n")
+            pytest.skip(
+                f"authored {filename}; commit it and rerun (the file is a frozen fixture)"
+            )
+        committed = parse_document(load_raw("taylor-ashe", filename))
+        assert_frozen_payload_matches(committed.payload, document.payload)
+
+    def test_aligned_docs_share_the_committed_applies_to_tags(self) -> None:
+        docs = fixture_docs("taylor-ashe")
+        cl_doc = self.CASES["clpy-deterministic-cl.json"]()
+        assert cl_doc.payload.applies_to.triangle_integrity == docs["triangle"].integrity()
+        assert cl_doc.payload.applies_to.selection_integrity == docs["selection"].integrity()
+        assert cl_doc.payload.engine.convention_profile == "deterministic-cl"
+        mack_doc = self.CASES["clpy-mack1993-vw.json"]()
+        assert mack_doc.payload.applies_to.triangle_integrity == docs["triangle"].integrity()
+        assert mack_doc.payload.applies_to.selection_integrity is None
+        assert mack_doc.payload.engine.convention_profile == "mack1993-vw"
+        assert mack_doc.payload.parameters["sigma_interpolation"] == "mack"
