@@ -40,7 +40,13 @@ export interface CapeCodRow {
   cdf: number;
   premium: number;
   usedUpPremium: number;
-  /** The mechanical ELR restated to this origin's own level. */
+  /**
+   * The ELR governing THIS origin at the target level. With decay = 1 it is
+   * the single pooled Cape Cod ELR (same for every row); with decay < 1 it
+   * is the origin's own decay-weighted average (Gluck 1997).
+   */
+  elrAtTargetLevel: number;
+  /** elrAtTargetLevel restated to this origin's own level. */
   elrAtOriginLevel: number;
   expectedUltimate: number;
   ultimate: number;
@@ -95,24 +101,63 @@ function validateRows(rows: ElrMethodRow[]): void {
  * Ultimate_i = reported_i + expectedUltimate_i x (1 - 1/cdf_i), with
  * expectedUltimate_i = ELR* x premium_i x premiumAdj_i / lossAdj_i (the
  * target-level ELR restated to origin i's own level, times its premium).
+ *
+ * Generalized Cape Cod (Gluck 1997, PCAS LXXXIV, eq. 6.1): with a decay
+ * factor D in [0, 1], each origin gets its OWN target-level ELR — the
+ * weighted average over all origins with weights usedUp_j x D^|i-j|
+ * (distance in origin-row steps). D = 1 is the standard Cape Cod (single
+ * pooled ELR); D = 0 makes every year stand alone, reproducing the pure
+ * development ultimate. Gluck's practical guidance: D between 0.50 and
+ * 1.00, with 0.75 as a customary default; lower D suits large stable books
+ * (trend error dominates), higher D suits small erratic ones (development
+ * error dominates).
  */
 export function runCapeCod(
   rows: ElrMethodRow[],
-  opts: { baseIsPurePremium?: boolean } = {},
+  opts: { baseIsPurePremium?: boolean; decay?: number } = {},
 ): CapeCodResult {
   validateRows(rows);
   const warnings: string[] = [];
+  const decay = opts.decay ?? 1;
+  if (!isNum(decay) || decay < 0 || decay > 1) {
+    throw new ReservingError("BAD_ADJ", `The decay factor must be between 0 and 1 (got ${decay})`);
+  }
 
+  const losses = rows.map((r) => r.reported * (r.lossAdj ?? 1));
+  const usedUps = rows.map((r) => (r.premium * (r.premiumAdj ?? 1)) / r.cdf);
   let lossSum = 0;
   let usedUpSum = 0;
-  for (const r of rows) {
-    lossSum += r.reported * (r.lossAdj ?? 1);
-    usedUpSum += (r.premium * (r.premiumAdj ?? 1)) / r.cdf;
+  for (let j = 0; j < rows.length; j++) {
+    lossSum += losses[j]!;
+    usedUpSum += usedUps[j]!;
   }
   if (!(usedUpSum > 0)) {
     throw new ReservingError("BAD_PREMIUM", "Used-up premium is not positive");
   }
-  const elr = lossSum / usedUpSum;
+  const pooledElr = lossSum / usedUpSum;
+
+  // Per-origin target-level ELR: pooled when D = 1 (same float, same code
+  // path — the published Cape Cod behavior must stay byte-identical), the
+  // Gluck decay-weighted average otherwise. 0^0 = 1 in JS, so D = 0 cleanly
+  // reduces to "own year only".
+  const elrByRow: number[] = rows.map((_, i) => {
+    if (decay === 1) return pooledElr;
+    let num = 0;
+    let den = 0;
+    for (let j = 0; j < rows.length; j++) {
+      const w = decay ** Math.abs(i - j);
+      num += losses[j]! * w;
+      den += usedUps[j]! * w;
+    }
+    if (!(den > 0)) {
+      throw new ReservingError(
+        "BAD_PREMIUM",
+        `Origin ${rows[i]!.origin}: decayed used-up premium is not positive`,
+      );
+    }
+    return num / den;
+  });
+
   if (rows.some((r) => r.cdf < 1)) {
     warnings.push(
       "Some origins have CDFs below 1 (expected downward development): their Cape Cod provision is an expected take-down, standard for incurred bases with case redundancy",
@@ -120,17 +165,18 @@ export function runCapeCod(
   }
   // A pure premium (losses per exposure unit) is a dollar amount, not a ratio,
   // so the "ELR looks too high" sanity check only applies to the loss-ratio base.
-  if (!opts.baseIsPurePremium && elr > 2) {
+  if (!opts.baseIsPurePremium && pooledElr > 2) {
     warnings.push(
-      `Cape Cod mechanical ELR is ${(elr * 100).toFixed(0)}% - check that premium and losses are on comparable levels`,
+      `Cape Cod mechanical ELR is ${(pooledElr * 100).toFixed(0)}% - check that premium and losses are on comparable levels`,
     );
   }
 
-  const out: CapeCodRow[] = rows.map((r) => {
+  const out: CapeCodRow[] = rows.map((r, i) => {
     const lossAdj = r.lossAdj ?? 1;
     const premiumAdj = r.premiumAdj ?? 1;
     const usedUp = (r.premium * premiumAdj) / r.cdf;
-    const elrAtOriginLevel = (elr * premiumAdj) / lossAdj;
+    const elrAtTargetLevel = elrByRow[i]!;
+    const elrAtOriginLevel = (elrAtTargetLevel * premiumAdj) / lossAdj;
     const expectedUltimate = elrAtOriginLevel * r.premium;
     const ultimate = r.reported + expectedUltimate * (1 - 1 / r.cdf);
     return {
@@ -139,6 +185,7 @@ export function runCapeCod(
       cdf: r.cdf,
       premium: r.premium,
       usedUpPremium: usedUp,
+      elrAtTargetLevel,
       elrAtOriginLevel,
       expectedUltimate,
       ultimate,
@@ -148,7 +195,9 @@ export function runCapeCod(
 
   return {
     method: "capeCod",
-    elrAtTargetLevel: elr,
+    // With decay < 1 there is no single ELR; the scalar is the pooled (D=1)
+    // reference value. Per-row elrAtTargetLevel drives the ultimates.
+    elrAtTargetLevel: pooledElr,
     rows: out,
     totals: {
       reported: out.reduce((a, r) => a + r.reported, 0),

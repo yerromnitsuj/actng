@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { runCapeCod, runExpectedClaims } from "../src/elrMethods.js";
+import {
+  gluckCapeCodPP1992,
+  gluckGcc075PP1990OwnLevel,
+  gluckGcc075PP1992,
+  gluckGcc075UltimateTotal,
+  gluckRows,
+} from "./fixtures/gluck1997.js";
 
 /**
  * Hand-computed Cape Cod (Stanard-Buhlmann) example in the Friedland ch. 10
@@ -62,6 +69,59 @@ describe("runCapeCod", () => {
     expect(() =>
       runCapeCod([{ origin: "x", reported: 1, cdf: 1.1, premium: 0 }]),
     ).toThrowError(/premium/);
+  });
+});
+
+describe("Generalized Cape Cod (Gluck 1997 decay)", () => {
+  const rows = gluckRows.map((g) => ({
+    origin: g.year,
+    reported: g.paidToDate,
+    cdf: g.cdf,
+    premium: g.exposures,
+    lossAdj: g.trendTo1992,
+  }));
+
+  it("decay = 1 is byte-identical to the standard Cape Cod", () => {
+    const std = runCapeCod(rows, { baseIsPurePremium: true });
+    const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 1 });
+    expect(gcc.elrAtTargetLevel).toBe(std.elrAtTargetLevel);
+    gcc.rows.forEach((r, i) => {
+      expect(r.ultimate).toBe(std.rows[i]!.ultimate);
+      expect(r.elrAtTargetLevel).toBe(std.elrAtTargetLevel);
+    });
+  });
+
+  it("reproduces Gluck's Table 1 pooled pure premium at the 1992 level", () => {
+    const std = runCapeCod(rows, { baseIsPurePremium: true });
+    expect(Math.abs(std.elrAtTargetLevel - gluckCapeCodPP1992)).toBeLessThan(1e-3);
+  });
+
+  it("reproduces Gluck's Table 4 per-year expected pure premiums with D = 0.75", () => {
+    const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 0.75 });
+    gcc.rows.forEach((r, i) => {
+      expect(Math.abs(r.elrAtTargetLevel - gluckGcc075PP1992[i]!)).toBeLessThan(1e-3);
+    });
+    // The 1990 target restated to its own accident-year level (col 12).
+    const y1990 = gcc.rows[11]!;
+    expect(Math.abs(y1990.elrAtOriginLevel - gluckGcc075PP1990OwnLevel)).toBeLessThan(1e-3);
+  });
+
+  it("reproduces Gluck's Table 4 BF ultimate total with D = 0.75", () => {
+    const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 0.75 });
+    expect(Math.abs(gcc.totals.ultimate - gluckGcc075UltimateTotal)).toBeLessThan(5);
+  });
+
+  it("decay = 0 makes every year stand alone and reproduces the development ultimate", () => {
+    const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 0 });
+    gcc.rows.forEach((r, i) => {
+      const g = gluckRows[i]!;
+      expect(r.ultimate).toBeCloseTo(g.paidToDate * g.cdf, 6);
+    });
+  });
+
+  it("rejects a decay outside [0, 1]", () => {
+    expect(() => runCapeCod(rows, { decay: 1.2 })).toThrowError(/decay/i);
+    expect(() => runCapeCod(rows, { decay: -0.1 })).toThrowError(/decay/i);
   });
 });
 
