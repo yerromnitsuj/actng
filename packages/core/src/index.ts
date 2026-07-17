@@ -11,6 +11,7 @@ export * from "./triangleAlgebra.js";
 export * from "./odpBootstrap.js";
 export * from "./tail.js";
 export * from "./berquist.js";
+export * from "./clark.js";
 export * from "./diagnostics.js";
 export * from "./mack.js";
 export * from "./capping.js";
