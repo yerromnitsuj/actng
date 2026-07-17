@@ -54,3 +54,15 @@ export function lastObservedIndex(row: (number | null)[]): number {
   }
   return -1;
 }
+
+/**
+ * Index of the last cell observed in BOTH rows (paired-triangle diagonals);
+ * -1 when no cell is jointly observed. Interior holes are respected: the
+ * search walks left until both sides are numbers.
+ */
+export function lastJointObservedIndex(a: (number | null)[], b: (number | null)[]): number {
+  for (let j = Math.min(a.length, b.length) - 1; j >= 0; j--) {
+    if (isNum(a[j] ?? null) && isNum(b[j] ?? null)) return j;
+  }
+  return -1;
+}

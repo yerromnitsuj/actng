@@ -22,3 +22,7 @@ export * from "./elrMethods.js";
 export * from "./merzWuthrich.js";
 export * from "./munichChainLadder.js";
 export * from "./ulae.js";
+export * from "./discounting.js";
+export * from "./caseOutstanding.js";
+export * from "./fisherLange.js";
+export * from "./salvageSubro.js";
