@@ -1,0 +1,66 @@
+{
+  "name": "@actuarial-ts/interchange",
+  "version": "0.1.0",
+  "description": "The actuarial-interchange format for the actuarial-ts SDK: language-neutral, versioned interchange documents (triangles, selections, method results, studies, bundles, crosscheck reports) with RFC 8785 canonicalization, semantic-body integrity tags, an intent/value coherence rule, and the cross-implementation referee. Bridges actuarial-ts with chainladder-python and R ChainLadder.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yerromnitsuj/actng.git",
+    "directory": "packages/interchange"
+  },
+  "keywords": [
+    "actuarial",
+    "reserving",
+    "interchange",
+    "interoperability",
+    "chainladder",
+    "chainladder-python",
+    "r-chainladder",
+    "triangle",
+    "json-schema",
+    "rfc-8785",
+    "canonical-json",
+    "crosscheck",
+    "model-validation"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsc -p tsconfig.build.json",
+    "emit-schema": "npm run build && node --experimental-strip-types scripts/emit-schema.ts"
+  },
+  "dependencies": {
+    "@actuarial-ts/core": "^0.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

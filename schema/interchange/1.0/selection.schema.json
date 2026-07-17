@@ -1,0 +1,274 @@
+{
+  "$ref": "#/definitions/selection",
+  "definitions": {
+    "selection": {
+      "type": "object",
+      "properties": {
+        "interchangeVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "selection"
+        },
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "integrity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "appliesTo": {
+              "type": "object",
+              "properties": {
+                "measure": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "paid",
+                        "incurred",
+                        "caseReserve",
+                        "reportedCount",
+                        "openCount",
+                        "closedCount",
+                        "closedWithPayCount",
+                        "earnedPremium"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^custom:.+$"
+                    }
+                  ]
+                },
+                "triangleIntegrity": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{16}$"
+                }
+              },
+              "required": [
+                "measure",
+                "triangleIntegrity"
+              ],
+              "additionalProperties": true
+            },
+            "development": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "fromAgeMonths": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "toAgeMonths": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "value": {
+                    "type": "number"
+                  },
+                  "intent": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "volume-weighted",
+                          "simple",
+                          "regression",
+                          "geometric",
+                          "medial",
+                          "judgmental",
+                          "external"
+                        ]
+                      },
+                      "windowOriginPeriods": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "excludeHigh": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "excludeLow": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "exclusions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "origin": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "origin"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "rationale": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "fromAgeMonths",
+                  "toAgeMonths",
+                  "value",
+                  "intent"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "tail": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number"
+                },
+                "intent": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "fitted"
+                        },
+                        "family": {
+                          "type": "string",
+                          "enum": [
+                            "exponential-decay",
+                            "inverse-power"
+                          ]
+                        },
+                        "fitFromAgeMonths": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "params": {
+                          "type": "object",
+                          "properties": {
+                            "intercept": {
+                              "type": "number"
+                            },
+                            "slope": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "intercept",
+                            "slope"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "family"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "judgmental"
+                        },
+                        "rationale": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "external"
+                        },
+                        "rationale": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "intent"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "appliesTo",
+            "development"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "interchangeVersion",
+        "kind",
+        "generator",
+        "createdAt",
+        "integrity",
+        "selection"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

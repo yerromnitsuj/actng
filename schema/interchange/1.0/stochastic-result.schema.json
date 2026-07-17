@@ -1,0 +1,263 @@
+{
+  "$ref": "#/definitions/stochastic-result",
+  "definitions": {
+    "stochastic-result": {
+      "type": "object",
+      "properties": {
+        "interchangeVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "stochastic-result"
+        },
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "integrity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "appliesTo": {
+              "type": "object",
+              "properties": {
+                "triangleIntegrity": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{16}$"
+                },
+                "selectionIntegrity": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{16}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "triangleIntegrity",
+                "selectionIntegrity"
+              ],
+              "additionalProperties": true
+            },
+            "engine": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "conventionProfile": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "version"
+              ],
+              "additionalProperties": true
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "effectiveParameters": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "seed": {
+              "type": "integer"
+            },
+            "nSims": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "summary": {
+              "type": "object",
+              "properties": {
+                "mean": {
+                  "type": "number"
+                },
+                "sd": {
+                  "type": "number"
+                },
+                "cv": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "percentiles": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              },
+              "required": [
+                "mean",
+                "sd",
+                "cv",
+                "percentiles"
+              ],
+              "additionalProperties": true
+            },
+            "byOrigin": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "origin"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "samplesRef": {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "type": "string",
+                  "const": "arrow"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "format",
+                "path",
+                "sha256"
+              ],
+              "additionalProperties": true
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "origin": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "ultimate": {
+                    "type": "number"
+                  },
+                  "unpaid": {
+                    "type": "number"
+                  },
+                  "standardError": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "origin",
+                  "ultimate",
+                  "unpaid"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "totals": {
+              "type": "object",
+              "properties": {
+                "ultimate": {
+                  "type": "number"
+                },
+                "unpaid": {
+                  "type": "number"
+                },
+                "standardError": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "ultimate",
+                "unpaid"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "appliesTo",
+            "engine",
+            "method",
+            "parameters",
+            "nSims",
+            "summary",
+            "byOrigin"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "interchangeVersion",
+        "kind",
+        "generator",
+        "createdAt",
+        "integrity",
+        "result"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

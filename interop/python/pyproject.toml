@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "actuarial-interchange"
+version = "0.1.0"
+description = "Python adapter for the actuarial-interchange spec v1: canonical (JCS) serialization, interchange documents, and chainladder-python bridges."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["actuarial", "reserving", "chainladder", "interchange"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business :: Financial",
+]
+
+[project.optional-dependencies]
+chainladder = ["chainladder>=0.9.2,<0.10", "pandas"]
+
+[tool.setuptools]
+packages = ["actuarial_interchange"]
+
+[tool.setuptools.package-data]
+actuarial_interchange = ["py.typed"]

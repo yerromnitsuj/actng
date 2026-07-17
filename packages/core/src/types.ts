@@ -310,6 +310,7 @@ export const RESERVING_ERROR_CODES = [
   "BAD_DATE",
   "BAD_ELR",
   "BAD_FIT",
+  "BAD_INTERCHANGE",
   "BAD_LIMIT",
   "BAD_LOSSES",
   "BAD_MARGIN",
@@ -325,6 +326,7 @@ export const RESERVING_ERROR_CODES = [
   "BAD_TAIL",
   "BAD_TREND",
   "BAD_WEIGHTS",
+  "INCOHERENT_SELECTION",
   "INFINITE_MEAN",
   "NO_APRIORI",
   "NO_BF_ROWS",
@@ -339,6 +341,7 @@ export const RESERVING_ERROR_CODES = [
   "TABLE_RANGE",
   "TOO_SMALL",
   "UNSUPPORTED_VALUE",
+  "UNSUPPORTED_VERSION",
 ] as const;
 
 export type ReservingErrorCode = (typeof RESERVING_ERROR_CODES)[number];

@@ -1,0 +1,1004 @@
+{
+  "$ref": "#/definitions/bundle",
+  "definitions": {
+    "bundle": {
+      "type": "object",
+      "properties": {
+        "interchangeVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "bundle"
+        },
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "integrity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "bundle": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "interchange": {
+          "type": "object",
+          "properties": {
+            "triangles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "interchangeVersion": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "triangle"
+                  },
+                  "generator": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "version"
+                    ],
+                    "additionalProperties": true
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "extensions": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "integrity": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{16}$"
+                  },
+                  "triangle": {
+                    "type": "object",
+                    "properties": {
+                      "measure": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "paid",
+                              "incurred",
+                              "caseReserve",
+                              "reportedCount",
+                              "openCount",
+                              "closedCount",
+                              "closedWithPayCount",
+                              "earnedPremium"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^custom:.+$"
+                          }
+                        ]
+                      },
+                      "cumulative": {
+                        "type": "boolean"
+                      },
+                      "originLengthMonths": {
+                        "type": "number",
+                        "enum": [
+                          12,
+                          6,
+                          3,
+                          1
+                        ]
+                      },
+                      "origins": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "start": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "start"
+                          ],
+                          "additionalProperties": true
+                        },
+                        "minItems": 1
+                      },
+                      "agesMonths": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "minItems": 1
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "valuesRef": {
+                        "type": "object",
+                        "properties": {
+                          "format": {
+                            "type": "string",
+                            "const": "arrow"
+                          },
+                          "path": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "format",
+                          "path",
+                          "sha256"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "valuationDate": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "basis": {
+                        "type": "object",
+                        "properties": {
+                          "grossNet": {
+                            "type": "string",
+                            "enum": [
+                              "gross",
+                              "net"
+                            ]
+                          },
+                          "laeTreatment": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "units": {
+                        "type": "object",
+                        "properties": {
+                          "currency": {
+                            "type": "string"
+                          },
+                          "scale": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "segment": {
+                        "type": "object",
+                        "properties": {
+                          "labels": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "labels"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "measure",
+                      "cumulative",
+                      "originLengthMonths",
+                      "origins",
+                      "agesMonths",
+                      "valuationDate"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "interchangeVersion",
+                  "kind",
+                  "generator",
+                  "createdAt",
+                  "integrity",
+                  "triangle"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "selections": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "interchangeVersion": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "selection"
+                  },
+                  "generator": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "version"
+                    ],
+                    "additionalProperties": true
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "extensions": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  "integrity": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{16}$"
+                  },
+                  "selection": {
+                    "type": "object",
+                    "properties": {
+                      "appliesTo": {
+                        "type": "object",
+                        "properties": {
+                          "measure": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "paid",
+                                  "incurred",
+                                  "caseReserve",
+                                  "reportedCount",
+                                  "openCount",
+                                  "closedCount",
+                                  "closedWithPayCount",
+                                  "earnedPremium"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "pattern": "^custom:.+$"
+                              }
+                            ]
+                          },
+                          "triangleIntegrity": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{16}$"
+                          }
+                        },
+                        "required": [
+                          "measure",
+                          "triangleIntegrity"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "development": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "fromAgeMonths": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "toAgeMonths": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "value": {
+                              "type": "number"
+                            },
+                            "intent": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "volume-weighted",
+                                    "simple",
+                                    "regression",
+                                    "geometric",
+                                    "medial",
+                                    "judgmental",
+                                    "external"
+                                  ]
+                                },
+                                "windowOriginPeriods": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "excludeHigh": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "excludeLow": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "exclusions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "origin": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "reason": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "origin"
+                                    ],
+                                    "additionalProperties": true
+                                  }
+                                },
+                                "rationale": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kind"
+                              ],
+                              "additionalProperties": true
+                            }
+                          },
+                          "required": [
+                            "fromAgeMonths",
+                            "toAgeMonths",
+                            "value",
+                            "intent"
+                          ],
+                          "additionalProperties": true
+                        }
+                      },
+                      "tail": {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "number"
+                          },
+                          "intent": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "fitted"
+                                  },
+                                  "family": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exponential-decay",
+                                      "inverse-power"
+                                    ]
+                                  },
+                                  "fitFromAgeMonths": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "params": {
+                                    "type": "object",
+                                    "properties": {
+                                      "intercept": {
+                                        "type": "number"
+                                      },
+                                      "slope": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "intercept",
+                                      "slope"
+                                    ],
+                                    "additionalProperties": true
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "family"
+                                ],
+                                "additionalProperties": true
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "judgmental"
+                                  },
+                                  "rationale": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "additionalProperties": true
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "external"
+                                  },
+                                  "rationale": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "additionalProperties": true
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "intent"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "appliesTo",
+                      "development"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "interchangeVersion",
+                  "kind",
+                  "generator",
+                  "createdAt",
+                  "integrity",
+                  "selection"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "interchangeVersion": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "method-result"
+                      },
+                      "generator": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "version": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "version"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "extensions": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "integrity": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{16}$"
+                      },
+                      "result": {
+                        "type": "object",
+                        "properties": {
+                          "appliesTo": {
+                            "type": "object",
+                            "properties": {
+                              "triangleIntegrity": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{16}$"
+                              },
+                              "selectionIntegrity": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-f]{16}$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "triangleIntegrity",
+                              "selectionIntegrity"
+                            ],
+                            "additionalProperties": true
+                          },
+                          "engine": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "version": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "conventionProfile": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "version"
+                            ],
+                            "additionalProperties": true
+                          },
+                          "method": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "parameters": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "effectiveParameters": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "origin": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "ultimate": {
+                                  "type": "number"
+                                },
+                                "unpaid": {
+                                  "type": "number"
+                                },
+                                "standardError": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "origin",
+                                "ultimate",
+                                "unpaid"
+                              ],
+                              "additionalProperties": true
+                            }
+                          },
+                          "totals": {
+                            "type": "object",
+                            "properties": {
+                              "ultimate": {
+                                "type": "number"
+                              },
+                              "unpaid": {
+                                "type": "number"
+                              },
+                              "standardError": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "ultimate",
+                              "unpaid"
+                            ],
+                            "additionalProperties": true
+                          }
+                        },
+                        "required": [
+                          "appliesTo",
+                          "engine",
+                          "method",
+                          "parameters",
+                          "rows",
+                          "totals"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "interchangeVersion",
+                      "kind",
+                      "generator",
+                      "createdAt",
+                      "integrity",
+                      "result"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "interchangeVersion": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "stochastic-result"
+                      },
+                      "generator": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "version": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "version"
+                        ],
+                        "additionalProperties": true
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "extensions": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "integrity": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{16}$"
+                      },
+                      "result": {
+                        "type": "object",
+                        "properties": {
+                          "appliesTo": {
+                            "type": "object",
+                            "properties": {
+                              "triangleIntegrity": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{16}$"
+                              },
+                              "selectionIntegrity": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-f]{16}$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "triangleIntegrity",
+                              "selectionIntegrity"
+                            ],
+                            "additionalProperties": true
+                          },
+                          "engine": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "version": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "conventionProfile": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "version"
+                            ],
+                            "additionalProperties": true
+                          },
+                          "method": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "parameters": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "effectiveParameters": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "seed": {
+                            "type": "integer"
+                          },
+                          "nSims": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "summary": {
+                            "type": "object",
+                            "properties": {
+                              "mean": {
+                                "type": "number"
+                              },
+                              "sd": {
+                                "type": "number"
+                              },
+                              "cv": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "percentiles": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "required": [
+                              "mean",
+                              "sd",
+                              "cv",
+                              "percentiles"
+                            ],
+                            "additionalProperties": true
+                          },
+                          "byOrigin": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "origin": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "origin"
+                              ],
+                              "additionalProperties": true
+                            }
+                          },
+                          "samplesRef": {
+                            "type": "object",
+                            "properties": {
+                              "format": {
+                                "type": "string",
+                                "const": "arrow"
+                              },
+                              "path": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "sha256": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "format",
+                              "path",
+                              "sha256"
+                            ],
+                            "additionalProperties": true
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "origin": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "ultimate": {
+                                  "type": "number"
+                                },
+                                "unpaid": {
+                                  "type": "number"
+                                },
+                                "standardError": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "origin",
+                                "ultimate",
+                                "unpaid"
+                              ],
+                              "additionalProperties": true
+                            }
+                          },
+                          "totals": {
+                            "type": "object",
+                            "properties": {
+                              "ultimate": {
+                                "type": "number"
+                              },
+                              "unpaid": {
+                                "type": "number"
+                              },
+                              "standardError": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "ultimate",
+                              "unpaid"
+                            ],
+                            "additionalProperties": true
+                          }
+                        },
+                        "required": [
+                          "appliesTo",
+                          "engine",
+                          "method",
+                          "parameters",
+                          "nSims",
+                          "summary",
+                          "byOrigin"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "interchangeVersion",
+                      "kind",
+                      "generator",
+                      "createdAt",
+                      "integrity",
+                      "result"
+                    ],
+                    "additionalProperties": true
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "triangles",
+            "selections",
+            "results"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "interchangeVersion",
+        "kind",
+        "generator",
+        "createdAt",
+        "integrity",
+        "bundle",
+        "interchange"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

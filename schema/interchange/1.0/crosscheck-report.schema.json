@@ -1,0 +1,333 @@
+{
+  "$ref": "#/definitions/crosscheck-report",
+  "definitions": {
+    "crosscheck-report": {
+      "type": "object",
+      "properties": {
+        "interchangeVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "crosscheck-report"
+        },
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "integrity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "report": {
+          "type": "object",
+          "properties": {
+            "engines": {
+              "type": "object",
+              "properties": {
+                "a": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "conventionProfile": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "version"
+                  ],
+                  "additionalProperties": true
+                },
+                "b": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "conventionProfile": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "version"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "a",
+                "b"
+              ],
+              "additionalProperties": true
+            },
+            "appliesTo": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "triangleIntegrity": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{16}$"
+                    },
+                    "selectionIntegrity": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{16}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "triangleIntegrity",
+                    "selectionIntegrity"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "a": {
+                  "type": "object",
+                  "properties": {
+                    "requested": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "effective": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requested",
+                    "effective"
+                  ],
+                  "additionalProperties": true
+                },
+                "b": {
+                  "type": "object",
+                  "properties": {
+                    "requested": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "effective": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "requested",
+                    "effective"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "a",
+                "b"
+              ],
+              "additionalProperties": true
+            },
+            "tolerance": {
+              "type": "object",
+              "properties": {
+                "central": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "standardError": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "central",
+                "standardError"
+              ],
+              "additionalProperties": true
+            },
+            "deviations": {
+              "type": "object",
+              "properties": {
+                "perOrigin": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ultimate": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "unpaid": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "standardError": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "origin": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "ultimate",
+                      "unpaid",
+                      "standardError",
+                      "origin"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "totals": {
+                  "type": "object",
+                  "properties": {
+                    "ultimate": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "unpaid": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "standardError": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ultimate",
+                    "unpaid",
+                    "standardError"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "perOrigin",
+                "totals"
+              ],
+              "additionalProperties": true
+            },
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "agree",
+                "disagree",
+                "not-comparable",
+                "verified-by-value"
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "engines",
+            "appliesTo",
+            "parameters",
+            "tolerance",
+            "deviations",
+            "verdict",
+            "warnings"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "interchangeVersion",
+        "kind",
+        "generator",
+        "createdAt",
+        "integrity",
+        "report"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

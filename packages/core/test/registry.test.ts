@@ -10,15 +10,26 @@ import {
 } from "../src/index.js";
 
 const srcDir = fileURLToPath(new URL("../src", import.meta.url));
+// The registry is the SDK-wide contract: @actuarial-ts/interchange registers
+// its codes here (spec 4.1) and constructs them in its own source, so the
+// scan covers both packages' src trees.
+const interchangeSrcDir = fileURLToPath(new URL("../../interchange/src", import.meta.url));
+
+function tsFilesUnder(dir: string): string[] {
+  return fs
+    .readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .filter((n) => n.endsWith(".ts"))
+    .map((n) => path.join(dir, n));
+}
 
 describe("public registries", () => {
   it("RESERVING_ERROR_CODES matches every code constructed in source", () => {
-    // Self-enforcing: a new `new ReservingError("X", ...)` in any module fails
-    // this test until X is added to the registry (and vice versa for stale
-    // registry entries with no constructor site).
+    // Self-enforcing: a new `new ReservingError("X", ...)` in any scanned
+    // module fails this test until X is added to the registry (and vice versa
+    // for stale registry entries with no constructor site).
     const found = new Set<string>();
-    for (const f of fs.readdirSync(srcDir).filter((n) => n.endsWith(".ts"))) {
-      const text = fs.readFileSync(path.join(srcDir, f), "utf8");
+    for (const f of [...tsFilesUnder(srcDir), ...tsFilesUnder(interchangeSrcDir)]) {
+      const text = fs.readFileSync(f, "utf8");
       for (const m of text.matchAll(/new ReservingError\(\s*"([A-Z0-9_]+)"/g)) {
         found.add(m[1]!);
       }
