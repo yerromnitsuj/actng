@@ -125,11 +125,27 @@ describe("runOdpBootstrap", () => {
   const result = runOdpBootstrap(taylorAshe, { nSims: N, seed: 20260717 });
 
   it("is deterministic under the seed", () => {
+    // Proves reproducibility only. Both sides move together under any change
+    // to the estimator, so this cannot pin a VALUE — that is what the golden
+    // assertions below are for. Keeping both: seeded reproducibility is a
+    // documented contract in its own right.
     const again = runOdpBootstrap(taylorAshe, { nSims: 500, seed: 7 });
     const again2 = runOdpBootstrap(taylorAshe, { nSims: 500, seed: 7 });
     expect(again.total.mean).toBe(again2.total.mean);
     expect(again.total.sd).toBe(again2.total.sd);
     expect(again.totalSamples).toEqual(again2.totalSamples);
+  });
+
+  it("reproduces its golden distribution on Taylor & Ashe", () => {
+    // Anchored to this engine at this seed, which is what makes a silent
+    // change in the estimator visible. These moved nothing when the dispersion
+    // degrees-of-freedom fix landed, because Taylor & Ashe has no non-positive
+    // fitted incrementals — regenerate deliberately, never to make a red test
+    // green.
+    const golden = runOdpBootstrap(taylorAshe, { nSims: 1000, seed: 12345 });
+    expect(golden.total.mean).toBeCloseTo(18_722_311.920909688, 6);
+    expect(golden.total.sd).toBeCloseTo(3_088_914.4374506595, 6);
+    expect(golden.total.percentiles.p99).toBeCloseTo(26_963_637.004859254, 6);
   });
 
   it("bootstrap mean ties to the chain ladder total within the known small bias", () => {
@@ -146,8 +162,13 @@ describe("runOdpBootstrap", () => {
   it("total prediction error ~16% of reserves (England 2002 Table 2)", () => {
     const cl = vwReserves(taylorAshe);
     const pe = result.total.sd / cl.total;
-    expect(pe).toBeGreaterThan(0.135);
-    expect(pe).toBeLessThan(0.185);
+    // England (2002) Table 2 publishes ~16%; this engine gives 16.54% at
+    // n=10,000 under the fixed seed. The old +/-2.5pp band tolerated roughly a
+    // 15% error in the process variance, which is the same magnitude as the
+    // dispersion defect it failed to catch. 1pp still absorbs the genuine
+    // methodological gap to the published figure without absorbing a defect.
+    expect(pe).toBeGreaterThan(0.155);
+    expect(pe).toBeLessThan(0.175);
   });
 
   it("per-origin prediction errors track the published pattern (England 2002 Table 2)", () => {
