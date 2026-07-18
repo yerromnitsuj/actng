@@ -37,11 +37,17 @@ import {
  * 4. the volume-weighted selection intent replays coherently and
  *    recomputing the chain ladder from the REPLAYED selections reproduces
  *    the committed result document exactly;
- * 5. the referee returns verdict "agree" on TS-vs-TS for both profiles;
- * 6. the referee returns verdict "disagree" against the committed
+ * 5. the referee returns verdict "disagree" against the committed
  *    Python-authored log-linear-sigma Mack run on Taylor/Ashe (spec 13
  *    Phase A acceptance 3) — central estimates agree, the SEs betray the
  *    sigma misalignment.
+ *
+ * There is deliberately NO TS-vs-TS referee assertion. Comparing committed TS
+ * output against fresh TS output only restates the byte-freeze at (2), and
+ * presenting it as "the referee agrees" reads as cross-engine evidence when it
+ * is self-comparison. The genuine cross-engine legs are the Python runner
+ * (py/test_conformance.py, real chainladder-python) and the R runner
+ * (tools/interop/conformance.R, real MackChainLadder).
  *
  * The Python shore (../py/test_conformance.py) parses the SAME files.
  */
@@ -64,6 +70,11 @@ for (const fixture of CONFORMANCE_FIXTURES) {
     const mackResultRaw = readJson(fixture.name, "mack1993-vw.json");
     const expectations = readJson(fixture.name, "expectations.json") as {
       integrity: Record<string, string>;
+      published: {
+        citation: string | null;
+        totalReserve?: { value: number; tolerance: number };
+        totalStandardErrorPercentOfReserve?: { value: number; tolerancePercentagePoints: number };
+      } | null;
     };
 
     it("parses every committed document with an intact integrity tag and no warnings", () => {
@@ -96,6 +107,33 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       expect(expectations.integrity["mack1993-vw"]).toBe(
         (mackResultRaw as MethodResultDoc).integrity,
       );
+    });
+
+    it("ties to the published literature, where the literature publishes it", () => {
+      // Every other expectation in this corpus is this engine's own output,
+      // frozen. That catches drift but never a shared error: if the engine were
+      // wrong, the corpus would faithfully freeze the wrong number. These are
+      // the only values that come from outside it.
+      const published = expectations.published;
+      if (published === null || published.citation === null) {
+        // RAA genuinely has none — Mack (1994) uses it for the correlation and
+        // calendar-year tests, not for a reserve table. Assert the absence is
+        // DECLARED rather than silently missing.
+        expect(published).not.toBeUndefined();
+        return;
+      }
+
+      const cl = clResultRaw as MethodResultDoc;
+      const mack = mackResultRaw as MethodResultDoc;
+
+      const reserve = published.totalReserve!;
+      expect(Math.abs(cl.result.totals.unpaid - reserve.value) / reserve.value).toBeLessThanOrEqual(
+        reserve.tolerance,
+      );
+
+      const sePct = published.totalStandardErrorPercentOfReserve!;
+      const actualPct = (mack.result.totals.standardError! / mack.result.totals.unpaid) * 100;
+      expect(Math.abs(actualPct - sePct.value)).toBeLessThanOrEqual(sePct.tolerancePercentagePoints);
     });
 
     it("docToTriangle round-trips null-for-null against the core fixture", () => {
@@ -140,28 +178,6 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       expect(recomputed).toEqual(clResultRaw);
     });
 
-    it("referee: TS-vs-TS agrees on both profiles", () => {
-      const selectionDoc = parseDocument(selectionRaw).doc as SelectionDoc;
-      const triangleDoc = parseDocument(triangleRaw).doc as TriangleDoc;
-
-      const clReport = crosscheck({
-        a: clResultRaw as MethodResultDoc,
-        b: authorClResultDoc(fixture, triangleDoc, selectionDoc, allWtdSelections(fixture.triangle)),
-        selection: selectionDoc,
-        createdAt: CREATED_AT,
-      });
-      expect(clReport.report.verdict).toBe("agree");
-      expect(clReport.report.deviations.totals.ultimate).toBe(0);
-      expect(clReport.report.deviations.totals.unpaid).toBe(0);
-
-      const mackReport = crosscheck({
-        a: mackResultRaw as MethodResultDoc,
-        b: authorMackResultDoc(fixture, triangleDoc),
-        createdAt: CREATED_AT,
-      });
-      expect(mackReport.report.verdict).toBe("agree");
-      expect(mackReport.report.deviations.totals.standardError).toBe(0);
-    });
   });
 }
 

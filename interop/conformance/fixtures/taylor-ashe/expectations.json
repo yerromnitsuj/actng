@@ -2,6 +2,18 @@
   "fixture": "taylor-ashe",
   "source": "Mack (1993) Table 1: Taylor/Ashe run-off triangle (packages/core/test/fixtures/mack1993.ts), origins relabelled 2001-2010 per chainladder-python's genins presentation of the same data",
   "generatedBy": "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+  "published": {
+    "citation": "Mack (1993), Tables 2 and 3 (p. 221)",
+    "totalReserve": {
+      "value": 18681000,
+      "tolerance": 0.0005
+    },
+    "totalStandardErrorPercentOfReserve": {
+      "value": 13,
+      "tolerancePercentagePoints": 1
+    },
+    "note": "Reserves printed in thousands; standard errors as a percentage of reserve."
+  },
   "integrity": {
     "triangle": "c568b1bbca929611",
     "selection": "16aa90b6c1298de2",

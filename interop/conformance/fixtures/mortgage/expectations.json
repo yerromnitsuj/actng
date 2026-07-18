@@ -2,6 +2,18 @@
   "fixture": "mortgage",
   "source": "Mack (1993) Table 4: Sanders mortgage guarantee triangle (packages/core/test/fixtures/mack1993.ts), origins relabelled 2001-2009 (cross-engine origin identity requires year labels)",
   "generatedBy": "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+  "published": {
+    "citation": "Mack (1993), Tables 5 and 6",
+    "totalReserve": {
+      "value": 14547000,
+      "tolerance": 0.0005
+    },
+    "totalStandardErrorPercentOfReserve": {
+      "value": 26,
+      "tolerancePercentagePoints": 1
+    },
+    "note": "Reserves printed in thousands; standard errors as a percentage of reserve."
+  },
   "integrity": {
     "triangle": "b9f295850853e964",
     "selection": "297b985ee6dde8d5",

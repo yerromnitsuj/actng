@@ -24,6 +24,7 @@ interop/conformance/
     ├── deterministic-cl.json  TS runChainLadder MethodResultDoc
     ├── mack1993-vw.json       TS runMack MethodResultDoc
     ├── expectations.json      TS-engine totals + integrity tags + tolerances
+    │                          + `published`: the literature anchor (see below)
     ├── misaligned-mack-loglinear.json   (taylor-ashe only; see below)
     ├── clpy-deterministic-cl.json       (taylor-ashe only; see below)
     └── clpy-mack1993-vw.json            (taylor-ashe only; see below)
@@ -97,8 +98,12 @@ TS (`ts/conformance.test.ts`), per fixture:
 - the selection intent replays coherently (`all-wtd`, strict) and the
   chain ladder recomputed from the REPLAYED selections reproduces the
   committed result document exactly;
-- the referee returns `agree` on TS-vs-TS for both profiles, and
-  `disagree` against the committed misaligned Python run.
+- the referee returns `disagree` against the committed misaligned Python run.
+
+There is deliberately no TS-vs-TS referee assertion: comparing committed TS
+output to fresh TS output restates the byte-freeze above, and calling it "the
+referee agrees" reads as cross-engine evidence when it is self-comparison. The
+cross-engine legs are the Python and R runners below.
 
 Python (`py/test_conformance.py`), per fixture:
 
@@ -119,6 +124,27 @@ Python (`py/test_conformance.py`), per fixture:
 - the aligned Python-authored documents (`clpy-*.json`) are reproducible
   (semantic freeze at 1e-9) and carry the committed appliesTo tags and
   convention profiles the TS referee needs to return `agree`.
+
+### The literature anchor (`published`)
+
+Everything else in `expectations.json` is this engine's own output, frozen.
+That detects DRIFT but can never detect a shared ERROR: if the engine were
+wrong, the corpus would faithfully freeze the wrong number and every shore
+would agree with it.
+
+`published` is the only value that comes from outside the engine. It carries
+Mack's tabled reserve and standard error with a page citation, re-exported from
+`packages/core/test/fixtures` and never re-transcribed here. Its tolerances are
+the PRINTING PRECISION of the source, not an engineering choice — a reserve
+printed as "18,681" (thousands) cannot pin more than four significant figures,
+and a standard error printed as "13%" cannot pin more than a percentage point.
+
+`raa` deliberately carries `citation: null` with a note. Mack (1994) uses the
+RAA triangle for the correlation and calendar-year tests (Appendices G and H),
+not for a published reserve or standard-error table, so no anchor exists. The
+absence is DECLARED rather than left implicit, and the TS runner asserts the
+declaration is present — otherwise a reader would reasonably assume the whole
+corpus is literature-anchored when a third of it is not.
 
 ## Update policy: the fixtures are FROZEN
 

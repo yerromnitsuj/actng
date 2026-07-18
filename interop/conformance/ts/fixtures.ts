@@ -19,7 +19,12 @@ import {
   type WrappedBundleDoc,
   createBundle,
 } from "../../../packages/compliance/src/index.js";
-import { mortgage, taylorAshe } from "../../../packages/core/test/fixtures/mack1993.js";
+import {
+  mortgage,
+  mortgagePublished,
+  taylorAshe,
+  taylorAshePublished,
+} from "../../../packages/core/test/fixtures/mack1993.js";
 import { raa } from "../../../packages/core/test/fixtures/mack1994raa.js";
 
 /**
@@ -210,6 +215,55 @@ export interface AuthoredFixture {
   expectations: Record<string, unknown>;
 }
 
+/**
+ * What the LITERATURE says, as opposed to what this engine computed.
+ *
+ * Everything else in expectations.json is self-authored: this engine's output,
+ * frozen. That detects drift but can never detect a shared error — if the
+ * engine were wrong, the corpus would faithfully freeze the wrong number. The
+ * published values are the only external check, so they are carried separately
+ * and cited.
+ *
+ * Values are re-exported from packages/core/test/fixtures, never re-transcribed
+ * here. Mack prints reserves in thousands and standard errors as a percentage
+ * of reserve, so the tolerances are the printing precision of the source, not
+ * an engineering choice: a value printed as "2,447" cannot pin more than four
+ * significant figures, and one printed as "13%" cannot pin more than a
+ * percentage point.
+ *
+ * RAA has NO entry, and that is the honest answer rather than an omission:
+ * Mack (1994) uses the RAA triangle for the correlation and calendar-year
+ * tests (Appendices G and H), not for a published reserve or standard-error
+ * table. Nothing in the literature pins those numbers for that fixture.
+ */
+const PUBLISHED_BY_FIXTURE: Record<string, unknown> = {
+  "taylor-ashe": {
+    citation: "Mack (1993), Tables 2 and 3 (p. 221)",
+    totalReserve: { value: taylorAshePublished.totalReserveIn1000s * 1000, tolerance: 0.0005 },
+    totalStandardErrorPercentOfReserve: {
+      value: taylorAshePublished.totalSePercent,
+      tolerancePercentagePoints: 1,
+    },
+    note: "Reserves printed in thousands; standard errors as a percentage of reserve.",
+  },
+  mortgage: {
+    citation: "Mack (1993), Tables 5 and 6",
+    totalReserve: { value: mortgagePublished.totalReserveIn1000s * 1000, tolerance: 0.0005 },
+    totalStandardErrorPercentOfReserve: {
+      value: mortgagePublished.totalSePercent,
+      tolerancePercentagePoints: 1,
+    },
+    note: "Reserves printed in thousands; standard errors as a percentage of reserve.",
+  },
+  raa: {
+    citation: null,
+    note:
+      "Mack (1994) uses RAA for the correlation and calendar-year tests " +
+      "(Appendices G and H), not for a published reserve or standard-error table. " +
+      "This fixture has no literature anchor; its expectations are self-authored.",
+  },
+};
+
 /** Authors every committed document (and expectations.json) for a fixture. */
 export function authorFixture(fixture: ConformanceFixture): AuthoredFixture {
   const triangleDoc = authorTriangleDoc(fixture);
@@ -224,6 +278,7 @@ export function authorFixture(fixture: ConformanceFixture): AuthoredFixture {
     fixture: fixture.name,
     source: fixture.source,
     generatedBy: "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+    published: PUBLISHED_BY_FIXTURE[fixture.name] ?? null,
     integrity: {
       triangle: triangleDoc.integrity,
       selection: selectionDoc.integrity,

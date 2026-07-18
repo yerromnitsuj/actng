@@ -1,11 +1,20 @@
 # Convention map: actuarial-ts ⇄ chainladder-python ⇄ R ChainLadder
 
-The practitioner's translation table for the actuarial-interchange spec
-(v1). NORMATIVE per the spec's Section 11: the intent semantics and
-alignment requirements here are part of the interchange contract; the
-conformance suite (`interop/conformance/`) is their enforcement. Facts are
-source-verified against chainladder-python 0.9.2 master and R ChainLadder
-CRAN docs (transcriptions: `docs/research/interop/`).
+The practitioner's translation table for the actuarial-interchange spec (v1).
+
+**Status: informative, not normative.** Spec Section 11 makes three things part
+of the contract — the equivalence table (3.2), the R parameterization note, and
+the convention profiles (5) — and does not name this file. Where this table and
+those disagree, they win. This document is the readable companion to them, not
+a third source of truth.
+
+Enforcement is likewise partial: the conformance suite exercises ONE of the
+averaging intents below (volume-weighted, all periods) across two convention
+profiles. The remaining rows are source-verified but not executed, so treat
+them as researched guidance rather than tested behaviour.
+
+Facts are source-verified against chainladder-python 0.9.2 master and R
+ChainLadder CRAN docs (transcriptions: `docs/research/interop/`).
 
 ## Development-factor averages
 

@@ -2,6 +2,10 @@
   "fixture": "raa",
   "source": "Mack (1994) running example: RAA Automatic Facultative GL triangle (packages/core/test/fixtures/mack1994raa.ts), real accident years 1981-1990",
   "generatedBy": "interop/conformance/generate-fixtures.mts (frozen; see interop/conformance/README.md)",
+  "published": {
+    "citation": null,
+    "note": "Mack (1994) uses RAA for the correlation and calendar-year tests (Appendices G and H), not for a published reserve or standard-error table. This fixture has no literature anchor; its expectations are self-authored."
+  },
   "integrity": {
     "triangle": "6efec450de3879d7",
     "selection": "38a3a9665ed63909",
