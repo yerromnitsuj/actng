@@ -613,12 +613,14 @@ ats_extract_mack_result <- function(fit, triangle_doc, selection_doc = NULL,
   rows <- lapply(seq_along(origins), function(i) {
     row <- list(origin = origins[i], ultimate = ultimate[i], unpaid = unpaid[i])
     # standardError only where the engine produced a finite value (a fully
-    # developed origin yields exactly 0 here, matching the committed fixtures;
-    # a NaN would be omitted, per the honesty rule).
+    # developed origin yields exactly 0 here, matching the committed fixtures).
+    # A non-finite SE OMITS the key entirely — the cross-shore contract is
+    # number-or-ABSENT, never null (TS schema is .optional() not .nullable();
+    # Python omits it too). Emitting "standardError":null would break integrity
+    # re-verification on the other shores. (Contrast selectionIntegrity, whose
+    # schema IS .nullable() and so uses list(NULL) correctly elsewhere.)
     if (is.finite(se[i])) {
       row$standardError <- se[i]
-    } else {
-      row["standardError"] <- list(NULL)
     }
     row
   })

@@ -45,6 +45,34 @@
 
 ## Progress Log
 
+- 2026-07-18: **INTEROP PHASE E DONE (R shore + upstream + closeout).** The R
+  ChainLadder recipes (`tools/interop/actuarialInterchange.R`) stand up a THIRD
+  conformant shore of the interchange spec beside TS and Python: JCS serializer +
+  FNV-1a integrity reproducing every committed vector byte-for-byte (lone-surrogate
+  via raw WTF-8 bytes; FNV-1a via a four-16-bit-limb multiply since R has no
+  unsigned 64-bit int), triangle/selection/result converters honoring the
+  alpha/delta trap (`MackChainLadder(alpha=1)` is volume-weighted; `delta` is never
+  conflated), and envelope + wrong-major version handling. `tools/interop/conformance.R`
+  reproduced every fixture x profile at ~1e-15 relative deviation — float identity —
+  reproducing Mack 1993's published reserve and R ChainLadder's published SE
+  (Taylor/Ashe Total.Mack.S.E = 2,447,094.86 vs published 2,447,095). Upstream
+  contribution drafts for R ChainLadder and chainladder-python; interchange spec
+  rev 2.2 (Section 15 field lessons, incl. the corrected R-verification note).
+  Whole-interop final adversarial review verdict PASS (0 blocking that survived —
+  the publishing.md 5th-package gap, CHANGELOG Phase E gap, and the R
+  standardError null-vs-absent contract bug all fixed this pass; committed .pyc
+  cache untracked; CI pack-checks all five packages; crosscheck-ci summary line
+  made honest about verified-by-value legs).
+  Test counts, measured this pass and reproducible via `npm test` (6 workspaces
+  with a test script: agents, compliance, core, data, interchange, server —
+  @actng/web has none): **788 TS passing + 2 skipped.** Python suite last ran
+  green at 250 cases (135 test functions, one parametrized) and is unchanged this
+  pass; its venv was removed during a disk-space cleanup, so it was verified
+  statically, not re-run. NOTE: prior-phase TS counts in this log (928/763/810)
+  were point-in-time approximations counted at different moments and under slightly
+  different commands; the reproducible `npm test` figure above is the authority
+  going forward, not a regression from 810.
+
 - 2026-07-18: **INTEROP PHASE D DONE (MCP layer).** Workspace exposed over MCP via @mastra/mcp 1.14 MCPServer: exposure is a SECURITY allowlist (7 read tools + stage_study/advance_promotion + read-only ask_advisor; NO direct mutation resolvable, asserted live). Fail-closed tenant seam (requireMcpTenant tries 3 auth-context shapes; the installed 1.14 stores authInfo at requestContext.get('authInfo') — research doc corrected) with a boot self-test probing BOTH a read AND a write tool that aborts startup on fail-open; ACTNG_MCP_PROJECT_ID existence checked loud at boot. Disclosure-true: MCP-supplied actors stamped "(via MCP)" so an unattended client can never masquerade as an in-workbench human; SQLITE_* errors normalized to STORAGE_ERROR (no schema leak). Cross-restart via MCP PROVEN in a fresh process (stage via stage_study, resume via advance_promotion). Notebook connection recipe committed. Review verdict PASS both lenses (0 blocking/major; 9 minor/nit all fixed). 810 TS + 250 py tests.
 
 - 2026-07-18: **INTEROP PHASE C DONE (second engine live).** Python sidecar (FastAPI, all 8 methods, spec-7 wire; golden runs BYTE-IDENTICAL to the committed clpy fixtures incl. integrity tags; constant-time bearer auth fail-closed, tenant-lint at any depth, 411/413/PAYLOAD_TOO_DEEP guards, non-root image, zero persistence). createDivergenceExplainer (only-on-disagree structural guard; deterministic evidence pins the sigma_interpolation violation as finding[0] on the misaligned pair). defineRemoteMethod + workbench crosscheck_with_python (menu-matched intents, value-authoritative tail, SE-uncomputable=skip vs unexpected=MACK_LEG_FAILED surfaced). crosscheck:ci ran LIVE across all fixtures x both profiles -> agree at 1e-14..1e-16; CI gains the boot-sidecar referee job. Review verdict PASS (0 blocking/major; 4 minor + 2 nit all fixed). 763 TS + 250 py tests.

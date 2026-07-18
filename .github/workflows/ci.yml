@@ -23,5 +23,10 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
-      - name: Pack check (@actuarial-ts/core)
-        run: npm pack --dry-run -w @actuarial-ts/core
+      - name: Pack check (all five published packages)
+        run: |
+          npm pack --dry-run -w @actuarial-ts/core
+          npm pack --dry-run -w @actuarial-ts/interchange
+          npm pack --dry-run -w @actuarial-ts/data
+          npm pack --dry-run -w @actuarial-ts/compliance
+          npm pack --dry-run -w @actuarial-ts/agents

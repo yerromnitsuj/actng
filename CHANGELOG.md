@@ -38,6 +38,17 @@ together; this file covers them all.
   a read-only `ask_advisor`; a fail-closed tenant seam
   (`requireMcpTenant`) with a boot self-test that aborts startup if it fails
   open; the notebook connection recipe (`docs/interop/mcp-notebook-recipe.md`).
+- **Interop Phase E (R shore + upstream):** the R ChainLadder recipes
+  (`tools/interop/actuarialInterchange.R`) — a third conformant shore of the
+  interchange spec (JCS serializer + FNV-1a integrity reproducing every
+  committed vector, triangle/selection/result converters honoring the
+  alpha/delta trap, envelope + version handling) plus `tools/interop/conformance.R`,
+  the cross-engine verdict runner that reproduced every fixture at ~1e-15
+  relative deviation (float identity) against the committed profiles;
+  upstream contribution drafts for R ChainLadder and chainladder-python; and
+  interchange spec rev 2.2 (Section 15 field lessons). The three shores
+  (TypeScript, Python, R) now all reproduce Mack 1993's published reserve and
+  R ChainLadder's published standard error.
 
 ## 0.1.0 — 2026-07-17 (initial release)
 

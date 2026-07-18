@@ -16,24 +16,31 @@ publish.
 
 From the repo root, with the new version X.Y.Z:
 
-1. Bump `version` in all four `packages/*/package.json` AND the
-   inter-package dependency ranges (`^X.Y.Z`) together — npm publishes
-   dependency ranges AS WRITTEN (verified by unpacking a real tarball:
-   a `"*"` survives into the manifest), so the ranges must be real.
+1. Bump `version` in all FIVE `packages/*/package.json` (core, interchange,
+   data, compliance, agents) AND the inter-package dependency ranges
+   (`^X.Y.Z`) together — npm publishes dependency ranges AS WRITTEN
+   (verified by unpacking a real tarball: a `"*"` survives into the
+   manifest), so the ranges must be real. The dependency graph:
+   interchange -> core; data -> core; compliance -> core, interchange;
+   agents -> core, compliance, interchange (+ Mastra/zod peers).
 2. Update CHANGELOG.md.
 
 ```bash
 npm run build            # fresh dist for every package
 npm test                 # full workspace suite must be green
 npm publish -w @actuarial-ts/core
+npm publish -w @actuarial-ts/interchange
 npm publish -w @actuarial-ts/data
 npm publish -w @actuarial-ts/compliance
 npm publish -w @actuarial-ts/agents
 ```
 
-Order matters: dependencies before consumers. `publishConfig.access:
-"public"` is set in every manifest, so no `--access` flag is needed; each
-package's `prepack` rebuilds its dist.
+Order matters: dependencies before consumers. interchange publishes right
+after core (it depends on core only), and BEFORE compliance and agents
+(which depend on interchange) — publishing compliance first would leave a
+consumer's `npm install` resolving an unpublished dependency.
+`publishConfig.access: "public"` is set in every manifest, so no
+`--access` flag is needed; each package's `prepack` rebuilds its dist.
 
 ## After publishing
 

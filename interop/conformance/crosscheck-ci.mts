@@ -84,6 +84,7 @@ function maxDeviations(report: CrosscheckReportDoc): {
 
 const rows: Row[] = [];
 let failed = false;
+let verifiedByValue = 0;
 
 for (const fixture of CONFORMANCE_FIXTURES) {
   const triangleRaw = readJson(fixture.name, "triangle.json");
@@ -141,6 +142,16 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       for (const warning of report.report.warnings) {
         console.error(`${fixture.name} ${leg.profile}: ${warning}`);
       }
+    } else if (verdict === "verified-by-value") {
+      // A pass, but the weaker kind: the central values match while a full
+      // statistical comparison was not possible (e.g. one engine reported no
+      // standard error on this profile). Count it so the summary line stays
+      // honest — "agreement" would overstate it. Any referee warnings are
+      // surfaced (not silently swallowed) so the reader sees WHY it was weaker.
+      verifiedByValue += 1;
+      for (const warning of report.report.warnings) {
+        console.warn(`${fixture.name} ${leg.profile} (verified-by-value): ${warning}`);
+      }
     }
     const engines = report.report.engines;
     rows.push({
@@ -174,4 +185,12 @@ if (failed) {
   console.error("\ncrosscheck-ci: FAIL — at least one disagree/not-comparable/sidecar-error verdict");
   process.exit(1);
 }
-console.log("\ncrosscheck-ci: PASS — every fixture x profile referees to agreement");
+if (verifiedByValue > 0) {
+  console.log(
+    `\ncrosscheck-ci: PASS — every fixture x profile referees to agreement ` +
+      `(${verifiedByValue} of ${rows.length} verified-by-value; central values match, ` +
+      `full statistical comparison not available on those legs)`,
+  );
+} else {
+  console.log("\ncrosscheck-ci: PASS — every fixture x profile referees to full agreement");
+}
