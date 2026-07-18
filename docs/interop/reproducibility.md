@@ -55,7 +55,15 @@ chainladder (iterating a `set`/`dict` of non-string objects, which hash by
 single-threaded, sporadic, exactly two orderings. `PYTHONHASHSEED` would not
 address it, since that only randomises `str`/`bytes` hashing.
 
-A reproduction lives on the `ci/bootstrap-determinism-probe` branch.
+A self-contained reproduction (a ~10-line snippet needing only
+`chainladder==0.9.2`) is in
+`docs/interop/upstream/chainladder-python-bootstrap-determinism.md`, alongside
+the full list of hypotheses already ruled out.
+
+The temporary CI probe that produced these measurements has been removed now
+that its findings are recorded here; it ran the failing assertion 5x per thread
+configuration, repeated the raw engine call 6x, and measured the fork rate over
+15 sidecar requests.
 
 ## What the sidecar does about it
 
