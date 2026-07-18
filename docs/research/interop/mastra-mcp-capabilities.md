@@ -22,3 +22,19 @@ Repo precedents worth knowing before designing: YesChef already ships two MCP su
 
 1) No built-in per-tool authorization outside EE FGA: absent an FGA provider, any authenticated (or, if you skip middleware, ANY) MCP client can list and call every registered tool. A governed reserving workspace must do authorization inside each tool from context.mcp.extra.authInfo — MCPServer never injects tenant/user into tool args (mirror of the secureToolWrapper rule). 2) Version gap: `mapAuthInfoToUser` and per-server `fga` config are in the current docs/1.14.0 but NOT in the 1.8.0 installed in YesChef — building the governed-auth story requires the newer package; docs describe latest, installed code lags. 3) createOAuthMiddleware validates tokens but leaves attaching identity to you: nothing sets `req.auth` automatically, and forgetting that wire-up means tools silently see authInfo === undefined (fail-open risk if tools don't hard-require it). 4) The proxied RequestContext is constructed FRESH from the transport `extra` per call — a RequestContext populated by your own upstream Mastra middleware does not flow through automatically; only extra's keys (authInfo, sessionId, requestInfo, signal, etc.) exist in it. 5) Agents-as-tools are free-text in (`{message}`) → agent.generate() out: nondeterministic, no structured output contract, no documented per-tenant memory/thread scoping — poor fit for governed calculations; prefer exposing tools/workflows. Workflows-as-tools are fire-and-return (createRun().start()); suspend/resume/human-in-the-loop is not surfaced over MCP. 6) Stateful streamable-HTTP sessions are held in in-process maps — multi-instance deployment needs sticky sessions or `serverless: true` stateless mode, and stateless mode sacrifices elicitation, notifications, and resumability. 7) SSE transport is legacy; new work should use streamable HTTP only. 8) Node >=22.13.0 engine requirement on current @mastra/mcp. 9) Known TS papercut in this codebase: Zod + MCP SDK schema types trigger TS2589 deep-instantiation errors (the existing server.ts is @ts-nocheck for this reason) — expect the same with complex Zod schemas on exposed tools.
 
+
+## CORRECTION (verified against installed @mastra/mcp 1.14.0, Phase D1)
+
+The auth-context access path documented above is INCOMPLETE for 1.14.0.
+`createProxiedRequestContext` copies each key of the transport `extra`
+INDIVIDUALLY onto a fresh RequestContext — there is no single `"mcp.extra"`
+key. So the tenant/auth actually lives at `requestContext.get('authInfo')`,
+while `context.mcp.extra` is also present directly on the tool context.
+Correct resolution tries three shapes in order: `context.mcp.extra.authInfo`
+(primary) -> `requestContext.get('mcp.extra')?.authInfo` (the pattern in
+the draft above) -> `requestContext.get('authInfo')` (installed 1.14.0).
+`requireMcpTenant` in @actuarial-ts/agents implements exactly this. Also:
+`executeTool(toolId, args, ctx?)` returns the tool's execute result
+VERBATIM, but argument validation runs first and short-circuits to
+`{ error: true, message }` before the tool body — a fail-closed self-test
+must pass minimal VALID args and treat a validation-error as a failure.
