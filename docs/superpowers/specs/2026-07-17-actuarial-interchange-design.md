@@ -885,8 +885,18 @@ The sidecar does this by default (`parameters.stability_repeats`, default 2,
 set to 1 to opt out).
 
 **Comparison.** A witnessed result must be compared distributionally, never
-byte-wise. `verified-by-value` is the referee verdict that fits; a strict
-`agree` on byte-identity is not available to a witnessed pair.
+byte-wise. `crosscheckStochastic` (rev 2.3, below) is the referee for this;
+`crosscheck` refuses a stochastic document and names it.
+
+CORRECTION to the first draft of this section, which said `verified-by-value`
+was the verdict that fits. It is not. `verified-by-value` means the engines
+replayed the same VALUES rather than independently recomputing, so agreement
+verifies value transport and not methodology. Two engines that each ran their
+own bootstrap DID independently recompute; labelling that `verified-by-value`
+understates what happened. Agreement between witnessed results is an ordinary
+`agree`, carrying a warning that the comparison was distributional, that at
+least one input is not reproducible, and that re-running will not reproduce
+the numbers.
 
 **Why this is NOT a wire-version bump.** Both fields are optional and appear
 only on `stochastic-result`. No existing document changes, and no existing
@@ -908,3 +918,44 @@ reproducibility are wrong for foreign engines and have been corrected
 (`interop/sidecar/requirements.txt`, the sidecar's `MISSING_SEED` message).
 The sidecar still REQUIRES a seed — an unseeded run is not attributable — but
 no longer implies the seed buys a replay.
+
+
+## 17. The stochastic referee (rev 2.3)
+
+`crosscheck` compares derivations. `crosscheckStochastic` compares draws. They
+are separate entry points because the question differs: a deterministic
+comparison treats any deviation beyond float noise as disagreement, while two
+Monte Carlo samples are EXPECTED to differ, by an amount sampling theory
+predicts. Applying a deterministic tolerance to two samples manufactures
+`disagree` verdicts out of ordinary noise.
+
+**The tolerance is derived, not declared.** For n simulations at coefficient of
+variation CV:
+
+    relative MC standard error of the mean     ~= CV / sqrt(n)
+    relative MC standard error of a sample sd  ~= 1 / sqrt(2n)
+
+Two independent runs differ by sqrt(2) times those; the bound is `sigmas` of
+that (default 4). Strictness therefore scales with n automatically — more
+simulations, tighter bound — instead of being a constant somebody guessed.
+
+**Strictness adapts to the reproducibility class.** If BOTH inputs declare
+`seeded-reproducible` at the SAME seed they are asserting byte-reproducibility,
+so the Monte Carlo allowance is WITHHELD and they are held to `exactTolerance`
+(default 1e-9). The allowance is for genuinely independent draws, not a blanket
+loosening. An unstated class is treated as unknown and granted the allowance,
+with a warning — absence is never read as a guarantee.
+
+**Mapping onto the existing report.** No schema change: `deviations.unpaid`
+carries the deviation of the distribution mean (the central estimate of the
+reserve) and `deviations.standardError` the deviation of its sd (the
+bootstrap's sd IS the estimated prediction error). `ultimate` has no
+distributional analogue and is null. A passthrough `comparison` block records
+`nSims`, `seed`, `reproducibility` and whether the allowance was granted, so a
+reader can interpret the verdict.
+
+**Governance.** `promoteStudy` surfaces every `witnessed` supporting result at
+the rationale gate, with its stability self-check, before the actuary's
+attestation is written to the ledger. Promotion is not blocked — a witnessed
+result can be perfectly adequate support — but the attestation must be
+informed rather than nominal.

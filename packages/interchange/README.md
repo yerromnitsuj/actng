@@ -62,6 +62,18 @@ This package is designed to support the actuary's compliance with the
 ASOPs; cross-implementation agreement supports, but does not by itself
 constitute, the model validation contemplated by ASOP No. 56.
 
+## Two referees
+
+`crosscheck` compares DERIVATIONS: two deterministic `method-result` documents,
+where any deviation beyond float noise is a real disagreement.
+
+`crosscheckStochastic` compares DRAWS: two `stochastic-result` documents, where
+the expected disagreement is nonzero and set by sampling theory. Its tolerance
+is derived from the simulation count and the observed coefficient of variation
+rather than declared, so it tightens as n grows, and it withholds that
+allowance from two results that both claim `seeded-reproducible` at one seed.
+See `docs/interop/reproducibility.md`.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

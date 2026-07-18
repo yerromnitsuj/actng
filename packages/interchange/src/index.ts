@@ -12,3 +12,4 @@ export * from "./convert/selection.js";
 export * from "./convert/result.js";
 export * from "./referee/profiles.js";
 export * from "./referee/crosscheck.js";
+export * from "./referee/crosscheckStochastic.js";

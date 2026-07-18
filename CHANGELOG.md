@@ -5,6 +5,58 @@ together; this file covers them all.
 
 ## Unreleased
 
+- **A stochastic referee (`crosscheckStochastic`), closing a real gap.** A study
+  may carry a `stochastic-result` (`study.ts`), but the referee had no path for
+  one at all — so such a study could enter `promoteStudy` and never be
+  cross-checked. `crosscheck` now refuses a stochastic document with a message
+  naming the right entry point instead of a schema dump.
+
+  The new referee compares distributions, and its tolerance is DERIVED from
+  sampling theory rather than declared: at n simulations the relative Monte
+  Carlo standard error is `CV/sqrt(n)` on the mean and `1/sqrt(2n)` on the sd,
+  two independent runs differ by `sqrt(2)` times those, and the bound is 4 sigma
+  of that by default. Strictness therefore scales with n automatically. It also
+  adapts to the reproducibility class: two results that both claim
+  `seeded-reproducible` at the SAME seed are asserting byte-reproducibility, so
+  the Monte Carlo allowance is WITHHELD and they must agree exactly. No schema
+  change — the report reuses `deviations.unpaid` for the distribution mean and
+  `deviations.standardError` for its sd (the bootstrap sd IS the estimated
+  prediction error), plus a passthrough `comparison` block.
+
+  Three defects in the first cut of this referee were caught by adversarial
+  review and fixed before landing: point estimates carried beside the
+  distribution (`rows`/`totals`) were not compared at all, so two results whose
+  ultimates differed 10x still returned `agree`; `holdToExact` keyed only on
+  (both seeded-reproducible + same seed) and so held a 1,000-sim and a
+  10,000-sim run at seed 42 to float noise, though those are legitimately
+  different draws; and a non-positive `exactTolerance` produced an invalid
+  report with an internal schema dump instead of naming the bad option. A
+  fourth was caught before review: each origin is judged against ITS OWN
+  derived bound, because a single origin is roughly 3x more volatile than the
+  diversified total and a single global bound manufactured disagreements.
+
+- **Witnessed results are disclosed at the promotion rationale gate.**
+  `promoteStudy` now lists every `witnessed` supporting result, with its
+  stability self-check, in the rationale gate's evidence and recommendation.
+  Promotion is not blocked — a witnessed result can be adequate support — but
+  the actuary is told before their attestation is written to the assumption
+  ledger, so it is informed rather than nominal.
+
+- **Corrected a claim in spec rev 2.3.** The first draft of section 16 said
+  `verified-by-value` was the verdict fitting a witnessed comparison. It is
+  not: that verdict means the engines replayed the same values instead of
+  independently recomputing, which understates two engines that each ran their
+  own bootstrap. Agreement between witnessed results is an ordinary `agree`
+  carrying an explicit non-reproducibility warning. Spec section 17 documents
+  the stochastic referee.
+
+- **Upstream bug report drafted** for `casact/chainladder-python`
+  (`docs/interop/upstream/chainladder-python-bootstrap-determinism.md`),
+  including the reproduction, the hypotheses already ruled out, and the
+  identity-hashing lead. Not sent — founder review, per the convention for
+  outgoing drafts.
+
+
 - **Reproducibility classes (interchange spec rev 2.3).** Stochastic result
   documents now carry an optional `reproducibility` of `seeded-reproducible`
   or `witnessed`, plus an optional `stability` self-check

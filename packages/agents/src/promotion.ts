@@ -282,10 +282,68 @@ export interface ReplayVerifyEvidence {
   verification: string;
 }
 
+/**
+ * A supporting result the study carries that is NOT reproducible (spec 16).
+ *
+ * A `witnessed` result attests what an engine produced on one run; re-running
+ * it does not reproduce the number. That is legitimate evidence, but it is a
+ * materially different thing from a replayable derivation, and the actuary
+ * whose attestation goes on the ledger has to know which one they are relying
+ * on. Surfacing it here is what makes the attestation informed rather than
+ * nominal — the promotion is not blocked, it is disclosed.
+ */
+export interface WitnessedResultNotice {
+  method: string;
+  engine: string;
+  seed: number | null;
+  /** The engine's own repeat-run self-check, when it performed one. */
+  stability: {
+    repeats: number;
+    byteIdentical: boolean;
+    maxRelativeDeviation: number | null;
+  } | null;
+}
+
 export interface RationaleEvidence {
   draftRationale: string;
   attestationRequired: true;
   study: { title: string; sourceRef: string | null; analyst: string | null };
+  /**
+   * Non-reproducible supporting results, empty when every result is
+   * deterministic or seeded-reproducible.
+   */
+  witnessedResults: WitnessedResultNotice[];
+}
+
+/** Collects the study's `witnessed` supporting results (spec 16). */
+function witnessedResultsOf(study: StudyBody): WitnessedResultNotice[] {
+  const notices: WitnessedResultNotice[] = [];
+  for (const doc of study.supportingResults ?? []) {
+    const result = doc.result as Record<string, unknown>;
+    if (result["reproducibility"] !== "witnessed") continue;
+    const rawStability = result["stability"];
+    const stability =
+      rawStability !== null && typeof rawStability === "object"
+        ? (rawStability as Record<string, unknown>)
+        : null;
+    notices.push({
+      method: String(result["method"] ?? "(unnamed method)"),
+      engine: `${doc.result.engine.name}@${doc.result.engine.version}`,
+      seed: typeof result["seed"] === "number" ? result["seed"] : null,
+      stability:
+        stability === null
+          ? null
+          : {
+              repeats: Number(stability["repeats"] ?? 0),
+              byteIdentical: stability["byteIdentical"] === true,
+              maxRelativeDeviation:
+                typeof stability["maxRelativeDeviation"] === "number"
+                  ? stability["maxRelativeDeviation"]
+                  : null,
+            },
+    });
+  }
+  return notices;
 }
 
 export interface ApplyEvidence {
@@ -1013,6 +1071,7 @@ export function promoteStudy(
         replay: replayEvidenceOf(context),
       };
       const draft = await (options.draftRationale ?? defaultDraftRationale)(draftCtx);
+      const witnessedResults = witnessedResultsOf(context.study);
       const evidence: RationaleEvidence = {
         draftRationale: draft,
         attestationRequired: true,
@@ -1021,12 +1080,33 @@ export function promoteStudy(
           sourceRef: context.study.narrative.sourceRef ?? null,
           analyst: context.study.narrative.analyst ?? null,
         },
+        witnessedResults,
       };
+      // Disclosed, never silently blocked: the actuary decides whether a
+      // non-reproducible result is acceptable support, but they must be told
+      // it is one before their attestation is written to the ledger.
+      const witnessedNotice =
+        witnessedResults.length === 0
+          ? ""
+          : ` ATTENTION: ${witnessedResults.length} supporting result(s) are WITNESSED, not ` +
+            `reproducible — ${witnessedResults
+              .map((w) => {
+                const drift =
+                  w.stability === null
+                    ? "no stability check was run"
+                    : w.stability.byteIdentical
+                      ? `${w.stability.repeats} repeat runs agreed exactly`
+                      : `repeat runs DIFFERED (max relative deviation ${w.stability.maxRelativeDeviation ?? "unreported"})`;
+                return `${w.method} on ${w.engine} (${drift})`;
+              })
+              .join("; ")}. Re-running these will not reproduce the numbers this study relies on. ` +
+            "Your attestation covers relying on them (spec 16).";
       return {
         recommendation:
           "Review and edit the draft rationale; the final text you resume with is recorded " +
           "verbatim in the assumption ledger. An attestation (who authored/reviewed the " +
-          "rationale) is required.",
+          "rationale) is required." +
+          witnessedNotice,
         evidence,
       };
     },

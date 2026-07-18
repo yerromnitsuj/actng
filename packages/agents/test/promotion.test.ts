@@ -15,6 +15,7 @@ import {
   type SelectionDoc,
   type StudyBody,
   type StudyDoc,
+  type StochasticResultDoc,
   type TriangleDoc,
 } from "@actuarial-ts/interchange";
 import { AgentsError } from "../src/errors.js";
@@ -130,6 +131,57 @@ function perturb(doc: MethodResultDoc): MethodResultDoc {
     r.origin === "2023" ? { ...r, ultimate: r.ultimate * 1.01, unpaid: r.unpaid + r.ultimate * 0.01 } : r,
   );
   return stampIntegrity<MethodResultDoc>({ ...doc, result: body });
+}
+
+/**
+ * A WITNESSED stochastic supporting result (spec 16): an engine that is not
+ * byte-reproducible even at a fixed seed, carrying its own stability check.
+ */
+function witnessedStochasticFor(
+  triangleDoc: TriangleDoc,
+  selectionDoc: SelectionDoc,
+  options: { byteIdentical?: boolean; stability?: boolean } = {},
+): StochasticResultDoc {
+  const byOrigin = ["2021", "2022", "2023"].map((origin, index) => ({
+    origin,
+    mean: 100 * (index + 1),
+    sd: 10 * (index + 1),
+    cv: 0.1,
+    percentiles: { "50": 100 * (index + 1), "95": 160 * (index + 1) },
+  }));
+  const result: Record<string, unknown> = {
+    appliesTo: {
+      triangleIntegrity: triangleDoc.integrity,
+      selectionIntegrity: selectionDoc.integrity,
+    },
+    engine: {
+      name: "chainladder-python",
+      version: "0.9.2",
+      conventionProfile: "odp-bootstrap-distribution",
+    },
+    method: "clpy:BootstrapODPSample",
+    parameters: { n_sims: 250 },
+    nSims: 250,
+    seed: 42,
+    reproducibility: "witnessed",
+    summary: { mean: 600, sd: 60, cv: 0.1, percentiles: { "50": 600, "95": 960 } },
+    byOrigin,
+  };
+  if (options.stability !== false) {
+    result["stability"] = {
+      repeats: 2,
+      byteIdentical: options.byteIdentical ?? false,
+      maxRelativeDeviation: options.byteIdentical ?? false ? 0 : 0.0021,
+    };
+  }
+  return stampIntegrity<StochasticResultDoc>({
+    interchangeVersion: INTERCHANGE_SPEC_VERSION,
+    kind: "stochastic-result",
+    generator: { name: "@actuarial-ts/interchange", version: "0.2.0" },
+    createdAt: NOW,
+    extensions: {},
+    result,
+  } as unknown as StochasticResultDoc);
 }
 
 // ---------------------------------------------------------------------------
@@ -686,5 +738,102 @@ describe("promoteStudy", () => {
     expectBadOptions(() =>
       promoteStudy(deps, study, { toleranceCeiling: 0.01, now: undefined as never }),
     );
+  });
+});
+
+describe("promoteStudy: witnessed supporting results are DISCLOSED at the rationale gate", () => {
+  /** Drives the chain to the rationale gate and returns its suspend payload. */
+  async function atRationale(study: StudyDoc) {
+    const { deps } = fakeDeps();
+    const chain = promoteStudy(deps, study, OPTIONS);
+    const { run, requestContext, result: started } = await startRun(chain);
+    expect(suspendedAt(started)).toBe("study-intake");
+    let result = await resume(run, requestContext, "study-intake", {
+      decision: "accept",
+      rationale: "intake accepted",
+    });
+    result = await resume(run, requestContext, "replay-verify", {
+      decision: "accept",
+      rationale: "replay agrees",
+    });
+    expect(suspendedAt(result)).toBe("rationale");
+    return {
+      evidence: evidenceOf<RationaleEvidence>(result, "rationale"),
+      recommendation: result.steps!["rationale"]!.suspendPayload!.recommendation!,
+    };
+  }
+
+  it("lists the witnessed result and warns that re-running will not reproduce it", async () => {
+    const paidDoc = paidTriangleDoc();
+    const selDoc = selectionDocFor(paidDoc, VW_SELECTIONS, ["all-wtd", "all-wtd"]);
+    const study = studyDocOf({
+      triangles: [paidDoc, incurredTriangleDoc()],
+      selections: [selDoc],
+      supportingResults: [
+        supportingResultFor(paidDoc, selDoc, VW_SELECTIONS),
+        witnessedStochasticFor(paidDoc, selDoc),
+      ],
+    });
+
+    const { evidence, recommendation } = await atRationale(study);
+
+    expect(evidence.witnessedResults).toHaveLength(1);
+    expect(evidence.witnessedResults[0]).toEqual({
+      method: "clpy:BootstrapODPSample",
+      engine: "chainladder-python@0.9.2",
+      seed: 42,
+      stability: { repeats: 2, byteIdentical: false, maxRelativeDeviation: 0.0021 },
+    });
+
+    // The actuary is TOLD before their attestation is written to the ledger.
+    expect(recommendation).toContain("WITNESSED");
+    expect(recommendation).toContain("clpy:BootstrapODPSample");
+    expect(recommendation).toContain("repeat runs DIFFERED");
+    expect(recommendation).toMatch(/will not reproduce/i);
+    expect(recommendation).toContain("attestation covers relying on them");
+  });
+
+  it("reports a witnessed result whose repeats DID agree without implying reproducibility", async () => {
+    const paidDoc = paidTriangleDoc();
+    const selDoc = selectionDocFor(paidDoc, VW_SELECTIONS, ["all-wtd", "all-wtd"]);
+    const study = studyDocOf({
+      triangles: [paidDoc, incurredTriangleDoc()],
+      selections: [selDoc],
+      supportingResults: [witnessedStochasticFor(paidDoc, selDoc, { byteIdentical: true })],
+    });
+
+    const { evidence, recommendation } = await atRationale(study);
+    expect(evidence.witnessedResults[0]!.stability!.byteIdentical).toBe(true);
+    expect(recommendation).toContain("repeat runs agreed exactly");
+    // Agreeing twice is not a reproducibility guarantee — still flagged.
+    expect(recommendation).toContain("WITNESSED");
+  });
+
+  it("says so when a witnessed result ran no stability check at all", async () => {
+    const paidDoc = paidTriangleDoc();
+    const selDoc = selectionDocFor(paidDoc, VW_SELECTIONS, ["all-wtd", "all-wtd"]);
+    const study = studyDocOf({
+      triangles: [paidDoc, incurredTriangleDoc()],
+      selections: [selDoc],
+      supportingResults: [witnessedStochasticFor(paidDoc, selDoc, { stability: false })],
+    });
+
+    const { evidence, recommendation } = await atRationale(study);
+    expect(evidence.witnessedResults[0]!.stability).toBeNull();
+    expect(recommendation).toContain("no stability check was run");
+  });
+
+  it("stays silent when every supporting result is reproducible", async () => {
+    const paidDoc = paidTriangleDoc();
+    const selDoc = selectionDocFor(paidDoc, VW_SELECTIONS, ["all-wtd", "all-wtd"]);
+    const study = studyDocOf({
+      triangles: [paidDoc, incurredTriangleDoc()],
+      selections: [selDoc],
+      supportingResults: [supportingResultFor(paidDoc, selDoc, VW_SELECTIONS)],
+    });
+
+    const { evidence, recommendation } = await atRationale(study);
+    expect(evidence.witnessedResults).toEqual([]);
+    expect(recommendation).not.toContain("WITNESSED");
   });
 });

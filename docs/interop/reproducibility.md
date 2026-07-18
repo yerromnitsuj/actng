@@ -87,6 +87,38 @@ tamper-evidently — rather than a **replay** that a reviewer can regenerate. Th
 distinction matters when relying on the number, so the format states it instead
 of leaving the reader to assume.
 
-Cross-engine agreement on a witnessed result should be assessed
-distributionally, not byte-wise. The referee's `verified-by-value` verdict is
-the right instrument.
+Cross-engine agreement on a witnessed result is assessed distributionally, not
+byte-wise, by **`crosscheckStochastic`**. `crosscheck` — the deterministic
+referee — refuses a stochastic document and points at it, because applying a
+deterministic tolerance to two Monte Carlo samples reports ordinary sampling
+noise as disagreement.
+
+`crosscheckStochastic` derives its tolerance from sampling theory rather than
+declaring a constant: at n simulations the relative MC standard error is
+`CV/sqrt(n)` on the mean and `1/sqrt(2n)` on the sd, two independent runs
+differ by `sqrt(2)` times those, and the bound is 4 sigma of that by default.
+More simulations therefore bind tighter, automatically.
+
+It also adapts to the class: two results that BOTH claim `seeded-reproducible`
+at the SAME seed are asserting byte-reproducibility, so the Monte Carlo
+allowance is withheld and they must agree exactly. The allowance is for
+genuinely independent draws, not a blanket loosening.
+
+Agreement between witnessed results is an ordinary `agree` verdict carrying a
+warning that the comparison was distributional and that re-running will not
+reproduce the numbers. (It is NOT `verified-by-value` — that verdict means the
+engines replayed the same values instead of recomputing, which is the opposite
+of what two independent bootstraps did.)
+
+## Governance
+
+`promoteStudy` surfaces every witnessed supporting result at the rationale
+gate, with its stability self-check, before the actuary's attestation is
+written to the assumption ledger. Promotion is not blocked — a witnessed result
+can be perfectly adequate support — but the attestation has to be informed
+rather than nominal.
+
+## Reporting it upstream
+
+A ready-to-send bug report for `casact/chainladder-python` is drafted at
+`docs/interop/upstream/chainladder-python-bootstrap-determinism.md`.

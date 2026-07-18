@@ -66,6 +66,19 @@ function relativeDeviation(x: number, y: number): number {
 function validateInput(label: "a" | "b", doc: MethodResultDoc): MethodResultDoc {
   const parsed = methodResultDocSchema.safeParse(doc);
   if (!parsed.success) {
+    // A stochastic result is a legitimate document that simply belongs to the
+    // other referee: comparing two Monte Carlo samples under a deterministic
+    // tolerance manufactures `disagree` verdicts out of sampling noise
+    // (spec 16). Say so, rather than leaving the caller with a schema dump.
+    if ((doc as { kind?: unknown })?.kind === "stochastic-result") {
+      throw new ReservingError(
+        "BAD_INTERCHANGE",
+        `crosscheck input "${label}" is a stochastic-result document. Use crosscheckStochastic(), ` +
+          "which compares distributions under a tolerance derived from sampling theory; a " +
+          "deterministic tolerance applied to two Monte Carlo samples reports ordinary sampling " +
+          "noise as disagreement.",
+      );
+    }
     throw new ReservingError(
       "BAD_INTERCHANGE",
       `crosscheck input "${label}" is not a valid MethodResultDoc: ${parsed.error.issues
