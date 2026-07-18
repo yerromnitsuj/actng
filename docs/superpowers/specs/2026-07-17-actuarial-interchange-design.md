@@ -1,10 +1,17 @@
-# actuarial-interchange: cross-ecosystem interop (full design, rev 2.1)
+# actuarial-interchange: cross-ecosystem interop (full design, rev 2.2)
 
-Status: DESIGN — approved direction (founder, 2026-07-17: "spec the entire
-thing"), not yet scheduled for build. Rev 2 incorporates a 3-lens
-adversarial review (35 findings: grounding vs the source-verified research,
-internal consistency, staff-engineer + actuary design soundness).
-Grounding research lives in `docs/research/interop/`.
+Status: BUILT — Phases A through E implemented and shipped (see the
+Progress Log in `docs/superpowers/plans/2026-07-16-actuarial-ts-sdk-master.md`
+and CHANGELOG `Unreleased`→0.2.0). This is no longer an unscheduled design:
+the TS/Python/R shores, the referee, the governance flows, the sidecar, and
+the MCP layer exist. Rev 2.2 adds a post-build **Field lessons** addendum
+(Section 15, changelog-style) reconciling the as-built system with this
+design; the design body below (rev 2.1) is preserved unchanged. The
+interchange wire-format version stays v1.0 (no breaking field change; the
+field lessons are corrections and confirmations, not new wire fields). Rev 2
+incorporated a 3-lens adversarial review (35 findings: grounding vs the
+source-verified research, internal consistency, staff-engineer + actuary
+design soundness). Grounding research lives in `docs/research/interop/`.
 
 ## 0. The idea in one paragraph
 
@@ -695,4 +702,149 @@ after C but not gated on it); E is independent after A.
   rather than approximation mappings; whether the wrapped bundle becomes
   `createBundle`'s default at the next SDK minor; whether `engagementRef`
   wants a registry convention.
+
+## 15. Field lessons (post-build, rev 2.2)
+
+Changelog-style, not a rewrite. The rev 2.1 design body above is preserved
+verbatim; this section records what building Phases A–E actually taught and
+reconciles the as-built system with the design. It flags where build
+reality **confirmed**, **tightened**, or **corrected** a design decision.
+Build evidence: the Progress Log in
+`docs/superpowers/plans/2026-07-16-actuarial-ts-sdk-master.md` and CHANGELOG
+`Unreleased`→0.2.0.
+
+### 15.1 Empirical findings already folded into the body (confirmed consistent)
+
+These were discovered during the build and written back into the design
+body above; re-verified consistent at rev 2.2 with no further change needed:
+
+- **Geometric intent is value-only on chainladder-python.**
+  `Development(average="geometric")` raises `KeyError` in chainladder 0.9.2
+  (verified in Phase A); the Python bridge demotes it to value-only with a
+  warning. Body: Section 3.2 equivalence table + the `custom`/value-only
+  note. Consistent.
+- **Zero-vs-sparse constructor hazard.** The chainladder-python long-frame
+  constructor passes through a sparse intermediate that converts explicit
+  `0.0` cells to NaN (a silent zero→missing corruption); the bridge
+  restores observed zeros post-construction, tested both directions. Body:
+  Section 4.2. Consistent. (This is the mirror of the `to_json` NaN→0
+  hazard, which Section 4.2 also documents.)
+- **CrosscheckReportDoc semantic body key = `report`.** The head-noun rule
+  made explicit; settled during Phase A implementation. Body: Section 3.2
+  CrosscheckReportDoc. Consistent.
+- **`est.sigma` auto-fallback recorded as `effectiveParameters`.** R's
+  `MackChainLadder` silently falls back from `est.sigma="log-linear"` to
+  `"Mack"` on poor regression fit; the adapter records the effective
+  method. Body: Section 3.2 MethodResultDoc `effectiveParameters` + the
+  note beneath it, and Section 5 (`mack1993-vw`). Confirmed: the existing
+  `effectiveParameters` field covers this with **no schema change** — the
+  fallback is a first-class result field, exactly as designed, not a new
+  wire field.
+
+### 15.2 What changed from design to build (the corrections list)
+
+- **@mastra/mcp `authInfo` access path (CORRECTION).** Section 8 specifies
+  the tenant helper resolves tenant via `context.mcp.extra.authInfo`. The
+  installed `@mastra/mcp` 1.14 line actually exposes it at
+  `requestContext.get('authInfo')`; the as-built `requireMcpTenant` tries
+  three auth-context shapes and resolves via that path. The research doc
+  (`docs/research/interop/mastra-mcp-capabilities.md`) was corrected.
+  Section 8's design-time prose is left as written for historical fidelity
+  — **this entry is the load-bearing correction**: the real 1.14 path is
+  `requestContext.get('authInfo')`, not `mcp.extra`.
+- **MCP disclosure-true actor stamping (TIGHTENING).** Beyond Section 8's
+  "actor defaults to `external-mcp-client`", the build stamps every
+  MCP-supplied actor `(via MCP)` in the ledger, so an unattended external
+  client can never masquerade as an in-workbench human. The accountability
+  boundary Section 8 describes is made visible on every entry, not just on
+  the default.
+- **Gate-2 hard block made STRUCTURAL (TIGHTENING).** Section 6 Gate 2 says
+  a `disagree` verdict HARD-BLOCKS. The build makes it structural rather
+  than procedural: after a `disagree`, the resume schema admits only
+  `abort` — tolerance editing cannot reopen the gate (restart-proof, proven
+  cross-process). Policy, not persuasion, enforced at the schema.
+- **`canonicalJson`/`fnv1a64` relocation behavior change.** Section 3.1
+  anticipated moving these to `@actuarial-ts/core` "at the next minor" —
+  done. One rider not called out in the design: invalid canonicalization
+  input now throws core's `ReservingError("UNSUPPORTED_VALUE")` instead of
+  `ComplianceError` (same code, same message shape, different class);
+  compliance re-exports both primitives unchanged.
+- **Error codes the design named only in prose became machine codes.** The
+  build registered the door/gate guards: `WORKSPACE_NOT_READY`,
+  `SELECTION_SHAPE`, `UNSUPPORTED_MEASURE`, `PROMOTION_BUSY` (the
+  `advance` compare-and-set), plus `MACK_LEG_FAILED` (Section 3.2 SE-less
+  rule made operational: an SE that is legitimately uncomputable is
+  skipped; an *unexpected* Mack-leg failure is surfaced, never swallowed)
+  and `STORAGE_ERROR` (`SQLITE_*` normalized so no DB schema leaks over
+  MCP). These join the Section 4.1 codes (`BAD_INTERCHANGE`,
+  `UNSUPPORTED_VERSION`, `INCOHERENT_SELECTION`).
+- **`save_study` overstatement caught (Phase B).** The Python `save_study`
+  is now proven to refuse an empty narrative summary (the Section 4.2
+  rule) — a rule the first cut asserted but hadn't actually enforced.
+- **Divergence explainer determinism (Phase C).** Section 9.3 requires the
+  explainer to "name the misaligned flag"; the build makes it a
+  deterministic fixture assertion — the `sigma_interpolation` violation is
+  pinned as `finding[0]` on the misaligned pair.
+
+### 15.3 Conformance evidence (the public compatibility statement)
+
+The design promised cross-engine agreement; the build measured it. Three
+fixtures (Taylor/Ashe / GenIns, RAA, Mack's mortgage-guarantee triangle) ×
+two profiles (`deterministic-cl`, `mack1993-vw`), actuarial-ts vs
+chainladder-python:
+
+- central estimates and totals agree at **1e-14..1e-16 relative** (live
+  `crosscheck:ci`, Phase C), well inside the 1e-6 profile tolerance;
+- Taylor/Ashe totals tie to Mack's published unpaid **18,680,855.61** and a
+  Mack standard error of **2,447,094.86** (also the R ChainLadder SE);
+- integrity tags survive TS→Python→TS **byte-identically**;
+- the referee closes both directions: `agree` on the aligned
+  Python-authored docs, `disagree` on the deliberately misaligned
+  `log-linear` run (max per-origin SE deviation **4.90%** vs the 0.5%
+  tolerance).
+
+Evidence lives at `interop/conformance/` (frozen fixtures +
+`interop/conformance/README.md`) and in the master Progress Log.
+
+### 15.4 R shore (Phase E) field notes
+
+- **jsonlite does not emit JCS numbers.** Confirmed the Section 14 risk:
+  jsonlite gets JSON *structure* but not the ECMAScript `Number::toString`
+  layout — so the provided serializer (shortest round-trip via
+  `format(x, digits=17)` then the ES layout rules, UTF-16 key sort,
+  `-0`→`"0"`, the `1e21`/`1e-7` exponent boundaries) is real, load-bearing
+  work; the committed JCS vector suite
+  (`schema/interchange/1.0/jcs-vectors.json`) is its referee.
+- **R alpha/delta trap respected.** `MackChainLadder(alpha)` is `alpha=1`
+  volume-weighted, `alpha=0` simple, `alpha=2` regression — NOT
+  `chainladder(delta)` (which is `alpha = 2 − delta`). Body: Section 3.2 R
+  parameterization note; `docs/interop/convention-map.md`. The recipes
+  stamp `alpha`, never `delta`.
+- **`est.sigma` fallback recorded, `CLFMdelta` feasibility surfaced.** The
+  R recipes record `MackChainLadder`'s log-linear→Mack auto-fallback (fires
+  on regression p > 0.05) as `effectiveParameters`, and surface
+  `CLFMdelta`'s per-element `foundSolution` failures as `not-comparable`
+  warnings — the exact honesty channels Sections 3.2 and 5 require. The
+  R shore was VERIFIED for real (R 4.6.1, ChainLadder 0.2.21):
+  `MackChainLadder(alpha=1, est.sigma="Mack")` reproduces the committed
+  `mack1993-vw` fixtures for all three triangles at ~1e-15 relative
+  deviation — float identity, not merely inside tolerance — with
+  Taylor/Ashe's Total.Mack.S.E = 2,447,094.86 matching the published
+  2,447,095; all 23 JCS vectors reproduce byte-for-byte in R (the
+  lone-surrogate vector via raw WTF-8 byte handling, since R strings
+  cannot hold a lone surrogate), and every committed integrity tag
+  recomputes identically despite R having no unsigned 64-bit int (FNV-1a
+  via a four-16-bit-limb multiply). The p>0.05 auto-fallback does not
+  fire on these well-behaved triangles, confirming the est.sigma trap is
+  real (log-linear yields a different sigma and does NOT self-correct) —
+  the detection machinery is present and the pin is load-bearing.
+
+### 15.5 Net
+
+Nothing in the build invalidated a rev 2.1 design decision. The format
+contract held across all three shores; the corrections above are
+access-path and enforcement-strength refinements, not design reversals.
+Because no wire field changed, the interchange **spec version stays v1.0**
+— this is a rev 2.2 *document* revision recording build learnings, not a
+format minor bump.
 ```
