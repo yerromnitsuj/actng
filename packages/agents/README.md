@@ -1,6 +1,6 @@
 # @actuarial-ts/agents
 
-Mastra agent toolkit for the actuarial-ts SDK: typed actuarial tools with a hard tenant seam, human-gated judgment workflows that write the compliance assumption ledger, a reserving advisor factory, and a golden-prompt eval harness.
+Mastra agent toolkit for the actuarial-ts SDK: typed actuarial tools with a hard tenant seam, human-gated judgment workflows that write the compliance assumption ledger, a four-gate study-promotion chain (`promoteStudy`), a remote-engine bridge (`defineRemoteMethod`) with a referee divergence explainer, a fail-closed MCP tenant seam, a reserving advisor factory, and a golden-prompt eval harness.
 
 The package generalizes the agent architecture proven in the ActNG reserving workbench. Its core idea: when an agent participates in an actuarial analysis, the documentation ASOP 41 asks for should fall out of RUNNING the analysis, not be reconstructed afterwards. Judgment chains built here write an `@actuarial-ts/compliance` assumption ledger as decisions are made, so a completed chain hands back a ledger ready for `generateDisclosure`.
 
@@ -10,9 +10,11 @@ These utilities are designed to support the actuary's compliance with the ASOPs;
 
 ```sh
 npm install @actuarial-ts/agents @mastra/core zod
+# plus @mastra/mcp if you use the MCP surface:
+npm install @mastra/mcp
 ```
 
-`@mastra/core` (>= 1.49, < 2) and `zod` are peer dependencies: the HOST application owns the Mastra version. `@actuarial-ts/compliance` is a regular dependency (and brings `@actuarial-ts/core` with it).
+`@mastra/core` (>= 1.49, < 2), `zod` (^3.25), and `@mastra/mcp` (>= 1.14, < 2) are peer dependencies: the HOST application owns the Mastra version. `@mastra/mcp` is only needed if you use the MCP surface. `@actuarial-ts/core`, `@actuarial-ts/interchange`, `@actuarial-ts/data`, and `@actuarial-ts/compliance` are regular dependencies, installed for you.
 
 ## Security model
 

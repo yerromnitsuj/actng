@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Evolve ActNG2's `packages/core` into the published, Apache-2.0, four-package `@actuarial-ts` SDK (core, data, compliance, agents) per `docs/superpowers/specs/2026-07-16-actuarial-ts-sdk-design.md`, with the workbench as flagship consumer.
+**Goal:** Evolve ActNG2's `packages/core` into the published, Apache-2.0, five-package `@actuarial-ts` SDK (core, interchange, data, compliance, agents) per `docs/superpowers/specs/2026-07-16-actuarial-ts-sdk-design.md`, with the workbench as flagship consumer.
 
 **Architecture:** Six phases, each independently shippable, each ending with a full regression gate (typecheck + all tests + live workbench verify) and a `/ship` (commit + push). Detailed per-phase plans are written just-in-time in this directory as `2026-07-XX-phaseN-<name>.md` so each absorbs the previous phase's learnings. This master file is the durable index: update the Progress Log after every phase.
 
@@ -32,6 +32,8 @@
 | 4 — agents pkg + dogfood | 2026-07-17-phase4-agents.md | DONE 2026-07-17 |
 | 5 — reserve-review completeness | 2026-07-17-phase5-reserve-review.md | DONE 2026-07-17 |
 | Final — review + ship + publish-readiness | (this log entry) | DONE 2026-07-17 |
+| Interop A–E — interchange spine, governance flows, second engine, MCP, R shore | `2026-07-17-interop-phaseA-spine.md` … `2026-07-18-interop-phaseE-r-shore.md` | DONE 2026-07-18 |
+| Release 0.2.0 — five-package lockstep publish | (this log entry) | DONE 2026-07-18 |
 
 ## Phase acceptance criteria (summary; detail lives in phase plans)
 
@@ -44,6 +46,21 @@
 - **Final:** whole-SDK adversarial review fixed, root README + CHANGELOG, all packages `npm pack` clean, publish attempted only if founder npm auth + scope exist (else documented manual step), final /ship.
 
 ## Progress Log
+
+- 2026-07-18: **RELEASE 0.2.0 PUBLISHED.** All five packages live on npm at
+  0.2.0 (published in dependency order: core, interchange, data, compliance,
+  agents), tag `v0.2.0` pushed, GitHub Releases created for v0.1.0 and v0.2.0.
+  interchange could not ship alone: it imports `canonicalJson`/`fnv1a64` from
+  core, and the published core@0.1.0 had no canonical module (verified by
+  unpacking the live tarball), so interchange against core ^0.1.0 would have
+  thrown on every envelope op. `data` republished source-unchanged to hold the
+  lockstep — on 0.x, `^0.1.0` means `>=0.1.0 <0.2.0`, so leaving it behind
+  would have pulled a duplicate core into consumer trees and broken
+  `instanceof` on the shared error classes. Registry-install smoke test passed
+  (one copy of core; canonicalJson present; envelope authoring + integrity
+  round-trip green). The conformance corpus now PINS its authoring provenance
+  (`CORPUS_GENERATOR`/`CORPUS_ENGINE`) so version bumps never break the
+  byte-freeze; no fixture byte changed.
 
 - 2026-07-18: **INTEROP PHASE E DONE (R shore + upstream + closeout).** The R
   ChainLadder recipes (`tools/interop/actuarialInterchange.R`) stand up a THIRD

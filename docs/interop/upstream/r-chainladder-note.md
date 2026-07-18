@@ -4,7 +4,8 @@
 > note intended for Markus Gesmann (maintainer of the CRAN `ChainLadder`
 > package, `mages/ChainLadder`). The founder reviews and sends it; nothing
 > here has been posted. Path references point at the actuarial-ts
-> repository (currently local-only); substitute public URLs before
+> repository; substitute public URLs
+> (https://github.com/yerromnitsuj/actng/blob/main/...) before
 > sending.
 
 ## Context

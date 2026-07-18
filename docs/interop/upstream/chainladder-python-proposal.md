@@ -3,17 +3,19 @@
 > **Status: DRAFT for founder review — NOT sent.** This is a
 > GitHub-issue-ready draft to open on `casact/chainladder-python`. The
 > founder reviews and sends it; nothing here has been posted. Path
-> references below point at the actuarial-ts repository (currently
-> local-only); replace them with public URLs before sending.
+> references below are repo-relative; substitute public URLs
+> (https://github.com/yerromnitsuj/actng/blob/main/...) before sending.
+> NOTE: `actuarial-interchange` is NOT on PyPI yet — either publish it
+> first or keep the "installable from source" wording below.
 
 ## TL;DR
 
 We built a language-neutral interchange format — `actuarial-interchange`
 — that moves triangles, factor selections (as **intent**, not just
 values), method results, and governance artifacts between ecosystems
-losslessly. There is already a published Python adapter
-(`pip install actuarial-interchange[chainladder]`) that bridges
-chainladder-python today against 0.9.x — **no changes to your library are
+losslessly. There is a Python adapter (`actuarial-interchange`) that
+bridges chainladder-python today against 0.9.x — installable from source
+now, PyPI publication pending — and **no changes to your library are
 required for it to work.** This issue asks a narrower question: would you
 be open to first-party `to_ats()` / `read_ats()` support, mirroring your
 existing `Triangle.to_json()` / `read_json()`, so your users get the
@@ -67,11 +69,11 @@ The smallest useful thing: a thin pair mirroring your existing JSON I/O.
   `extras_require` group) rather than a hard dependency, so the core
   library stays lean.
 
-We are happy for our published `actuarial-interchange` package to be the
+We are happy for our `actuarial-interchange` package to be the
 **reference implementation you wrap or vendor**, or to contribute the
 adapter as a PR under your direction — whichever you prefer. If you'd
-rather do nothing, that's a complete answer too: our adapter already
-covers your users from the outside.
+rather do nothing, that's a complete answer too: our adapter can cover
+your users from the outside.
 
 ## The evidence this is real and stable
 
@@ -85,9 +87,10 @@ sketch:
   is part of the normative contract.
 - **Conformance:** `interop/conformance/` — three published triangles
   (Taylor/Ashe / GenIns, RAA, Mack's mortgage-guarantee) × two convention
-  profiles (`deterministic-cl`, `mack1993-vw`), with two independent
-  runners (actuarial-ts under vitest, chainladder-python under pytest)
-  parsing the **same frozen fixture bytes** and recomputing natively.
+  profiles (`deterministic-cl`, `mack1993-vw`), with three independent
+  runners (actuarial-ts under vitest, chainladder-python under pytest, and
+  R ChainLadder under Rscript) parsing the **same frozen fixture bytes**
+  and recomputing natively.
   Cross-engine central estimates and totals agree to **1e-14..1e-16
   relative** (well inside the 1e-6 profile tolerance); Taylor/Ashe totals
   tie to Mack's published unpaid of 18,680,855.61 and a Mack standard

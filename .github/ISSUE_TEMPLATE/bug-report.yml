@@ -1,0 +1,60 @@
+name: Bug report
+description: Something errors, crashes, or behaves incorrectly
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything that is not a numerical disagreement (use the other
+        template for those) and not a security issue (please report those
+        [privately](https://github.com/yerromnitsuj/actng/security/advisories/new)).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - "@actuarial-ts/core"
+        - "@actuarial-ts/interchange"
+        - "@actuarial-ts/data"
+        - "@actuarial-ts/compliance"
+        - "@actuarial-ts/agents"
+        - "interop: Python shore / sidecar"
+        - "interop: R shore"
+        - "reserving workbench (apps/)"
+        - "not sure"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "Node 22.22, macOS 15"
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Smallest code that shows it.
+      render: typescript
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include the full error and stack trace if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true

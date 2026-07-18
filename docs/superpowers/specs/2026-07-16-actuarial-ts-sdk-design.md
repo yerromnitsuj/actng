@@ -32,7 +32,7 @@ The moat is the compliance-artifact + reproducibility layer, not the math.
 
 ## Architecture
 
-Four packages under `packages/`, all Apache-2.0, all ESM, all with the same
+Five packages under `packages/`, all Apache-2.0, all ESM, all with the same
 grammar the core already has (pure functions, typed inputs + options object,
 `warnings: string[]` channel, `ReservingError` with machine codes, the
 three-tier severity design: null cell < warning < throw).
@@ -44,7 +44,7 @@ three-tier severity design: null cell < warning < throw).
 | `@actuarial-ts/compliance` | Estimate metadata (intended measure/purpose, gross/net, LAE, accounting/valuation/review dates), assumption ledger (machine default vs human/agent judgment, rationale + source), ASOP 41 disclosure generator, ASOP 56 model cards, reproducibility bundles, actual-vs-expected roll-forward. | @actuarial-ts/core |
 | `@actuarial-ts/agents` | Mastra toolkit: typed tool factory (tenant id via RequestContext only, never in input schemas; `{success:false, error:{code,message}}` envelopes; action/read classification), suspend-gate judgment workflow factory whose decision trails write into the compliance ledger, reserving advisor agent factory, golden-prompt eval harness. | @actuarial-ts/core, @actuarial-ts/compliance; @mastra/core + zod as peers |
 
-Workbench continues to consume all four (server: core+data+compliance+agents;
+Workbench continues to consume all five (server: core+data+compliance+agents;
 web: types only), proving the boundary.
 
 ## The agent fusion (why agents and compliance are one design)

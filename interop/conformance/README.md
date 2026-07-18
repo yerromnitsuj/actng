@@ -1,10 +1,11 @@
 # Cross-engine conformance suite (interop Phase A)
 
 The executable proof that the actuarial-interchange format means the same
-thing on both shores (spec sections 10 and 13, Phase A). One set of frozen
-fixture documents; two independent runners — actuarial-ts (vitest) and
-chainladder-python (pytest) — parse the SAME files, recompute natively,
-and are held to the convention profiles' tolerances. The committed
+thing on every shore (spec sections 10 and 13, Phase A). One set of frozen
+fixture documents; three independent runners — actuarial-ts (vitest),
+chainladder-python (pytest) and R ChainLadder (Rscript) — parse the SAME
+files, recompute natively, and are held to the convention profiles'
+tolerances. The committed
 fixtures plus these tests are the public compatibility statement.
 
 ## Layout
@@ -75,11 +76,11 @@ npm test -w @actuarial-ts/interchange
 
 Python shore (needs the `.venv-interop` environment — Python 3.12 with
 `chainladder==0.9.2` pinned and `actuarial-interchange` installed
-editable; CI wiring is a later phase):
+editable; CI runs this shore on every push touching `interop/**` via the "Python interop conformance" workflow (`.github/workflows/py-conformance.yml`)):
 
 ```bash
 npm run test:py
-# equivalently: .venv-interop/bin/pytest interop/python/tests interop/conformance/py -q
+# equivalently: .venv-interop/bin/pytest interop/python/tests interop/conformance/py interop/sidecar/tests -q
 ```
 
 ## What each runner proves
@@ -130,3 +131,30 @@ deliberate authoring-convention change — and the commit message must say
 why. The TS runner enforces this: it fails whenever the committed bytes
 stop matching a fresh authoring run, so silent drift (in either the
 fixtures or the authoring code) cannot pass CI.
+
+### Authoring provenance is PINNED, not tracked
+
+`CREATED_AT`, `CORPUS_GENERATOR`, `CORPUS_ENGINE` and
+`WRAPPED_BUNDLE_SDK_VERSIONS` (all in `ts/fixtures.ts`) state **what
+authored this corpus**. They are deliberately NOT re-derived from the
+packages' current versions — the same rule that makes `createdAt`
+caller-supplied instead of a clock read.
+
+This matters more than it looks. The engine stamp sits INSIDE the
+integrity-hashed body, so if these tracked the live build, every npm
+release would move every integrity tag, the wrapped bundle's inner payload
+and its outer hash — breaking the freeze on a routine version bump, for a
+reason that says nothing whatsoever about conformance.
+
+**A package version bump is therefore NEVER grounds for regeneration.**
+If you are reading stamps that say an older version than the published
+packages, that is the policy working correctly, not drift. Do not
+"fix" it.
+
+Live SDK runs are unaffected and still carry truthful provenance:
+`resultToDoc` / `triangleToDoc` / `selectionsToDoc` (and `createBundle`,
+via its optional `generator` override) stamp the real current version by
+default. Only this historical corpus is pinned.
+
+Bump these constants only as part of a deliberate, documented regeneration
+under the triggers above.

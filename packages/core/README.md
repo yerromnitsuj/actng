@@ -104,6 +104,7 @@ Three rules hold everywhere:
 | `trend` | `analyzeTrend`, `trendValue` (log-linear, windowed) | Werner & Modlin, *Basic Ratemaking* ch. 6 |
 | `onlevel` | `parallelogramOnLevel` (exact piecewise-linear earning geometry) | Werner & Modlin ch. 5 |
 | `diagnostics` | `runDiagnostics` (paid/incurred drift, case adequacy, closure rates), `calendarYearTest` | Mack (1994) calendar-year rank test |
+| `canonical` | `canonicalJson` (RFC 8785 / JCS canonical serialization), `fnv1a64` (integrity tagging aid — not a security control) | RFC 8785 |
 
 ## Validation against published results
 

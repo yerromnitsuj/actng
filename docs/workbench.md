@@ -70,7 +70,7 @@ back toward each other.
 The Import Study panel takes a notebook-authored actuarial-interchange
 `StudyDoc` (JSON; Python: `save_study` from `interop/python`) and walks it
 through the four-gate promotion chain from `@actuarial-ts/agents`
-(interchange spec rev 2.1, section 6). The route surface, mounted at
+(interchange spec rev 2.2, section 6). The route surface, mounted at
 `/api/projects/:id/studies`:
 
 The same governed promotion path is exposable over the Model Context
@@ -111,7 +111,7 @@ Python interop: `save_study` exports a governed StudyDoc from a notebook
 and `load_bundle` opens wrapped reproducibility bundles for notebook
 analysis - both live in `interop/python` (see its README).
 
-## Repository layout
+## Workbench layout
 
 | Path | What it is |
 |---|---|

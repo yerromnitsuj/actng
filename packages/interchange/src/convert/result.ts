@@ -25,10 +25,10 @@ import {
  * core method results → MethodResultDoc, stamping `appliesTo` (spec 3.2 /
  * 4.1).
  *
- * Phase A converts the deterministic quartet — ChainLadderResult,
- * MackResult, BornhuetterFergusonResult, BenktanderResult; further
- * methods (Cape Cod, Clark, Munich, the stochastic layer, ...) arrive
- * with later phases. Method names use the actuarial-ts namespace
+ * Converts the deterministic quartet — ChainLadderResult, MackResult,
+ * BornhuetterFergusonResult, BenktanderResult. Further methods (Cape Cod,
+ * Clark, Munich, the stochastic layer, ...) are NOT yet converted and
+ * throw; adding one is a spec-minor change. Method names use the actuarial-ts namespace
  * (unprefixed discriminants); `clpy:`/`rcl:` are reserved for the other
  * shores.
  *
@@ -135,8 +135,8 @@ function mapResult(result: ConvertibleResult): MappedResult {
       const method = (result as { method?: string }).method ?? "(unknown)";
       throw new ReservingError(
         "BAD_INTERCHANGE",
-        `resultToDoc does not support method "${method}" yet; Phase A converts chainLadder, ` +
-          "mack, bornhuetterFerguson, and benktander (more arrive with later phases)",
+        `resultToDoc does not support method "${method}" yet; it converts chainLadder, ` +
+          "mack, bornhuetterFerguson, and benktander",
       );
     }
   }

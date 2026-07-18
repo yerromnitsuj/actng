@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/yerromnitsuj/actng/security/advisories/new
+    about: Please report security issues privately, never as a public issue.
+  - name: Convention differences between engines
+    url: https://github.com/yerromnitsuj/actng/blob/main/docs/interop/convention-map.md
+    about: Before filing a cross-engine disagreement, check the known convention differences.

@@ -1,0 +1,68 @@
+name: Numerical disagreement
+description: A method returns a number you believe is wrong
+title: "[numbers] "
+labels: ["correctness"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For when the code runs fine but the answer looks wrong.
+
+        This is the most valuable kind of report this project can get, and the
+        one where a citation matters most. Methods here are pinned to values
+        transcribed from primary sources (committed under `docs/research/`), so
+        "this disagrees with source X, page Y" is far more actionable than
+        "this looks too high."
+
+        Please note: a disagreement between this library and another
+        implementation is often a **convention** difference rather than a bug —
+        volume-weighted vs. simple averaging, sigma estimation, tail handling.
+        The convention map in `docs/interop/convention-map.md` covers the known
+        ones.
+  - type: input
+    id: method
+    attributes:
+      label: Method
+      placeholder: "runMack, runChainLadder, runBornhuetterFerguson, ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: "@actuarial-ts/core 0.2.0"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Smallest input that shows it. A triangle plus the call is ideal.
+      render: typescript
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      description: What you got, what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source for the expected value
+      description: >
+        Paper, textbook, another implementation, or your own working. Include
+        the specific table/page if it is a published example.
+    validations:
+      required: true
+  - type: dropdown
+    id: convention
+    attributes:
+      label: Have you checked the convention map?
+      options:
+        - "Yes, and this is not a convention difference"
+        - "No / not sure"
+    validations:
+      required: true

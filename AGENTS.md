@@ -1,19 +1,23 @@
 # ActNG - Codex Rules
 
 AI-native P&C actuarial reserving workbench. npm-workspaces monorepo:
-`packages/{core,data,compliance,agents}` = the `@actuarial-ts/*` SDK
-(published to npm at 0.1.0, tag v0.1.0; core is the pure math;
+`packages/{core,interchange,data,compliance,agents}` = the `@actuarial-ts/*` SDK
+(published to npm at 0.2.0, tag v0.2.0; core is the pure math;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
 `npm install`), `apps/server` (Express 5 + SQLite + Mastra
-advisor), `apps/web` (Vite + React 19 + Tailwind v4).
+advisor), `apps/web` (Vite + React 19 + Tailwind v4). A third body of work
+lives alongside these: the actuarial-interchange interop layer - `interop/`
+(Python shore, frozen conformance corpus, chainladder-python sidecar),
+`tools/interop/` (R shore), `schema/interchange/` (shared JSON Schema + JCS
+vectors).
 
 ## Commands
 
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run dev` - seed (idempotent, `--if-empty`) + API on :4600 + web on :5175
-- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), data, compliance, agents, server - 535 tests
-- `npm run typecheck` - every workspace (four @actuarial-ts packages + two apps)
+- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, server - 788 tests (2 skipped). `npm run test:py` runs the 250-case Python interop suite (needs `.venv-interop`).
+- `npm run typecheck` - every workspace (five @actuarial-ts packages + two apps)
 - `npm run seed --workspace @actng/server` - regenerate demo data (deterministic seed)
 
 ## Non-negotiable domain rules

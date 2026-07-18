@@ -5,6 +5,16 @@ language-neutral, versioned documents that carry **data, intent, results,
 and governance** between actuarial-ts, chainladder-python, and R
 ChainLadder — plus the deterministic cross-implementation referee.
 
+## Install
+
+```sh
+npm install @actuarial-ts/interchange
+```
+
+ESM, Node >= 20. Depends on `@actuarial-ts/core` (>= 0.2.0 — it provides the
+`canonicalJson`/`fnv1a64` this package canonicalizes and stamps with) and
+`zod`.
+
 - **Document kinds**: `triangle`, `selection`, `method-result`,
   `stochastic-result`, `study`, `bundle`, `crosscheck-report` — zod
   schemas with inferred types, mechanically emitted to JSON Schema under
@@ -25,7 +35,8 @@ ChainLadder — plus the deterministic cross-implementation referee.
 - **Converters**: `triangleToDoc`/`docToTriangle`,
   `selectionsToDoc`/`docToSelections` (intent ↔ the standard averages
   menu), `resultToDoc` (chainLadder, mack, bornhuetterFerguson,
-  benktander in Phase A; more methods arrive with later phases), and
+  benktander; Cape Cod, Clark, Munich and the stochastic layer are not yet
+  converted and `resultToDoc` throws for them), and
   `parseDocument` (version-checked, integrity-verified,
   warning-channeled).
 - **The referee**: `crosscheck({ a, b, tolerance?, selection?, createdAt })`
@@ -50,3 +61,7 @@ regenerates the committed JSON Schemas).
 This package is designed to support the actuary's compliance with the
 ASOPs; cross-implementation agreement supports, but does not by itself
 constitute, the model validation contemplated by ASOP No. 56.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
