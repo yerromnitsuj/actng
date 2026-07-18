@@ -75,6 +75,14 @@ describe("Mack (1993) Tables 1-3: Taylor/Ashe standard errors", () => {
     const totalPct = (result.totals.standardError / result.totals.reserve) * 100;
     expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(1);
   });
+
+  it("pins the total standard error itself, not only its percentage", () => {
+    // The percentage assertion above is a +/-1 percentage-point band on ~13%,
+    // which tolerates roughly 8% relative error — wide enough to hide a real
+    // defect in the cross-covariance term, as it did. Mack (1993) Table 3
+    // prints 2,447 (thousands); R ChainLadder reports 2,447,095 on this data.
+    expect(result.totals.standardError).toBeCloseTo(2_447_094.8608346656, 6);
+  });
 });
 
 describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {

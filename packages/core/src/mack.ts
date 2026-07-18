@@ -233,26 +233,47 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
     });
   }
 
-  // Total mse: sum of row mse plus cross terms (Mack 1993 corollary). The
-  // tail step participates like one more development column.
+  // Total mse: sum of row mse plus the cross-covariance between every PAIR of
+  // accident years (Mack 1993 corollary). The tail step participates like one
+  // more development column.
+  //
+  // Two accident years share estimation error only over the columns they have
+  // BOTH yet to traverse, so each pair's sum starts at the maturity of the more
+  // developed of the two. That floor is per-pair: aggregating the later rows'
+  // ultimates before choosing it would assume maturity falls with row index —
+  // true of a tidy run-off triangle, false of a ragged or unsorted one, and the
+  // resulting total moved by up to 65% purely with row order.
   let totalMse = 0;
   for (let i = 0; i < n; i++) totalMse += mseByRow[i]!;
+
+  const maturity = tri.values.map((row) => lastObservedIndex(row));
+  const ultimateOf = (i: number): number => projected[i]![K - 1]! * tail;
+
   for (let i = 0; i < n; i++) {
-    const lastI = lastObservedIndex(tri.values[i]!);
-    if (lastI < 0 || (tail === 1 && lastI >= K - 1)) continue;
-    let laterUltimates = 0;
+    if (maturity[i]! < 0) continue;
     for (let j = i + 1; j < n; j++) {
-      if (lastObservedIndex(tri.values[j]!) >= 0) laterUltimates += projected[j]![K - 1]! * tail;
+      if (maturity[j]! < 0) continue;
+
+      const floor = Math.max(maturity[i]!, maturity[j]!);
+      // Both years already run off: no shared development remains.
+      if (tail === 1 && floor >= K - 1) continue;
+
+      // Mack's 1/C terms are undefined for a non-positive ultimate; the row
+      // estimate skips such columns for the same reason (see above).
+      const ui = ultimateOf(i);
+      const uj = ultimateOf(j);
+      if (!(ui > 0) || !(uj > 0)) continue;
+
+      let shared = 0;
+      for (let k = floor; k < K - 1; k++) {
+        shared += (2 * sigma2[k]!) / fEff[k]! ** 2 / denomSums[k]!;
+      }
+      if (tail !== 1) {
+        shared += (2 * sigma2Tail) / tail ** 2 / denomTail;
+      }
+
+      totalMse += ui * uj * shared;
     }
-    if (laterUltimates <= 0) continue;
-    let inner = 0;
-    for (let k = lastI; k < K - 1; k++) {
-      inner += (2 * sigma2[k]!) / fEff[k]! ** 2 / denomSums[k]!;
-    }
-    if (tail !== 1) {
-      inner += (2 * sigma2Tail) / tail ** 2 / denomTail;
-    }
-    totalMse += projected[i]![K - 1]! * tail * laterUltimates * inner;
   }
 
   const totals = rows.reduce(
