@@ -41,6 +41,8 @@ export const AGENTS_ERROR_CODES = [
   "NO_DIVERGENCE_EVIDENCE",
   /** A remote sidecar 2xx response failed interchange parseDocument (bad JSON, bad schema, broken integrity tag, or a non-result kind). */
   "REMOTE_RESULT_INVALID",
+  /** The boot self-test found an MCP-exposed probe tool that did NOT fail closed without tenant context; the MCP tenant seam is not wired up and the server must abort startup. */
+  "MCP_SELF_TEST_FAILED",
 ] as const;
 
 export type AgentsErrorCode = (typeof AGENTS_ERROR_CODES)[number];

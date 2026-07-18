@@ -20,6 +20,7 @@
     "@ai-sdk/anthropic": "^3.0.58",
     "@mastra/core": "^1.49.0",
     "@mastra/libsql": "^1.15.0",
+    "@mastra/mcp": "^1.14.0",
     "@mastra/memory": "^1.22.1",
     "ai": "^6.0.116",
     "better-sqlite3": "^12.2.0",
