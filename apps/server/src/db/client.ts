@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS studies (
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   study_json TEXT NOT NULL,
   tolerance_ceiling REAL NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('awaiting-decision','complete','failed')),
+  status TEXT NOT NULL CHECK (status IN ('awaiting-decision','advancing','complete','failed')),
   state_json TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -130,3 +130,42 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_thread ON chat_messages(thread_id, 
     `);
   }
 }
+
+/**
+ * Additive migration: studies.status gains the transient 'advancing' value
+ * (the CAS claim one in-flight advancePromotion holds; see db/repo.ts).
+ * SQLite cannot widen a CHECK constraint in place, so tables created before
+ * the value existed are rebuilt once, guarded on the old CHECK text. Data is
+ * copied verbatim; the rebuild is idempotent.
+ */
+{
+  const master = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'studies'")
+    .get() as { sql: string } | undefined;
+  if (master && !master.sql.includes("'advancing'")) {
+    db.exec(`
+      ALTER TABLE studies RENAME TO studies_legacy;
+      CREATE TABLE studies (
+        run_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        study_json TEXT NOT NULL,
+        tolerance_ceiling REAL NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('awaiting-decision','advancing','complete','failed')),
+        state_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      );
+      INSERT INTO studies (run_id, project_id, study_json, tolerance_ceiling, status, state_json, created_at, updated_at)
+        SELECT run_id, project_id, study_json, tolerance_ceiling, status, state_json, created_at, updated_at
+        FROM studies_legacy;
+      DROP TABLE studies_legacy;
+      CREATE INDEX IF NOT EXISTS idx_studies_project ON studies(project_id, created_at DESC);
+    `);
+  }
+}
+
+// An 'advancing' claim is process-local (it marks one in-flight HTTP request
+// inside one server process), so any row still claimed at boot was stranded
+// by a crash mid-advance. Settle it back to paused; the Mastra snapshot
+// still holds the suspended run.
+db.prepare("UPDATE studies SET status = 'awaiting-decision' WHERE status = 'advancing'").run();

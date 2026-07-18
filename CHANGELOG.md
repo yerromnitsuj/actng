@@ -1,7 +1,32 @@
 # Changelog
 
-All notable changes to the actuarial-ts SDK. The four packages version
+All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
+
+## Unreleased (targeting 0.2.0)
+
+- **`canonicalJson`/`fnv1a64` moved to @actuarial-ts/core** (`src/canonical.ts`)
+  so the interchange layer can share them without a package cycle;
+  @actuarial-ts/compliance re-exports both unchanged. One behavior change
+  rode along: invalid canonicalization input now throws core's
+  `ReservingError("UNSUPPORTED_VALUE")` instead of `ComplianceError` -
+  same code, same message shape, different class.
+- **New package: @actuarial-ts/interchange** - the actuarial-interchange
+  spec v1 in TypeScript: envelope + integrity stamping, versioned parsing,
+  triangle/selection/result/study/bundle/crosscheck schemas, core
+  converters, and the cross-engine referee (`crosscheck`) with convention
+  profiles.
+- **Interop Phase A (conformance spine):** shared JSON Schema + JCS test
+  vectors under `schema/interchange/1.0/`, with TS and Python conformance
+  suites pinned to the same fixtures.
+- **Interop Phase B (governance flows):** wrapped reproducibility bundles
+  (outer integrity over `{ bundle, interchange }`) with wrapped-mode
+  verification; disclosure Section 4b "Cross-implementation verification"
+  rendered from `CrosscheckReportDoc`s with the mandated
+  supports-not-constitutes boilerplate; `promoteStudy` in
+  @actuarial-ts/agents (the four-gate study-promotion judgment chain);
+  the workbench Import Study surface (routes + panel, restart-proof);
+  Python `load_bundle`/`save_study` in `interop/python`.
 
 ## 0.1.0 — 2026-07-17 (initial release)
 

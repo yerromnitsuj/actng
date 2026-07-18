@@ -27,3 +27,19 @@ Server: POST /api/projects/:id/studies/import (multipart JSON) starting promoteS
 
 ### Task B5: review + gates + /ship
 3-lens adversarial review (spec-acceptance incl. the walkthrough, governance-integrity — can promotion be gamed?, code quality), fixes, cold start + both CI workflows, master log, /ship.
+
+## Deviations (B4)
+
+Two as-built departures from the B4 sketch above, both deliberate:
+
+- **Plain-JSON `POST /api/projects/:id/studies`**, not multipart
+  `POST /studies/import`. A StudyDoc is a single JSON document; multipart
+  bought nothing but a parser dependency, and the plain body keeps the
+  route symmetric with every other JSON route in the server.
+- **Dedicated gate routes + the Import Study panel**, not the
+  advisor-gate SSE surfacing. The promotion is a UI-driven governed
+  surface in this phase (the plan itself keeps stage_study /
+  advance_promotion away from the model), so routing gate decisions
+  through the advisor's SSE machinery added indirection with no consumer.
+  SSE/tool exposure of the promotion arrives with Phase D's staged-write
+  MCP tools, where an agent actually drives it.

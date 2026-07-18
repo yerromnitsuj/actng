@@ -441,6 +441,10 @@ export interface StudyIntakeEvidence {
   }[];
   segments: { selectionIntegrity: string; labels: Record<string, string>; target: string }[];
   warnings: string[];
+  /** Always present: what the gates verify (the study against its OWN
+   * embedded triangle) and what they do not (that the triangle is this
+   * workspace's book - the reviewing actuary's judgment). */
+  workspaceBindingNote: string;
 }
 
 export interface PromotionReplayTarget {

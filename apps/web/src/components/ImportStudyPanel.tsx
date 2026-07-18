@@ -178,6 +178,12 @@ function IntakeEvidence({ evidence }: { evidence: StudyIntakeEvidence }) {
         })}
       </div>
 
+      {/* Verification-scope disclosure: what the gates checked, and the
+          workspace-binding judgment they deliberately leave to the human. */}
+      <p className="text-[0.72rem] italic leading-relaxed text-ink-faint">
+        {evidence.workspaceBindingNote}
+      </p>
+
       {evidence.warnings.length > 0 ? (
         <div className="rounded-sm border border-gold bg-gold-soft px-3 py-2">
           <Kicker>Warnings</Kicker>

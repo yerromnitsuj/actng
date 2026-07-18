@@ -27,11 +27,13 @@ type Repo = typeof import("../src/db/repo.js");
 type WorkspaceService = typeof import("../src/services/workspaceService.js");
 type Synthetic = typeof import("../src/seed/synthetic.js");
 type Interchange = typeof import("@actuarial-ts/interchange");
+type Compliance = typeof import("@actuarial-ts/compliance");
 
 let repo: Repo;
 let ws: WorkspaceService;
 let synthetic: Synthetic;
 let interchange: Interchange;
+let compliance: Compliance;
 let server: Server;
 let base: string;
 
@@ -57,6 +59,7 @@ beforeAll(async () => {
   ws = await import("../src/services/workspaceService.js");
   synthetic = await import("../src/seed/synthetic.js");
   interchange = await import("@actuarial-ts/interchange");
+  compliance = await import("@actuarial-ts/compliance");
   // Boot registers the Mastra instance the promotion module registers
   // per-run workflows on (same wiring as the running server).
   await import("../src/mastra/index.js");
@@ -205,6 +208,38 @@ describe("study promotion routes: the Phase B walkthrough", () => {
     expect(replay.crosschecks[0].verdict).toBe("agree");
     expect(replay.crosschecks[0].engine.name).toBe("chainladder-python");
 
+    // The acceptance hop closes with COMMITTED evidence: the exact referee
+    // report docs the gate showed the human feed the ASOP 41 disclosure
+    // generator, which renders them as Section 4b with the mandated
+    // supports-not-constitutes boilerplate (interchange spec 5).
+    const crosscheckReports = replay.crosschecks
+      .map((c: { report: unknown }) => c.report)
+      .filter((r: unknown) => r !== null);
+    expect(crosscheckReports).toHaveLength(1);
+    const disclosure = compliance.generateDisclosure({
+      title: "Promotion walkthrough disclosure",
+      metadata: {
+        intendedPurpose:
+          "Route-level acceptance: promotion gate evidence rendered as an ASOP 41 disclosure",
+        intendedMeasure: { kind: "central-estimate" },
+        basis: { grossNet: "gross", laeTreatment: "excluding-lae" },
+        accountingDate: "2025-12-31",
+        valuationDate: "2025-12-31",
+      },
+      methods: [{ methodId: "chainLadder", basisLabel: "paid" }],
+      crossImplementation: crosscheckReports,
+      sdkVersion: "0.1.0",
+      generatedAt: "2026-07-18T00:00:00Z",
+    });
+    expect(disclosure).toContain("## 4b. Cross-implementation verification");
+    expect(disclosure).toContain("chainladder-python");
+    expect(disclosure).toContain("| agree |"); // the gate's verdict, in the 4b table
+    expect(disclosure).toContain(
+      "Agreement between independent implementations supports, but does not by itself " +
+        "constitute, the model validation contemplated by ASOP No. 56; model appropriateness " +
+        "to the book remains a separate professional judgment.",
+    );
+
     // Gate 2 -> 3: the draft rationale is assembled from the narrative.
     step = await advance(projectId, runId, {
       gate: "replay-verify",
@@ -293,7 +328,9 @@ describe("study promotion routes: the Phase B walkthrough", () => {
     ) as { entries: { field: string; value: unknown; source: string; rationale?: string }[] };
     const attestationEntry = ledger.entries.find((e) => e.field === "promotion.attestation");
     expect(attestationEntry).toBeDefined();
-    expect(attestationEntry!.value).toBe(ATTESTATION);
+    // The value carries the attestation AND the raw actor identity verbatim
+    // (the workbench builds its chain with actorDefault "actuary").
+    expect(attestationEntry!.value).toEqual({ attestation: ATTESTATION, actor: "actuary" });
     expect(attestationEntry!.rationale).toBe(finalRationale);
     expect(attestationEntry!.source).toBe(
       `nb/genins-study.ipynb (study ${study.integrity}, tolerance 0.000001)`,
@@ -494,6 +531,30 @@ describe("study promotion routes: named rejections", () => {
     expect(res.json.error.message).toContain("incurred");
   });
 
+  it("refuses at the door (422 UNSUPPORTED_MEASURE) when a selection applies to a measure the workbench cannot host", async () => {
+    const projectId = seedProject("Promotion measure");
+    const study = loadFixture();
+    // Retarget the selection at a non-core measure and restamp both tags
+    // (the embedded selection doc first, then the study envelope).
+    const selection = study.study.selections[0]! as unknown as {
+      selection: { appliesTo: { measure: string } };
+    };
+    selection.selection.appliesTo.measure = "custom:reported-count";
+    study.study.selections[0] = restamp(
+      study.study.selections[0] as unknown as Record<string, unknown>,
+    ) as unknown as StudyFixture["study"]["selections"][number];
+    const retargeted = restamp(study as unknown as Record<string, unknown>);
+
+    const res = await post(`/api/projects/${projectId}/studies`, retargeted);
+    expect(res.status).toBe(422);
+    expect(res.json.error.code).toBe("UNSUPPORTED_MEASURE");
+    expect(res.json.error.message).toContain('measure "custom:reported-count"');
+
+    // A door rejection never persists a run.
+    const listed = await get(`/api/projects/${projectId}/studies`);
+    expect(listed.json.promotions).toHaveLength(0);
+  });
+
   it("refuses a study whose factor vector does not fit the workspace triangle (422 SELECTION_SHAPE)", async () => {
     // A 6-origin workspace has 5 development intervals; GenIns carries 9.
     const projectId = seedProject("Promotion shape", { nYears: 6 });
@@ -503,6 +564,35 @@ describe("study promotion routes: named rejections", () => {
     expect(res.json.error.message).toContain("9");
     expect(res.json.error.message).toContain("5");
   });
+
+  it("answers 409 PROMOTION_BUSY while another advance holds the CAS claim, and proceeds once it is released", async () => {
+    const projectId = seedProject("Promotion busy");
+    const started = await post(`/api/projects/${projectId}/studies`, loadFixture());
+    const runId: string = started.json.promotion.runId;
+
+    // Simulate an in-flight advance: take the claim exactly as a winning
+    // racer would ('awaiting-decision' -> 'advancing'); the CAS admits one.
+    expect(repo.claimStudyPromotionAdvance(runId)).toBe(true);
+    expect(repo.claimStudyPromotionAdvance(runId)).toBe(false);
+
+    const blocked = await advance(projectId, runId, {
+      gate: "study-intake",
+      decision: "accept",
+      rationale: "second racer",
+    });
+    expect(blocked.status).toBe(409);
+    expect(blocked.json.error.code).toBe("PROMOTION_BUSY");
+
+    // Releasing the claim (what a rejected decision does) unblocks the gate.
+    repo.releaseStudyPromotionAdvance(runId);
+    const ok = await advance(projectId, runId, {
+      gate: "study-intake",
+      decision: "accept",
+      rationale: "intake evidence is clean",
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.json.promotion.gate).toBe("replay-verify");
+  }, 60_000);
 
   it("rejects an unknown gate or decision with 400 VALIDATION (zod)", async () => {
     const projectId = seedProject("Promotion zod");

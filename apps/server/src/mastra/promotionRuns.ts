@@ -9,10 +9,12 @@ import type { SelectionDoc } from "@actuarial-ts/interchange";
 import type { LdfSelections } from "@actuarial-ts/core";
 import { env } from "../env.js";
 import {
+  claimStudyPromotionAdvance,
   getStudyPromotion,
   insertStudyPromotion,
   insertNote,
   listStudyPromotions,
+  releaseStudyPromotionAdvance,
   updateStudyPromotion,
   type StudyPromotionRow,
 } from "../db/repo.js";
@@ -136,8 +138,12 @@ function workbenchDeps(projectId: string, noteIds: string[]): PromoteStudyDeps {
     runAnalysis: (label: string) => {
       runFullAnalysis(projectId, label);
     },
-    // The notes table's author vocabulary is user|advisor; the chain-level
-    // actor (actuary/agent/...) is recorded inside the ledger JSON itself.
+    // The notes table's author column only admits user|advisor, so every
+    // promotion note is stored as "advisor". Actor identity lives in the
+    // ledger JSON inside the note text: each entry's `actor` is the COARSE
+    // compliance enum (default|actuary|agent), and the attestation entry's
+    // value additionally carries the RAW actor string verbatim (see
+    // promoteStudy's toAssumptionActor doc in @actuarial-ts/agents).
     persistNote: (text: string, _author: string) => {
       noteIds.push(insertNote(projectId, "advisor", text).id);
     },
@@ -323,6 +329,20 @@ function peekSelections(
 function assertWorkspaceReady(projectId: string, studyDoc: unknown): void {
   const peeked = peekSelections(studyDoc);
   if (peeked === null || peeked.length === 0) return;
+  // Door-level measure gate: the apply-gate adapter can only patch the paid
+  // or incurred basis (its applySelections throws the same error), so a
+  // selection targeting any other measure is doomed - reject it before the
+  // chain ever starts, not after three human decisions.
+  for (const { measure } of peeked) {
+    if (measure !== "paid" && measure !== "incurred") {
+      throw new HttpError(
+        422,
+        "UNSUPPORTED_MEASURE",
+        `The workbench applies selections to the paid or incurred basis; the study's selection ` +
+          `applies to measure "${String(measure)}"`,
+      );
+    }
+  }
   const view = getWorkspaceView(projectId); // throws NO_CLAIMS on an empty project
   const nCols = Math.max(0, view.triangles.paid.ages.length - 1);
   for (const { developmentCount } of peeked) {
@@ -424,6 +444,18 @@ export function listPromotionViews(
  * (deterministic, from the persisted state), and Mastra's own resume
  * validation backs it (a hard-blocked replay-verify gate structurally
  * refuses an accept - that rejection surfaces as DECISION_REJECTED).
+ *
+ * CONCURRENCY. Two racers resuming the same paused run must not both reach
+ * Mastra: the second resume would interleave with (or replay) the first's
+ * gate execution. The claim is a DB compare-and-swap - one UPDATE moving
+ * studies.status 'awaiting-decision' -> 'advancing' with the guard in the
+ * WHERE clause, judged by affected-row count - so exactly one request per
+ * pause wins. The loser answers 409 PROMOTION_BUSY without touching the
+ * run. Settlement is the same row: completion writes the described view's
+ * status ('awaiting-decision' for the next gate, 'complete', 'failed'), and
+ * a rejected decision releases the claim back to 'awaiting-decision'.
+ * Stranded claims (process death mid-advance) are swept back to
+ * 'awaiting-decision' at boot by the db client - claims are process-local.
  */
 export async function advancePromotion(
   projectId: string,
@@ -435,6 +467,13 @@ export async function advancePromotion(
   const row = getStudyPromotion(runId);
   if (!row || row.projectId !== projectId) {
     throw new HttpError(404, "NOT_FOUND", "Promotion run not found");
+  }
+  if (row.status === "advancing") {
+    throw new HttpError(
+      409,
+      "PROMOTION_BUSY",
+      `Promotion run ${runId} is already being advanced by another request; retry once it settles`,
+    );
   }
   if (row.status !== "awaiting-decision") {
     throw new HttpError(
@@ -453,6 +492,15 @@ export async function advancePromotion(
     );
   }
 
+  // The CAS claim: only one request per pause proceeds past this line.
+  if (!claimStudyPromotionAdvance(runId)) {
+    throw new HttpError(
+      409,
+      "PROMOTION_BUSY",
+      `Promotion run ${runId} is already being advanced by another request; retry once it settles`,
+    );
+  }
+
   const handle = ensureHandle(row, now);
   const run = await handle.workflow.createRun({ runId });
   let result: WorkflowRunResult;
@@ -463,6 +511,9 @@ export async function advancePromotion(
       requestContext: requestContextFor(projectId),
     })) as WorkflowRunResult;
   } catch (err) {
+    // The decision was rejected and the run stays paused: release the claim
+    // so the next (corrected) decision can take it.
+    releaseStudyPromotionAdvance(runId);
     const message = err instanceof Error ? err.message : String(err);
     if (/not suspended/i.test(message)) {
       throw new HttpError(409, "PROMOTION_NOT_SUSPENDED", message);
@@ -473,6 +524,8 @@ export async function advancePromotion(
     throw new HttpError(422, "DECISION_REJECTED", message);
   }
 
+  // Settle the claim: the described status is 'awaiting-decision' (next
+  // gate), 'complete', or 'failed' - never 'advancing'.
   const view = describeRun(runId, result, handle.noteIds);
   updateStudyPromotion(runId, view.status, JSON.stringify(view));
   if (view.status === "failed") {

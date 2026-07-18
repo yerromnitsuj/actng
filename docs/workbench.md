@@ -29,10 +29,12 @@ so the import flow can be exercised by hand. Without an API key everything
 works except the advisor chat, which returns a clear 503.
 
 Optional `.env` settings: `ADVISOR_MODEL` (default `claude-opus-4-8`), `PORT`
-(API, default 4600), `ACTNG_DATA_DIR` (SQLite location).
+(API, default 4600), `ACTNG_DATA_DIR` (SQLite location),
+`ACTNG_PROMOTION_TOLERANCE_CEILING` (study-promotion replay-tolerance
+ceiling, default 0.005; a study stating a looser tolerance fails intake).
 
 ```bash
-npm test          # all four @actuarial-ts package suites + the server suite (535 tests)
+npm test          # every @actuarial-ts package suite + the server suite
 npm run typecheck # every workspace
 ```
 
@@ -63,11 +65,51 @@ case-reserve strengthening from calendar year 2022, so the diagnostics fire and
 the two Berquist-Sherman adjustments visibly pull the distorted projections
 back toward each other.
 
+## Import Study (governed promotion)
+
+The Import Study panel takes a notebook-authored actuarial-interchange
+`StudyDoc` (JSON; Python: `save_study` from `interop/python`) and walks it
+through the four-gate promotion chain from `@actuarial-ts/agents`
+(interchange spec rev 2.1, section 6). The route surface, mounted at
+`/api/projects/:id/studies`:
+
+- `POST /` - the StudyDoc JSON body starts the promotion (plain JSON, 2 MB
+  limit); it pauses at the first gate or answers 422 with a named error
+  (`BAD_INTERCHANGE`, `TOLERANCE_CEILING_EXCEEDED`, `WORKSPACE_NOT_READY`,
+  `SELECTION_SHAPE`, `UNSUPPORTED_MEASURE`, ...).
+- `GET /` and `GET /:runId` - the persisted gate/outcome views.
+- `POST /:runId/advance` - one gate decision per call (zod-validated per
+  gate), with a mandatory verbatim rationale.
+
+Gate semantics, in one paragraph: **study-intake** shows schema/integrity
+validation, the ASOP 23 data review, selection coherence, segment
+resolution, and the replay tolerance (effective = min(study, host ceiling))
+prominently; **replay-verify** independently replays table-exact selections
+and referees any supporting results cross-engine - a `disagree` verdict
+hard-blocks the gate structurally (only abort is accepted, and the block
+survives restarts because intake is recomputed deterministically);
+**rationale** drafts a rationale from the study narrative for the actuary
+to edit and requires an attestation; **apply** is the only gate that
+mutates the workspace - it applies the selections through the same service
+layer as the UI, reruns the analysis, and persists the trail and the
+assumption ledger (rationale and attestation verbatim) to Notes. Every
+gate records a verbatim rationale; nothing changes before the final gate.
+One decision is in flight at a time per run: a concurrent advance answers
+409 `PROMOTION_BUSY` (a status compare-and-swap in the studies table).
+The intake evidence also states the verification scope explicitly: the
+gates verify the study against its own embedded triangle, and whether that
+triangle is this workspace's book remains the reviewing actuary's
+judgment.
+
+Python interop: `save_study` exports a governed StudyDoc from a notebook
+and `load_bundle` opens wrapped reproducibility bundles for notebook
+analysis - both live in `interop/python` (see its README).
+
 ## Repository layout
 
 | Path | What it is |
 |---|---|
-| `packages/*` | The four @actuarial-ts SDK packages (core, data, compliance, agents) - see the repo-root README for the full inventory. The workbench consumes all four. |
+| `packages/*` | The @actuarial-ts SDK packages (core, data, compliance, agents, interchange) - see the repo-root README for the full inventory. The workbench consumes them all. |
 | `apps/server` | Express 5 API, SQLite persistence, CSV/Excel import with row-level validation, deterministic synthetic loss-run generator, Mastra advisor agent with SSE chat. |
 | `apps/web` | Vite + React 19 + Tailwind v4 workspace UI. |
 
@@ -196,3 +238,16 @@ ACTNG_DATA_DIR=$SCRATCH npx tsx apps/server/scripts/verify-restart-resume-phase-
 ```
 
 Phase B runs in a fresh process and must print "CROSS-RESTART RESUME: PROVEN".
+
+Paused study promotions survive restarts the same way (study document in
+the `studies` table -> deterministic chain reconstruction; Mastra snapshot
+-> run rehydration by runId). The promotion pair:
+
+```bash
+SCRATCH=$(mktemp -d)
+ACTNG_DATA_DIR=$SCRATCH npx tsx apps/server/scripts/verify-promotion-restart-phase-a.ts  # prints runId + projectId
+ACTNG_DATA_DIR=$SCRATCH npx tsx apps/server/scripts/verify-promotion-restart-phase-b.ts <runId> <projectId>
+```
+
+Phase B resumes the paused promotion through all four gates in a fresh
+process and must print "CROSS-RESTART PROMOTION RESUME: PROVEN".

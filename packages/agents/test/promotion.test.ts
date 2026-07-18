@@ -255,6 +255,12 @@ describe("promoteStudy", () => {
     expect(intake.segments).toEqual([
       { selectionIntegrity: selDoc.integrity, labels: { lob: "GL" }, target: "GL" },
     ]);
+    // The verification-scope disclosure is ALWAYS in the intake evidence:
+    // the checks verify the study against its own embedded triangle; the
+    // workspace-binding judgment stays with the reviewing actuary.
+    expect(intake.workspaceBindingNote).toContain("OWN embedded triangle");
+    expect(intake.workspaceBindingNote).toContain("not machine-verified");
+    expect(intake.workspaceBindingNote).toContain("reviewing actuary's judgment");
 
     // Gate 2: replay-verify with an "agree" referee verdict.
     let result = await resume(run, requestContext, "study-intake", {
@@ -333,11 +339,16 @@ describe("promoteStudy", () => {
         tailFactor: 1,
       },
     });
+    // The attestation entry's value carries the attestation AND the raw
+    // actor verbatim; entry.actor is the coarse compliance enum.
     expect(outcome.ledger.entries[1]).toMatchObject({
       field: "promotion.attestation",
       actor: "actuary",
       source: expectedSource,
-      value: "Rationale authored and reviewed by Jane Actuary, FCAS", // verbatim
+      value: {
+        attestation: "Rationale authored and reviewed by Jane Actuary, FCAS", // verbatim
+        actor: "actuary", // no actor in the payload, no actorDefault -> "actuary"
+      },
       rationale: "Adopt the study's volume-weighted factors for GL",
     });
 
@@ -568,6 +579,41 @@ describe("promoteStudy", () => {
     expect(result.steps!["replay-verify"]!.suspendPayload!.recommendation).toContain(
       "verified by value only",
     );
+  }, 30_000);
+
+  it("records the coarse enum in entry.actor and the RAW actor identity verbatim inside the attestation entry's value", async () => {
+    const paidDoc = paidTriangleDoc();
+    const selDoc = selectionDocFor(paidDoc, VW_SELECTIONS, ["all-wtd", "all-wtd"]);
+    const study = studyDocOf({ triangles: [paidDoc], selections: [selDoc] });
+    const { deps } = fakeDeps();
+    const { run, requestContext } = await startRun(promoteStudy(deps, study, OPTIONS));
+
+    await resume(run, requestContext, "study-intake", { decision: "accept", rationale: "ok" });
+    await resume(run, requestContext, "replay-verify", { decision: "accept", rationale: "ok" });
+    // A non-enum actor (an unattended MCP client) approves the rationale.
+    await resume(run, requestContext, "rationale", {
+      decision: "approve",
+      rationale: "adopt the study factors",
+      attestation: "Reviewed by Jane Actuary, FCAS",
+      actor: "mcp:claude-notebook",
+    });
+    const result = await resume(run, requestContext, "apply", {
+      decision: "apply",
+      rationale: "apply as approved",
+    });
+    expect(result.status).toBe("success");
+
+    const entries = result.result!.ledger.entries;
+    // Every entry's actor is the COARSE enum ("agent" for a non-enum string)...
+    expect(entries.map((e) => e.actor)).toEqual(["agent", "agent"]);
+    // ...and the attestation entry's value preserves the RAW identity verbatim.
+    expect(entries[1]).toMatchObject({
+      field: "promotion.attestation",
+      value: {
+        attestation: "Reviewed by Jane Actuary, FCAS",
+        actor: "mcp:claude-notebook",
+      },
+    });
   }, 30_000);
 
   it("rejects rationale-gate resumes with a blank or missing rationale or attestation", async () => {

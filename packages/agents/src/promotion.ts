@@ -229,6 +229,16 @@ export interface StudyIntakeEvidence {
   coherence: SelectionCoherenceEvidence[];
   segments: SegmentResolutionEvidence[];
   warnings: string[];
+  /**
+   * ALWAYS populated: the verification-scope disclosure. Coherence, replay,
+   * and referee all verify the study against its OWN embedded triangle;
+   * whether that triangle IS the host workspace's book of business is not
+   * machine-verified anywhere in the chain. Stating this in the evidence
+   * keeps the gates honest about what they checked - the data-binding
+   * judgment belongs to the reviewing actuary, and the UI must say so
+   * rather than let "verified" read wider than it is.
+   */
+  workspaceBindingNote: string;
 }
 
 /** Per replay target: how this shore verified it (spec 3.2 capabilities). */
@@ -726,6 +736,13 @@ function reviewSummaryText(dataReview: TriangleReviewEvidence[]): string {
   return `${totals.pass} pass, ${totals.warning} warning, ${totals.fail} fail, ${totals.notEvaluated} not evaluated`;
 }
 
+/** See StudyIntakeEvidence.workspaceBindingNote; one constant so every
+ * intake states the same scope, verbatim. */
+export const WORKSPACE_BINDING_NOTE =
+  "Scope of verification: coherence, replay, and referee checks verify the study against " +
+  "its OWN embedded triangle. Whether that triangle is this workspace's book of business " +
+  "is not machine-verified; that binding remains the reviewing actuary's judgment.";
+
 function intakeEvidenceOf(ctx: PromotionContext): StudyIntakeEvidence {
   return {
     study: {
@@ -748,6 +765,7 @@ function intakeEvidenceOf(ctx: PromotionContext): StudyIntakeEvidence {
       target: u.target,
     })),
     warnings: ctx.warnings,
+    workspaceBindingNote: WORKSPACE_BINDING_NOTE,
   };
 }
 
@@ -808,7 +826,10 @@ const actorField = z.string().min(1).optional();
 /** Maps a free-form actor string onto the compliance ledger's closed enum:
  * exact enum values pass through; anything else (an unattended MCP client,
  * a named service) records as "agent" - disclosure-true for a non-human
- * decider, and the persisted note carries the raw string. */
+ * decider. What is recorded where: every ledger entry's `actor` carries
+ * this COARSE enum; the RAW actor string is preserved verbatim inside the
+ * attestation entry's value (`value.actor`), so the precise identity
+ * survives the enum mapping. */
 function toAssumptionActor(actor: string): AssumptionActor {
   return actor === "default" || actor === "actuary" || actor === "agent" ? actor : "agent";
 }
@@ -1088,9 +1109,13 @@ export function promoteStudy(
         rationale: approval.rationale, // Gate 3's final text, verbatim
         actor: ledgerActor,
       }));
+      // The attestation entry's value carries BOTH strings verbatim: the
+      // attestation itself (spec 8: lands in the ledger) and the RAW actor
+      // identity, which the entry-level `actor` collapses to the coarse
+      // compliance enum (see toAssumptionActor).
       ledgerEntries.push({
         field: "promotion.attestation",
-        value: approval.attestation, // verbatim (spec 8: lands in the ledger)
+        value: { attestation: approval.attestation, actor },
         source,
         rationale: approval.rationale,
         actor: ledgerActor,

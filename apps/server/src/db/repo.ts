@@ -692,7 +692,8 @@ export interface StudyPromotionRow {
   studyJson: string;
   /** The host ceiling the chain was constructed with (frozen per run). */
   toleranceCeiling: number;
-  status: "awaiting-decision" | "complete" | "failed";
+  /** 'advancing' is the transient CAS claim one in-flight advance holds. */
+  status: "awaiting-decision" | "advancing" | "complete" | "failed";
   /** The last described gate/outcome view (JSON), served by the GET route. */
   stateJson: string;
   createdAt: string;
@@ -748,4 +749,35 @@ export function updateStudyPromotion(
        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
      WHERE run_id = ?`,
   ).run(status, stateJson, runId);
+}
+
+/**
+ * Compare-and-swap claim for one in-flight advance: 'awaiting-decision' ->
+ * 'advancing' in a single UPDATE with the status guard in the WHERE clause,
+ * judged by affected-row count. Under SQLite's serialized writes exactly one
+ * of two racing requests observes changes === 1; the loser gets false and
+ * must answer 409 PROMOTION_BUSY without touching the run.
+ */
+export function claimStudyPromotionAdvance(runId: string): boolean {
+  return (
+    db
+      .prepare(
+        `UPDATE studies SET status = 'advancing',
+           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+         WHERE run_id = ? AND status = 'awaiting-decision'`,
+      )
+      .run(runId).changes === 1
+  );
+}
+
+/**
+ * Releases a claim whose resume was REJECTED (the run is still paused at the
+ * same gate). Guarded on 'advancing' so a settled run is never regressed.
+ */
+export function releaseStudyPromotionAdvance(runId: string): void {
+  db.prepare(
+    `UPDATE studies SET status = 'awaiting-decision',
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+     WHERE run_id = ? AND status = 'advancing'`,
+  ).run(runId);
 }
