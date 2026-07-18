@@ -14,7 +14,7 @@ repository on 2026-07-18 and now consumes the published packages.
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run example` - the end-to-end reserve review (reproduces Mack 1993's published unpaid and R ChainLadder's published SE)
-- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, server - 788 tests (2 skipped). `npm run test:py` runs the 250-case Python interop suite (needs `.venv-interop`).
+- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, and the reserve-review example - 727 tests (1 skipped). `npm run test:py` runs the 252-case Python interop suite (needs `.venv-interop`, Python >= 3.10).
 - `npm run typecheck` - every workspace (five @actuarial-ts packages + two apps)
 - `npm run seed --workspace @actng/server` - regenerate demo data (deterministic seed)
 
