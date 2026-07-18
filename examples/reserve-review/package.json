@@ -10,9 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@actuarial-ts/compliance": "*",
     "@actuarial-ts/core": "*",
-    "@actuarial-ts/interchange": "*",
-    "@actuarial-ts/compliance": "*"
+    "@actuarial-ts/data": "*",
+    "@actuarial-ts/interchange": "*"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

@@ -52,8 +52,10 @@ const markdown = generateDisclosure({ metadata, methods, ledger, dataReview: rev
 ## Try it
 
 A complete reserve review — triangle, factor selection, chain ladder, Mack
-standard error, interchange documents, the referee, and a verified
-reproducibility bundle — runs in one file:
+standard error, interchange documents, a REPLAY of the recorded selection
+intent refereed against the original, an ASOP 23 data review, an assumption
+ledger, the ASOP 41 disclosure, and a verified reproducibility bundle — runs in
+one file:
 
 ```bash
 npm install
@@ -69,7 +71,9 @@ npm run example
 ```
 
 Those reproduce Mack (1993)'s published unpaid and R ChainLadder's published
-standard error for the Taylor & Ashe triangle. The source is
+standard error for the Taylor & Ashe triangle. The referee runs over a genuine
+replay: the factors are re-derived from the document's recorded "all-wtd"
+intent, not recomputed from the same in-memory values. The source is
 [`examples/reserve-review`](examples/reserve-review/src/main.ts), and it is
 covered by tests so it cannot quietly rot.
 
@@ -82,7 +86,7 @@ consumer.
 | Path | What it is |
 |---|---|
 | `packages/*` | The five published SDK packages (each with its own README). |
-| `examples/` | A runnable, tested reserve review across all five packages. |
+| `examples/` | A runnable, tested reserve review across four of the five packages (agents needs a Mastra host). |
 | `interop/` | The Python shore (`interop/python`), the frozen cross-engine conformance corpus, and the chainladder-python FastAPI compute sidecar (the live second engine). |
 | `tools/interop/` | The R shore: ChainLadder interchange recipes and the conformance verdict runner. |
 | `schema/interchange/` | Versioned JSON Schema + JCS test vectors that every shore reproduces. |
@@ -94,7 +98,7 @@ consumer.
 
 ```bash
 npm install        # workspace install; builds SDK dist via the root prepare
-npm test           # every package + the example (727 tests)
+npm test           # every package + the example (735 tests)
 npm run typecheck  # all workspaces
 npm run build      # the SDK packages
 npm run example    # the end-to-end reserve review

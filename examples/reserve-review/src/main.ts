@@ -1,5 +1,9 @@
 /**
- * A complete reserve review in one file, exercising all five packages.
+ * A complete reserve review in one file, exercising four of the five packages.
+ *
+ * (@actuarial-ts/agents is not here: it needs a Mastra host, which would make
+ * this an application rather than an example. Its tenant seam has its own
+ * tests.)
  *
  * This is the SDK's in-repo consumer. It exists to be RUN, not read: if the
  * public API becomes awkward, this file gets awkward first, and its test fails
@@ -13,8 +17,8 @@
  *   2. select volume-weighted development factors
  *   3. run chain ladder, then Mack for the standard error
  *   4. author interchange documents with integrity tags
- *   5. referee the result against an independent recomputation
- *   6. record an assumption ledger and generate a disclosure
+ *   5. REPLAY the recorded selection intent and referee the recomputation
+ *   6. review the data, record an assumption ledger, generate a disclosure
  *   7. seal a reproducibility bundle and verify it
  *
  * Run: npm run example
@@ -29,11 +33,19 @@ import {
 } from "@actuarial-ts/core";
 import {
   crosscheck,
+  docToSelections,
   resultToDoc,
   selectionsToDoc,
   triangleToDoc,
 } from "@actuarial-ts/interchange";
-import { createBundle, verifyBundle } from "@actuarial-ts/compliance";
+import {
+  createBundle,
+  createLedger,
+  generateDisclosure,
+  recordAssumption,
+  verifyBundle,
+} from "@actuarial-ts/compliance";
+import { reviewTriangles } from "@actuarial-ts/data";
 
 /**
  * Taylor & Ashe (1983), as published in Mack (1993) Table 1 — the triangle the
@@ -67,6 +79,9 @@ export interface ReviewOutcome {
   refereeVerdict: string;
   bundleVerified: boolean;
   disclosureIncludesLedger: boolean;
+  dataChecksRun: number;
+  /** Every column re-derived from the recorded intent, not from stored values. */
+  selectionReplayed: boolean;
 }
 
 export function runReserveReview(): ReviewOutcome {
@@ -104,10 +119,17 @@ export function runReserveReview(): ReviewOutcome {
     parameters: { selections: "volume-weighted all-period", tailFactor: 1 },
   });
 
-  // 5. The referee. Here it compares this engine against an independent
-  //    recomputation from the REPLAYED selection intent — the same machinery
-  //    that arbitrates actuarial-ts against chainladder-python and R.
-  const replayed = resultToDoc(runChainLadder(triangle, selections), {
+  // 5. The referee, over a genuine REPLAY.
+  //
+  //    The point of the interchange format is that a selection travels as
+  //    INTENT ("all-wtd"), not just as numbers. So the comparison has to go
+  //    back through the document: docToSelections re-derives the factors from
+  //    the recorded intent against the triangle, and the chain ladder is run
+  //    from THOSE. Calling runChainLadder twice with the same arguments would
+  //    prove nothing — it is a pure function, so `agree` would be guaranteed
+  //    by referential transparency rather than by the replay working.
+  const replay = docToSelections(selectionDoc, { triangleDoc, strictness: "refuse" });
+  const replayed = resultToDoc(runChainLadder(triangle, replay.selections), {
     triangleDoc,
     selectionDoc,
     createdAt: CREATED_AT,
@@ -121,7 +143,48 @@ export function runReserveReview(): ReviewOutcome {
     createdAt: CREATED_AT,
   });
 
-  // 6. A reproducibility bundle over the inputs, parameters and results, then
+  // 6. The compliance layer: an ASOP 23 data review, an assumption ledger that
+  //    separates machine defaults from judgment, and the ASOP 41 disclosure
+  //    rendered from both.
+  const dataReview = reviewTriangles(triangle, triangle);
+
+  const ledger = recordAssumption(
+    recordAssumption(createLedger(), {
+      timestamp: CREATED_AT,
+      actor: "default",
+      field: "chainLadder.averages",
+      value: "all-wtd",
+    }),
+    {
+      timestamp: CREATED_AT,
+      actor: "actuary",
+      field: "chainLadder.tailFactor",
+      value: 1,
+      source: "Taylor & Ashe (1983) develops to ultimate at 120 months",
+      rationale: "The triangle is fully developed at the last age, so no tail is applied.",
+    },
+  );
+
+  const disclosure = generateDisclosure({
+    title: "Taylor & Ashe — unpaid claim estimate",
+    metadata: {
+      intendedPurpose: "worked example accompanying the actuarial-ts SDK",
+      intendedMeasure: { kind: "central-estimate" },
+      basis: { grossNet: "gross", laeTreatment: "excluding-lae" },
+      accountingDate: "2010-12-31",
+      valuationDate: "2010-12-31",
+    },
+    methods: [
+      { methodId: "chainLadder", basisLabel: "paid", parameters: { selections: "all-wtd", tailFactor: 1 } },
+      { methodId: "mack", basisLabel: "paid" },
+    ],
+    ledger,
+    dataReview,
+    sdkVersion: "0.2.0",
+    generatedAt: CREATED_AT,
+  });
+
+  // 7. A reproducibility bundle over the inputs, parameters and results, then
   //    verified — re-running must reproduce it byte for byte.
   const bundle = createBundle({
     inputs: { triangleIntegrity: triangleDoc.integrity, source: "Taylor & Ashe (1983)" },
@@ -154,7 +217,12 @@ export function runReserveReview(): ReviewOutcome {
     triangleIntegrity: triangleDoc.integrity,
     refereeVerdict: report.report.verdict,
     bundleVerified: verification.reproduced,
-    disclosureIncludesLedger: true,
+    // Computed, not asserted: the judgment entry must actually reach the
+    // rendered document. A hardcoded `true` here would have been the same
+    // class of mistake as the referee comparing a document to itself.
+    disclosureIncludesLedger: disclosure.includes("chainLadder.tailFactor"),
+    dataChecksRun: dataReview.checks.length,
+    selectionReplayed: replay.averageKeys.every((k) => k === "all-wtd"),
   };
 }
 
