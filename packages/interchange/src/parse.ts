@@ -65,6 +65,34 @@ function formatZodError(error: z.ZodError): string {
     .join("; ");
 }
 
+/**
+ * Documents embedded inside a study or bundle, as `<path>` -> document.
+ *
+ * A study carries whole TriangleDocs, SelectionDocs and result documents; a
+ * bundle mirrors the same set under `interchange`. Each is a complete document
+ * with its OWN integrity tag over its OWN body.
+ */
+function embeddedDocuments(doc: InterchangeDocument): { path: string; value: unknown }[] {
+  const found: { path: string; value: unknown }[] = [];
+  const collect = (prefix: string, list: unknown): void => {
+    if (!Array.isArray(list)) return;
+    list.forEach((value, index) => found.push({ path: `${prefix}[${index}]`, value }));
+  };
+  if (doc.kind === "study") {
+    collect("$.study.triangles", doc.study.triangles);
+    collect("$.study.selections", doc.study.selections);
+    collect("$.study.supportingResults", doc.study.supportingResults);
+  } else if (doc.kind === "bundle") {
+    const mirror = (doc as { interchange?: Record<string, unknown> }).interchange;
+    if (mirror !== undefined) {
+      collect("$.interchange.triangles", mirror["triangles"]);
+      collect("$.interchange.selections", mirror["selections"]);
+      collect("$.interchange.results", mirror["results"]);
+    }
+  }
+  return found;
+}
+
 export function parseDocument(
   value: unknown,
   options: ParseDocumentOptions = {},
@@ -104,6 +132,28 @@ export function parseDocument(
       `Integrity tag mismatch on kind "${doc.kind}": document states ` +
       `${integrity.actual ?? "(none)"} but the semantic body hashes to ${integrity.expected}. ` +
       "The document diverged from its stated content after it was stamped.";
+    if (strictness === "refuse") {
+      throw new ReservingError("BAD_INTERCHANGE", message);
+    }
+    warnings.push(message);
+  }
+
+  // Embedded documents carry their own tags, and nothing checked them. That
+  // matters because `appliesTo.triangleIntegrity` is the linkage primitive the
+  // referee relies on: a result claims to apply to a triangle BY TAG, so a
+  // nested triangle whose tag no longer matches its own body makes every such
+  // claim point at something other than what is actually there.
+  for (const { path, value } of embeddedDocuments(doc)) {
+    const nested = verifyIntegrity(value as Parameters<typeof verifyIntegrity>[0]);
+    if (nested.ok) continue;
+    const nestedKind =
+      typeof (value as { kind?: unknown })?.kind === "string"
+        ? (value as { kind: string }).kind
+        : "unknown";
+    const message =
+      `Integrity tag mismatch on the embedded "${nestedKind}" document at ${path}: it states ` +
+      `${nested.actual ?? "(none)"} but its own semantic body hashes to ${nested.expected}. ` +
+      "The enclosing document's tag is intact, so this diverged before it was embedded.";
     if (strictness === "refuse") {
       throw new ReservingError("BAD_INTERCHANGE", message);
     }

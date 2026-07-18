@@ -13,6 +13,7 @@ import {
   semanticBodyOf,
   stampIntegrity,
   verifyIntegrity,
+  type TriangleDoc,
 } from "../src/index.js";
 import { CREATED_AT, annualPaidDoc } from "./helpers.js";
 
@@ -180,5 +181,52 @@ describe("package metadata sync", () => {
       dependencies: Record<string, string>;
     };
     expect(Object.keys(pkg.dependencies).sort()).toEqual(["@actuarial-ts/core", "zod"]);
+  });
+});
+
+describe("nested documents carry their own integrity (spec 3.1)", () => {
+  /** A triangle doc whose stated tag no longer matches its own body. */
+  function selfContradictingTriangle(): TriangleDoc {
+    const good = annualPaidDoc();
+    const broken = JSON.parse(JSON.stringify(good)) as TriangleDoc;
+    (broken.triangle as { values: (number | null)[][] }).values[0]![0] = 999_999;
+    return broken; // integrity tag left untouched, so it now lies about the body
+  }
+
+  function studyContaining(triangle: TriangleDoc): unknown {
+    return stampIntegrity({
+      interchangeVersion: INTERCHANGE_SPEC_VERSION,
+      kind: "study",
+      generator: { name: "test", version: "0" },
+      createdAt: CREATED_AT,
+      extensions: {},
+      study: {
+        title: "study with an embedded triangle",
+        narrative: { summary: "s" },
+        triangles: [triangle],
+        selections: [],
+      },
+    } as never);
+  }
+
+  it("refuses a study whose embedded triangle contradicts its own tag", () => {
+    // appliesTo.triangleIntegrity is the linkage primitive the whole referee
+    // relies on. If an embedded document's tag does not match its own body, a
+    // result claiming to apply to that tag is pointing at something else.
+    expect(() => parseDocument(studyContaining(selfContradictingTriangle()))).toThrow(
+      /embedded "triangle" document at \$\.study\.triangles\[0\]/i,
+    );
+  });
+
+  it("warns rather than throwing under strictness 'warn'", () => {
+    const { warnings } = parseDocument(studyContaining(selfContradictingTriangle()), {
+      strictness: "warn",
+    });
+    expect(warnings.join(" ")).toMatch(/embedded "triangle" document at \$\.study\.triangles\[0\]/i);
+  });
+
+  it("accepts a study whose embedded documents are self-consistent", () => {
+    const { warnings } = parseDocument(studyContaining(annualPaidDoc()));
+    expect(warnings).toEqual([]);
   });
 });
