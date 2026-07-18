@@ -44,6 +44,37 @@ import { raa } from "../../../packages/core/test/fixtures/mack1994raa.js";
 
 export const CREATED_AT = "2026-07-17T00:00:00Z";
 
+/**
+ * Provenance stamps PINNED to the release that authored this frozen corpus,
+ * for exactly the same reason `CREATED_AT` is pinned rather than read from the
+ * clock: the fixtures are byte-frozen, so every byte must be reproducible
+ * forever, and a value that tracks the live build is not.
+ *
+ * These state WHAT AUTHORED THE CORPUS. They are deliberately NOT re-derived
+ * from the packages' current versions (the same rule
+ * `WRAPPED_BUNDLE_SDK_VERSIONS` below already follows). Without this pin, the
+ * generator and engine stamps would follow every npm release, the stamps would
+ * change the integrity tags they sit inside, and a routine version bump would
+ * break the freeze on every release — churn that says nothing about
+ * conformance and that the freeze policy (interop/conformance/README.md) does
+ * not accept as grounds for regeneration.
+ *
+ * Live SDK runs are unaffected: `resultToDoc`/`triangleToDoc`/`selectionsToDoc`
+ * still stamp the real current version by default, so real analyses carry
+ * truthful provenance. Only this historical corpus is pinned.
+ *
+ * Bump these ONLY as part of a deliberate, documented corpus regeneration.
+ */
+export const CORPUS_GENERATOR = {
+  name: "@actuarial-ts/interchange",
+  version: "0.1.0",
+} as const;
+
+export const CORPUS_ENGINE = {
+  name: "actuarial-ts",
+  version: "0.1.0",
+} as const;
+
 /** Requested-parameter echo for the deterministic-cl TS run. */
 export const CL_PARAMETERS = {
   selections: "volume-weighted all-period factors per the linked SelectionDoc",
@@ -117,6 +148,7 @@ export function authorTriangleDoc(fixture: ConformanceFixture): TriangleDoc {
   return triangleToDoc(fixture.triangle, {
     createdAt: CREATED_AT,
     valuationDate: fixture.valuationDate,
+    generator: { ...CORPUS_GENERATOR },
   });
 }
 
@@ -130,6 +162,7 @@ export function authorSelectionDoc(
     createdAt: CREATED_AT,
     intents: selections.selected.map(() => "all-wtd" as const),
     strictness: "refuse",
+    generator: { ...CORPUS_GENERATOR },
   }).doc;
 }
 
@@ -146,6 +179,8 @@ export function authorClResultDoc(
     createdAt: CREATED_AT,
     conventionProfile: "deterministic-cl",
     parameters: { ...CL_PARAMETERS },
+    generator: { ...CORPUS_GENERATOR },
+    engine: { ...CORPUS_ENGINE },
   });
 }
 
@@ -162,6 +197,8 @@ export function authorMackResultDoc(
     createdAt: CREATED_AT,
     conventionProfile: "mack1993-vw",
     parameters: { ...MACK_PARAMETERS },
+    generator: { ...CORPUS_GENERATOR },
+    engine: { ...CORPUS_ENGINE },
   });
 }
 
@@ -251,6 +288,7 @@ export function authorWrappedBundleDoc(
     },
     sdkVersions: { ...WRAPPED_BUNDLE_SDK_VERSIONS },
     createdAt: CREATED_AT,
+    generator: { name: "@actuarial-ts/compliance", version: CORPUS_GENERATOR.version },
     wrap: {
       triangles: [authored.triangleDoc],
       selections: [authored.selectionDoc],

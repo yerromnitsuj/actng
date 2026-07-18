@@ -89,7 +89,7 @@ export const WRAPPED_BUNDLE_INTERCHANGE_VERSION = "1.0.0";
  * silently drift (mirroring interchange's INTERCHANGE_PACKAGE_VERSION
  * discipline).
  */
-export const COMPLIANCE_PACKAGE_VERSION = "0.1.0";
+export const COMPLIANCE_PACKAGE_VERSION = "0.2.0";
 
 /**
  * The interchange mirror for a wrapped bundle (spec 3.2): the triangles the
@@ -124,6 +124,18 @@ export interface CreateBundleInput {
    * unwrapped bundle is byte-identical with or without `wrap`.
    */
   wrap?: BundleWrapInput;
+  /**
+   * Overrides the wrapped document's `generator` stamp. Defaults to this
+   * package at its current version, which is what a real analysis wants.
+   *
+   * Exists for authoring FROZEN corpora (the cross-engine conformance
+   * fixtures), where every byte must reproduce forever and so a stamp that
+   * tracks the live build cannot be used — the same reason `createdAt` is
+   * caller-supplied rather than read from the clock. Matches the
+   * `generator?` option the interchange document builders already accept.
+   * Wrapped-mode only; the inner payload never carries it.
+   */
+  generator?: { name: string; version: string };
 }
 
 export interface ReproducibilityBundle {
@@ -180,7 +192,9 @@ export function createBundle(input: CreateBundleInput): ReproducibilityBundle | 
   const wrapped: WrappedBundleDoc = {
     interchangeVersion: WRAPPED_BUNDLE_INTERCHANGE_VERSION,
     kind: "bundle",
-    generator: { name: "@actuarial-ts/compliance", version: COMPLIANCE_PACKAGE_VERSION },
+    generator: input.generator
+      ? { ...input.generator }
+      : { name: "@actuarial-ts/compliance", version: COMPLIANCE_PACKAGE_VERSION },
     createdAt: input.createdAt,
     bundle: bundleSegment,
     interchange,

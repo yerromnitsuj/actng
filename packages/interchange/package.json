@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/interchange",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The actuarial-interchange format for the actuarial-ts SDK: language-neutral, versioned interchange documents (triangles, selections, method results, studies, bundles, crosscheck reports) with RFC 8785 canonicalization, semantic-body integrity tags, an intent/value coherence rule, and the cross-implementation referee. Bridges actuarial-ts with chainladder-python and R ChainLadder.",
   "license": "Apache-2.0",
   "type": "module",
@@ -52,7 +52,7 @@
     "emit-schema": "npm run build && node --experimental-strip-types scripts/emit-schema.ts"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.1.0",
+    "@actuarial-ts/core": "^0.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -3,7 +3,18 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
-## Unreleased (targeting 0.2.0)
+## 0.2.0 — 2026-07-18
+
+All five packages version together. **@actuarial-ts/interchange is new in this
+release**, and @actuarial-ts/core gained `canonicalJson`/`fnv1a64` — so
+interchange REQUIRES core >= 0.2.0 and will not work against core 0.1.0.
+Publish order: core, interchange, data, compliance, agents.
+
+@actuarial-ts/data has no source changes in this release; it is republished at
+0.2.0 only to keep the packages in lockstep, because its `^0.1.0` core range
+would otherwise refuse core 0.2.0 and pull a duplicate copy of core into a
+consumer's tree (two core instances break `instanceof` on the shared error
+classes).
 
 - **`canonicalJson`/`fnv1a64` moved to @actuarial-ts/core** (`src/canonical.ts`)
   so the interchange layer can share them without a package cycle;

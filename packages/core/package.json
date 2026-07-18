@@ -1,7 +1,7 @@
 {
   "name": "@actuarial-ts/core",
-  "version": "0.1.0",
-  "description": "Pure, zero-dependency P&C loss reserving engine for TypeScript: triangles, chain ladder, Mack, Bornhuetter-Ferguson, Benktander, Cape Cod (Gluck decay), Munich chain ladder, Clark growth curves, frequency-severity, Berquist-Sherman, ULAE, discounting, tails, capping/ILF, trend/on-level, diagnostics, and a seeded stochastic layer (ODP bootstrap, Merz-Wuthrich one-year risk) \u2014 validated against published actuarial literature.",
+  "version": "0.2.0",
+  "description": "Pure, zero-dependency P&C loss reserving engine for TypeScript: triangles, chain ladder, Mack, Bornhuetter-Ferguson, Benktander, Cape Cod (Gluck decay), Munich chain ladder, Clark growth curves, frequency-severity, Berquist-Sherman, ULAE, discounting, tails, capping/ILF, trend/on-level, diagnostics, and a seeded stochastic layer (ODP bootstrap, Merz-Wuthrich one-year risk) — validated against published actuarial literature.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
