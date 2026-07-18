@@ -36,8 +36,18 @@ scikit-learn 1.9.0, AMD EPYC 7763:
 - **Identical seeded calls return different samples.** Repeating the same
   request through the sidecar produced exactly **two** distinct outcomes,
   appearing sporadically — a binary fork, not continuous floating-point noise.
-- The corresponding assertion (`test_identical_seeded_calls_are_byte_identical`)
-  failed roughly 4 times in 5 at default settings.
+
+Two rates get quoted for this, and they measure different things. Neither is a
+property of chainladder-python; both are small samples of our own harness:
+
+| Measurement | Rate | n |
+|---|---|---|
+| Successive identical requests returning the minority outcome | 2 of 15 | 15 |
+| A paired-call assertion failing (fails if the two calls in a pair disagree) | 4 of 5 | 5 |
+
+The second is necessarily higher than the first: a pair disagrees whenever
+either call lands on the minority outcome. Quote whichever answers the question
+being asked, with its n.
 
 Hypotheses tested and **refuted**:
 

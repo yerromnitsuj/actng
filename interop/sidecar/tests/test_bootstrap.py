@@ -52,9 +52,10 @@ class TestBootstrapOdp:
         """A seed does NOT make this engine byte-reproducible.
 
         chainladder 0.9.2's BootstrapODPSample returns different samples for
-        IDENTICAL seeded calls in a single process — measured, roughly 1-in-4
-        of the time, and not fixed by pinning BLAS/OpenMP threads or by forcing
-        the dense array backend (see docs/interop/reproducibility.md).
+        IDENTICAL seeded calls in a single process — measured at 2 of 15
+        successive requests returning the minority outcome, and not fixed by
+        pinning BLAS/OpenMP threads or by forcing the dense array backend
+        (see docs/interop/reproducibility.md).
 
         This test previously asserted byte-identity, which is a contract the
         engine does not honour; it flaked accordingly. The honest contract is

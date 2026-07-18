@@ -15,8 +15,14 @@
 
 `BootstrapODPSample(n_sims=..., random_state=N)` does not always produce the
 same sample for the same `random_state`. Two identical calls **in one process,
-on one machine** can return different distributions — roughly 13% of the time
-in our measurements, with exactly two distinct outcomes.
+on one machine** can return different distributions, and what comes back is
+always one of exactly two outcomes rather than a spread.
+
+On our sample sizes: 2 of 15 successive identical requests returned the
+minority outcome, and a paired-call assertion (which fails whenever the two
+calls in a pair disagree) failed 4 of 5 attempts. Those are small samples and
+they measure different things, so please read them as "this happens readily and
+is easy to reproduce" rather than as a rate characterising your library.
 
 This matters beyond flaky tests: a seed is the mechanism users rely on to make
 a stochastic reserve estimate auditable. If a colleague cannot reproduce a
@@ -28,7 +34,9 @@ doing the job it appears to do.
 - `chainladder==0.9.2`
 - Python 3.12, `numpy==2.4.6`, `scipy==1.18.0`, `scikit-learn==1.9.0`,
   `pandas==2.3.3`
-- Linux, AMD EPYC 7763 (also observed on other hardware)
+- Linux, AMD EPYC 7763. We have only observed this on that one machine; it
+  reproduces within a single process there, so we do not believe it is
+  hardware-specific, but we have not tested a second CPU.
 
 ## Reproduction
 
@@ -96,8 +104,13 @@ need is met by treating the result as non-reproducible and disclosing it
 (details below) rather than by pinning your internals.
 
 If it is useful, we are happy to test a candidate fix against our conformance
-corpus, which runs `chainladder-python` against two other independent
-implementations on the same frozen inputs.
+corpus. To be precise about what that would and would not prove: the corpus is
+a set of frozen interchange documents that three implementations each parse and
+recompute natively — chainladder-python, our own TypeScript engine, and R's
+ChainLadder. Each is compared against the committed documents rather than
+directly against the others, so it would tell you whether a patched
+chainladder-python still agrees with the frozen expectations, not whether it
+agrees with R.
 
 ## What we did on our side (in case it is useful framing)
 

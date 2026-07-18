@@ -27,7 +27,8 @@ source, PyPI publication pending", and that must stay true or be made true.
 
 - **`chainladder-python-bootstrap-determinism.md`** — `BootstrapODPSample` is
   not reproducible under a fixed `random_state`: identical seeded calls in one
-  process fork, roughly 13% of the time, into exactly two outcomes. Carries a
+  process fork into exactly two outcomes (2 of 15 successive requests returned
+  the minority one; n is small and stated inline in the draft). Carries a
   self-contained ~10-line reproduction and the hypotheses already ruled out
   (dependency drift, CI image, cross-machine CPU, sparse array backend, and —
   partially implicated — BLAS/OpenMP thread pinning, which makes the raw
