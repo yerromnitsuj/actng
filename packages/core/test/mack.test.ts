@@ -71,4 +71,25 @@ describe("Mack total standard error", () => {
       expect(shuffled.get(origin)).toBeCloseTo(se, 9);
     }
   });
+
+  it("warns when a non-positive cumulative drops a column from the estimate", () => {
+    // Mack's 1/C_ik term is undefined for a non-positive cumulative, so the
+    // column is skipped. Skipping is defensible; reporting the resulting
+    // standard error as if it were a certainty is not.
+    const withNegative = triangleFromGrid(
+      "incurred",
+      ["01", "02", "03", "04"],
+      [12, 24, 36, 48],
+      [
+        [100, 193, 291, 300],
+        [110, 235, 318, null],
+        [95, 201, null, null],
+        [-5, null, null, null],
+      ],
+    );
+
+    const result = runMack(withNegative, {});
+    expect(result.warnings.join(" ")).toMatch(/non-positive/i);
+    expect(result.warnings.join(" ")).toContain("04");
+  });
 });

@@ -212,10 +212,25 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
     const ultimate = projected[i]![K - 1]! * tail;
     // mse(R_i) accumulated over the projected development range plus tail.
     let mse = 0;
+    let droppedColumns = 0;
     for (let k = last; k < K - 1; k++) {
       const cik = projected[i]![k]!;
-      if (!(cik > 0)) continue;
-      mse += ((sigma2[k]! / fEff[k]! ** 2) * (1 / cik + 1 / denomSums[k]!));
+      if (!(cik > 0)) {
+        // Mack's 1/C_ik is undefined for a non-positive cumulative. Skipping
+        // the column is the only defensible arithmetic, but it removes real
+        // variance from the estimate, so the result must not present what
+        // remains as if it were the whole story.
+        droppedColumns++;
+        continue;
+      }
+      mse += (sigma2[k]! / fEff[k]! ** 2) * (1 / cik + 1 / denomSums[k]!);
+    }
+    if (droppedColumns > 0) {
+      warnings.push(
+        `Origin ${tri.origins[i]} has a non-positive projected cumulative at ` +
+          `${droppedColumns} development step(s); those columns are excluded from its ` +
+          `standard error, which is therefore understated`,
+      );
     }
     if (tail !== 1 && projected[i]![K - 1]! > 0) {
       mse += (sigma2Tail / tail ** 2) * (1 / projected[i]![K - 1]! + 1 / denomTail);
