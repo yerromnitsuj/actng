@@ -47,6 +47,25 @@
 
 ## Progress Log
 
+- 2026-07-18: **ActNG EXTRACTED to its own repository.** The workbench was the
+  SDK's dogfood consumer and used it substantively (34 import sites across all
+  five packages), but a repo that is simultaneously a library, a spec and an
+  application reads as three things to a newcomer. The dependency was already
+  strictly one-directional — nothing in `packages/` or `interop/` referenced
+  `apps/` — so extraction was clean: `git subtree split` preserved all 41
+  commits, and the app now resolves the five packages from npm at `^0.2.0`
+  rather than through the workspace, verified green (typecheck clean, 95 tests)
+  against the PUBLISHED packages.
+
+  The dogfood role is replaced, not dropped: `examples/reserve-review` is a
+  runnable, TESTED end-to-end consumer (triangle → CL + Mack → interchange
+  documents → referee → verified reproducibility bundle) that reproduces Mack
+  1993's published unpaid and R ChainLadder's published SE. It earned its keep
+  immediately, catching three API mistakes while being written
+  (`averages[].spec.key` not `.key`, `verifyBundle`'s second argument being the
+  re-run RESULTS not the whole input, and `VerifyBundleResult.reproduced` not
+  `.ok`). Repo now 720 tests (was 809: −95 server, +6 example).
+
 - 2026-07-18: **RELEASE 0.2.0 PUBLISHED.** All five packages live on npm at
   0.2.0 (published in dependency order: core, interchange, data, compliance,
   agents), tag `v0.2.0` pushed, GitHub Releases created for v0.1.0 and v0.2.0.

@@ -21,7 +21,7 @@ body:
         - "@actuarial-ts/agents"
         - "interop: Python shore / sidecar"
         - "interop: R shore"
-        - "reserving workbench (apps/)"
+        - "examples/"
         - "not sure"
     validations:
       required: true

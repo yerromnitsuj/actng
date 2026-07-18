@@ -1,0 +1,21 @@
+{
+  "name": "@actuarial-ts/example-reserve-review",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The SDK's in-repo consumer: a complete reserve review across all five packages",
+  "scripts": {
+    "example": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actuarial-ts/core": "*",
+    "@actuarial-ts/interchange": "*",
+    "@actuarial-ts/compliance": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.6"
+  }
+}

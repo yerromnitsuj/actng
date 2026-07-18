@@ -1,17 +1,19 @@
 # ActNG - Claude Code Rules
 
-AI-native P&C actuarial reserving workbench. npm-workspaces monorepo:
+Open-source P&C actuarial SDK + the actuarial-interchange interop layer. npm-workspaces monorepo:
 `packages/{core,data,compliance,agents}` = the `@actuarial-ts/*` SDK
 (published to npm at 0.1.0, tag v0.1.0; core is the pure math;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
-`npm install`), `apps/server` (Express 5 + SQLite + Mastra
-advisor), `apps/web` (Vite + React 19 + Tailwind v4).
+`npm install`), and `examples/reserve-review` — a runnable, TESTED end-to-end
+consumer of all five packages that exists so API awkwardness surfaces here
+before it reaches users. The ActNG reserving workbench was extracted to its own
+repository on 2026-07-18 and now consumes the published packages.
 
 ## Commands
 
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
-- `npm run dev` - seed (idempotent, `--if-empty`) + API on :4600 + web on :5175
+- `npm run example` - the end-to-end reserve review (reproduces Mack 1993's published unpaid and R ChainLadder's published SE)
 - `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, server - 788 tests (2 skipped). `npm run test:py` runs the 250-case Python interop suite (needs `.venv-interop`).
 - `npm run typecheck` - every workspace (five @actuarial-ts packages + two apps)
 - `npm run seed --workspace @actng/server` - regenerate demo data (deterministic seed)
@@ -46,7 +48,8 @@ advisor), `apps/web` (Vite + React 19 + Tailwind v4).
   `{ success: false, error: { code, message } }`.
 - **ANTHROPIC_BASE_URL gotcha:** ambient env may set it WITHOUT `/v1`
   (official-SDK convention) but `@ai-sdk/anthropic` needs it WITH `/v1`.
-  `apps/server/src/env.ts` normalizes; any new `@ai-sdk/anthropic` usage must
+  (This bit them in the workbench, which now lives in its own repo; it stays
+  recorded here because any new `@ai-sdk/anthropic` usage in this repo must
   go through `env.anthropicBaseUrl`.
 
 ## Engineering conventions

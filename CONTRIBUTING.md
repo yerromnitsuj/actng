@@ -16,7 +16,7 @@ One repository, three things:
 |------|-----------|
 | `packages/*` | The **actuarial-ts SDK** — five npm packages: `core`, `interchange`, `data`, `compliance`, `agents` |
 | `interop/`, `tools/interop/`, `schema/interchange/` | The **actuarial-interchange** layer — the spec, its three shores (TypeScript, Python, R), the conformance corpus and the chainladder-python sidecar |
-| `apps/server`, `apps/web` | The **ActNG reserving workbench** — the application that dogfoods the SDK |
+| `examples/` | A runnable, **tested** end-to-end reserve review across all five packages — the SDK's in-repo consumer |
 
 ## Setup
 
@@ -36,11 +36,14 @@ interchange → data → compliance → agents). That is what the root `prepare`
 script is for — npm runs workspace `prepare` scripts unordered on a fresh
 install, which broke CI once.
 
-To run the workbench:
+To run the end-to-end example:
 
 ```bash
-npm run dev        # seeds if empty, then serves API + web together
+npm run example    # triangle -> CL + Mack -> interchange -> referee -> bundle
 ```
+
+It is covered by tests, so a change that makes the public API awkward breaks it
+before a user hits the problem. If you change an exported signature, run it.
 
 ### The Python shore (optional, needed for interop work)
 

@@ -5,6 +5,13 @@ Approved by the founder 2026-07-16. Founder decisions of record:
 1. **Evolve inside ActNG2** and publish from this repo. The workbench
    (apps/server, apps/web) is the flagship consumer and living proof of the
    API boundary.
+   > SUPERSEDED 2026-07-18: the SDK is published, and the workbench was
+   > extracted to its own repository — it consumes the packages from npm at
+   > `^0.2.0` and is a better proof of the API boundary for it, since it can no
+   > longer reach into source. The in-repo proof is now
+   > `examples/reserve-review`, which is tested. The decision to evolve the SDK
+   > inside this repo stands and succeeded; only the workbench's location
+   > changed.
 2. **npm scope `@actuarial-ts`**: packages `@actuarial-ts/core`,
    `@actuarial-ts/data`, `@actuarial-ts/compliance`, `@actuarial-ts/agents`.
 3. **Apache-2.0, everything open source** including the agent architecture
@@ -44,7 +51,7 @@ three-tier severity design: null cell < warning < throw).
 | `@actuarial-ts/compliance` | Estimate metadata (intended measure/purpose, gross/net, LAE, accounting/valuation/review dates), assumption ledger (machine default vs human/agent judgment, rationale + source), ASOP 41 disclosure generator, ASOP 56 model cards, reproducibility bundles, actual-vs-expected roll-forward. | @actuarial-ts/core |
 | `@actuarial-ts/agents` | Mastra toolkit: typed tool factory (tenant id via RequestContext only, never in input schemas; `{success:false, error:{code,message}}` envelopes; action/read classification), suspend-gate judgment workflow factory whose decision trails write into the compliance ledger, reserving advisor agent factory, golden-prompt eval harness. | @actuarial-ts/core, @actuarial-ts/compliance; @mastra/core + zod as peers |
 
-Workbench continues to consume all five (server: core+data+compliance+agents;
+Workbench (extracted to its own repository 2026-07-18) continues to consume all five (server: core+data+compliance+agents;
 web: types only), proving the boundary.
 
 ## The agent fusion (why agents and compliance are one design)

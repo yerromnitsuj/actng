@@ -5,6 +5,27 @@ together; this file covers them all.
 
 ## Unreleased
 
+- **The ActNG reserving workbench moved to its own repository.** It used the SDK
+  substantively (34 import sites across all five packages), so this is not a
+  removal of dead weight — it is a separation of concerns. A repository that is
+  simultaneously a library, a spec and an application reads as three things to
+  someone evaluating the library. The dependency was already strictly
+  one-directional (nothing in `packages/` or `interop/` referenced `apps/`), so
+  the extraction was clean; all 41 commits touching the app were preserved, and
+  it now resolves the five packages from npm at `^0.2.0` like any other
+  consumer.
+
+- **`examples/reserve-review` replaces it as the SDK's in-repo consumer.** A
+  runnable, TESTED end-to-end review — triangle, factor selection, chain ladder,
+  Mack standard error, interchange documents, the referee, and a verified
+  reproducibility bundle — that reproduces Mack (1993)'s published unpaid
+  (18,680,856) and R ChainLadder's published standard error (2,447,095), with a
+  triangle integrity tag matching the frozen conformance corpus. It is covered
+  by tests specifically so it cannot rot into teaching a stale API, and it
+  earned that immediately by catching three API mistakes while being written.
+  `npm run example`.
+
+
 - **A stochastic referee (`crosscheckStochastic`), closing a real gap.** A study
   may carry a `stochastic-result` (`study.ts`), but the referee had no path for
   one at all — so such a study could enter `promoteStudy` and never be

@@ -34,10 +34,13 @@ The published packages and the code in this repository:
   request context and is rejected at definition time if a tool's input schema
   declares one, so a model cannot supply it. A way to smuggle a tenant id past
   that lint, or to reach another tenant's data, is a vulnerability.
-- **The MCP layer** (`apps/server/src/mcp/`) — exposure is an allowlist:
-  read tools plus `stage_study` / `advance_promotion`, with no direct mutation
-  tool resolvable, behind a fail-closed tenant seam. A way to reach a
-  non-exposed tool, or to authenticate without a tenant, is a vulnerability.
+- **The MCP seam** (`packages/agents/src/mcp.ts`) — `requireMcpTenant` and
+  `assertFailClosed`. A host exposing a workspace over MCP restricts itself to
+  an allowlist (read tools plus staged writes, no directly resolvable mutation
+  tool), but that allowlist is only as strong as this seam: it must fail closed
+  when no tenant is present. A way to authenticate without a tenant, or to make
+  the seam fail open, is a vulnerability here even though the MCP server itself
+  lives in the consuming application.
 - **The compute sidecar** (`interop/sidecar/`) — bearer auth, request size and
   depth limits, no persistence. Auth bypass or resource exhaustion is in scope.
 - **Integrity and provenance** — a way to make a document with a *valid*
@@ -52,9 +55,8 @@ The published packages and the code in this repository:
 - **Numerical or actuarial disagreement.** A method returning a number you
   believe is wrong is a correctness bug — please open a normal issue, ideally
   citing the primary source. Important, but not a security report.
-- **The reserving workbench's local development setup** (`npm run dev`,
-  seeded SQLite). It is a local dev application with no authentication and is
-  not intended for untrusted multi-user deployment.
+- **The ActNG reserving workbench**, which now lives in its own repository.
+  Report issues there.
 - Vulnerabilities in dependencies with no exploitable path here — report those
   upstream.
 

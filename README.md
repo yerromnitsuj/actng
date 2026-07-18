@@ -1,7 +1,8 @@
 # actuarial-ts
 
 **An open-source, TypeScript-native P&C actuarial SDK with an agent-native
-architecture — plus ActNG, the AI-native reserving workbench built on it.**
+architecture, and the cross-ecosystem interchange format that lets it trade
+work losslessly with R and Python.**
 
 Five Apache-2.0 packages under the `@actuarial-ts` scope:
 
@@ -47,30 +48,40 @@ const dist = runOdpBootstrap(paid, { nSims: 10_000, seed: 42 }); // seeded, repr
 const markdown = generateDisclosure({ metadata, methods, ledger, dataReview: review, sdkVersion: "0.2.0", generatedAt });
 ```
 
-## ActNG: the reference workbench
+## Try it
 
-This repo also ships **ActNG**, a complete AI-native reserving workbench
-built on all five packages — import claim-level loss runs, build triangles,
-select factors interactively, run the full method suite with Mack standard
-errors and diagnostics, blend a 12-method selection-of-ultimates exhibit,
-and work alongside an embedded advisor agent that analyzes the data and can
-change the workspace through the exact same service layer as the UI.
+A complete reserve review — triangle, factor selection, chain ladder, Mack
+standard error, interchange documents, the referee, and a verified
+reproducibility bundle — runs in one file:
 
 ```bash
-echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env   # advisor (everything else works without it)
-npm install && npm run dev                    # seeds demo data; API :4600, web :5175
+npm install
+npm run example
 ```
 
-See [docs/workbench.md](docs/workbench.md) for the full walkthrough, design
-decisions, loss-run format, and validation notes.
+```
+  ultimate        53,038,946
+  unpaid          18,680,856
+  standard error  2,447,095
+  referee         agree
+  bundle verified true
+```
+
+Those reproduce Mack (1993)'s published unpaid and R ChainLadder's published
+standard error for the Taylor & Ashe triangle. The source is
+[`examples/reserve-review`](examples/reserve-review/src/main.ts), and it is
+covered by tests so it cannot quietly rot.
+
+**ActNG**, the AI-native reserving workbench this SDK grew out of, now lives in
+its own repository and consumes the published packages like any other
+consumer.
 
 ## Repository layout
 
 | Path | What it is |
 |---|---|
 | `packages/*` | The five published SDK packages (each with its own README). |
-| `apps/server` | ActNG API: Express 5, SQLite, the Mastra advisor (consumes all five packages). |
-| `apps/web` | ActNG UI: Vite + React 19 + Tailwind v4. |
+| `examples/` | A runnable, tested reserve review across all five packages. |
 | `interop/` | The Python shore (`interop/python`), the frozen cross-engine conformance corpus, and the chainladder-python FastAPI compute sidecar (the live second engine). |
 | `tools/interop/` | The R shore: ChainLadder interchange recipes and the conformance verdict runner. |
 | `schema/interchange/` | Versioned JSON Schema + JCS test vectors that every shore reproduces. |
@@ -82,9 +93,10 @@ decisions, loss-run format, and validation notes.
 
 ```bash
 npm install        # workspace install; builds SDK dist via the root prepare
-npm test           # every package + the server (788 tests across 6 workspaces)
+npm test           # every package + the example (720 tests)
 npm run typecheck  # all workspaces
-npm run build      # SDK packages + the web app
+npm run build      # the SDK packages
+npm run example    # the end-to-end reserve review
 ```
 
 The published-value validation tests are the contract: reserving math

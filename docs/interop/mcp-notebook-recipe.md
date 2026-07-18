@@ -5,7 +5,11 @@ MCP-capable assistant at the ActNG reserving workspace, and drive it
 through the ONE path a change is allowed to enter over MCP: read the
 evidence, stage a study, advance it gate by gate. Grounded in the
 interop spec rev 2.1 **section 8** (the exposure policy, which is a
-SECURITY policy) and implemented in `apps/server/src/mcp/workspaceMcp.ts`.
+SECURITY policy). The exposure allowlist and the MCP server that applies it
+are implemented in the **ActNG workbench repository**
+(`server/src/mcp/workspaceMcp.ts`), which was extracted from this repo on
+2026-07-18; the fail-closed tenant seam it depends on ships here in
+`packages/agents/src/mcp.ts`.
 
 The one-sentence model: **external AI clients read everything and mutate
 nothing directly; the only way a change enters the workspace over MCP is
@@ -17,7 +21,7 @@ deciding actor recorded verbatim in the assumption ledger.**
 ## 1. What the server exposes
 
 The MCP server `actng-workspace` exposes exactly these tools — a test
-(`apps/server/test/workspaceMcp.test.ts`) asserts the list equals this
+(`server/test/workspaceMcp.test.ts`, in the ActNG repo) asserts the list equals this
 allowlist, so nothing else can leak in:
 
 **Read tools (7)** — analyze and explain, never mutate:
@@ -211,11 +215,11 @@ applying.
 
 The MCP `stage_study`/`advance_promotion` tools delegate to the exact
 same `startPromotion`/`advancePromotion` functions
-(`apps/server/src/mastra/promotionRuns.ts`) the web routes call — the
+(`server/src/mastra/promotionRuns.ts`, ActNG repo) the web routes call — the
 MCP surface is a thin, tenant-bridged front door onto the identical
 persistence, so a promotion staged over MCP survives a server restart
 the same way a promotion staged from the UI does (proven by
-`apps/server/scripts/verify-mcp-promotion-restart-phase-{a,b}.ts`).
+`server/scripts/verify-mcp-promotion-restart-phase-{a,b}.ts` in the ActNG repo).
 
 ---
 
