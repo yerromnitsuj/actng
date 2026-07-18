@@ -146,11 +146,17 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       // A pass, but the weaker kind: the central values match while a full
       // statistical comparison was not possible (e.g. one engine reported no
       // standard error on this profile). Count it so the summary line stays
-      // honest — "agreement" would overstate it. Any referee warnings are
-      // surfaced (not silently swallowed) so the reader sees WHY it was weaker.
+      // honest — "agreement" would overstate it.
       verifiedByValue += 1;
+    }
+
+    // Warnings print on EVERY verdict, including `agree`. Printing them only
+    // when a leg failed meant a leg that warned twice about a dropped
+    // comparison passed green and silent — the warnings exist precisely to
+    // qualify a pass, so hiding them on passes inverts their purpose.
+    if (verdict !== "disagree" && verdict !== "not-comparable") {
       for (const warning of report.report.warnings) {
-        console.warn(`${fixture.name} ${leg.profile} (verified-by-value): ${warning}`);
+        console.warn(`${fixture.name} ${leg.profile} (${verdict}): ${warning}`);
       }
     }
     const engines = report.report.engines;

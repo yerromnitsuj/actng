@@ -25,6 +25,8 @@ interface BuildOptions {
   scale?: number;
   seScale?: number;
   withSe?: boolean;
+  /** Replaces the first row's zero unpaid with 1e-11 of float dust. */
+  dustOnFirstUnpaid?: boolean;
 }
 
 /** Hand-built MethodResultDoc for referee tests (spec 5). */
@@ -36,7 +38,8 @@ function buildResultDoc(options: BuildOptions = {}): MethodResultDoc {
     { origin: "2022", ultimate: 3800.5, unpaid: 378.5, standardError: 42.1 },
     { origin: "2023", ultimate: 4482.25, unpaid: 1249.25, standardError: 111.4 },
   ];
-  const rows: MethodResultRow[] = baseRows.map((r) => {
+  const rows: MethodResultRow[] = baseRows.map((r, index) => {
+    if (options.dustOnFirstUnpaid === true && index === 0) r = { ...r, unpaid: 1e-11 };
     const row: MethodResultRow = {
       origin: r.origin,
       ultimate: r.ultimate * scale,
@@ -275,5 +278,69 @@ describe("convention profiles are normative data (spec 5)", () => {
       alpha: 1,
       "est.sigma": "Mack",
     });
+  });
+});
+
+describe("a metric the profile covers must actually be compared (spec 5)", () => {
+  // `agree` is read as "these engines agree". It must therefore never mean
+  // "nothing the profile asked about was checked". Each case below returned
+  // `agree` before this rule existed; two of them silently.
+
+  it("refuses when the profile scopes SEs in but one side carries none", () => {
+    const report = crosscheck({
+      a: buildResultDoc({ profile: "mack1993-vw" }),
+      b: buildResultDoc({ profile: "mack1993-vw", withSe: false }),
+      createdAt: CREATED_AT,
+    });
+    expect(report.report.verdict).toBe("not-comparable");
+    expect(report.report.warnings.join(" ")).toMatch(/standard error/i);
+  });
+
+  it("applies the one stated profile rather than silently falling back", () => {
+    // A claims mack1993-vw (SE tolerance 0.005); B states nothing. Falling back
+    // to deterministic-cl puts SEs out of scope, so a 50% SE divergence passed.
+    const report = crosscheck({
+      a: buildResultDoc({ profile: "mack1993-vw" }),
+      b: buildResultDoc({ seScale: 1.5 }),
+      createdAt: CREATED_AT,
+    });
+    expect(report.report.verdict).toBe("disagree");
+    expect(report.report.warnings.join(" ")).toMatch(/only .*a.* states a convention profile/i);
+  });
+
+  it("says so when it cannot tell whether the replayed selection was value-only", () => {
+    // verified-by-value needs the selection document. Without it the referee
+    // cannot know whether the engines recomputed or merely replayed values —
+    // and the caller supplying it is the party being audited, so silence here
+    // let them choose whether the disclosure appeared.
+    const report = crosscheck({
+      a: buildResultDoc({ selectionIntegrity: "0123456789abcdef" }),
+      b: buildResultDoc({ selectionIntegrity: "0123456789abcdef" }),
+      createdAt: CREATED_AT,
+    });
+    expect(report.report.warnings.join(" ")).toMatch(/could not be checked/i);
+  });
+
+  it("records which metrics were compared, and on how many cells", () => {
+    const report = crosscheck({
+      a: buildResultDoc({ profile: "mack1993-vw" }),
+      b: buildResultDoc({ profile: "mack1993-vw" }),
+      createdAt: CREATED_AT,
+    });
+    const coverage = (report.report as unknown as { coverage: Record<string, unknown> }).coverage;
+    expect(coverage["central"]).toMatchObject({ inScope: true });
+    expect(coverage["standardError"]).toMatchObject({ inScope: true });
+    expect((coverage["central"] as { comparedCells: number }).comparedCells).toBeGreaterThan(0);
+  });
+
+  it("treats float dust against an exact zero as agreement when told the scale", () => {
+    // A fully developed origin is unpaid 0 in one engine and 1e-11 of float
+    // dust in another. Pure relative deviation calls that a 100% disagreement.
+    const a = buildResultDoc();
+    const b = buildResultDoc({ dustOnFirstUnpaid: true });
+    expect(crosscheck({ a, b, createdAt: CREATED_AT }).report.verdict).toBe("disagree");
+    expect(
+      crosscheck({ a, b, createdAt: CREATED_AT, absoluteTolerance: 1e-6 }).report.verdict,
+    ).toBe("agree");
   });
 });
