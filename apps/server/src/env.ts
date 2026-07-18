@@ -31,7 +31,34 @@ export const env = {
    * fails intake, and the effective referee tolerance is min(study, ceiling).
    */
   promotionToleranceCeiling: readPromotionCeiling(),
+  /**
+   * MCP exposure (spec rev 2.1 section 8). The bearer token that gates the
+   * /mcp endpoint; ABSENT => MCP is disabled entirely. When set, a single
+   * token grants the one project named in ACTNG_MCP_PROJECT_ID (v1
+   * single-tenant simplification — one token, one workspace), which the
+   * bearer middleware places on req.auth so the MCP tools read it via
+   * requireMcpTenant. Never comes from the model.
+   */
+  ...readMcpConfig(),
 };
+
+/**
+ * Reads the MCP exposure config (spec rev 2.1 section 8). ACTNG_MCP_TOKEN
+ * absent => MCP disabled (both fields undefined). When the token IS set,
+ * ACTNG_MCP_PROJECT_ID is REQUIRED and validated here — a bearer token with
+ * no project to grant is a misconfiguration, not a silent single-tenant hole.
+ */
+function readMcpConfig(): { mcpToken?: string; mcpProjectId?: string } {
+  const token = process.env.ACTNG_MCP_TOKEN?.trim();
+  if (!token) return {};
+  const projectId = process.env.ACTNG_MCP_PROJECT_ID?.trim();
+  if (!projectId) {
+    throw new Error(
+      "ACTNG_MCP_PROJECT_ID is required when ACTNG_MCP_TOKEN is set: the v1 single-tenant MCP grants the bearer token exactly one project. Set ACTNG_MCP_PROJECT_ID or unset ACTNG_MCP_TOKEN to disable MCP.",
+    );
+  }
+  return { mcpToken: token, mcpProjectId: projectId };
+}
 
 function readPromotionCeiling(): number {
   const raw = process.env.ACTNG_PROMOTION_TOLERANCE_CEILING;

@@ -8,6 +8,7 @@ import { analysesRouter } from "./routes/analyses.js";
 import { notesRouter } from "./routes/notes.js";
 import { chatRouter } from "./routes/chat.js";
 import { studiesRouter } from "./routes/studies.js";
+import { mountWorkspaceMcp, runMcpBootSelfTest } from "./mcp/workspaceMcp.js";
 
 const app = express();
 app.use(cors({ origin: env.webOrigin }));
@@ -28,14 +29,37 @@ app.use("/api/projects/:id/notes", notesRouter);
 app.use("/api/projects/:id/threads", chatRouter);
 app.use("/api/projects/:id/studies", studiesRouter);
 
+// Governed workspace over MCP (spec rev 2.1 section 8): mounted only when
+// ACTNG_MCP_TOKEN is set, before the 404 catch-all. Absent token = disabled.
+const mcpEnabled = mountWorkspaceMcp(app);
+
 app.use((req, res) => {
   res.status(404).json({ error: { code: "NOT_FOUND", message: `No route ${req.method} ${req.path}` } });
 });
 
 app.use(errorHandler);
 
-app.listen(env.port, () => {
-  console.log(`[server] ActNG API listening on http://localhost:${env.port}`);
-  console.log(`[server] Advisor model: ${env.advisorModel} (key ${env.anthropicApiKey ? "present" : "MISSING"})`);
-  console.log(`[server] Data directory: ${env.dataDir}`);
+async function start(): Promise<void> {
+  if (mcpEnabled) {
+    // Prove the MCP tenant seam fails closed BEFORE accepting any client. A
+    // missed wire-up would fail open; assertFailClosed throws and startup
+    // aborts if the probe read tool does not reject an unauthenticated call.
+    await runMcpBootSelfTest();
+    console.log(
+      `[server] MCP enabled at /mcp (project ${env.mcpProjectId}); boot self-test passed (probe ${"get_workspace_overview"} failed closed without auth)`,
+    );
+  } else {
+    console.log("[server] MCP disabled (ACTNG_MCP_TOKEN not set)");
+  }
+
+  app.listen(env.port, () => {
+    console.log(`[server] ActNG API listening on http://localhost:${env.port}`);
+    console.log(`[server] Advisor model: ${env.advisorModel} (key ${env.anthropicApiKey ? "present" : "MISSING"})`);
+    console.log(`[server] Data directory: ${env.dataDir}`);
+  });
+}
+
+start().catch((err) => {
+  console.error("[server] startup aborted:", err);
+  process.exit(1);
 });

@@ -138,6 +138,35 @@ function analysisSummaryPayload(results: AnalysisResults) {
 }
 
 // ---------------------------------------------------------------------------
+// Read-tool input schemas (shared source of truth)
+//
+// Extracted, keyed by tool id, so the MCP exposure layer
+// (src/mcp/workspaceMcp.ts) builds tenant-bridged variants from the SAME
+// schema objects these tools use — one source of truth, no drift. Each read
+// tool below references its entry here.
+
+export const READ_TOOL_INPUT_SCHEMAS = {
+  get_workspace_overview: z.object({}),
+  analyze_development_factors: z.object({ basis: basisSchema }),
+  assess_data_quality: z.object({}),
+  get_diagnostic_detail: z.object({
+    metric: z.enum(["paidToIncurred", "averageCase", "closureRates"]),
+  }),
+  get_analysis_results: z.object({
+    analysisId: z.string().nullable().describe("Specific analysis id; latest when null"),
+  }),
+  run_sensitivity: z.object({
+    basis: z.enum(["paid", "incurred"]),
+    selections: z
+      .array(z.number().positive().nullable())
+      .nullable()
+      .describe("Alternative LDF vector; null keeps current selections"),
+    tailFactor: z.number().positive().nullable().describe("Alternative tail; null keeps current"),
+  }),
+  crosscheck_with_python: z.object({}),
+};
+
+// ---------------------------------------------------------------------------
 // READ / ANALYZE TOOLS
 
 export const getWorkspaceOverview = defineActuarialTool({
@@ -145,7 +174,7 @@ export const getWorkspaceOverview = defineActuarialTool({
   description:
     "Get the current state of the reserving workspace: triangle dimensions, basis, evaluation date, current LDF selections and tails, data volumes, and the latest analysis totals. Call this first in a conversation to orient yourself.",
   kind: "read",
-  inputSchema: z.object({}),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.get_workspace_overview,
   execute: async (_input, context) => {
     const projectId = tenantOf(context);
     const view = getWorkspaceView(projectId);
@@ -213,7 +242,7 @@ export const analyzeDevelopmentFactors = defineActuarialTool({
   description:
     "Analyze age-to-age development factors for a basis: per-column factor counts, dispersion (CV), the most recent factors, and the full averages menu (all-year and n-year straight and volume-weighted, medial, geometric). Use this before recommending LDF selections.",
   kind: "read",
-  inputSchema: z.object({ basis: basisSchema }),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.analyze_development_factors,
   execute: async (input, context) => {
     const projectId = tenantOf(context);
     const view = getWorkspaceView(projectId);
@@ -274,7 +303,7 @@ export const assessDataQuality = defineActuarialTool({
   description:
     "Run the data-quality diagnostics an actuary checks before trusting development methods: paid-to-incurred ratio drift, average case reserve trends, closure-rate shifts, and Mack's calendar-year test. Returns findings with severities.",
   kind: "read",
-  inputSchema: z.object({}),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.assess_data_quality,
   execute: async (_input, context) => {
     const projectId = tenantOf(context);
     const view = getWorkspaceView(projectId);
@@ -301,9 +330,7 @@ export const getDiagnosticDetail = defineActuarialTool({
   description:
     "Fetch the underlying by-origin, by-age grid for one diagnostic metric so you can cite the actual numbers: paid-to-incurred ratios, average case reserves, or closure rates.",
   kind: "read",
-  inputSchema: z.object({
-    metric: z.enum(["paidToIncurred", "averageCase", "closureRates"]),
-  }),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.get_diagnostic_detail,
   execute: async (input, context) => {
     const projectId = tenantOf(context);
     const view = getWorkspaceView(projectId);
@@ -333,9 +360,7 @@ export const getAnalysisResults = defineActuarialTool({
   description:
     "Get the results of the latest analysis run (or a specific one by id): ultimates, IBNR, and unpaid by method and origin period, Mack standard errors, and warnings. The UI renders the full tables; use this to ground your commentary in the numbers.",
   kind: "read",
-  inputSchema: z.object({
-    analysisId: z.string().nullable().describe("Specific analysis id; latest when null"),
-  }),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.get_analysis_results,
   execute: async (input, context) => {
     const projectId = tenantOf(context);
     const record = input.analysisId ? getAnalysis(input.analysisId) : latestAnalysis(projectId);
@@ -453,14 +478,7 @@ export const runSensitivityTool = defineActuarialTool({
   description:
     "Compare a what-if chain ladder scenario (alternative LDF selections and/or tail) against the current selections WITHOUT changing the workspace. Returns both totals and the deltas.",
   kind: "read",
-  inputSchema: z.object({
-    basis: z.enum(["paid", "incurred"]),
-    selections: z
-      .array(z.number().positive().nullable())
-      .nullable()
-      .describe("Alternative LDF vector; null keeps current selections"),
-    tailFactor: z.number().positive().nullable().describe("Alternative tail; null keeps current"),
-  }),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.run_sensitivity,
   execute: async (input, context) => {
     const projectId = tenantOf(context);
     const result = runSensitivity(projectId, {
@@ -1354,7 +1372,7 @@ export const crosscheckWithPython = defineActuarialTool({
   description:
     "Cross-check the workbench's numbers against chainladder-python (the independent second engine). Runs the CURRENT active-basis triangle with the applied LDF selections and tail through the sidecar's Chainladder and referees it against the workbench's own chain ladder (deterministic-cl profile), plus a volume-weighted Mack with Mack sigma on both engines when standard errors are computable (mack1993-vw profile). Returns per-profile verdicts (agree / verified-by-value / not-comparable / disagree) with maximum relative deviations and both engine versions. Read-only; changes nothing. Requires the sidecar to be configured (SIDECAR_URL and SIDECAR_TOKEN); use it when the user asks to double-check, verify, or validate results against an independent implementation.",
   kind: "read",
-  inputSchema: z.object({}),
+  inputSchema: READ_TOOL_INPUT_SCHEMAS.crosscheck_with_python,
   execute: async (_input, context) => {
     const projectId = tenantOf(context);
     // Deployment config is read at call time (not import time) so a sidecar
