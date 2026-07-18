@@ -5,6 +5,11 @@ import { computeDevelopmentFactors } from "../src/factors.js";
 import { triangleFromGrid } from "../src/triangle.js";
 import { taylorAshe } from "./fixtures/mack1993.js";
 import { raa } from "./fixtures/mack1994raa.js";
+import {
+  englandTable1ChainLadderTotal,
+  englandTable2PredictionErrorPct,
+  englandTable3Distribution,
+} from "./fixtures/englandVerrall2002.js";
 import type { Triangle } from "../src/types.js";
 
 function vwReserves(tri: Triangle): { total: number; byOrigin: Map<string, number> } {
@@ -21,8 +26,7 @@ describe("odpFit (the GLM == chain ladder identity)", () => {
   it("reproduces the volume-weighted chain ladder reserves exactly on Taylor/Ashe", () => {
     const fit = odpFit(taylorAshe);
     const cl = vwReserves(taylorAshe);
-    // England (2002) Table 1: chain ladder total 18,681 (thousands).
-    expect(cl.total / 1000).toBeCloseTo(18681, 0);
+    expect(cl.total / 1000).toBeCloseTo(englandTable1ChainLadderTotal, 0);
     for (const row of fit.reserveByOrigin) {
       expect(row.reserve).toBeCloseTo(cl.byOrigin.get(row.origin)!, 6);
     }
@@ -171,28 +175,33 @@ describe("runOdpBootstrap", () => {
     expect(pe).toBeLessThan(0.175);
   });
 
-  it("per-origin prediction errors track the published pattern (England 2002 Table 2)", () => {
-    // Published percentages (analytic | bootstrap): i=5: 31, i=8: 20/21, i=10: 43/44.
+  it("reproduces every per-origin prediction error in England (2002) Table 2", () => {
+    // Was three spot-checks with hand-written bands. All nine published
+    // accident years are now asserted against the transcribed fixture.
     const cl = vwReserves(taylorAshe);
-    const peOf = (origin: string): number => {
+    const { byOrigin, toleranceByOrigin } = englandTable2PredictionErrorPct;
+
+    for (const [origin, publishedPct] of Object.entries(byOrigin)) {
       const row = result.byOrigin.find((r) => r.origin === origin)!;
-      return row.summary.sd / cl.byOrigin.get(origin)!;
-    };
-    expect(peOf("5")).toBeGreaterThan(0.26);
-    expect(peOf("5")).toBeLessThan(0.36);
-    expect(peOf("8")).toBeGreaterThan(0.16);
-    expect(peOf("8")).toBeLessThan(0.26);
-    expect(peOf("10")).toBeGreaterThan(0.37);
-    expect(peOf("10")).toBeLessThan(0.50);
+      const pct = (row.summary.sd / cl.byOrigin.get(origin)!) * 100;
+      expect(Math.abs(pct - publishedPct)).toBeLessThanOrEqual(toleranceByOrigin);
+    }
   });
 
-  it("the predictive distribution is right-skewed with sane percentiles (England 2002 Table 3)", () => {
-    // Published (1000 sims, thousands): mean 18,688, sd 2,956, p50 18,532,
-    // p95 23,827 — p50 < mean (right skew), p95 within ~1.3 sd bands.
+  it("reproduces the England (2002) Table 3 predictive distribution", () => {
+    const { mean, standardDeviation, percentiles, tolerance } = englandTable3Distribution;
+    const relative = (got: number, published: number): number =>
+      Math.abs(got - published * 1000) / (published * 1000);
+
+    expect(relative(result.total.mean, mean)).toBeLessThan(tolerance);
+    expect(relative(result.total.sd, standardDeviation)).toBeLessThan(tolerance);
+    for (const [key, published] of Object.entries(percentiles)) {
+      expect(relative(result.total.percentiles[key]!, published)).toBeLessThan(tolerance);
+    }
+
+    // Right skew: the median sits below the mean, as Table 3's skewness of
+    // 0.35 requires.
     expect(result.total.percentiles["p50"]!).toBeLessThan(result.total.mean);
-    const p95 = result.total.percentiles["p95"]!;
-    expect(p95 / 1000).toBeGreaterThan(22000);
-    expect(p95 / 1000).toBeLessThan(26000);
   });
 
   it("without process variance, simulated SE shrinks (estimation error only)", () => {

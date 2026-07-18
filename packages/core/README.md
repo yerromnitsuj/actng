@@ -108,8 +108,11 @@ Three rules hold everywhere:
 
 ## Validation against published results
 
-The test suite reproduces, from the primary sources (transcriptions under
-`docs/research/` in the repository):
+The test suite reproduces the following, each transcribed from the primary
+source into `test/fixtures/`. Five of them additionally carry a full research
+transcription with context and caveats under `docs/research/` (Clark,
+Merz-Wuthrich, England/Verrall, Munich, ULAE); for the rest the transcription
+notes live in the fixture file itself.
 
 - Mack (1993), ASTIN 23(2): Taylor/Ashe and mortgage-guarantee factors,
   reserves, sigma-squared (including the extrapolated column), standard errors.
@@ -119,7 +122,10 @@ The test suite reproduces, from the primary sources (transcriptions under
 - Mack (2000), ASTIN 30(2): the Benktander numerical example.
 - Gluck (1997), PCAS LXXXIV: Generalized Cape Cod Tables 1-4.
 - England (2002), IME 31: ODP bootstrap prediction errors and percentiles
-  on Taylor/Ashe.
+  on Taylor/Ashe — all nine published accident years plus the Table 3
+  predictive distribution. Asserted within the sampling error the publication
+  itself exhibits, because a bootstrap figure is one finite sample and cannot
+  be reproduced to the digit the way Mack's closed form can.
 - Merz & Wuthrich (2008): the Table 4 one-year CDR volatilities.
 - Clark (2003): both methods' fitted parameters, reserves, and variance
   decompositions (to ~1e-5).

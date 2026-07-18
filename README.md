@@ -86,7 +86,7 @@ consumer.
 | `tools/interop/` | The R shore: ChainLadder interchange recipes and the conformance verdict runner. |
 | `schema/interchange/` | Versioned JSON Schema + JCS test vectors that every shore reproduces. |
 | `docs/interop/` | Convention map, MCP notebook recipe, and upstream contribution drafts. |
-| `docs/research/` | Primary-source transcriptions behind the published-value test fixtures. |
+| `docs/research/` | Research transcriptions for five of the primary sources; the rest are documented in their fixture files. |
 | `docs/superpowers/` | The SDK's spec and phased implementation plans. |
 
 ## Development
