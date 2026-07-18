@@ -76,7 +76,25 @@ def create_app(config: Optional[SidecarConfig] = None) -> FastAPI:
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             declared = request.headers.get("content-length")
-            if declared is not None and declared.isdigit() and int(declared) > config.max_request_bytes:
+            # The length/size guards apply only to the body-bearing run route;
+            # GET /v1/engine legitimately carries no Content-Length.
+            if not request.url.path.startswith("/v1/run"):
+                return await call_next(request)
+            if declared is None:
+                # No content-length means chunked/streamed: the size guard
+                # below could not fire and `await request.body()` would buffer
+                # the whole (possibly unbounded) body first. Refuse up front so
+                # the memory-protection intent holds BEFORE the allocation.
+                return JSONResponse(
+                    error_body(
+                        "LENGTH_REQUIRED",
+                        "requests to /v1/run/* must carry a Content-Length header "
+                        "(chunked/streamed bodies are refused so the size limit "
+                        "is enforced before buffering)",
+                    ),
+                    status_code=411,
+                )
+            if declared.isdigit() and int(declared) > config.max_request_bytes:
                 return JSONResponse(
                     error_body(
                         "REQUEST_TOO_LARGE",
@@ -115,6 +133,16 @@ def create_app(config: Optional[SidecarConfig] = None) -> FastAPI:
             document = run_method(method, run_request, created_at_now())
         except SidecarError as exc:
             return JSONResponse(error_body(exc.code, exc.message), status_code=exc.status)
+        except RecursionError:
+            # A pathologically nested payload (recursion bomb) is a malformed
+            # CLIENT request, not a server fault — answer 422, not 500.
+            return JSONResponse(
+                error_body(
+                    "PAYLOAD_TOO_DEEP",
+                    "request JSON is nested too deeply to process",
+                ),
+                status_code=422,
+            )
         except Exception as exc:  # noqa: BLE001 — schema'd 500, no stack leak
             return JSONResponse(
                 error_body("INTERNAL_ERROR", f"{type(exc).__name__} while running {method}"),

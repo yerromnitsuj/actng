@@ -48,6 +48,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SIDECAR_URL: http://127.0.0.1:8091
+      # Intentionally a NON-SECRET constant: the sidecar is an ephemeral
+      # localhost process torn down at job end. Do NOT copy this pattern to a
+      # real deployment token — the on-failure `cat sidecar.log` step is safe
+      # only because the sidecar logs no payloads or auth material.
       SIDECAR_TOKEN: ci-crosscheck-token
     steps:
       - uses: actions/checkout@v4

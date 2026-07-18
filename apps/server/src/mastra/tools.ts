@@ -27,7 +27,8 @@ import {
   runFullAnalysis,
   runSensitivity,
 } from "../services/workspaceService.js";
-import { claimSizeDiagnostics, fitAllTails, runChainLadder, runMack } from "@actuarial-ts/core";
+import { claimSizeDiagnostics, fitAllTails, runChainLadder, runMack, ReservingError } from "@actuarial-ts/core";
+import { HttpError } from "../services/workspaceService.js";
 import {
   getAnalysis,
   getClaims,
@@ -1317,7 +1318,10 @@ function exactMenuKeys(originLengthMonths: number): readonly string[] {
  * provenance, so the intent is recovered by matching each selected factor
  * against the exactly-replayable averages menu at the interchange coherence
  * tolerance (1e-9 relative); a factor matching no menu cell travels as a
- * judgmental (value-authoritative) intent — honest, never guessed.
+ * judgmental (value-authoritative) intent — honest, never guessed. When a
+ * factor matches two menu cells, the first in the fixed priority order
+ * (all-wtd > all-str > 5-wtd > … > geo-all) wins; the tie-break is cosmetic
+ * because equal values replay identically on both engines.
  */
 function recoverIntents(
   selected: readonly (number | null)[],
@@ -1480,11 +1484,24 @@ export const crosscheckWithPython = defineActuarialTool({
         mackLeg = { verdict: mackReport.report.verdict, ...reportDeviations(mackReport), report: mackReport };
       }
     } catch (err) {
-      mackLeg = {
-        skipped: `Mack standard errors are not computable on this triangle: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      };
+      // A structured domain error (ReservingError) means the TRIANGLE cannot
+      // support Mack (too small, no usable factors) — a legitimate skip. Any
+      // OTHER exception is an unexpected failure (a bug in authoring, the
+      // referee, or the remote call path) and must NOT be disguised as an
+      // expected skip: surface it so a regression is visible, not swallowed.
+      if (err instanceof ReservingError) {
+        mackLeg = {
+          skipped: `Mack standard errors are not computable on this triangle: ${err.message}`,
+        };
+      } else {
+        throw new HttpError(
+          500,
+          "MACK_LEG_FAILED",
+          `the mack1993-vw cross-check failed unexpectedly: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
     }
 
     // --- roll-up ---

@@ -3,6 +3,8 @@ size limits, strict shape enforcement."""
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -131,3 +133,33 @@ class TestStrictWireShape:
         response = client.post("/v1/run/Chainladder", json=body, headers=auth)
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "INVALID_DOCUMENT"
+
+
+class TestReviewHardening:
+    """Findings from the Phase C adversarial review: the size guard must
+    hold before buffering, and a recursion bomb is a client 422, not a 500."""
+
+    def test_chunked_body_without_content_length_is_411(self, client, auth) -> None:
+        # A streamed body carries no Content-Length, so the pre-buffer size
+        # check cannot fire; the service must refuse rather than buffer.
+        def _chunks():
+            yield json.dumps(_run_body()).encode()
+
+        response = client.post("/v1/run/Chainladder", content=_chunks(), headers=auth)
+        assert response.status_code == 411
+        assert response.json()["error"]["code"] == "LENGTH_REQUIRED"
+
+    def test_deeply_nested_payload_is_422_not_500(self, client, auth) -> None:
+        # A valid top-level object ("parameters" is an allowed key) whose value
+        # nests far past the interpreter recursion limit: json parsing or the
+        # recursive tenant lint raises RecursionError, which must become a
+        # client 422 (PAYLOAD_TOO_DEEP), never a server 500.
+        depth = 5000
+        bomb = '{"parameters":' + '{"a":' * depth + "1" + "}" * depth + "}"
+        response = client.post(
+            "/v1/run/Chainladder",
+            content=bomb.encode(),
+            headers={**auth, "content-type": "application/json"},
+        )
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "PAYLOAD_TOO_DEEP"
