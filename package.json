@@ -16,6 +16,7 @@
     "seed": "npm run seed --workspace @actng/server",
     "test": "npm run test --workspaces --if-present",
     "test:py": ".venv-interop/bin/pytest interop/python/tests interop/conformance/py interop/sidecar/tests -q",
+    "crosscheck:ci": "tsx interop/conformance/crosscheck-ci.mts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/interchange -w @actuarial-ts/data -w @actuarial-ts/compliance -w @actuarial-ts/agents"

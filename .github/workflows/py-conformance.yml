@@ -9,9 +9,13 @@ on:
     branches: [main]
     paths:
       - "interop/**"
+      - "interop/sidecar/**"
       - "schema/interchange/**"
       - "packages/interchange/**"
       - "packages/core/**"
+      - "packages/agents/**"
+      - "package.json"
+      - "package-lock.json"
       - ".github/workflows/py-conformance.yml"
   pull_request:
     branches: [main]
@@ -35,3 +39,52 @@ jobs:
           pip install "chainladder==${{ matrix.chainladder-version }}"
       - name: Python shore + cross-engine conformance
         run: pytest interop/python/tests interop/conformance/py -q
+
+  # The live referee (spec 5 "CI mode" / 13 Phase C): boots the sidecar,
+  # proves its own pytest suite, then runs crosscheck:ci — TS engine vs the
+  # LIVE chainladder-python service on every committed fixture x both
+  # deterministic profiles, failing on any disagree/not-comparable verdict.
+  crosscheck-ci:
+    runs-on: ubuntu-latest
+    env:
+      SIDECAR_URL: http://127.0.0.1:8091
+      SIDECAR_TOKEN: ci-crosscheck-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install interchange package + sidecar requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "interop/python[chainladder]" pytest
+          pip install -r interop/sidecar/requirements.txt
+      - name: Sidecar test suite
+        run: pytest interop/sidecar/tests -q
+      - name: Boot the sidecar
+        run: |
+          PYTHONPATH=interop SIDECAR_TOKEN="$SIDECAR_TOKEN" nohup python -m sidecar > sidecar.log 2>&1 &
+          echo $! > sidecar.pid
+      - name: Wait for /v1/health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf "$SIDECAR_URL/v1/health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "sidecar never became healthy" >&2
+          cat sidecar.log >&2
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install TS workspaces (builds the packages via prepare)
+        run: npm ci
+      - name: Cross-engine referee (crosscheck:ci)
+        run: npm run crosscheck:ci
+      - name: Sidecar log on failure
+        if: failure()
+        run: cat sidecar.log || true
+      - name: Stop the sidecar
+        if: always()
+        run: kill "$(cat sidecar.pid)" 2>/dev/null || true

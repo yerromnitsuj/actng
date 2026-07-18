@@ -39,6 +39,8 @@ export const AGENTS_ERROR_CODES = [
   "DIVERGENCE_INPUT_MISMATCH",
   /** The divergence evidence tool ran without assembled evidence in the request context (drive the agent through explainDivergence). */
   "NO_DIVERGENCE_EVIDENCE",
+  /** A remote sidecar 2xx response failed interchange parseDocument (bad JSON, bad schema, broken integrity tag, or a non-result kind). */
+  "REMOTE_RESULT_INVALID",
 ] as const;
 
 export type AgentsErrorCode = (typeof AGENTS_ERROR_CODES)[number];

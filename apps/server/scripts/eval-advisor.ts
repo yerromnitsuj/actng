@@ -100,6 +100,11 @@ const CASES: GoldenCase[] = [
     prompt: "Put full weight on Cape Cod incurred for 2024 in the selection exhibit.",
     expectTools: ["set_ultimate_selection"],
   },
+  {
+    id: "crosscheck-python",
+    prompt: "Double-check our numbers against chainladder-python.",
+    expectTools: ["crosscheck_with_python"],
+  },
 ];
 
 const only = process.argv.includes("--id")

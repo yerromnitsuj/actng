@@ -1,9 +1,19 @@
 import {
+  callRemoteMethod,
   defineActuarialTool,
   tenantOf,
   toolRegistry,
   type ToolEnvelopeFailure,
 } from "@actuarial-ts/agents";
+import {
+  crosscheck,
+  resultToDoc,
+  selectionsToDoc,
+  triangleToDoc,
+  type CrosscheckReportDoc,
+  type DevelopmentIntentInput,
+  type MethodResultDoc,
+} from "@actuarial-ts/interchange";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra } from "./instanceRegistry.js";
 import { z } from "zod";
@@ -17,7 +27,7 @@ import {
   runFullAnalysis,
   runSensitivity,
 } from "../services/workspaceService.js";
-import { claimSizeDiagnostics, fitAllTails } from "@actuarial-ts/core";
+import { claimSizeDiagnostics, fitAllTails, runChainLadder, runMack } from "@actuarial-ts/core";
 import {
   getAnalysis,
   getClaims,
@@ -1258,6 +1268,265 @@ export const advanceElrDerivation = defineActuarialTool({
   },
 });
 
+// ---------------------------------------------------------------------------
+// Second-engine cross-check (interop spec rev 2.1, sections 5 / 7 / 9 item 4)
+
+/** Verdict severity for the roll-up: the summary reports the WORST leg. */
+const VERDICT_RANK: Record<string, number> = {
+  agree: 0,
+  "verified-by-value": 1,
+  "not-comparable": 2,
+  disagree: 3,
+};
+
+/** Max relative deviations recorded in a crosscheck report (per-origin and
+ * totals; null SE = no SE cell was compared). */
+function reportDeviations(report: CrosscheckReportDoc): {
+  maxCentral: number;
+  maxStandardError: number | null;
+} {
+  const body = report.report;
+  let maxCentral = 0;
+  let maxSe: number | null = null;
+  for (const row of body.deviations.perOrigin) {
+    maxCentral = Math.max(maxCentral, row.ultimate ?? 0, row.unpaid ?? 0);
+    if (row.standardError !== null) maxSe = Math.max(maxSe ?? 0, row.standardError);
+  }
+  const totals = body.deviations.totals;
+  maxCentral = Math.max(maxCentral, totals.ultimate ?? 0, totals.unpaid ?? 0);
+  if (totals.standardError !== null) maxSe = Math.max(maxSe ?? 0, totals.standardError);
+  return { maxCentral, maxStandardError: maxSe };
+}
+
+const relativeDeviation = (x: number, y: number): number => {
+  const scale = Math.max(Math.abs(x), Math.abs(y));
+  return scale === 0 ? 0 : Math.abs(x - y) / scale;
+};
+
+/** Menu keys that replay EXACTLY on the given cadence (spec 3.2 equivalence
+ * table): windowed and medial averages are exact only on annual (12-month)
+ * origins; the all-period trio replays exactly on any cadence. */
+function exactMenuKeys(originLengthMonths: number): readonly string[] {
+  return originLengthMonths === 12
+    ? ["all-wtd", "all-str", "5-wtd", "5-str", "3-wtd", "3-str", "med-5x1", "geo-all"]
+    : ["all-wtd", "all-str", "geo-all"];
+}
+
+/**
+ * The intent behind each applied factor. The workspace stores VALUES, not
+ * provenance, so the intent is recovered by matching each selected factor
+ * against the exactly-replayable averages menu at the interchange coherence
+ * tolerance (1e-9 relative); a factor matching no menu cell travels as a
+ * judgmental (value-authoritative) intent — honest, never guessed.
+ */
+function recoverIntents(
+  selected: readonly (number | null)[],
+  factors: DevelopmentFactors,
+  originLengthMonths: number,
+): DevelopmentIntentInput[] {
+  const keys = exactMenuKeys(originLengthMonths);
+  return selected.map((value, j) => {
+    if (!isNum(value)) {
+      // Column carries no selection; selectionsToDoc omits it (the intent is
+      // never read). A placeholder keeps the arrays aligned.
+      return { kind: "judgmental", rationale: "unused placeholder for an unselected column" };
+    }
+    for (const key of keys) {
+      const menu = factors.averages.find((a) => a.spec.key === key)?.values[j];
+      if (isNum(menu) && relativeDeviation(value, menu) <= 1e-9) {
+        return key as DevelopmentIntentInput;
+      }
+    }
+    return {
+      kind: "judgmental",
+      rationale:
+        "Workbench user-applied factor matching no standard-menu average within 1e-9; value authoritative for cross-engine transport",
+    };
+  });
+}
+
+export const crosscheckWithPython = defineActuarialTool({
+  id: "crosscheck_with_python",
+  description:
+    "Cross-check the workbench's numbers against chainladder-python (the independent second engine). Runs the CURRENT active-basis triangle with the applied LDF selections and tail through the sidecar's Chainladder and referees it against the workbench's own chain ladder (deterministic-cl profile), plus a volume-weighted Mack with Mack sigma on both engines when standard errors are computable (mack1993-vw profile). Returns per-profile verdicts (agree / verified-by-value / not-comparable / disagree) with maximum relative deviations and both engine versions. Read-only; changes nothing. Requires the sidecar to be configured (SIDECAR_URL and SIDECAR_TOKEN); use it when the user asks to double-check, verify, or validate results against an independent implementation.",
+  kind: "read",
+  inputSchema: z.object({}),
+  execute: async (_input, context) => {
+    const projectId = tenantOf(context);
+    // Deployment config is read at call time (not import time) so a sidecar
+    // configured after boot is picked up and tests can flip it per case.
+    const sidecarUrl = process.env.SIDECAR_URL;
+    const sidecarToken = process.env.SIDECAR_TOKEN;
+    if (!sidecarUrl || !sidecarToken) {
+      return {
+        success: false,
+        error: {
+          code: "SIDECAR_NOT_CONFIGURED",
+          message:
+            "The chainladder-python sidecar is not configured: set SIDECAR_URL and SIDECAR_TOKEN " +
+            "(see interop/sidecar/README.md) to enable second-engine cross-checks. Nothing was compared.",
+        },
+      } satisfies ToolEnvelopeFailure;
+    }
+
+    const view = getWorkspaceView(projectId);
+    const basis = view.state.basis;
+    const tri = view.triangles[basis];
+    const selected = activeSelections(view.state)[basis];
+    const tail = activeTail(view.state)[basis];
+    const nColumns = tri.ages.length - 1;
+    if (nColumns < 1 || selected.length !== nColumns || selected.some((s) => !isNum(s))) {
+      return {
+        success: false,
+        error: {
+          code: "INCOMPLETE_SELECTIONS",
+          message:
+            "The cross-check needs an applied LDF selection for EVERY development column on the " +
+            `active (${basis}) basis: unselected columns develop as 1.000 here but replay differently ` +
+            "in chainladder-python, which would manufacture a spurious disagreement. Apply a full " +
+            "selection vector first (apply_ldf_selections).",
+        },
+      } satisfies ToolEnvelopeFailure;
+    }
+
+    const createdAt = new Date().toISOString();
+    const call = {
+      sidecarUrl,
+      headers: { authorization: `Bearer ${sidecarToken}` },
+      timeoutMs: 60_000,
+    };
+    const abortSignal = (context as { abortSignal?: AbortSignal }).abortSignal;
+
+    // --- author the interchange documents for the active workspace state ---
+    const triangleDoc = triangleToDoc(tri, { createdAt, valuationDate: view.state.asOfDate });
+    const selections = { selected: [...selected], tailFactor: tail.value };
+    const authored = selectionsToDoc(selections, {
+      triangleDoc,
+      createdAt,
+      intents: recoverIntents(selected, view.factors[basis], triangleDoc.triangle.originLengthMonths),
+      // The tail VALUE is what the workspace applies; it travels
+      // value-authoritative so both engines project with the identical
+      // factor (a fitted-tail intent would invite curve-refit noise that
+      // says nothing about the projection machinery under referee).
+      ...(tail.value !== 1
+        ? {
+            tailIntent: {
+              kind: "judgmental" as const,
+              rationale: `Workbench tail (source: ${tail.source}); value authoritative for cross-engine transport`,
+            },
+          }
+        : {}),
+      strictness: "warn",
+    });
+
+    // --- deterministic-cl: the workbench's own chain ladder vs the sidecar ---
+    const tsCl = resultToDoc(runChainLadder(tri, selections), {
+      triangleDoc,
+      selectionDoc: authored.doc,
+      createdAt,
+      conventionProfile: "deterministic-cl",
+      parameters: {
+        selections: "workspace active selections per the linked SelectionDoc",
+        tailFactor: tail.value,
+      },
+    });
+    const clpyCl = await callRemoteMethod(
+      { ...call, method: "Chainladder" },
+      { triangles: { primary: triangleDoc }, selection: authored.doc },
+      abortSignal,
+    );
+    if (!clpyCl.success) return clpyCl;
+    const clReport = crosscheck({
+      a: tsCl,
+      b: clpyCl.doc as MethodResultDoc,
+      selection: authored.doc,
+      createdAt,
+    });
+    const clDeviations = reportDeviations(clReport);
+
+    // --- mack1993-vw: as-published Mack (volume-weighted, Mack sigma) on
+    // both engines — the PROFILE's pinned run, independent of the applied
+    // selections, compared only when this shore can produce SEs ---
+    let mackLeg:
+      | {
+          verdict: CrosscheckReportDoc["report"]["verdict"];
+          maxCentral: number;
+          maxStandardError: number | null;
+          report: CrosscheckReportDoc;
+        }
+      | { skipped: string };
+    let mackReport: CrosscheckReportDoc | null = null;
+    try {
+      const tsMack = resultToDoc(runMack(tri, {}), {
+        triangleDoc,
+        selectionDoc: null,
+        createdAt,
+        conventionProfile: "mack1993-vw",
+        parameters: {
+          selected: "omitted (volume-weighted per Mack 1993)",
+          sigma: "Mack last-column extrapolation (built in)",
+          tailFactor: 1,
+        },
+      });
+      const clpyMack = await callRemoteMethod(
+        { ...call, method: "MackChainladder" },
+        { triangles: { primary: triangleDoc }, parameters: { sigma_interpolation: "mack" } },
+        abortSignal,
+      );
+      if (!clpyMack.success) {
+        mackLeg = { skipped: `sidecar Mack run failed: ${clpyMack.error.code} — ${clpyMack.error.message}` };
+      } else {
+        mackReport = crosscheck({ a: tsMack, b: clpyMack.doc as MethodResultDoc, createdAt });
+        mackLeg = { verdict: mackReport.report.verdict, ...reportDeviations(mackReport), report: mackReport };
+      }
+    } catch (err) {
+      mackLeg = {
+        skipped: `Mack standard errors are not computable on this triangle: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      };
+    }
+
+    // --- roll-up ---
+    const verdicts = [clReport.report.verdict, ...(mackReport ? [mackReport.report.verdict] : [])];
+    const overall = verdicts.reduce((worst, v) =>
+      (VERDICT_RANK[v] ?? 0) > (VERDICT_RANK[worst] ?? 0) ? v : worst,
+    );
+    const maxStandardError = [clDeviations, ...("report" in mackLeg ? [mackLeg] : [])]
+      .map((d) => d.maxStandardError)
+      .reduce<number | null>((max, se) => (se === null ? max : Math.max(max ?? 0, se)), null);
+    const warnings = [
+      ...authored.warnings.map((w) => `selection authoring: ${w}`),
+      ...clReport.report.warnings.map((w) => `deterministic-cl: ${w}`),
+      ...(mackReport ? mackReport.report.warnings.map((w) => `mack1993-vw: ${w}`) : []),
+      ...("skipped" in mackLeg ? [`mack1993-vw: skipped — ${mackLeg.skipped}`] : []),
+    ];
+    const engines = clReport.report.engines;
+    return {
+      success: true,
+      basis,
+      summary: {
+        verdict: overall,
+        maxCentral: Math.max(clDeviations.maxCentral, "report" in mackLeg ? mackLeg.maxCentral : 0),
+        maxStandardError,
+        engineVersions: {
+          a: `${engines.a.name}@${engines.a.version}`,
+          b: `${engines.b.name}@${engines.b.version}`,
+        },
+        warnings,
+      },
+      crosschecks: {
+        "deterministic-cl": { verdict: clReport.report.verdict, ...clDeviations, report: clReport },
+        "mack1993-vw": mackLeg,
+      },
+      message:
+        `Second-engine cross-check complete: overall verdict "${overall}" ` +
+        `(${engines.a.name}@${engines.a.version} vs ${engines.b.name}@${engines.b.version}). ` +
+        "Summarize the verdicts and the largest deviations; do not recite the full reports.",
+    };
+  },
+});
+
 export const saveNote = defineActuarialTool({
   id: "save_note",
   description:
@@ -1304,6 +1573,7 @@ const registry = toolRegistry([
   setIlfSource,
   runAnalysisTool,
   runSensitivityTool,
+  crosscheckWithPython,
   saveNote,
 ]);
 
