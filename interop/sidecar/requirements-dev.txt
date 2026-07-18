@@ -1,0 +1,5 @@
+# Test-only dependencies for the sidecar pytest suite (fastapi's TestClient
+# is backed by starlette, which needs httpx). Runtime (uvicorn) does not.
+-r requirements.txt
+httpx==0.28.1
+pytest>=8.0

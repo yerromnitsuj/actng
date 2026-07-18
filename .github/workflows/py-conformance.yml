@@ -62,7 +62,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e "interop/python[chainladder]" pytest
-          pip install -r interop/sidecar/requirements.txt
+          pip install -r interop/sidecar/requirements-dev.txt
       - name: Sidecar test suite
         run: pytest interop/sidecar/tests -q
       - name: Boot the sidecar
