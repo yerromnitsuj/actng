@@ -869,7 +869,7 @@ The format therefore stops making one promise for three different things.
   purity rule (no clock reads, no ambient randomness, explicit seeds) is what
   earns it, and `packages/core/test/odpBootstrap.test.ts` pins it.
 - `witnessed` — the engine is not byte-reproducible even under a fixed seed.
-  The document is a tamper-evident record of what that engine produced on that
+  The document is an integrity-checked record of what that engine produced on that
   run.
 
 Deterministic methods do not carry the field: kind `method-result` already

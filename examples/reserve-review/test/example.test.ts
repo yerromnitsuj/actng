@@ -16,7 +16,8 @@ describe("the reserve-review example", () => {
   });
 
   it("reproduces R ChainLadder's published Mack standard error", () => {
-    // Published: 2,447,095 — the value all three conformance shores agree on.
+    // Mack (1993) Table 3 prints 2,447 thousands; R ChainLadder reports the
+    // full 2,447,095, which is the figure all three shores agree on.
     expect(Math.round(out.standardError)).toBe(2_447_095);
   });
 

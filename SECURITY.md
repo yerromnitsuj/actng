@@ -43,10 +43,13 @@ The published packages and the code in this repository:
   lives in the consuming application.
 - **The compute sidecar** (`interop/sidecar/`) — bearer auth, request size and
   depth limits, no persistence. Auth bypass or resource exhaustion is in scope.
-- **Integrity and provenance** — a way to make a document with a *valid*
-  integrity tag misrepresent what produced it, to forge a referee verdict, or
-  to bypass a promotion gate, is a vulnerability. The audit trail is a security
-  property of this project, not just a feature.
+- **Integrity and provenance** — a way to forge a referee verdict or bypass a
+  promotion gate is a vulnerability. Scope note on the integrity tag: it is an
+  unkeyed FNV-1a-64 over the semantic body, so anyone holding a document can
+  recompute it. It detects accidental divergence — a truncated write, a hop
+  that re-rounded, a stale copy — and it is NOT a defence against a motivated
+  editor. "This document was not altered by someone with write access" is not a
+  property this design provides; if you need that, sign the payload.
 - **Untrusted input handling** — parsing an interchange document, triangle or
   loss run should never execute code or escape its sandbox.
 

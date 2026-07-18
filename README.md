@@ -27,9 +27,10 @@ an agent-assisted analysis produces its ASOP 41 documentation as a side
 effect of running.
 
 The honest claim, once: the ASB does not approve software. These packages
-are **designed to support the actuary's compliance** with ASOP Nos. 43, 23,
-41, 56, 25, 36, 20, 21, 38, and 13; responsibility for compliance remains
-with the credentialed actuary.
+are **designed to support the actuary's compliance** with ASOP Nos. 43, 23, 41, 56, 20, and 21;
+responsibility for compliance remains with the credentialed actuary. That list
+is the set the source actually supports — it was longer, and the extra
+standards had no implementation behind them.
 
 ## Quick taste
 
@@ -125,8 +126,9 @@ fixture corpus:
 | Python | [`interop/python`](interop/python) | pytest |
 | R | [`tools/interop`](tools/interop) | Rscript |
 
-All three independently reproduce Mack (1993)'s published reserve and R
-ChainLadder's published standard error of 2,447,095, agreeing at roughly
+All three independently reproduce Mack (1993)'s published reserve and the
+standard error of 2,447,095 — Mack (1993) Table 3 prints 2,447 thousands and R
+ChainLadder reports the full figure — agreeing at roughly
 1e-14 to 1e-16. A chainladder-python FastAPI sidecar runs as a live second
 engine, refereed against the TypeScript shore in CI on every push.
 

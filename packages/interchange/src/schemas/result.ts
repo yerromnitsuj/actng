@@ -110,7 +110,7 @@ export const stochasticSummarySchema = z
  *   (packages/core/test/odpBootstrap.test.ts pins it), because it uses a seeded
  *   PRNG with no ambient randomness.
  * - `witnessed` — the engine is NOT byte-reproducible even under a fixed seed.
- *   The document is a tamper-evident record of what that engine produced on
+ *   The document is an integrity-checked record of what that engine produced on
  *   that run, not something a reviewer can regenerate. Still legitimate ASOP
  *   No. 56 evidence — it just supports an attestation, not a replay.
  *

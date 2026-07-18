@@ -75,7 +75,7 @@ const markdown = generateDisclosure({
 The ASB does not approve, certify, or endorse software, and no software can
 be "ASOP-compliant" on its own — compliance is a property of a credentialed
 actuary's work in context. This package is **designed to support the
-actuary's compliance** with ASOP Nos. 41, 43, 23, 56, and 21 by generating
+actuary's compliance** with ASOP Nos. 41, 43, 23, 56, 21, and 20 by generating
 the disclosures, documentation, and audit artifacts those standards call
 for. The generated documents are draft support material for the responsible
 actuary to review, edit, and adopt.

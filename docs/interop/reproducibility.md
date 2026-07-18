@@ -10,7 +10,7 @@ evidence behind it.
 |---|---|---|
 | **deterministic** | Same inputs produce the same bytes, forever, on any machine. | Every `method-result` document. Implied by the kind — the field is not written. |
 | **seeded-reproducible** | Stochastic, but re-running with the same seed reproduces the document byte-for-byte. | `@actuarial-ts/core`'s own stochastic layer. |
-| **witnessed** | The engine is **not** byte-reproducible even under a fixed seed. The document is a tamper-evident record of what that engine produced on that run. | Foreign-engine stochastic results, e.g. `clpy:BootstrapODPSample`. |
+| **witnessed** | The engine is **not** byte-reproducible even under a fixed seed. The document is an integrity-checked record of what that engine produced on that run (the tag detects accidental divergence; it is unkeyed and recomputable, so it is not a defence against deliberate alteration). | Foreign-engine stochastic results, e.g. `clpy:BootstrapODPSample`. |
 
 Stochastic documents carry the class in `result.reproducibility`. An absent
 value means unstated (a document written before the field existed) — treat it
@@ -101,7 +101,8 @@ stability evidence attached. The default is 2 — honesty costs one extra run.
 
 A `witnessed` result is still legitimate ASOP No. 56 evidence. It supports an
 **attestation** — this engine, this version, this seed, this output, recorded
-tamper-evidently — rather than a **replay** that a reviewer can regenerate. The
+with an integrity tag over the body — rather than a **replay** that a reviewer
+can regenerate. The
 distinction matters when relying on the number, so the format states it instead
 of leaving the reader to assume.
 

@@ -15,7 +15,7 @@ exist.
 
 `@actuarial-ts/core` is the numeric kernel of the actuarial-ts SDK. It is
 **designed to support the actuary's compliance with the Actuarial Standards of
-Practice** (ASOP Nos. 43, 23, 41, 56, 25, 36, 20, 21, 38, and 13) by making
+Practice** (ASOP Nos. 43, 23, 41, 56, 20, and 21) by making
 methods, assumptions, and their diagnostics explicit and reportable.
 Responsibility for compliance remains with the credentialed actuary; no
 software can be "ASOP-approved" and this one does not claim to be.

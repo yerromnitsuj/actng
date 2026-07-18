@@ -1,6 +1,6 @@
 # Cross-engine conformance suite (interop Phase A)
 
-The executable proof that the actuarial-interchange format means the same
+The executable evidence that the actuarial-interchange format means the same
 thing on every shore (spec sections 10 and 13, Phase A). One set of frozen
 fixture documents; three independent runners — actuarial-ts (vitest),
 chainladder-python (pytest) and R ChainLadder (Rscript) — parse the SAME
@@ -63,7 +63,10 @@ natively (`deterministic-cl`) and a Mack run with
 `sigma_interpolation="mack"` pinned (`mack1993-vw`), on the same
 committed Taylor/Ashe triangle. The TS referee must return verdict
 `agree` on each against the TS-authored result of the same profile —
-cross-engine agreement proven on committed bytes, not on a transient run.
+cross-engine agreement demonstrated on committed bytes, not on a transient
+run. Evidence rather than proof: the corpus exercises one of the seven
+averaging intents across two convention profiles, so it establishes that
+these engines agree on these documents, not that they agree in general.
 
 ## Running
 
