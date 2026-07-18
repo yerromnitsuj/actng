@@ -49,6 +49,7 @@
     "@actuarial-ts/interchange": "^0.2.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.5",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   },

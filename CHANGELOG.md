@@ -15,6 +15,17 @@ together; this file covers them all.
   it now resolves the five packages from npm at `^0.2.0` like any other
   consumer.
 
+- **Fixed: four packages could not be built from a clean checkout.** `core`,
+  `interchange`, `compliance` and `agents` use ambient Node/web globals
+  (`TextEncoder`, `setTimeout`, `AbortSignal`, `fetch`, `Response`, `process`,
+  `URL`) but none declared `@types/node`. They had been silently borrowing it
+  from `apps/server`'s devDependencies via workspace hoisting, so the defect was
+  invisible while the app lived here — a fresh `git clone && npm install` on a
+  machine without a stale tree would have failed to build, which is exactly what
+  a new contributor does first. Extracting the app surfaced it. Each package now
+  declares the types it actually needs, verified by a clean-room clone-and-build
+  rather than against an existing node_modules.
+
 - **`examples/reserve-review` replaces it as the SDK's in-repo consumer.** A
   runnable, TESTED end-to-end review — triangle, factor selection, chain ladder,
   Mack standard error, interchange documents, the referee, and a verified
