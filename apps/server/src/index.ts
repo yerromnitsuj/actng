@@ -8,7 +8,7 @@ import { analysesRouter } from "./routes/analyses.js";
 import { notesRouter } from "./routes/notes.js";
 import { chatRouter } from "./routes/chat.js";
 import { studiesRouter } from "./routes/studies.js";
-import { mountWorkspaceMcp, runMcpBootSelfTest } from "./mcp/workspaceMcp.js";
+import { assertMcpProjectExists, mountWorkspaceMcp, runMcpBootSelfTest } from "./mcp/workspaceMcp.js";
 
 const app = express();
 app.use(cors({ origin: env.webOrigin }));
@@ -44,9 +44,10 @@ async function start(): Promise<void> {
     // Prove the MCP tenant seam fails closed BEFORE accepting any client. A
     // missed wire-up would fail open; assertFailClosed throws and startup
     // aborts if the probe read tool does not reject an unauthenticated call.
+    assertMcpProjectExists();
     await runMcpBootSelfTest();
     console.log(
-      `[server] MCP enabled at /mcp (project ${env.mcpProjectId}); boot self-test passed (probe ${"get_workspace_overview"} failed closed without auth)`,
+      `[server] MCP enabled at /mcp (project ${env.mcpProjectId}); boot self-test passed (read + write probes failed closed without auth)`,
     );
   } else {
     console.log("[server] MCP disabled (ACTNG_MCP_TOKEN not set)");

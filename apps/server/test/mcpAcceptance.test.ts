@@ -193,12 +193,20 @@ describe("interop spec rev 2.1 §13 Phase D acceptance: external MCP client", ()
       // The workspace actually changed — through the service layer, not a stub.
       assertWorkspaceChanged(projectId);
 
-      // The supplied actor is recorded VERBATIM: in the ledger entry value and
-      // in the persisted ledger note the reviewing actuary reads.
+      // The supplied actor is recorded with the MCP transport marker so the
+      // ledger is disclosure-true: an external client's decision can never be
+      // mistaken for an in-workbench human's. The raw identity survives inside
+      // the marked string.
       const entries = applied.promotion.ledger.entries as { field: string; value: unknown }[];
       const attestationEntry = entries.find((e) => e.field === "promotion.attestation")!;
-      expect(attestationEntry.value).toEqual({ attestation, actor });
-      expect(ledgerNoteText(projectId)).toContain(actor);
+      expect(attestationEntry.value).toEqual({ attestation, actor: `${actor} (via MCP)` });
+      expect(ledgerNoteText(projectId)).toContain(`${actor} (via MCP)`);
+      // The coarse ledger enum on the decision entries is a NON-human value
+      // (the transport-marked string is not the reserved word "actuary").
+      const decisionActors = entries
+        .filter((e) => e.field.startsWith("selections."))
+        .map((e) => (e as { actor?: string }).actor);
+      expect(decisionActors.every((a) => a !== "actuary")).toBe(true);
 
       // ACCEPT clause 2 — cannot reach ANY direct mutation tool. The write-shaped
       // surface is only the two gated promotion tools; a direct mutation name is

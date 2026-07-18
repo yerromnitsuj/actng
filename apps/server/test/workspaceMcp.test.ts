@@ -139,8 +139,19 @@ describe("MCP read tools: tenant seam", () => {
     expect(result.error?.code).toBe("NO_TENANT_CONTEXT");
   });
 
-  it("the boot self-test passes because the probe read tool fails closed", async () => {
+  it("the boot self-test passes because BOTH a read and a write probe fail closed", async () => {
     await expect(mcp.runMcpBootSelfTest()).resolves.toBeUndefined();
+  });
+
+  it("assertMcpProjectExists throws loudly when the configured project is missing", () => {
+    // env.mcpProjectId is unset in the test env, so the guard is a no-op;
+    // drive it directly against a nonexistent id to prove it fails loud.
+    // (The real boot path calls it in index.ts start() before listening.)
+    const existing = seedProject("project-existence guard");
+    expect(mcp.assertMcpProjectExistsFor(existing)).toBeUndefined();
+    expect(() => mcp.assertMcpProjectExistsFor("does-not-exist-999")).toThrowError(
+      /names no existing project/,
+    );
   });
 });
 
@@ -240,7 +251,7 @@ describe("MCP staged-write path: stage_study -> advance_promotion", () => {
     }
   }, 60_000);
 
-  it("records an explicit actor verbatim in the ledger", async () => {
+  it("records an explicit actor with the MCP transport marker (disclosure-true)", async () => {
     const projectId = seedProject("MCP promotion explicit actor");
     const actor = "Dr. Ada Lovelace, FCAS";
     const attestation = "Rationale authored and reviewed by Dr. Ada Lovelace, FCAS";
@@ -250,12 +261,14 @@ describe("MCP staged-write path: stage_study -> advance_promotion", () => {
     expect(applied.success).toBe(true);
     const entries = applied.promotion.ledger.entries as { field: string; value: unknown }[];
     const attestationEntry = entries.find((e) => e.field === "promotion.attestation")!;
-    expect(attestationEntry.value).toEqual({ attestation, actor });
+    // The transport marker means a client-supplied "actuary" could never be
+    // mistaken for an in-workbench human; the raw identity survives inside it.
+    expect(attestationEntry.value).toEqual({ attestation, actor: `${actor} (via MCP)` });
 
     const ledgerNote = repo
       .listNotes(projectId)
       .find((n) => n.text.startsWith("Study promotion assumption ledger:"))!;
-    expect(ledgerNote.text).toContain(actor);
+    expect(ledgerNote.text).toContain(`${actor} (via MCP)`);
   }, 60_000);
 
   it("requires a non-blank rationale (RATIONALE_REQUIRED envelope)", async () => {

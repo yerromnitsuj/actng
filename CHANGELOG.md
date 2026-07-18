@@ -27,6 +27,17 @@ together; this file covers them all.
   @actuarial-ts/agents (the four-gate study-promotion judgment chain);
   the workbench Import Study surface (routes + panel, restart-proof);
   Python `load_bundle`/`save_study` in `interop/python`.
+- **Interop Phase C (second engine live):** the chainladder-python compute
+  sidecar (`interop/sidecar`, FastAPI, spec-7 wire, bearer auth, stateless);
+  `defineRemoteMethod` and the workbench `crosscheck_with_python` evidence
+  tool; `createDivergenceExplainer` (invoked only on a disagreeing referee
+  verdict); the `crosscheck:ci` live cross-engine referee wired into CI.
+- **Interop Phase D (MCP layer):** the workspace exposed over MCP
+  (`@mastra/mcp` MCPServer) with a staged-write exposure allowlist — seven
+  read tools plus `stage_study`/`advance_promotion`, no direct mutation;
+  a read-only `ask_advisor`; a fail-closed tenant seam
+  (`requireMcpTenant`) with a boot self-test that aborts startup if it fails
+  open; the notebook connection recipe (`docs/interop/mcp-notebook-recipe.md`).
 
 ## 0.1.0 — 2026-07-17 (initial release)
 

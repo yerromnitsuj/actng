@@ -73,6 +73,12 @@ through the four-gate promotion chain from `@actuarial-ts/agents`
 (interchange spec rev 2.1, section 6). The route surface, mounted at
 `/api/projects/:id/studies`:
 
+The same governed promotion path is exposable over the Model Context
+Protocol for external AI clients (read tools + the staged-write
+`stage_study`/`advance_promotion` gates only — no direct mutation). Set
+`ACTNG_MCP_TOKEN` and `ACTNG_MCP_PROJECT_ID` to enable it; see
+[docs/interop/mcp-notebook-recipe.md](interop/mcp-notebook-recipe.md).
+
 - `POST /` - the StudyDoc JSON body starts the promotion (plain JSON, 2 MB
   limit); it pauses at the first gate or answers 422 with a named error
   (`BAD_INTERCHANGE`, `TOLERANCE_CEILING_EXCEEDED`, `WORKSPACE_NOT_READY`,

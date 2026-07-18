@@ -53,6 +53,7 @@ import {
   startPromotion,
   type PromotionGateId,
 } from "../mastra/promotionRuns.js";
+import { getProject } from "../db/repo.js";
 import {
   READ_TOOL_INPUT_SCHEMAS,
   analyzeDevelopmentFactors,
@@ -213,20 +214,40 @@ export const advancePromotionTool = defineActuarialTool({
       .describe("study-intake/replay-verify: accept|abort; rationale: approve|abort; apply: apply|abort"),
     rationale: z
       .string()
+      .max(4000)
       .describe("The decision rationale, recorded verbatim in the assumption ledger; must be non-blank"),
     attestation: z
       .string()
+      .max(1000)
       .nullable()
       .optional()
       .describe("Required at the rationale gate: who authored/reviewed the rationale; recorded verbatim"),
     actor: z
       .string()
+      .trim()
+      .max(120)
       .nullable()
       .optional()
       .describe("Who is deciding; recorded verbatim in the ledger. Defaults to \"external-mcp-client\"."),
   }),
   execute: async (input, context) => {
     const projectId = requireMcpTenant(context as McpToolContext);
+    // Reject an incompatible gate/decision pairing at the door with a clear
+    // error, matching the route's per-gate discriminated union (a client
+    // should not learn "apply at study-intake" is wrong only at resume time).
+    const allowedDecisions: Record<string, readonly string[]> = {
+      "study-intake": ["accept", "abort"],
+      "replay-verify": ["accept", "abort"],
+      rationale: ["approve", "abort"],
+      apply: ["apply", "abort"],
+    };
+    if (!allowedDecisions[input.gate]!.includes(input.decision)) {
+      throw new HttpError(
+        422,
+        "DECISION_GATE_MISMATCH",
+        `decision "${input.decision}" is not valid at the ${input.gate} gate (allowed: ${allowedDecisions[input.gate]!.join(", ")})`,
+      );
+    }
     if (input.rationale.trim() === "") {
       throw new HttpError(
         422,
@@ -234,11 +255,19 @@ export const advancePromotionTool = defineActuarialTool({
         `The ${input.gate} gate requires a non-blank rationale; undocumented judgment is what the ledger exists to prevent`,
       );
     }
-    const actor = input.actor?.trim();
+    // Disclosure-true over MCP: whatever actor the client supplies, the
+    // ledger must SHOW the decision arrived over the MCP transport — an
+    // unattended client passing actor:"actuary" must never produce an entry
+    // indistinguishable from an in-workbench human. Stamping the transport
+    // marker also collapses the coarse ledger enum to a non-human value
+    // (the string is no longer the reserved word "actuary"/"default").
+    const supplied = input.actor?.trim();
+    const actor =
+      supplied && supplied.length > 0 ? `${supplied} (via MCP)` : DEFAULT_MCP_ACTOR;
     const resumeData: Record<string, unknown> = {
       decision: input.decision,
       rationale: input.rationale,
-      actor: actor && actor.length > 0 ? actor : DEFAULT_MCP_ACTOR,
+      actor,
     };
     if (input.gate === "rationale") {
       const attestation = input.attestation?.trim() ?? "";
@@ -338,7 +367,35 @@ export const MCP_PROBE_TOOL_ID = "get_workspace_overview";
  * startup when MCP is enabled and ABORT startup if it throws.
  */
 export async function runMcpBootSelfTest(): Promise<void> {
+  // Prove the tenant seam fails closed across BOTH a read tool and a
+  // write-shaped one: the highest-value tools to protect are the writers, so
+  // a future refactor that dropped requireMcpTenant from advance_promotion
+  // must not ship silently.
   await assertFailClosed({ server: workspaceMcp, probeToolId: MCP_PROBE_TOOL_ID });
+  await assertFailClosed({
+    server: workspaceMcp,
+    probeToolId: "advance_promotion",
+    probeArgs: { runId: "self-test", gate: "study-intake", decision: "abort", rationale: "self-test" },
+  });
+}
+
+/**
+ * Boot guard: a configured ACTNG_MCP_PROJECT_ID that names no existing
+ * project is a misconfiguration that would otherwise be discovered by
+ * clients at call time (every authenticated call failing). Fail loud at
+ * boot instead. Throws with a clear message when the project is missing.
+ */
+export function assertMcpProjectExists(): void {
+  if (env.mcpProjectId) assertMcpProjectExistsFor(env.mcpProjectId);
+}
+
+/** The project-existence check, parameterized for testability. */
+export function assertMcpProjectExistsFor(projectId: string): void {
+  if (getProject(projectId) === null) {
+    throw new Error(
+      `ACTNG_MCP_PROJECT_ID "${projectId}" names no existing project; MCP would advertise a workspace every client call then fails against. Create the project or correct the env var.`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

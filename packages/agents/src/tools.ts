@@ -50,6 +50,13 @@ export function envelopeFailure(err: unknown, fallbackCode = "TOOL_ERROR"): Tool
       const msg = (err as { message?: unknown } | null | undefined)?.message;
       if (typeof msg === "string" && msg.length > 0) message = msg;
     }
+    // Never leak storage-driver internals (SQLite codes, schema shape) to a
+    // tool consumer — that is low-grade information disclosure and an
+    // unhelpful surface. Normalize any driver error to a generic envelope.
+    if (code.startsWith("SQLITE_")) {
+      code = "STORAGE_ERROR";
+      message = "a storage operation failed";
+    }
   } catch {
     // A hostile getter must not break the envelope; keep the fallbacks.
   }
