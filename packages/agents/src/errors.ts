@@ -33,6 +33,12 @@ export const AGENTS_ERROR_CODES = [
   "SEGMENT_UNRESOLVED",
   /** Two selections resolve to the same workspace target; v1 promotes one selection per segment. */
   "SEGMENT_AMBIGUOUS",
+  /** The divergence explainer was invoked on a report whose verdict is not "disagree" (spec 9 item 3: only-on-disagree is structural). */
+  "VERDICT_NOT_DISAGREE",
+  /** The result docs handed to the divergence explainer do not match the crosscheck report's engine stamps (wrong docs, or a/b swapped). */
+  "DIVERGENCE_INPUT_MISMATCH",
+  /** The divergence evidence tool ran without assembled evidence in the request context (drive the agent through explainDivergence). */
+  "NO_DIVERGENCE_EVIDENCE",
 ] as const;
 
 export type AgentsErrorCode = (typeof AGENTS_ERROR_CODES)[number];
