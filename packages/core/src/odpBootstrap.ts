@@ -18,8 +18,12 @@ import {
  *   latest observed cumulative, divide back through the volume-weighted
  *   factors, and difference.
  * - Unscaled Pearson residuals r = (q - m) / sqrt(m) on incrementals; the
- *   scale parameter is phi = sum(r^2) / (n - p) with n = observed
- *   incrementals and p = 2I - 1 parameters for an I-origin triangle.
+ *   scale parameter is phi = sum(r^2) / (n - p) with p = 2I - 1 parameters for
+ *   an I-origin triangle and n = the incrementals that CONTRIBUTE a residual.
+ *   On a well-behaved triangle that is every observed incremental, but a
+ *   non-positive fitted mean leaves the residual undefined: such a cell is
+ *   absent from the numerator, so counting it in the denominator would divide
+ *   the sum of squares by degrees of freedom it never earned.
  * - Resampling: draw residuals with replacement onto the fitted past
  *   (q* = m + r sqrt(m)), cumulate, refit volume-weighted factors, project
  *   each future incremental, and add process variance by sampling
@@ -46,7 +50,9 @@ export interface OdpFit {
   /** Expected unpaid per origin (== volume-weighted chain ladder reserve). */
   reserveByOrigin: { origin: string; reserve: number }[];
   phi: number;
+  /** Incrementals contributing a residual — the dispersion's numerator count. */
   n: number;
+  /** Fitted parameters, 2I - 1 for an I-origin triangle. */
   p: number;
   /** Residuals actually in the resampling pool (structural zeros excluded). */
   poolSize: number;
@@ -130,11 +136,16 @@ export function odpFit(tri: Triangle): OdpFit {
       const q = incr.values[i]![j] ?? null;
       const m = fittedIncrementals[i]![j] ?? null;
       if (!isNum(q) || !isNum(m)) continue;
-      n++;
       if (m <= 0) {
+        // The Pearson residual (q - m)/sqrt(m) is undefined for a non-positive
+        // fitted mean, so this cell contributes nothing to `sumSq` — and must
+        // therefore not count toward the degrees of freedom that divide it.
+        // Counting it would inflate `n - p`, understating phi and with it the
+        // process variance, which is the wrong direction for a reserve range.
         negativeFitted++;
         continue;
       }
+      n++;
       const r = (q - m) / Math.sqrt(m);
       sumSq += r * r;
       if (Math.abs(r) > 1e-10) {
@@ -154,7 +165,11 @@ export function odpFit(tri: Triangle): OdpFit {
   if (n <= p) {
     throw new ReservingError(
       "TOO_SMALL",
-      `The ODP fit has ${n} observations for ${p} parameters; no degrees of freedom remain`,
+      `The ODP fit has ${n} usable residual(s) for ${p} parameters; no degrees of ` +
+        `freedom remain to estimate dispersion` +
+        (negativeFitted > 0
+          ? ` (${negativeFitted} cell(s) were excluded for a non-positive fitted mean)`
+          : ""),
     );
   }
   const phi = sumSq / (n - p);

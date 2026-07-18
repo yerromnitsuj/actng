@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { odpFit, runOdpBootstrap } from "../src/odpBootstrap.js";
 import { runChainLadder } from "../src/chainladder.js";
 import { computeDevelopmentFactors } from "../src/factors.js";
+import { triangleFromGrid } from "../src/triangle.js";
 import { taylorAshe } from "./fixtures/mack1993.js";
 import { raa } from "./fixtures/mack1994raa.js";
 import type { Triangle } from "../src/types.js";
@@ -58,6 +59,64 @@ describe("odpFit (the GLM == chain ladder identity)", () => {
       );
       expect(fittedSum).toBeCloseTo(latest, 6);
     });
+  });
+});
+
+/**
+ * Downward development — an incurred triangle that strengthens then releases —
+ * makes some FITTED incrementals non-positive. Their Pearson residuals
+ * (q - m)/sqrt(m) are undefined, so those cells contribute nothing to the
+ * dispersion sum and must not be counted in its degrees of freedom either.
+ *
+ * Synthetic, not a literature transcription, so it lives here rather than in
+ * test/fixtures (which is reserved for published data).
+ */
+const downwardIncurred = triangleFromGrid(
+  "incurred",
+  ["01", "02", "03", "04", "05", "06"],
+  [12, 24, 36, 48, 60, 72],
+  [
+    [1000, 1900, 2400, 2600, 2560, 2550],
+    [1050, 1980, 2500, 2700, 2660, null],
+    [1100, 2060, 2600, 2800, null, null],
+    [1150, 2140, 2700, null, null, null],
+    [1200, 2220, null, null, null, null],
+    [1250, null, null, null, null, null],
+  ],
+);
+
+/** Same shape, small enough that excluding the undefined cells exhausts the dof. */
+const noDegreesOfFreedom = triangleFromGrid(
+  "incurred",
+  ["01", "02", "03", "04"],
+  [12, 24, 36, 48],
+  [
+    [1000, 1600, 1560, 1550],
+    [1100, 1750, 1700, null],
+    [1200, 1900, null, null],
+    [1300, null, null, null],
+  ],
+);
+
+describe("odpFit dispersion when fitted incrementals are non-positive", () => {
+  it("counts only cells that contribute a residual toward the dispersion", () => {
+    const fit = odpFit(downwardIncurred);
+    const contributing = fit.residuals.flat().filter((r) => r !== null).length;
+
+    // The invariant: a cell contributes a residual iff it contributed to the
+    // dispersion sum. Counting excluded cells in `n` inflates `n - p` and
+    // divides the sum of squares by too many degrees of freedom, which
+    // UNDERSTATES phi and therefore understates reserve variability.
+    expect(fit.n).toBe(contributing);
+    expect(fit.n).toBeLessThan(fit.residuals.flat().filter((r) => r !== undefined).length);
+    expect(fit.warnings.join(" ")).toMatch(/non-positive/);
+  });
+
+  it("refuses a fit whose contributing cells leave no degrees of freedom", () => {
+    // 10 observed cells, 7 parameters — but only 7 contribute a residual, so
+    // there is nothing left to estimate dispersion from. Counting all ten hides
+    // that and yields a phi computed from three phantom degrees of freedom.
+    expect(() => odpFit(noDegreesOfFreedom)).toThrow(/degrees of freedom/);
   });
 });
 
