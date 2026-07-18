@@ -266,18 +266,29 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
 
   for (let i = 0; i < n; i++) {
     if (maturity[i]! < 0) continue;
+    // Mack's 1/C terms are undefined for a non-positive ultimate; the row
+    // estimate skips such columns for the same reason (see above).
+    const ui = ultimateOf(i);
+    if (!(ui > 0)) continue;
+
+    // Partners are grouped by the floor their pair uses, and each group's
+    // ultimates are summed BEFORE multiplying. On a triangle whose maturity
+    // falls with row index every partner shares one floor, so this collapses
+    // to a single product in the original operand order — the arithmetic is
+    // then identical to the last bit, which is what keeps the frozen
+    // conformance corpus reproducible.
+    const partnerUltimatesByFloor = new Map<number, number>();
     for (let j = i + 1; j < n; j++) {
       if (maturity[j]! < 0) continue;
-
+      const uj = ultimateOf(j);
+      if (!(uj > 0)) continue;
       const floor = Math.max(maturity[i]!, maturity[j]!);
+      partnerUltimatesByFloor.set(floor, (partnerUltimatesByFloor.get(floor) ?? 0) + uj);
+    }
+
+    for (const [floor, partnerUltimates] of partnerUltimatesByFloor) {
       // Both years already run off: no shared development remains.
       if (tail === 1 && floor >= K - 1) continue;
-
-      // Mack's 1/C terms are undefined for a non-positive ultimate; the row
-      // estimate skips such columns for the same reason (see above).
-      const ui = ultimateOf(i);
-      const uj = ultimateOf(j);
-      if (!(ui > 0) || !(uj > 0)) continue;
 
       let shared = 0;
       for (let k = floor; k < K - 1; k++) {
@@ -287,7 +298,7 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
         shared += (2 * sigma2Tail) / tail ** 2 / denomTail;
       }
 
-      totalMse += ui * uj * shared;
+      totalMse += ui * partnerUltimates * shared;
     }
   }
 
