@@ -16,6 +16,7 @@
     "@actuarial-ts/compliance": "*",
     "@actuarial-ts/core": "*",
     "@actuarial-ts/data": "*",
+    "@actuarial-ts/interchange": "*",
     "@ai-sdk/anthropic": "^3.0.58",
     "@mastra/core": "^1.49.0",
     "@mastra/libsql": "^1.15.0",

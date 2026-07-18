@@ -14,6 +14,7 @@ import RatesPanel from "../components/RatesPanel.js";
 import ElrPanel from "../components/ElrPanel.js";
 import IlfPanel from "../components/IlfPanel.js";
 import ImportPanel from "../components/ImportPanel.js";
+import ImportStudyPanel from "../components/ImportStudyPanel.js";
 import NotesPanel from "../components/NotesPanel.js";
 
 /** Exhibit jump-nav: a working actuary moves between these repeatedly on a long page. */
@@ -27,6 +28,7 @@ const EXHIBITS: { id: string; label: string }[] = [
   { id: "ex-trends", label: "Trends" },
   { id: "ex-rates", label: "Rates" },
   { id: "ex-apriori", label: "A-priori" },
+  { id: "ex-study", label: "Import study" },
   { id: "ex-diagnostics", label: "Diagnostics" },
   { id: "ex-notes", label: "Notes & data" },
 ];
@@ -230,6 +232,7 @@ export default function WorkspacePage() {
             <div id="ex-apriori" className="scroll-mt-24">
               <ElrPanel />
             </div>
+            <ImportStudyPanel />
             <div id="ex-diagnostics" className="scroll-mt-24">
               <DiagnosticsPanel />
             </div>

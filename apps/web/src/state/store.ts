@@ -7,6 +7,8 @@ import type {
   ChatStreamEvent,
   Note,
   Project,
+  PromotionAdvancePayload,
+  PromotionState,
   Thread,
   ToolEvent,
   WorkspaceView,
@@ -39,6 +41,11 @@ interface AppState {
 
   notes: Note[];
 
+  /** The promotion run the Import study panel is showing (null = upload). */
+  promotion: PromotionState | null;
+  promotionBusy: boolean;
+  promotionError: string | null;
+
   threads: Thread[];
   activeThreadId: string | null;
   messages: ChatMessage[];
@@ -61,6 +68,14 @@ interface AppState {
 
   loadNotes: (projectId: string) => Promise<void>;
   addNote: (text: string) => Promise<void>;
+
+  /** Restores an in-flight promotion (paused runs survive server restarts). */
+  loadPromotions: (projectId: string) => Promise<void>;
+  importStudy: (study: unknown) => Promise<void>;
+  advancePromotion: (payload: PromotionAdvancePayload) => Promise<void>;
+  /** Clears a settled (complete/failed) promotion back to the upload state. */
+  dismissPromotion: () => void;
+  setPromotionError: (message: string | null) => void;
 
   loadThreads: (projectId: string) => Promise<void>;
   selectThread: (threadId: string) => Promise<void>;
@@ -87,6 +102,9 @@ export const useStore = create<AppState>((set, get) => {
     runningAnalysis: false,
     runError: null,
     notes: [],
+    promotion: null,
+    promotionBusy: false,
+    promotionError: null,
     threads: [],
     activeThreadId: null,
     messages: [],
@@ -125,6 +143,9 @@ export const useStore = create<AppState>((set, get) => {
           analyses: [],
           currentAnalysis: null,
           notes: [],
+          promotion: null,
+          promotionBusy: false,
+          promotionError: null,
           threads: [],
           activeThreadId: null,
           messages: [],
@@ -136,6 +157,7 @@ export const useStore = create<AppState>((set, get) => {
         get().loadWorkspace(projectId),
         get().loadAnalyses(projectId),
         get().loadNotes(projectId),
+        get().loadPromotions(projectId),
         get().loadThreads(projectId),
       ]);
     },
@@ -251,6 +273,69 @@ export const useStore = create<AppState>((set, get) => {
       await api.addNote(projectId, text);
       await get().loadNotes(projectId);
     },
+
+    loadPromotions: async (projectId) => {
+      try {
+        const { promotions } = await api.listStudies(projectId);
+        if (stale(projectId)) return;
+        // Restore only an IN-FLIGHT run (a paused promotion survives server
+        // restarts); settled runs live in Notes, not as a sticky panel state.
+        const inFlight = promotions.find((p) => p.view.status === "awaiting-decision");
+        if (inFlight) set({ promotion: inFlight.view });
+      } catch (err) {
+        if (!stale(projectId)) set({ error: errorText(err) });
+      }
+    },
+
+    importStudy: async (study) => {
+      const projectId = get().workspaceProjectId;
+      if (!projectId || get().promotionBusy) return;
+      set({ promotionBusy: true, promotionError: null });
+      try {
+        const { promotion } = await api.importStudy(projectId, study);
+        if (stale(projectId)) return;
+        set({ promotion });
+      } catch (err) {
+        if (!stale(projectId)) set({ promotionError: errorText(err) });
+      } finally {
+        if (!stale(projectId)) set({ promotionBusy: false });
+      }
+    },
+
+    advancePromotion: async (payload) => {
+      const projectId = get().workspaceProjectId;
+      const current = get().promotion;
+      if (!projectId || !current || current.status !== "awaiting-decision") return;
+      if (get().promotionBusy) return;
+      set({ promotionBusy: true, promotionError: null });
+      try {
+        const { promotion } = await api.advanceStudy(projectId, current.runId, payload);
+        if (stale(projectId)) return;
+        set({ promotion });
+        if (promotion.status === "complete" && promotion.applied) {
+          // The apply gate changed selections, reran the analysis, and wrote
+          // the trail + ledger notes: refresh everything that shows them.
+          await get().loadWorkspace(projectId);
+          await get().loadAnalyses(projectId, { selectLatest: true });
+          await get().loadNotes(projectId);
+          set({ advisorChangeTick: get().advisorChangeTick + 1 });
+        }
+      } catch (err) {
+        // A rejected decision (409/422) leaves the run paused at its gate;
+        // the panel shows the reason and the user decides again.
+        if (!stale(projectId)) set({ promotionError: errorText(err) });
+      } finally {
+        if (!stale(projectId)) set({ promotionBusy: false });
+      }
+    },
+
+    dismissPromotion: () => {
+      const current = get().promotion;
+      if (current && current.status === "awaiting-decision") return; // never discard a live run
+      set({ promotion: null, promotionError: null });
+    },
+
+    setPromotionError: (message) => set({ promotionError: message }),
 
     loadThreads: async (projectId) => {
       try {

@@ -400,3 +400,131 @@ export type ChatStreamEvent =
   | { type: "tool-result"; toolName: string; result: unknown; isAction: boolean }
   | { type: "done"; messageId: string; workspaceChanged: boolean }
   | { type: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Study promotion (Import study panel; interchange spec rev 2.1, section 6)
+
+export type PromotionGate = "study-intake" | "replay-verify" | "rationale" | "apply";
+
+export interface PromotionToleranceEvidence {
+  stated: number | null;
+  profileId: string;
+  profileDefault: number;
+  exceedsTenTimesProfileDefault: boolean;
+  ceiling: number;
+  effective: number;
+}
+
+export interface PromotionDataReviewEntry {
+  mode: "paired-asop23" | "structural" | "not-evaluated";
+  triangles: { integrity: string; measure: string }[];
+  report: {
+    checks: { id: string; description: string; status: string; details: string[] }[];
+    summary: { pass: number; warning: number; fail: number; notEvaluated: number };
+  };
+}
+
+export interface StudyIntakeEvidence {
+  study: {
+    title: string;
+    analyst: string | null;
+    sourceRef: string | null;
+    summary: string;
+    integrity: string;
+  };
+  replayTolerance: PromotionToleranceEvidence;
+  dataReview: PromotionDataReviewEntry[];
+  coherence: {
+    selectionIntegrity: string;
+    triangleIntegrity: string;
+    coherence: { coherent: boolean };
+  }[];
+  segments: { selectionIntegrity: string; labels: Record<string, string>; target: string }[];
+  warnings: string[];
+}
+
+export interface PromotionReplayTarget {
+  target: string;
+  capability: "exact" | "value-only";
+  label: "replayed-exact" | "verified-by-value";
+  note?: string;
+}
+
+export interface ReplayVerifyEvidence {
+  effectiveTolerance: number;
+  replays: {
+    selectionIntegrity: string;
+    triangleIntegrity: string;
+    segmentTarget: string;
+    targets: PromotionReplayTarget[];
+    verifiedByValueOnly: boolean;
+    replayTotals: { ultimate: number; unpaid: number };
+  }[];
+  crosschecks: {
+    resultIntegrity: string;
+    engine: { name: string; version: string };
+    verdict: "agree" | "disagree" | "not-comparable" | "verified-by-value" | null;
+    reason?: string;
+  }[];
+  hardBlocked: boolean;
+  verification: string;
+}
+
+export interface RationaleEvidence {
+  draftRationale: string;
+  attestationRequired: true;
+  study: { title: string; sourceRef: string | null; analyst: string | null };
+}
+
+export interface ApplyEvidence {
+  applications: {
+    segmentTarget: string;
+    selectionIntegrity: string;
+    developmentCount: number;
+    tailFactor: number;
+  }[];
+  analysisLabel: string;
+  ledgerSource: string;
+}
+
+export interface PromotionAwaiting {
+  status: "awaiting-decision";
+  runId: string;
+  gate: PromotionGate;
+  stage: string;
+  recommendation: string;
+  evidence: unknown;
+}
+
+export interface PromotionTrailEntry {
+  stage: string;
+  decision: string;
+  rationale: string;
+  skipped: boolean;
+}
+
+export interface PromotionComplete {
+  status: "complete";
+  runId: string;
+  applied: boolean;
+  abortedAt: string | null;
+  trail: PromotionTrailEntry[];
+  ledger: { entries: unknown[] };
+  noteIds: string[];
+}
+
+export interface PromotionFailed {
+  status: "failed";
+  runId: string;
+  error: { code: string; message: string };
+}
+
+export type PromotionState = PromotionAwaiting | PromotionComplete | PromotionFailed;
+
+export interface PromotionAdvancePayload {
+  gate: PromotionGate;
+  decision: "accept" | "abort" | "approve" | "apply";
+  rationale: string;
+  attestation?: string;
+  actor?: string;
+}

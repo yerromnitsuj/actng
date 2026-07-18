@@ -25,7 +25,25 @@ export const env = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   advisorModel: process.env.ADVISOR_MODEL ?? "claude-opus-4-8",
   anthropicBaseUrl: normalizeAnthropicBaseUrl(process.env.ANTHROPIC_BASE_URL),
+  /**
+   * The host's replay-tolerance ceiling for study promotion (spec rev 2.1
+   * section 6, Gate 1): a study STATING a looser replayTolerance than this
+   * fails intake, and the effective referee tolerance is min(study, ceiling).
+   */
+  promotionToleranceCeiling: readPromotionCeiling(),
 };
+
+function readPromotionCeiling(): number {
+  const raw = process.env.ACTNG_PROMOTION_TOLERANCE_CEILING;
+  if (raw === undefined || raw === "") return 0.005;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(
+      `ACTNG_PROMOTION_TOLERANCE_CEILING must be a positive number; got ${JSON.stringify(raw)}`,
+    );
+  }
+  return parsed;
+}
 
 /**
  * The official Anthropic SDK convention sets ANTHROPIC_BASE_URL without /v1

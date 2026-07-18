@@ -6,7 +6,12 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
-apps/server/data/
+# Server runtime data is untracked EXCEPT the committed interop demo-study
+# fixture (authored by interop/python/examples/author_demo_study.py).
+apps/server/data/*
+!apps/server/data/demo/
+apps/server/data/demo/*
+!apps/server/data/demo/demo-study.json
 .DS_Store
 coverage/
 *.log

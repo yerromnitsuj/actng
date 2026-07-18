@@ -677,3 +677,75 @@ export function listChatMessages(threadId: string): ChatMessage[] {
     .all(threadId) as (Omit<ChatMessage, "toolEvents"> & { toolEvents: string })[];
   return rows.map((r) => ({ ...r, toolEvents: JSON.parse(r.toolEvents) as ToolEvent[] }));
 }
+
+// ---------------------------------------------------------------------------
+// Study promotion runs (interchange spec rev 2.1, section 6). The row IS the
+// reconstruction contract: study_json + tolerance_ceiling determine the
+// promotion chain byte-for-byte (promoteStudy's intake is eager and
+// deterministic), so a restarted server rebuilds the identical workflow and
+// resumes the paused run from the Mastra snapshot store by run_id.
+
+export interface StudyPromotionRow {
+  runId: string;
+  projectId: string;
+  /** The imported StudyDoc, verbatim JSON. */
+  studyJson: string;
+  /** The host ceiling the chain was constructed with (frozen per run). */
+  toleranceCeiling: number;
+  status: "awaiting-decision" | "complete" | "failed";
+  /** The last described gate/outcome view (JSON), served by the GET route. */
+  stateJson: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const STUDY_COLUMNS = `run_id AS runId, project_id AS projectId, study_json AS studyJson,
+  tolerance_ceiling AS toleranceCeiling, status, state_json AS stateJson,
+  created_at AS createdAt, updated_at AS updatedAt`;
+
+export function insertStudyPromotion(row: {
+  runId: string;
+  projectId: string;
+  studyJson: string;
+  toleranceCeiling: number;
+  status: StudyPromotionRow["status"];
+  stateJson: string;
+}): StudyPromotionRow {
+  db.prepare(
+    `INSERT INTO studies (run_id, project_id, study_json, tolerance_ceiling, status, state_json)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(row.runId, row.projectId, row.studyJson, row.toleranceCeiling, row.status, row.stateJson);
+  return getStudyPromotion(row.runId)!;
+}
+
+export function getStudyPromotion(runId: string): StudyPromotionRow | null {
+  const row = db
+    .prepare(`SELECT ${STUDY_COLUMNS} FROM studies WHERE run_id = ?`)
+    .get(runId) as StudyPromotionRow | undefined;
+  return row ?? null;
+}
+
+/** Newest first; study_json is omitted (list views never need the document). */
+export function listStudyPromotions(
+  projectId: string,
+): Omit<StudyPromotionRow, "studyJson">[] {
+  return db
+    .prepare(
+      `SELECT run_id AS runId, project_id AS projectId, tolerance_ceiling AS toleranceCeiling,
+        status, state_json AS stateJson, created_at AS createdAt, updated_at AS updatedAt
+       FROM studies WHERE project_id = ? ORDER BY created_at DESC`,
+    )
+    .all(projectId) as Omit<StudyPromotionRow, "studyJson">[];
+}
+
+export function updateStudyPromotion(
+  runId: string,
+  status: StudyPromotionRow["status"],
+  stateJson: string,
+): void {
+  db.prepare(
+    `UPDATE studies SET status = ?, state_json = ?,
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+     WHERE run_id = ?`,
+  ).run(status, stateJson, runId);
+}

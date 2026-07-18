@@ -74,6 +74,24 @@ CREATE TABLE IF NOT EXISTS threads (
 );
 CREATE INDEX IF NOT EXISTS idx_threads_project ON threads(project_id, updated_at DESC);
 
+-- Study promotion runs (interchange spec rev 2.1, section 6). One row per
+-- promoteStudy workflow run: the STUDY DOCUMENT itself plus the options the
+-- chain was constructed with, so a restarted server reconstructs the
+-- IDENTICAL chain deterministically (eager intake makes reconstruction a
+-- pure function of study + ceiling) and resumes the paused run from the
+-- Mastra snapshot store. state_json is the last described gate view.
+CREATE TABLE IF NOT EXISTS studies (
+  run_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  study_json TEXT NOT NULL,
+  tolerance_ceiling REAL NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('awaiting-decision','complete','failed')),
+  state_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_studies_project ON studies(project_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS chat_messages (
   id TEXT PRIMARY KEY,
   thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,

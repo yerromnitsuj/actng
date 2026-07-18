@@ -6,6 +6,8 @@ import type {
   ChatStreamEvent,
   Note,
   Project,
+  PromotionAdvancePayload,
+  PromotionState,
   Thread,
   WorkspaceView,
 } from "./types.js";
@@ -112,6 +114,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
+
+  // Study promotion: import a notebook-authored StudyDoc and drive the
+  // four-gate judgment chain (the request body IS the study document).
+  importStudy: (projectId: string, study: unknown) =>
+    request<{ promotion: PromotionState }>(`/api/projects/${projectId}/studies`, {
+      method: "POST",
+      body: JSON.stringify(study),
+    }),
+  listStudies: (projectId: string) =>
+    request<{
+      promotions: { view: PromotionState; createdAt: string; updatedAt: string }[];
+    }>(`/api/projects/${projectId}/studies`),
+  getStudy: (projectId: string, runId: string) =>
+    request<{ promotion: PromotionState }>(`/api/projects/${projectId}/studies/${runId}`),
+  advanceStudy: (projectId: string, runId: string, payload: PromotionAdvancePayload) =>
+    request<{ promotion: PromotionState }>(
+      `/api/projects/${projectId}/studies/${runId}/advance`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
 
   listThreads: (projectId: string) =>
     request<{ threads: Thread[] }>(`/api/projects/${projectId}/threads`),
