@@ -3,6 +3,38 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
+## Unreleased
+
+- **Reproducibility classes (interchange spec rev 2.3).** Stochastic result
+  documents now carry an optional `reproducibility` of `seeded-reproducible`
+  or `witnessed`, plus an optional `stability` self-check
+  (`repeats`/`byteIdentical`/`maxRelativeDeviation`). Deterministic
+  `method-result` documents are unchanged — the kind already implies
+  reproducibility. Both fields are optional and additive, so
+  `interchangeVersion` stays `1.0.0`, existing documents and readers are
+  unaffected, and the frozen conformance corpus is untouched.
+
+  This exists because a seed turned out not to be a guarantee: chainladder
+  0.9.2's `BootstrapODPSample` returns different samples for identical seeded
+  calls in one process (measured; not dependency drift, machine variance, BLAS
+  threads, or the array backend — see `docs/interop/reproducibility.md`).
+  `@actuarial-ts/core`'s own stochastic layer is unaffected and remains
+  genuinely seeded-reproducible.
+
+- **The sidecar now self-witnesses.** `BootstrapODPSample` still REQUIRES a
+  seed (an unseeded run is not attributable), but no longer implies the seed
+  buys a replay. It runs the identical seeded request twice by default,
+  compares, and records the outcome on the document; set
+  `parameters.stability_repeats = 1` to opt out. Instability is measured and
+  disclosed at run time instead of surfacing later as an irreproducible number.
+
+- **Fixed a test that asserted a false contract.** The sidecar's
+  `test_identical_seeded_calls_are_byte_identical` demanded byte-identity from
+  an engine that does not provide it, and flaked roughly 4 runs in 5. It now
+  asserts what actually holds — distributional agreement within tolerance, and
+  the `witnessed` class stated on the document — plus new coverage for the
+  stability disclosure and the opt-out.
+
 ## 0.2.0 — 2026-07-18
 
 All five packages version together. **@actuarial-ts/interchange is new in this

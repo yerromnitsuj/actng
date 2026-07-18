@@ -1,4 +1,4 @@
-# actuarial-interchange: cross-ecosystem interop (full design, rev 2.2)
+# actuarial-interchange: cross-ecosystem interop (full design, rev 2.3)
 
 Status: BUILT — Phases A through E implemented and shipped (see the
 Progress Log in `docs/superpowers/plans/2026-07-16-actuarial-ts-sdk-master.md`
@@ -848,3 +848,63 @@ Because no wire field changed, the interchange **spec version stays v1.0**
 — this is a rev 2.2 *document* revision recording build learnings, not a
 format minor bump.
 ```
+
+
+## 16. Reproducibility classes (rev 2.3)
+
+Rev 2.2 and earlier carried an unstated assumption: that a seeded stochastic
+result is a reproducible one. Measurement disproved it (see
+`docs/interop/reproducibility.md`). chainladder 0.9.2's `BootstrapODPSample`
+returns different samples for identical seeded calls **in a single process** —
+sporadically, with exactly two distinct outcomes, and not attributable to
+dependency drift, machine variance, BLAS thread count, or the array backend.
+
+The format therefore stops making one promise for three different things.
+
+**The classes.** Stochastic result bodies carry an optional
+`reproducibility`:
+
+- `seeded-reproducible` — re-running at this seed reproduces the document
+  byte-for-byte. `@actuarial-ts/core`'s own stochastic layer qualifies; its
+  purity rule (no clock reads, no ambient randomness, explicit seeds) is what
+  earns it, and `packages/core/test/odpBootstrap.test.ts` pins it.
+- `witnessed` — the engine is not byte-reproducible even under a fixed seed.
+  The document is a tamper-evident record of what that engine produced on that
+  run.
+
+Deterministic methods do not carry the field: kind `method-result` already
+implies reproducibility, and the frozen corpus proves it across three shores.
+Absent means unstated — never read absence as a guarantee.
+
+**Self-witnessing.** A `witnessed` producer SHOULD run the identical seeded
+request more than once and record the outcome in `result.stability`
+(`repeats`, `byteIdentical`, `maxRelativeDeviation`). This is the substantive
+move: instability becomes measured evidence on the document at run time,
+rather than a latent surprise for whoever later fails to reproduce a number.
+The sidecar does this by default (`parameters.stability_repeats`, default 2,
+set to 1 to opt out).
+
+**Comparison.** A witnessed result must be compared distributionally, never
+byte-wise. `verified-by-value` is the referee verdict that fits; a strict
+`agree` on byte-identity is not available to a witnessed pair.
+
+**Why this is NOT a wire-version bump.** Both fields are optional and appear
+only on `stochastic-result`. No existing document changes, and no existing
+reader breaks: Section 11's policy is that unknown minor fields are ignored,
+and every document schema is `.passthrough()`, so a 1.0 reader encountering
+`reproducibility` simply carries it through. Nothing a 1.0 document must
+contain, or must be read as, has changed — so `interchangeVersion` stays
+`1.0.0` and the frozen conformance corpus is untouched.
+
+The alternative reading — that any added field is a spec minor and so warrants
+`1.1` plus a corpus regeneration (an explicitly legitimate trigger under
+`interop/conformance/README.md`) — is defensible. It was declined here to
+avoid regenerating the public compatibility statement for a purely additive
+change; if a 1.1 becomes warranted for an independent reason, fold this in and
+regenerate once.
+
+**Positioning consequence.** Claims that seeding or version pinning deliver
+reproducibility are wrong for foreign engines and have been corrected
+(`interop/sidecar/requirements.txt`, the sidecar's `MISSING_SEED` message).
+The sidecar still REQUIRES a seed — an unseeded run is not attributable — but
+no longer implies the seed buys a replay.

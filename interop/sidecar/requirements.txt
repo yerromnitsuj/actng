@@ -1,6 +1,10 @@
 # Pinned to the exact versions in .venv-interop — the image IS the version
-# contract (spec 7): the conformance suite's numbers are only reproducible
-# against these builds.
+# contract (spec 7). NOTE: pinning is NECESSARY but NOT SUFFICIENT for
+# reproducibility. chainladder's BootstrapODPSample is not byte-stable even at
+# a fixed seed on a fixed build (measured — docs/interop/reproducibility.md),
+# which is why its results are stamped reproducibility="witnessed" and carry a
+# stability self-check. The DETERMINISTIC methods' numbers are reproducible
+# against these builds; the stochastic ones are witnessed, not replayable.
 chainladder==0.9.2
 pandas==2.3.3
 numpy==2.4.6

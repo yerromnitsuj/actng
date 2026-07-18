@@ -853,6 +853,42 @@
                             "type": "integer",
                             "exclusiveMinimum": 0
                           },
+                          "reproducibility": {
+                            "type": "string",
+                            "enum": [
+                              "seeded-reproducible",
+                              "witnessed"
+                            ]
+                          },
+                          "stability": {
+                            "type": "object",
+                            "properties": {
+                              "repeats": {
+                                "type": "integer",
+                                "minimum": 2
+                              },
+                              "byteIdentical": {
+                                "type": "boolean"
+                              },
+                              "maxRelativeDeviation": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "repeats",
+                              "byteIdentical",
+                              "maxRelativeDeviation"
+                            ],
+                            "additionalProperties": true
+                          },
                           "summary": {
                             "type": "object",
                             "properties": {

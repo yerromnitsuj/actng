@@ -648,28 +648,17 @@ def _distribution_summary(samples: "np.ndarray") -> dict:
     }
 
 
-def _run_bootstrap_odp(request: RunRequest, created_at: str) -> Document:
-    _refuse_secondary(request, "BootstrapODPSample")
-    _refuse_exposure(request, "BootstrapODPSample")
-    if request.seed is None:
-        raise SidecarError(
-            422,
-            "MISSING_SEED",
-            "BootstrapODPSample requires 'seed': unseeded simulation is not "
-            "reproducible and the sidecar refuses to pretend otherwise",
-        )
-    strictness = _choice(request, "strictness", _ALLOWED_STRICTNESS, "warn")
-    n_sims = _positive_int(request, "n_sims", _DEFAULT_N_SIMS, maximum=_MAX_N_SIMS)
-    triangle = triangle_doc_to_cl(request.primary)
-    replay = _replay_development(request, triangle, strictness)
+def _bootstrap_once(triangle, replay, n_sims: int, seed: int):
+    """One seeded BootstrapODPSample run -> (by_origin, totals-summary).
 
+    Factored out so the stability self-check can run it more than once with
+    the IDENTICAL inputs and compare (see _run_bootstrap_odp).
+    """
     with _warnings.catch_warnings():
         # chainladder 0.9.2's hat-matrix code trips a numpy usage warning;
         # engine noise, not interchange semantics.
         _warnings.simplefilter("ignore")
-        sims = cl.BootstrapODPSample(n_sims=n_sims, random_state=request.seed).fit_transform(
-            triangle
-        )
+        sims = cl.BootstrapODPSample(n_sims=n_sims, random_state=seed).fit_transform(triangle)
         fitted = cl.Chainladder().fit(_transformed(sims, replay))
 
     origins = [str(label) for label in fitted.ultimate_.origin.astype(str)]
@@ -682,6 +671,65 @@ def _run_bootstrap_odp(request: RunRequest, created_at: str) -> Document:
         {"origin": origin, **_distribution_summary(unpaid[:, index])}
         for index, origin in enumerate(origins)
     ]
+    return by_origin, _distribution_summary(totals)
+
+
+def _relative_deviation(a: float, b: float) -> float:
+    """The cross-shore definition: |a-b| / max(|a|,|b|), 0 at 0/0."""
+    scale = max(abs(a), abs(b))
+    return 0.0 if scale == 0 else abs(a - b) / scale
+
+
+def _run_bootstrap_odp(request: RunRequest, created_at: str) -> Document:
+    _refuse_secondary(request, "BootstrapODPSample")
+    _refuse_exposure(request, "BootstrapODPSample")
+    if request.seed is None:
+        raise SidecarError(
+            422,
+            "MISSING_SEED",
+            "BootstrapODPSample requires 'seed': an unseeded run is not even "
+            "attributable, and the sidecar will not emit a distribution it "
+            "cannot say how to re-request. NOTE: a seed alone does NOT make "
+            "this engine reproducible — chainladder's bootstrap is not "
+            "byte-stable under a fixed seed, so the result is stamped "
+            "reproducibility='witnessed' and carries a measured stability check",
+        )
+    strictness = _choice(request, "strictness", _ALLOWED_STRICTNESS, "warn")
+    n_sims = _positive_int(request, "n_sims", _DEFAULT_N_SIMS, maximum=_MAX_N_SIMS)
+    stability_repeats = _positive_int(request, "stability_repeats", 2, maximum=5)
+    triangle = triangle_doc_to_cl(request.primary)
+    replay = _replay_development(request, triangle, strictness)
+
+    # THE SELF-WITNESS. chainladder 0.9.2's BootstrapODPSample is NOT
+    # byte-reproducible under a fixed seed: identical seeded calls in one
+    # process can return two different samples (measured — see
+    # docs/interop/reproducibility.md). Rather than pretend a seed is a
+    # guarantee, run it `stability_repeats` times and DISCLOSE what happened on
+    # the document itself. Set parameters.stability_repeats = 1 to skip the
+    # extra run when the compute cost matters more than the disclosure; the
+    # result is then stamped witnessed with no stability evidence.
+    runs = [
+        _bootstrap_once(triangle, replay, n_sims, request.seed)
+        for _ in range(max(1, stability_repeats))
+    ]
+    by_origin, summary = runs[0]
+
+    stability = None
+    if len(runs) > 1:
+        byte_identical = all(
+            (other_origin, other_summary) == (by_origin, summary)
+            for other_origin, other_summary in runs[1:]
+        )
+        worst = max(
+            _relative_deviation(summary["mean"], other_summary["mean"])
+            for _, other_summary in runs[1:]
+        )
+        stability = {
+            "repeats": len(runs),
+            "byteIdentical": byte_identical,
+            "maxRelativeDeviation": worst,
+        }
+
     parameters = dict(replay.parameters)
     parameters["n_sims"] = n_sims
 
@@ -698,9 +746,13 @@ def _run_bootstrap_odp(request: RunRequest, created_at: str) -> Document:
         method="clpy:BootstrapODPSample",
         parameters=parameters,
         n_sims=n_sims,
-        summary=_distribution_summary(totals),
+        summary=summary,
         by_origin=by_origin,
         seed=request.seed,
+        # This engine is not byte-reproducible under a fixed seed; the document
+        # says so rather than letting a consumer assume a replay will match.
+        reproducibility="witnessed",
+        stability=stability,
         warnings=list(replay.warnings) or None,
     )
     document = Document(kind="stochastic-result", payload=payload, created_at=created_at)
@@ -769,7 +821,7 @@ METHODS: dict = {
         _entry(
             "BootstrapODPSample",
             "stochastic-result",
-            ("average", "n_periods", "strictness", "n_sims"),
+            ("average", "n_periods", "strictness", "n_sims", "stability_repeats"),
             _run_bootstrap_odp,
         ),
         _entry(

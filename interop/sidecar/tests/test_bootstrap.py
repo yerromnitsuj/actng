@@ -1,10 +1,10 @@
-"""BootstrapODPSample: seed required, seeded determinism, distribution shape."""
+"""BootstrapODPSample: seed required, WITNESSED reproducibility, distribution shape."""
 
 from __future__ import annotations
 
 from actuarial_interchange import parse_document
 
-from .conftest import load_fixture
+from .conftest import load_fixture, relative_deviation
 
 
 def _body(**extra) -> dict:
@@ -46,13 +46,65 @@ class TestBootstrapOdp:
         # A reserve distribution on this triangle is materially positive.
         assert result["summary"]["mean"] > 0
 
-    def test_identical_seeded_calls_are_byte_identical(self, client, auth) -> None:
+    def test_identical_seeded_calls_agree_within_tolerance_and_are_witnessed(
+        self, client, auth
+    ) -> None:
+        """A seed does NOT make this engine byte-reproducible.
+
+        chainladder 0.9.2's BootstrapODPSample returns different samples for
+        IDENTICAL seeded calls in a single process — measured, roughly 1-in-4
+        of the time, and not fixed by pinning BLAS/OpenMP threads or by forcing
+        the dense array backend (see docs/interop/reproducibility.md).
+
+        This test previously asserted byte-identity, which is a contract the
+        engine does not honour; it flaked accordingly. The honest contract is
+        the one asserted here: the two runs agree DISTRIBUTIONALLY within the
+        profile tolerance, and the document says out loud that it is a witness
+        rather than a reproducible derivation.
+        """
         first = client.post("/v1/run/BootstrapODPSample", json=_body(), headers=auth)
         second = client.post("/v1/run/BootstrapODPSample", json=_body(), headers=auth)
         assert first.status_code == second.status_code == 200
-        # The semantic body must be EXACTLY equal — same seed, same sample.
-        assert first.json()["result"] == second.json()["result"]
-        assert first.json()["integrity"] == second.json()["integrity"]
+        one, two = first.json()["result"], second.json()["result"]
+
+        # Same seed, same request: the DISTRIBUTIONS must agree closely even
+        # though the bytes may not. 1% on the mean is far tighter than the
+        # Monte Carlo error at n_sims=250 and still catches a real regression
+        # (a wrong seed or a dropped selection replay moves it far more).
+        assert relative_deviation(one["summary"]["mean"], two["summary"]["mean"]) < 0.01
+        assert relative_deviation(one["summary"]["sd"], two["summary"]["sd"]) < 0.05
+        assert [e["origin"] for e in one["byOrigin"]] == [e["origin"] for e in two["byOrigin"]]
+
+        # And the promise is stated on the document, not assumed by the reader.
+        assert one["reproducibility"] == "witnessed"
+        assert two["reproducibility"] == "witnessed"
+
+    def test_witnessed_result_discloses_its_measured_stability(self, client, auth) -> None:
+        """The engine self-checks and reports the answer on the document.
+
+        This is the point of the witness model: instability is MEASURED and
+        DISCLOSED at run time, instead of lying dormant until something
+        downstream fails to reproduce a number.
+        """
+        response = client.post("/v1/run/BootstrapODPSample", json=_body(), headers=auth)
+        assert response.status_code == 200, response.text
+        stability = response.json()["result"]["stability"]
+        assert stability["repeats"] >= 2
+        assert isinstance(stability["byteIdentical"], bool)
+        # Whatever the engine did, the deviation is quantified — and if the
+        # repeats WERE byte-identical, the deviation must be exactly zero.
+        assert stability["maxRelativeDeviation"] >= 0.0
+        if stability["byteIdentical"]:
+            assert stability["maxRelativeDeviation"] == 0.0
+
+    def test_stability_check_can_be_skipped(self, client, auth) -> None:
+        """Opting out costs the evidence, never the honesty of the class."""
+        body = _body(parameters={"n_sims": 250, "stability_repeats": 1})
+        response = client.post("/v1/run/BootstrapODPSample", json=body, headers=auth)
+        assert response.status_code == 200, response.text
+        result = response.json()["result"]
+        assert "stability" not in result
+        assert result["reproducibility"] == "witnessed"
 
     def test_different_seeds_differ(self, client, auth) -> None:
         first = client.post("/v1/run/BootstrapODPSample", json=_body(), headers=auth)

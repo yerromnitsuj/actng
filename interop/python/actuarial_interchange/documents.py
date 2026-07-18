@@ -825,6 +825,8 @@ class StochasticResultPayload:
     summary: dict
     by_origin: list[dict]
     seed: Optional[int] = None
+    reproducibility: Optional[str] = None
+    stability: Optional[dict] = None
     warnings: Optional[list[str]] = None
     extra: dict = field(default_factory=dict)
 
@@ -839,6 +841,11 @@ class StochasticResultPayload:
             "byOrigin": list(self.by_origin),
         }
         _put_optional(body, "seed", self.seed)
+        # Which reproducibility promise this document carries, and the engine's
+        # own repeat-run self-check. A seed alone is NOT a reproducibility
+        # guarantee (spec 3.2); these say what the seed actually bought.
+        _put_optional(body, "reproducibility", self.reproducibility)
+        _put_optional(body, "stability", self.stability)
         if self.warnings is not None:
             body["warnings"] = list(self.warnings)
         body.update(self.extra)
@@ -855,6 +862,8 @@ class StochasticResultPayload:
             "summary",
             "byOrigin",
             "seed",
+            "reproducibility",
+            "stability",
             "warnings",
         }
         return cls(
@@ -866,6 +875,8 @@ class StochasticResultPayload:
             summary=_require(body, "summary", "stochastic result"),
             by_origin=list(_require(body, "byOrigin", "stochastic result")),
             seed=body.get("seed"),
+            reproducibility=body.get("reproducibility"),
+            stability=body.get("stability"),
             warnings=list(body["warnings"]) if "warnings" in body else None,
             extra=_extra_of(body, known),
         )
