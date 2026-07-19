@@ -1,8 +1,8 @@
 {
-  "name": "actng",
+  "name": "actuarial-ts-monorepo",
   "private": true,
-  "version": "1.0.0",
-  "description": "ActNG: an AI-native actuarial reserving workbench",
+  "version": "0.0.0",
+  "description": "Monorepo for the @actuarial-ts SDK (five published packages) and the actuarial-interchange interop layer; not itself published",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -19,5 +19,8 @@
     "build": "npm run build --workspaces --if-present",
     "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/interchange -w @actuarial-ts/data -w @actuarial-ts/compliance -w @actuarial-ts/agents",
     "example": "npm run example -w @actuarial-ts/example-reserve-review"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
   }
 }

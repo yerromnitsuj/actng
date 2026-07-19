@@ -47,8 +47,12 @@ before a user hits the problem. If you change an exported signature, run it.
 
 ### The Python shore (optional, needed for interop work)
 
+Requires **Python >= 3.10** — `chainladder==0.9.2` and `interop/python` both
+declare it, and pip excludes them on older interpreters (macOS system python3
+is 3.9, so name the version explicitly):
+
 ```bash
-python3 -m venv .venv-interop
+python3.12 -m venv .venv-interop
 .venv-interop/bin/pip install -e interop/python
 .venv-interop/bin/pip install -r interop/sidecar/requirements.txt \
                              -r interop/sidecar/requirements-dev.txt

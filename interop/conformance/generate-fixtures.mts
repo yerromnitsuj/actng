@@ -20,7 +20,7 @@
  * see interop/conformance/README.md. The TS runner fails if the committed
  * files stop matching a fresh authoring run.
  *
- * Run from the repo root (tsx is hoisted from apps/server):
+ * Run from the repo root (tsx is a root devDependency):
  *
  *   PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" npx tsx interop/conformance/generate-fixtures.mts
  */
