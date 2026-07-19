@@ -42,7 +42,7 @@ jobs:
           Rscript -e 'installed <- rownames(installed.packages());
             need <- setdiff(c("ChainLadder", "jsonlite"), installed);
             if (length(need) > 0) install.packages(need, repos = "https://packagemanager.posit.co/cran/__linux__/jammy/latest")'
-      - name: JCS serializer self-test (23 committed vectors)
+      - name: JCS serializer self-test (committed vectors)
         run: Rscript -e 'source("tools/interop/actuarialInterchange.R"); ats_test_jcs()'
       - name: Cross-engine conformance (frozen corpus, mack1993-vw profile)
         run: Rscript tools/interop/conformance.R

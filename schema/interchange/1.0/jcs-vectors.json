@@ -68,6 +68,18 @@
       "canonical": "0.3333333333333333"
     },
     {
+      "name": "r-as-numeric-one-ulp-regression-984888",
+      "note": "Pins shortest-round-trip parsing on the R shore. On R 4.6.1/arm64, base R as.numeric() mis-rounds the 16-digit candidate \"984888.6390497377\" by one ULP (bit pattern ...186f7 instead of the correctly-rounded ...186f8 every JS engine, Python, and jsonlite::fromJSON agree on), which silently widened ats_shortest_repr's search to a non-canonical 17-digit fallback. Fixed by round-tripping candidates through jsonlite::fromJSON instead of as.numeric() (see ats_shortest_repr in tools/interop/actuarialInterchange.R). This vector, committed to the shared suite, keeps a revert of that fix from passing CI on any shore.",
+      "value": 984888.6390497377,
+      "canonical": "984888.6390497377"
+    },
+    {
+      "name": "r-as-numeric-one-ulp-regression-971257",
+      "note": "Same R 4.6.1/arm64 as.numeric() one-ULP mis-rounding as r-as-numeric-one-ulp-regression-984888, exercised on a second focal value (old broken adapter emitted the non-shortest \"971257.80646994349\"). See that vector's note and ats_shortest_repr in tools/interop/actuarialInterchange.R.",
+      "value": 971257.8064699435,
+      "canonical": "971257.8064699435"
+    },
+    {
       "name": "plain-decimal",
       "value": 123.456,
       "canonical": "123.456"
