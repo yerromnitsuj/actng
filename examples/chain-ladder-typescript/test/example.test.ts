@@ -20,4 +20,21 @@ describe("chain ladder computed in TypeScript", () => {
   it("gets an `agree` verdict from the referee on an intent replay", () => {
     expect(out.refereeVerdict).toBe("agree");
   });
+
+  it("records exactly three human judgments in the assumption ledger", () => {
+    expect(out.ledgerJudgments).toBe(3);
+  });
+
+  it("carries the authenticated actor identity on the judgment trail (0.3.0, finding 3.6)", () => {
+    // Identity comes from the RequestContext, never the resume payload.
+    expect(out.trailActorIdentity).toBe("jane.actuary@example.com (SSO)");
+  });
+
+  it("renders the judgments into ASOP 41 Section 5 of the disclosure", () => {
+    expect(out.disclosureHasJudgmentSection).toBe(true);
+  });
+
+  it("fails closed when a tool is called without a tenant — the body never runs", () => {
+    expect(out.tenantFailClosedCode).toBe("NO_TENANT_CONTEXT");
+  });
 });
