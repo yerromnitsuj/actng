@@ -115,24 +115,45 @@ export interface McpToolServer {
     args: Record<string, unknown>,
     executionContext?: { requestContext?: unknown; messages?: unknown[]; toolCallId?: string },
   ): Promise<unknown>;
+  /**
+   * Tool enumeration, present on the installed @mastra/mcp MCPServer
+   * (verified: `getToolListInfo()` returns `{ tools: [{ id, ... }] }`).
+   * Optional so a bare `{ executeTool }` stub still satisfies the type; the
+   * self-test's probe-everything form requires it and says so when absent.
+   */
+  getToolListInfo?(): { tools: Array<{ id: string }> };
 }
 
 export interface AssertFailClosedOptions {
   /** The MCP server whose exposed tools are being wired up (typically the workspace MCPServer). */
   server: McpToolServer;
   /**
-   * A READ tool that resolves its tenant via requireMcpTenant. Driven with no
-   * auth info, it must fail closed with the tenant error code.
+   * Probe ONE tool instead of every tool. Prefer omitting this: the
+   * single-tool form proved exactly one wire-up, and a sibling tool that
+   * skipped the tenant seam sailed through boot while serving every tenant's
+   * data to unauthenticated callers.
    */
-  probeToolId: string;
+  probeToolId?: string;
   /**
-   * Minimal VALID args for the probe tool's input schema. Defaults to `{}`
+   * Minimal VALID args for the single-tool form. Defaults to `{}`
    * (correct for read tools whose schema is `z.object({})` or all-optional).
    * Args that fail schema validation would short-circuit before the tenant
    * check runs, so pass real minimal args for probes that require input.
    */
   probeArgs?: Record<string, unknown>;
-  /** The failure code the probe must fail closed with. Defaults to NO_TENANT_CONTEXT. */
+  /**
+   * Per-tool minimal valid args for the probe-everything form, keyed by tool
+   * id. Any tool not listed is driven with `{}`.
+   */
+  argsByTool?: Record<string, Record<string, unknown>>;
+  /**
+   * Tools that are tenant-free BY DESIGN and therefore expected to succeed
+   * without auth. The same contract as `tenant: "none"` on the definition:
+   * greppable, deliberate, reviewable. A name listed here that is not on the
+   * server fails the self-test — a stale exemption is how the next leak hides.
+   */
+  exempt?: string[];
+  /** The failure code every probed tool must fail closed with. Defaults to NO_TENANT_CONTEXT. */
   expectedErrorCode?: AgentsErrorCode;
 }
 
@@ -161,11 +182,13 @@ function describeResult(result: unknown): string {
 }
 
 /**
- * The boot self-test. Drives {@link AssertFailClosedOptions.probeToolId}
- * through the server WITHOUT any auth info and asserts it fails closed with the
- * tenant error code. THROWS AgentsError("MCP_SELF_TEST_FAILED") loudly for any
- * other outcome — most importantly if the probe SUCCEEDED, which means the tool
+ * The boot self-test. Drives EVERY tool on the server WITHOUT any auth info
+ * and asserts each fails closed with the tenant error code, reporting every
+ * hole at once. THROWS AgentsError("MCP_SELF_TEST_FAILED") loudly for any
+ * other outcome — most importantly if a probe SUCCEEDED, which means that tool
  * did not require tenant context and the MCP tenant seam is a fail-open hole.
+ * Tenant-free-by-design tools are excused only via the greppable `exempt`
+ * list; a single-tool form remains for targeted re-checks.
  *
  * Call this at server startup whenever MCP is enabled, and ABORT startup if it
  * throws: a governed workspace must never accept unauthenticated MCP clients.
@@ -173,8 +196,64 @@ function describeResult(result: unknown): string {
 export async function assertFailClosed(options: AssertFailClosedOptions): Promise<void> {
   const { server, probeToolId, probeArgs = {}, expectedErrorCode = "NO_TENANT_CONTEXT" } = options;
 
+  // Single-tool form: kept for hosts that need a targeted re-check, but the
+  // probe-everything form below is the one to call at boot.
+  if (probeToolId !== undefined) {
+    await probeOne(server, probeToolId, probeArgs, expectedErrorCode);
+    return;
+  }
+
+  if (typeof server.getToolListInfo !== "function") {
+    throw new AgentsError(
+      "MCP_SELF_TEST_FAILED",
+      "MCP boot self-test cannot enumerate this server's tools (no getToolListInfo); " +
+        "pass probeToolId per tool, or upgrade @mastra/mcp. Refusing to certify a server " +
+        "whose tool list cannot be inspected.",
+    );
+  }
+
+  const toolIds = server.getToolListInfo().tools.map((tool) => tool.id);
+  const exempt = new Set(options.exempt ?? []);
+  const failures: string[] = [];
+
+  // A stale exemption is a future hole: the tool it excused is gone, and the
+  // next tool to take that name inherits a free pass nobody remembers granting.
+  for (const name of exempt) {
+    if (!toolIds.includes(name)) {
+      failures.push(`"${name}" is exempted but not on the server; remove the stale exemption`);
+    }
+  }
+
+  for (const toolId of toolIds) {
+    if (exempt.has(toolId)) continue;
+    try {
+      await probeOne(server, toolId, options.argsByTool?.[toolId] ?? {}, expectedErrorCode);
+    } catch (err) {
+      // Collect EVERY hole before reporting: a boot test that stops at the
+      // first one hides the second.
+      failures.push(err instanceof AgentsError ? err.message : String(err));
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new AgentsError(
+      "MCP_SELF_TEST_FAILED",
+      `MCP boot self-test failed on ${failures.length} of ${toolIds.length} tool(s):\n` +
+        failures.map((message) => `  - ${message}`).join("\n") +
+        "\nAbort startup: a governed workspace must never accept unauthenticated MCP clients.",
+    );
+  }
+}
+
+/** Drives one tool with no auth info; it must fail closed with the expected code. */
+async function probeOne(
+  server: McpToolServer,
+  toolId: string,
+  args: Record<string, unknown>,
+  expectedErrorCode: AgentsErrorCode,
+): Promise<void> {
   // No requestContext, no mcp.extra -> the probe sees no auth info at all.
-  const result = await server.executeTool(probeToolId, probeArgs, {});
+  const result = await server.executeTool(toolId, args, {});
 
   if (isFailureEnvelope(result) && result.error.code === expectedErrorCode) {
     return;
@@ -182,8 +261,9 @@ export async function assertFailClosed(options: AssertFailClosedOptions): Promis
 
   throw new AgentsError(
     "MCP_SELF_TEST_FAILED",
-    `MCP boot self-test failed: probe tool "${probeToolId}" did not fail closed without auth. ` +
+    `probe tool "${toolId}" did not fail closed without auth. ` +
       `Expected a { success: false, error.code: "${expectedErrorCode}" } envelope but got ${describeResult(result)}. ` +
-      `An MCP-exposed read tool must resolve its tenant with requireMcpTenant so an unauthenticated call is rejected; this outcome means the tenant seam is not wired up. Abort startup.`,
+      `An MCP-exposed tool must either enforce the tenant seam (tenant: "required", tenantSource: "mcp-auth") ` +
+      "or be a declared exemption; this outcome means it is neither.",
   );
 }

@@ -18,7 +18,10 @@ function requestContext(entries: Record<string, unknown>): { get(key: string): u
   return rc;
 }
 
-async function expectAgentsErrorAsync(promise: Promise<unknown>, code: string): Promise<void> {
+async function expectAgentsErrorAsync(
+  promise: Promise<unknown>,
+  code: string,
+): Promise<AgentsError> {
   let thrown: unknown;
   try {
     await promise;
@@ -27,6 +30,7 @@ async function expectAgentsErrorAsync(promise: Promise<unknown>, code: string): 
   }
   expect(thrown).toBeInstanceOf(AgentsError);
   expect((thrown as AgentsError).code).toBe(code);
+  return thrown as AgentsError;
 }
 
 describe("requireMcpTenant", () => {
@@ -141,6 +145,60 @@ describe("assertFailClosed (real in-memory MCPServer)", () => {
       assertFailClosed({ server, probeToolId: "leaky_overview" }),
       "MCP_SELF_TEST_FAILED",
     );
+  });
+
+  it("probes EVERY tool when no probeToolId is given, catching the leaky sibling", async () => {
+    // The single-probe form proved exactly one tool. A sibling that serves
+    // tenant-scoped data with tenant:"none" declared passed boot while
+    // answering unauthenticated callers. Enumerating the server closes that.
+    const server = new MCPServer({
+      name: "test-workspace",
+      version: "0.0.0",
+      tools: { get_overview: guardedProbe, leaky_overview: unguardedProbe },
+    });
+    const err = await expectAgentsErrorAsync(
+      assertFailClosed({ server }),
+      "MCP_SELF_TEST_FAILED",
+    );
+    expect(err.message).toContain("leaky_overview");
+    // The report names every hole, not just the first.
+    expect(err.message).not.toContain("get_overview: ");
+  });
+
+  it("passes a fully guarded multi-tool server", async () => {
+    const secondGuarded = defineActuarialTool({
+      id: "get_detail",
+      description: "second guarded read",
+      kind: "read",
+      inputSchema: z.object({}),
+      tenant: "required",
+      tenantSource: "mcp-auth",
+      execute: async (_input, tenant) => ({ success: true as const, tenant }),
+    });
+    const server = new MCPServer({
+      name: "test-workspace",
+      version: "0.0.0",
+      tools: { get_overview: guardedProbe, get_detail: secondGuarded },
+    });
+    await expect(assertFailClosed({ server })).resolves.toBeUndefined();
+  });
+
+  it("honours a declared exemption but refuses a stale one", async () => {
+    const server = new MCPServer({
+      name: "test-workspace",
+      version: "0.0.0",
+      tools: { get_overview: guardedProbe, leaky_overview: unguardedProbe },
+    });
+    // Declared exemption: boot passes, and the exemption is greppable.
+    await expect(
+      assertFailClosed({ server, exempt: ["leaky_overview"] }),
+    ).resolves.toBeUndefined();
+    // A stale exemption (tool no longer exists) is itself a failure.
+    const err = await expectAgentsErrorAsync(
+      assertFailClosed({ server, exempt: ["leaky_overview", "gone_tool"] }),
+      "MCP_SELF_TEST_FAILED",
+    );
+    expect(err.message).toContain("gone_tool");
   });
 
   it("the guarded probe returns the tenant when the MCP server DOES supply authInfo", async () => {
