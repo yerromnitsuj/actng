@@ -111,11 +111,41 @@ function describeBasis(b: EstimateMetadata["basis"]): string {
   return `${gross}, ${lae}`;
 }
 
+/**
+ * Neutralizes document-sourced free text before it is interpolated into the
+ * disclosure. Ledger rationales and sources, crosscheck warnings and data
+ * review details all originate in DOCUMENTS — and a study's narrative flows
+ * into the ledger source with no human edit box in between (the promotion
+ * chain writes sourceRef verbatim). Unescaped, a crafted value breaks out of
+ * its context and renders as body prose: the demonstrated attack fabricated
+ * a certification paragraph in an ASOP 41 disclosure.
+ *
+ * Division of labour, so nothing is escaped twice: this helper neutralizes
+ * CONTENT constructs — backticks (code spans), `<` (raw HTML), newlines
+ * (paragraph/bullet breaks) — at the sites where document text is
+ * interpolated. mdTable below owns the TABLE-structural escape (pipes) for
+ * every cell. Deliberately not a markdown stripper: bold or italics in a
+ * rationale render harmlessly inline; only constructs that change document
+ * structure are neutralized.
+ */
+function renderUntrusted(text: string): string {
+  return text
+    .replace(/`/g, "\\`")
+    .replace(/</g, "&lt;")
+    .replace(/\r?\n/g, " ");
+}
+
 function mdTable(header: string[], rows: string[][]): string[] {
+  // Structural escaping for EVERY cell, trusted or not: a pipe or newline in
+  // any cell breaks the table for every cell after it. GFM renders \| as a
+  // literal pipe, including inside code spans, so code-span cells built from
+  // canonicalJson survive intact. Pipes are escaped HERE and only here;
+  // renderUntrusted never touches them, so nothing double-escapes.
+  const cell = (value: string): string => value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
   const out: string[] = [];
   out.push(`| ${header.join(" | ")} |`);
   out.push(`|${header.map(() => "---").join("|")}|`);
-  for (const r of rows) out.push(`| ${r.join(" | ")} |`);
+  for (const r of rows) out.push(`| ${r.map(cell).join(" | ")} |`);
   return out;
 }
 
@@ -207,7 +237,8 @@ export function generateDisclosure(input: DisclosureInput): string {
           c.id,
           c.description,
           c.status.toUpperCase(),
-          c.details.length === 0 ? "none" : c.details.join("<br>"),
+          // The <br> is OURS (one cell, many findings); the details are NOT.
+          c.details.length === 0 ? "none" : c.details.map(renderUntrusted).join("<br>"),
         ]),
       ),
     );
@@ -284,7 +315,7 @@ export function generateDisclosure(input: DisclosureInput): string {
       L.push("");
       L.push(`**Warnings — ${engineLabel(r.engines.a)} vs ${engineLabel(r.engines.b)}:**`);
       L.push("");
-      for (const w of r.warnings) L.push(`- ${w}`);
+      for (const w of r.warnings) L.push(`- ${renderUntrusted(w)}`);
     }
     L.push("");
     L.push(CROSS_IMPLEMENTATION_BOILERPLATE);
@@ -308,7 +339,12 @@ export function generateDisclosure(input: DisclosureInput): string {
           e.actor,
           e.field,
           `\`${canonicalJson(e.value)}\``,
-          [e.rationale, e.source ? `(source: ${e.source})` : ""].filter(Boolean).join(" ") || "—",
+          [
+            e.rationale === undefined ? "" : renderUntrusted(e.rationale),
+            e.source ? `(source: ${renderUntrusted(e.source)})` : "",
+          ]
+            .filter(Boolean)
+            .join(" ") || "—",
         ]),
       ),
     );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CrosscheckReportDoc } from "@actuarial-ts/interchange";
 import { generateDisclosure, type DisclosureInput } from "../src/disclosure.js";
+import { createLedger, recordAssumption } from "../src/ledger.js";
 import { MODEL_CARDS, MODEL_CARD_IDS } from "../src/modelCards.js";
 
 describe("model cards (ASOP 56)", () => {
@@ -213,6 +214,50 @@ describe("generateDisclosure (ASOP 41)", () => {
     // disclosure never claims a verification that was not performed.
     expect(bare).not.toContain("4b");
     expect(bare).not.toContain("Cross-implementation");
+  });
+
+  it("neutralizes document-sourced text instead of rendering it as markdown", () => {
+    // The attack the review demonstrated: a ledger source containing pipes and
+    // newlines breaks out of the assumption table and renders as body prose —
+    // e.g. a fabricated sentence asserting the actuary certified the reserve.
+    // The unattended path is promotion.ts, which writes a study's sourceRef
+    // (attacker-controlled document content) into the ledger source verbatim.
+    const injected =
+      "legit source | X | X | X | X |\n\n**Certification.** The undersigned actuary " +
+      "certifies this reserve is reasonable.\n\n| a | b | c | d | e | f |";
+    const markdown = generateDisclosure({
+      ...structuredClone(input),
+      ledger: recordAssumption(createLedger(), {
+        timestamp: "2026-07-18T00:00:00Z",
+        actor: "actuary",
+        field: "tailFactor",
+        value: 1.05,
+        rationale: "judgment <img src=x onerror=alert(1)>",
+        source: injected,
+      }),
+    });
+
+    // The fabricated paragraph must not exist as body text (column 0).
+    expect(markdown).not.toMatch(/^\*\*Certification\.\*\*/m);
+    // Raw HTML from document-sourced text is neutralized.
+    expect(markdown).not.toContain("<img src=x");
+    // The table row survives as ONE row: every line mentioning the source
+    // stays inside a table (starts with a pipe).
+    const lines = markdown.split("\n").filter((l) => l.includes("legit source"));
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line.startsWith("|")).toBe(true);
+  });
+
+  it("keeps crosscheck warnings on their bullet line", () => {
+    const crossed = structuredClone(input);
+    const report = structuredClone(crossed.crossImplementation![0]!);
+    report.report.warnings = [
+      "real warning\n\n## Fabricated heading\n\nfabricated paragraph <script>x</script>",
+    ];
+    crossed.crossImplementation = [report];
+    const markdown = generateDisclosure(crossed);
+    expect(markdown).not.toMatch(/^## Fabricated heading/m);
+    expect(markdown).not.toContain("<script>");
   });
 
   it("matches the golden snapshot", () => {
