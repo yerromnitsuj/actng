@@ -233,6 +233,27 @@ class TestSelectionReplay:
 
 @pytest.mark.parametrize("name", FIXTURE_NAMES)
 class TestDeterministicCl:
+    def test_ties_to_the_published_literature_where_it_publishes(self, name) -> None:
+        """The only expectation that comes from OUTSIDE any engine.
+
+        Everything else in expectations.json is the TS engine's own frozen
+        output — cross-engine agreement with it proves the engines agree, not
+        that they are right. `published` carries Mack's tabled values with a
+        citation; asserting it HERE means chainladder-python is checked
+        against the literature directly, so a shared cross-engine error
+        cannot hide behind mutual agreement.
+        """
+        published = fixture_docs(name)["expectations"].get("published")
+        assert published is not None, "the anchor's absence must be declared, not implicit"
+        if published.get("citation") is None:
+            return  # RAA: Mack (1994) publishes tests, not a reserve table.
+
+        totals = python_cl_result_doc(name).payload.totals
+        reserve = published["totalReserve"]
+        assert (
+            relative_deviation(totals.unpaid, reserve["value"]) <= reserve["tolerance"]
+        ), f"{name}: chainladder-python reserve does not tie to {published['citation']}"
+
     def test_totals_match_the_ts_engine_within_tolerance(self, name) -> None:
         expectations = fixture_docs(name)["expectations"]
         tolerance = expectations["deterministic-cl"]["tolerance"]["central"]

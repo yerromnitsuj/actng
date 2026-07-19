@@ -18,6 +18,7 @@ interop/conformance/
 │   └── conformance.test.ts    TS runner (vitest suite)
 ├── py/
 │   └── test_conformance.py    Python runner (pytest)
+│   (R runner: tools/interop/conformance.R — lives with the R recipes)
 └── fixtures/<name>/           committed, FROZEN
     ├── triangle.json          TriangleDoc
     ├── selection.json         volume-weighted-all SelectionDoc

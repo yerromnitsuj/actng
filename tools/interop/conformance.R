@@ -82,9 +82,17 @@ compare_fixture <- function(name) {
   )
   tot_se <- reldev(res$totals$standardError, committed$totals$standardError)
 
+  # The literature check: R's own Mack SE, as a percentage of its own reserve,
+  # against Mack's tabled figure at the source's printing precision.
+  published_ok <- TRUE
+  if (!is.null(se_pub)) {
+    pct <- 100 * as.numeric(res$totals$standardError) / as.numeric(res$totals$unpaid)
+    published_ok <- abs(pct - as.numeric(se_pub$value)) <= as.numeric(se_pub$tolerancePercentagePoints)
+  }
+
   central_ok <- max(max_central, tot_central) <= central_tol
   se_ok <- max(max_se, tot_se) <= se_tol
-  verdict <- if (central_ok && se_ok) "AGREE" else "DISAGREE"
+  verdict <- if (central_ok && se_ok && published_ok) "AGREE" else "DISAGREE"
 
   # Informational: would the DEFAULT log-linear method auto-fall-back to Mack
   # on this fixture? (Records the spec-5 est.sigma honesty finding.)

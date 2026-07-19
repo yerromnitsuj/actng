@@ -132,9 +132,10 @@ fixture corpus:
 
 All three independently reproduce Mack (1993)'s published reserve and the
 standard error of 2,447,095 — Mack (1993) Table 3 prints 2,447 thousands and R
-ChainLadder reports the full figure — agreeing at roughly
-1e-14 to 1e-16. A chainladder-python FastAPI sidecar runs as a live second
-engine, refereed against the TypeScript shore in CI on every push.
+ChainLadder reports the full figure — agreeing at roughly 1e-14 to 1e-16.
+Each shore runs in its own CI workflow (`CI`, `Python interop conformance`,
+`R interop conformance`), and a chainladder-python FastAPI sidecar runs as a
+live second engine, refereed against the TypeScript shore on every push.
 
 The **referee** (`crosscheck`) is the point: it compares two engines' results
 under an executable convention profile and returns `agree`, `disagree`,
