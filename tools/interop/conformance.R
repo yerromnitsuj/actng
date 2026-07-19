@@ -49,6 +49,15 @@ compare_fixture <- function(name) {
   central_tol <- as.numeric(tol$central)
   se_tol <- as.numeric(tol$standardError)
 
+  # The literature anchor: the one expectation authored by no engine. R's own
+  # Mack run must tie to Mack's published standard error directly, so a shared
+  # cross-engine error cannot hide behind mutual agreement with the TS output.
+  published <- expectations$published
+  se_pub <- NULL
+  if (!is.null(published) && !is.null(published$citation)) {
+    se_pub <- published$totalStandardErrorPercentOfReserve
+  }
+
   m <- ats_triangle_to_matrix(tri_doc)
   tri <- as.triangle(m)
   fit <- MackChainLadder(tri, alpha = 1, est.sigma = "Mack")
