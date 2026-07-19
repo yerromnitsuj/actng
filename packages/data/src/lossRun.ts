@@ -62,7 +62,7 @@ function isValidIsoDate(value: string): boolean {
 
 /** Parses a loss-run CSV into ClaimSnapshots plus per-row validation errors. */
 export function parseLossRunCsv(text: string): LossRunParseResult {
-  const grid = parseCsv(text);
+  const { rows: grid, warnings: csvWarnings } = parseCsv(text);
   const headers = (grid[0] ?? []).map(normalizeHeader);
   const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
   if (missing.length > 0) {
@@ -80,6 +80,12 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
 
   const claims: ClaimSnapshot[] = [];
   const errors: LossRunRowError[] = [];
+  for (const warning of csvWarnings) {
+    // Structural CSV problems surface through the same channel as row errors:
+    // partial loading is intended behavior here, silent partial loading is not.
+    const lineMatch = warning.match(/line (\d+)/);
+    errors.push({ row: lineMatch ? Number(lineMatch[1]) : 1, message: `CSV structure: ${warning}` });
+  }
 
   for (let r = 1; r < grid.length; r++) {
     const rowNumber = r + 1; // 1-based including the header row
