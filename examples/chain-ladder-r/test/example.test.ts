@@ -34,4 +34,8 @@ describe.skipIf(!haveR)("chain ladder computed by R ChainLadder", () => {
   it("fails closed when a tool is called without a tenant", () => {
     expect(out!.tenantFailClosedCode).toBe("NO_TENANT_CONTEXT");
   });
+
+  it("runs the golden-prompt evals against the canned stub (harness contract, offline)", () => {
+    expect({ passed: out!.evalsPassed, total: out!.evalsTotal }).toEqual({ passed: 3, total: 3 });
+  });
 });

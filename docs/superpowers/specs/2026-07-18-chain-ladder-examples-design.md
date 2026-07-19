@@ -374,6 +374,9 @@ The capstone asserts, per pairing:
   running one real `.stream()` turn plus `runToolSelectionEvals`. Considered and
   deferred to keep the spine modest; the structural seams (`ToolStreamingAgent`
   is a bare `stream` method) mean this can be added later without redesign.
+  **Implemented 2026-07-19** as `ACTNG_RUN_AGENT=1` (model via
+  `ACTNG_EVAL_MODEL`, matching the SDK's live-eval convention); default path
+  runs the eval harness against the canned stub.
 - Graduating the subprocess helper from the example into `packages/agents`.
 
 ---

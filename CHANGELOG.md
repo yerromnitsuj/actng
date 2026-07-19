@@ -13,7 +13,8 @@ together; this file covers them all.
   chainladder-python sidecar / R ChainLadder) + a cross-engine crosscheck
   capstone, each driving the Mastra agent layer (typed tools, fail-closed
   tenant seam, judgment chain → ASOP 41 disclosure). New root scripts
-  `example:cl-*`.
+  `example:cl-*`; opt-in live-advisor tail (`ACTNG_RUN_AGENT=1`) running the
+  golden-prompt evals and one tool-calling turn against a real model.
 
 ## 0.3.0 — 2026-07-19
 

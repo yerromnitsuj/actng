@@ -12,11 +12,15 @@ import { RequestContext } from "@mastra/core/request-context";
 import {
   ACTOR_IDENTITY_CONTEXT_KEY,
   createJudgmentChain,
+  createReservingAdvisor,
   defineActuarialTool,
+  runToolSelectionEvals,
   toolRegistry,
   type JudgmentChainOutcome,
   type JudgmentGateSpec,
   type ToolEnvelopeFailure,
+  type ToolSelectionEvalCase,
+  type ToolStreamingAgent,
 } from "@actuarial-ts/agents";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -118,6 +122,34 @@ function tailFactorGate(): JudgmentGateSpec<{ tailFactor: number; rationale: str
 }
 
 /**
+ * Golden-prompt eval cases for the three tools. The default path runs them
+ * against a canned stub: that proves the HARNESS contract offline — case
+ * shape, chunk shapes, pass/fail accounting — and deliberately proves nothing
+ * about a model. The live check is one flag away: ACTNG_RUN_AGENT=1 reruns
+ * the same cases against the real advisor (costs tokens; see step 9).
+ */
+const EVAL_CASES: ToolSelectionEvalCase[] = [
+  { id: "triangle-fetch", prompt: "Show me the triangle we are working from", expectTools: ["get_triangle"] },
+  { id: "compute", prompt: "Run the chain ladder on the selected factors", expectTools: ["compute_chain_ladder"] },
+  { id: "record", prompt: "Record the selection for the workpaper", expectTools: ["record_selection"] },
+];
+
+/** A canned agent whose stream "calls" exactly the expected tools per case. */
+function cannedEvalAgent(): ToolStreamingAgent {
+  const byPrompt = new Map(EVAL_CASES.map((c) => [c.prompt, c.expectTools]));
+  return {
+    async stream(messages) {
+      const tools = byPrompt.get(messages[0]?.content ?? "") ?? [];
+      return {
+        fullStream: (async function* () {
+          for (const toolName of tools) yield { type: "tool-call", payload: { toolName } };
+        })(),
+      };
+    },
+  };
+}
+
+/**
  * Drives the three gates with scripted decisions and returns { trail, ledger }.
  *
  * NOTE: Mastra's default storage is in-memory, so a suspended chain dies with
@@ -172,6 +204,11 @@ export interface ClExampleOutcome {
   trailActorIdentity: string | undefined;
   disclosureHasJudgmentSection: boolean;
   disclosureSections: number;
+  evalsTotal: number;
+  evalsPassed: number;
+  /** Only set under ACTNG_RUN_AGENT=1 (live model; never asserted in tests). */
+  liveEvalsPassed?: number;
+  advisorReply?: string;
   tenantFailClosedCode: string;
 }
 
@@ -318,6 +355,38 @@ export async function runChainLadderR(): Promise<ClExampleOutcome> {
     generatedAt: CREATED_AT,
   });
 
+  // 8. The eval harness, offline. The stub satisfies the SDK's structural
+  //    ToolStreamingAgent seam — that seam is typed loosely ON PURPOSE so
+  //    examples and tests can drive the harness without a model or a key.
+  const evalReport = await runToolSelectionEvals({ agent: cannedEvalAgent(), cases: EVAL_CASES });
+
+  // 9. OPT-IN LIVE TURN. Constructing the advisor is free and offline (a
+  //    model-router string is inert config); only generate/stream calls the
+  //    provider, which reads ANTHROPIC_API_KEY from the environment. The
+  //    same registry that served the scripted path now serves a real model —
+  //    including the tenant seam: the RequestContext travels into every tool
+  //    call the model makes.
+  let liveEvalsPassed: number | undefined;
+  let advisorReply: string | undefined;
+  if (process.env.ACTNG_RUN_AGENT === "1") {
+    const advisor = createReservingAdvisor({
+      model: process.env.ACTNG_EVAL_MODEL ?? "anthropic/claude-sonnet-4-5",
+      tools: registry.tools,
+    });
+    const live = await runToolSelectionEvals({
+      agent: advisor,
+      cases: EVAL_CASES,
+      requestContext: authed,
+      maxSteps: 8,
+    });
+    liveEvalsPassed = live.summary.passed;
+    const turn = await advisor.generate(
+      [{ role: "user", content: "Use your tools: fetch the triangle document and report how many origin years it has." }],
+      { requestContext: authed, maxSteps: 4 },
+    );
+    advisorReply = turn.text;
+  }
+
   return {
     ultimate: computed.ultimate,
     unpaid: computed.unpaid,
@@ -329,6 +398,10 @@ export async function runChainLadderR(): Promise<ClExampleOutcome> {
       disclosure.includes("## 5. Assumptions and judgments") &&
       disclosure.includes("chainLadder.tailFactor"),
     disclosureSections: (disclosure.match(/^## /gm) ?? []).length,
+    evalsTotal: evalReport.summary.total,
+    evalsPassed: evalReport.summary.passed,
+    ...(liveEvalsPassed !== undefined ? { liveEvalsPassed } : {}),
+    ...(advisorReply !== undefined ? { advisorReply } : {}),
     tenantFailClosedCode: denied.success === false ? denied.error.code : "",
   };
 }
@@ -343,5 +416,14 @@ if (process.argv[1]?.endsWith("main.ts")) {
   console.log(`  engine     rcl:MackChainLadder (alpha=1 == volume-weighted chain ladder)`);
   console.log(`  tenant gate  ${out.tenantFailClosedCode} (fail-closed, body never ran)`);
   console.log(`  disclosure   ${out.disclosureSections} sections (ASOP 41)`);
+  console.log(`  evals (stub) ${out.evalsPassed}/${out.evalsTotal} tool-selection cases`);
+  if (out.liveEvalsPassed !== undefined) {
+    console.log(`  evals (live) ${out.liveEvalsPassed}/${out.evalsTotal}`);
+  }
+  if (out.advisorReply !== undefined) {
+    console.log(`\n  advisor: ${out.advisorReply}`);
+  } else {
+    console.log(`  advisor      opt-in: ACTNG_RUN_AGENT=1 (model via ACTNG_EVAL_MODEL)`);
+  }
 }
 /* c8 ignore stop */
