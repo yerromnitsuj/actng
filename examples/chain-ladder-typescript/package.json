@@ -6,6 +6,7 @@
   "description": "Chain ladder computed in-process by @actuarial-ts/core, driven through the Mastra agent layer",
   "scripts": {
     "example": "tsx src/main.ts",
+    "app": "tsx app/server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
