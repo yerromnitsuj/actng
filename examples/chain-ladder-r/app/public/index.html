@@ -1,0 +1,259 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chain ladder — R engine</title>
+<style>
+  :root { font-family: system-ui, sans-serif; color: #1a1d21; background: #fafbfc; }
+  body { margin: 0 auto; max-width: 1100px; padding: 1.5rem; }
+  h1 { font-size: 1.25rem; } h2 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
+  #banner { color: #555; font-size: .85rem; }
+  table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .85rem; }
+  .scroll { overflow-x: auto; }
+  th, td { border: 1px solid #dde1e6; padding: .3rem .55rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  tr.avg td:not(:first-child) { cursor: pointer; }
+  tr.avg td:not(:first-child):hover { background: #eef4ff; }
+  td.selected { background: #dcebff; font-weight: 600; }
+  input.override { width: 5.5rem; text-align: right; font: inherit; }
+  #results-strip { display: flex; gap: 2rem; align-items: baseline; margin: .5rem 0; }
+  #results-strip .big { font-size: 1.3rem; font-weight: 650; }
+  .delta { color: #666; font-size: .8rem; }
+  #commit-panel textarea { width: 100%; min-height: 3rem; font: inherit; box-sizing: border-box; }
+  button { font: inherit; padding: .4rem .9rem; cursor: pointer; }
+  #ledger li { margin: .25rem 0; font-size: .85rem; }
+  .actor { padding: 0 .35rem; border-radius: .5rem; font-size: .75rem; }
+  .actor.actuary { background: #e2f2e5; } .actor.agent { background: #fbe9d0; }
+  #chat-log { border: 1px solid #dde1e6; background: #fff; padding: .6rem; min-height: 8rem;
+    max-height: 20rem; overflow-y: auto; font-size: .9rem; white-space: pre-wrap; }
+  .msg-user { font-weight: 600; margin-top: .5rem; }
+  .chip { display: inline-block; background: #eef; border: 1px solid #ccd; border-radius: .6rem;
+    padding: 0 .45rem; font-size: .75rem; margin: 0 .2rem; }
+  .proposal { border: 1px dashed #b8862d; background: #fdf6e7; padding: .4rem; margin: .4rem 0; }
+  .error-box { background: #fdecec; border: 1px solid #e5b5b5; padding: .5rem; margin: .5rem 0;
+    font-size: .85rem; white-space: pre-wrap; display: none; }
+  pre#disclosure { background: #fff; border: 1px solid #dde1e6; padding: .75rem; font-size: .75rem;
+    max-height: 24rem; overflow: auto; }
+</style>
+</head><body>
+
+<h1>Taylor &amp; Ashe — interactive chain ladder</h1>
+<div id="banner">loading…</div>
+<div id="engine-error" class="error-box"></div>
+
+<h2>1 · Development factors — click an average to select it per column, or override</h2>
+<div class="scroll"><table id="factors"></table></div>
+
+<h2>2 · Results</h2>
+<div id="results-strip">
+  <span>ultimate <span class="big" id="tot-ult">—</span></span>
+  <span>unpaid <span class="big" id="tot-unp">—</span></span>
+  <span class="delta" id="delta"></span>
+  <span class="delta" id="timing"></span>
+</div>
+<div class="scroll"><table id="results"></table></div>
+
+<h2>3 · Commit — a selection becomes an assumption only with a rationale</h2>
+<div id="commit-panel">
+  <textarea id="rationale" placeholder="Why these factors? (required — the ledger refuses judgment without a rationale)"></textarea>
+  <button id="commit">Commit selection</button>
+  <span class="delta" id="commit-note"></span>
+  <ul id="ledger"></ul>
+  <details><summary>ASOP 41 disclosure (regenerates on commit)</summary><pre id="disclosure"></pre></details>
+</div>
+
+<h2>4 · Advisor</h2>
+<div id="chat-disabled" class="error-box"></div>
+<div id="chat-log"></div>
+<div id="proposal-box"></div>
+<form id="chat-form">
+  <input id="chat-input" style="width: 80%; font: inherit; padding: .35rem;"
+    placeholder="Ask the reserving advisor — it can read the triangle, run the ladder, and propose selections" />
+  <button type="submit">Send</button>
+</form>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.round(n).toLocaleString("en-US");
+const f4 = (n) => (n === null ? "—" : n.toFixed(4));
+
+let state = null;            // /api/state payload
+let selected = [];           // current exploratory LDFs (numbers)
+let tailFactor = 1;
+let committedTotals = null;
+let computeTimer = null;
+
+async function boot() {
+  state = await (await fetch("/api/state")).json();
+  document.title = "Chain ladder — " + state.engine.badge;
+  $("banner").textContent = state.engine.name + " — " + state.engine.badge;
+  selected = state.defaults.selected.slice();
+  tailFactor = state.defaults.tailFactor;
+  committedTotals = state.committed && state.committed.totals;
+  if (!state.advisorEnabled) {
+    const box = $("chat-disabled");
+    box.style.display = "block";
+    box.textContent =
+      "Advisor disabled: no ANTHROPIC_API_KEY in the server environment.\n" +
+      "export ANTHROPIC_API_KEY=...   then restart: npm run app";
+    $("chat-input").disabled = true;
+  }
+  renderFactors();
+  renderLedger(state.ledger);
+  refreshDisclosure();
+  compute();
+}
+
+function renderFactors() {
+  const ages = state.triangle.ages;
+  const head = ["<tr><th>average</th>"];
+  for (let j = 0; j < ages.length - 1; j++) head.push(`<th>${ages[j]}–${ages[j + 1]}</th>`);
+  head.push("</tr>");
+  const rows = state.averages.map((a) => {
+    const cells = a.values
+      .map((v, j) => {
+        const sel = v !== null && Math.abs(v - selected[j]) < 1e-12 ? " selected" : "";
+        return `<td class="pick${sel}" data-key="${a.key}" data-col="${j}" data-v="${v}">${f4(v)}</td>`;
+      })
+      .join("");
+    return `<tr class="avg"><td>${a.label}</td>${cells}</tr>`;
+  });
+  const overrides = selected
+    .map((v, j) => `<td><input class="override" data-col="${j}" step="0.0001" type="number" value="${v.toFixed(4)}"></td>`)
+    .join("");
+  const tail = `<tr><td><b>Selected</b> · tail <input id="tail" class="override" step="0.01" type="number" value="${tailFactor}"></td>${overrides}</tr>`;
+  $("factors").innerHTML = head.join("") + rows.join("") + tail;
+
+  $("factors").querySelectorAll("td.pick").forEach((td) =>
+    td.addEventListener("click", () => {
+      const v = Number(td.dataset.v);
+      if (Number.isFinite(v)) { selected[Number(td.dataset.col)] = v; renderFactors(); scheduleCompute(); }
+    }),
+  );
+  $("factors").querySelectorAll("input.override").forEach((inp) =>
+    inp.addEventListener("change", () => {
+      selected[Number(inp.dataset.col)] = Number(inp.value); renderFactors(); scheduleCompute();
+    }),
+  );
+  $("tail").addEventListener("change", (e) => { tailFactor = Number(e.target.value); scheduleCompute(); });
+}
+
+function scheduleCompute() { clearTimeout(computeTimer); computeTimer = setTimeout(compute, 250); }
+
+async function compute() {
+  const res = await fetch("/api/compute", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ selected, tailFactor }),
+  });
+  const out = await res.json();
+  const errBox = $("engine-error");
+  if (!out.success) {
+    errBox.style.display = "block";
+    errBox.textContent = out.error.code + ": " + out.error.message;
+    return;
+  }
+  errBox.style.display = "none";
+  $("tot-ult").textContent = fmt(out.totals.ultimate);
+  $("tot-unp").textContent = fmt(out.totals.unpaid);
+  $("timing").textContent = "engine " + out.engineMs + " ms";
+  $("delta").textContent = committedTotals
+    ? "vs committed: " + fmt(out.totals.unpaid - committedTotals.unpaid)
+    : "nothing committed yet";
+  $("results").innerHTML =
+    "<tr><th>origin</th><th>latest</th><th>ultimate</th><th>unpaid</th></tr>" +
+    out.rows.map((r) => `<tr><td>${r.origin}</td><td>${fmt(r.latest)}</td><td>${fmt(r.ultimate)}</td><td>${fmt(r.unpaid)}</td></tr>`).join("");
+}
+
+function renderLedger(entries) {
+  $("ledger").innerHTML = entries
+    .map((e) => `<li>#${e.seq} <span class="actor ${e.actor}">${e.actor}</span> <b>${e.field}</b> — ${e.rationale ?? ""}</li>`)
+    .join("");
+}
+async function refreshDisclosure() {
+  const out = await (await fetch("/api/disclosure")).json();
+  $("disclosure").textContent = out.disclosure;
+}
+
+$("commit").addEventListener("click", async () => {
+  const rationale = $("rationale").value;
+  const res = await fetch("/api/commit", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ selected, tailFactor, rationale, actor: lastAppliedProposal ? "agent" : "actuary" }),
+  });
+  const out = await res.json();
+  if (!out.success) { $("commit-note").textContent = out.error.message; return; }
+  $("commit-note").textContent = "committed";
+  $("rationale").value = "";
+  lastAppliedProposal = false;
+  committedTotals = out.committed.totals;
+  renderLedger(out.ledger);
+  $("disclosure").textContent = out.disclosure;
+  compute();
+});
+
+// ------------------------------------------------------------------ chat
+let lastAppliedProposal = false;
+function chatLine(cls, text) {
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = text;
+  $("chat-log").appendChild(div);
+  $("chat-log").scrollTop = $("chat-log").scrollHeight;
+  return div;
+}
+$("chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const message = $("chat-input").value.trim();
+  if (!message) return;
+  $("chat-input").value = "";
+  chatLine("msg-user", "you: " + message);
+  const reply = chatLine("", "");
+  // One turn at a time (mirrors the server's CHAT_BUSY guard).
+  const sendButton = $("chat-form").querySelector("button");
+  $("chat-input").disabled = true;
+  sendButton.disabled = true;
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    if (res.status !== 200) { reply.textContent = "(advisor unavailable)"; return; }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        if (!line.startsWith("data: ")) continue;
+        const ev = JSON.parse(line.slice(6));
+        if (ev.type === "text") reply.textContent += ev.delta;
+        if (ev.type === "tool") {
+          const chip = document.createElement("span");
+          chip.className = "chip"; chip.textContent = "→ " + ev.name;
+          reply.appendChild(chip);
+        }
+        if (ev.type === "proposal") renderProposal(ev.selection);
+        if (ev.type === "error") chatLine("", "(error: " + ev.message + ")");
+      }
+    }
+  } finally {
+    $("chat-input").disabled = false;
+    sendButton.disabled = false;
+  }
+});
+function renderProposal(p) {
+  const box = $("proposal-box");
+  box.innerHTML = `<div class="proposal"><b>Advisor proposes:</b> tail ${p.tailFactor} · ${p.reasoning}
+    <button id="apply-proposal">Apply to selection</button></div>`;
+  $("apply-proposal").addEventListener("click", () => {
+    selected = p.selected.slice(); tailFactor = p.tailFactor; lastAppliedProposal = true;
+    renderFactors(); scheduleCompute();
+    box.innerHTML = "";
+  });
+}
+
+boot();
+</script>
+</body></html>

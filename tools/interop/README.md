@@ -27,6 +27,11 @@ Rscript tools/interop/conformance.R
 Rscript tools/interop/run-mack.R \
   --in <triangle.json> --out <result.json> --created-at <iso8601> \
   [--selection <selection.json>] [--profile <name>]
+
+# the CLI entrypoint for a SUPPLIED-factor projection (no fit object)
+Rscript tools/interop/run-cl.R \
+  --in <triangle.json> --ldfs <comma-separated-values> --out <result.json> \
+  --created-at <iso8601> [--tail <factor>]
 ```
 
 `run-mack.R`'s `--created-at` is mandatory by design: the assemble/extract
@@ -35,6 +40,22 @@ the same date breaks byte-determinism for everyone downstream. `--profile`
 defaults to `deterministic-cl` (the trilogy's comparison profile — alpha=1,
 all periods, no tail IS that chain ladder point estimate); pass
 `mack1993-vw` for SE-focused runs.
+
+`run-cl.R` projects ultimates from per-column loss development factors an
+actuary (or the interactive example app) SUPPLIES directly, rather than
+factors `MackChainLadder` derives from the triangle itself — the honest way
+for R to serve a caller whose selection is arbitrary. `--ldfs` takes exactly
+one comma-separated value per development interval (`ncol(triangle) - 1`);
+`--tail` defaults to `1` (no development beyond the triangle's last observed
+age). For each origin: `latest` = the last non-null diagonal value; `ultimate
+= latest × (product of the supplied LDFs from that origin's latest age
+onward) × tail`; `unpaid = ultimate - latest`. The written document's
+`method` is `"r:ldf-projection"` (contrast `run-mack.R`'s
+`"rcl:MackChainLadder"`) and carries no `standardError` — there is no fit
+object to derive one from. Verified against the taylor-ashe fixture: the
+committed `selection.json`'s nine `"volume-weighted"` factors with `--tail 1`
+reproduce `deterministic-cl.json`'s totals (ultimate 53,038,946 / unpaid
+18,680,856) to within float precision.
 
 `conformance.R` reads the committed fixtures under
 `interop/conformance/fixtures/`, runs `MackChainLadder(alpha=1,
