@@ -36,9 +36,11 @@ const ENGINES: Engine[] = [
     preflight: () =>
       existsSync(join(REPO_ROOT, ".venv-interop", "bin", "python"))
         ? null
-        : "no .venv-interop — set it up once:\n" +
+        : // keep in sync with app/sidecar.ts's message
+          "no sidecar configured and no .venv-interop to launch one from. Set it up once:\n" +
           "  python3.12 -m venv .venv-interop\n" +
-          "  .venv-interop/bin/pip install -e interop/python -r interop/sidecar/requirements.txt",
+          "  .venv-interop/bin/pip install -e interop/python\n" +
+          "  .venv-interop/bin/pip install -r interop/sidecar/requirements.txt -r interop/sidecar/requirements-dev.txt",
   },
   {
     key: "r",
@@ -104,4 +106,11 @@ console.log(
 );
 console.log(`launching ${engine.key} → http://127.0.0.1:${engine.port}\n`);
 const child = spawn("npm", ["run", "app", "-w", engine.pkg], { stdio: "inherit" });
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => child.kill(signal));
+}
+// Under Ctrl-C, every layer converges on 128+signal via tsx's own signal
+// conversion. This handler forwards the child's code for non-signal exits
+// (clean exit, crash); the signal handlers above guarantee the child is
+// never orphaned by a direct kill of the launcher.
 child.on("exit", (code) => process.exit(code ?? 0));

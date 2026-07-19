@@ -50,8 +50,13 @@ export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
     if (stderrTail.length > 20) stderrTail.shift();
   });
   const stop = () => {
+    process.removeListener("exit", stop);
     if (child.exitCode === null) child.kill();
   };
+  // Exit guard: fires on graceful exits so the child never outlives us. Under
+  // tsx, SIGINT/SIGTERM are converted to a graceful exit by tsx's own
+  // handler, which is what reaches this listener; a non-tsx runtime would
+  // need its own signal handling to get the same guarantee.
   process.on("exit", stop);
 
   const url = `http://127.0.0.1:${LAUNCH_PORT}`;
