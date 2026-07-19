@@ -1,9 +1,10 @@
 # Three chain-ladder examples — design
 
-**Date:** 2026-07-18
+**Date:** 2026-07-18 (revised 2026-07-19 against the 0.3.0 remediation release)
 **Status:** Design approved; implementation plan not yet written.
 **Scope:** Four new workspaces under `examples/`. No changes to the five published
-packages.
+packages. Targets `@actuarial-ts/*@^0.3.0` — the 0.3.0 breaking changes to
+`defineActuarialTool` are load-bearing here (see 3.1).
 
 ---
 
@@ -25,20 +26,27 @@ is new to TypeScript. Comments explain *the code*, not the actuarial science.
 
 ### Why this is worth building
 
-Three claims in this repo are currently unproven by any executing code. These
-examples prove all three as a side effect of existing:
+*(Revised for 0.3.0 — the remediation release closed parts of the original
+motivation; what follows is what remains true and unproven.)*
 
-1. **`generateDisclosure` fed by a judgment chain's frozen ledger.** The SDK's
-   central pitch — ASOP 41 documentation falling out of a run — is exercised by
-   no test. `examples/reserve-review/src/main.ts:157` returns
-   `disclosureIncludesLedger: true` as a hardcoded literal.
-2. **The R shore actually running.** `tools/interop/README.md:30-33` claims
-   ~1e-15 agreement "on the build machine," while
-   `docs/superpowers/plans/2026-07-18-interop-phaseE-r-shore.md:7` records that
-   Rscript was not installed. No CI job corroborates either. Example 3 settles it.
-3. **A genuine cross-engine referee verdict.** The existing example's referee
-   compares a pure function to itself (see the 2026-07-18 review). The capstone
-   compares three real engines.
+1. **`generateDisclosure` fed by a judgment chain's frozen ledger.** 0.3.0's
+   `reserve-review` now genuinely exercises the *direct* path
+   (`createLedger` → `recordAssumption` → `generateDisclosure`,
+   `examples/reserve-review/src/main.ts:152-168`). The **judgment-chain** path —
+   `createJudgmentChain`'s suspend/resume gates producing the frozen
+   `JudgmentChainOutcome.ledger` (`packages/agents/src/judgment.ts:161`,
+   commented "Ready for @actuarial-ts/compliance generateDisclosure") — is
+   still exercised by nothing. These examples are the first to drive it.
+2. **A TS-orchestrated R computation.** As of 0.3.0 the R shore *does* run in
+   CI (`.github/workflows/r-conformance.yml`: JCS vectors + the frozen corpus
+   with literature anchors), which settles the old "verified only on the build
+   machine" doubt. What still exists nowhere is a TS→R→TS round trip: TS writes
+   a triangle document, R computes and writes a result document, TS parses and
+   verifies it. Example 3 is the first.
+3. **A cross-engine referee verdict from live engines.** 0.3.0 rewrote
+   `reserve-review`'s referee into a genuine intent replay — but it is still
+   one engine refereeing its own replay. The capstone compares three real
+   engines computing independently.
 
 ---
 
@@ -108,15 +116,24 @@ plain `resumeData` objects written in code. No model, no API key, no network.
 
 ### 3.1 The three tools
 
-| id | kind | body |
-|---|---|---|
-| `get_triangle` | `read` | returns the `TriangleDoc` built at step 4 |
-| `compute_chain_ladder` | `read` | **the only thing that differs across the three examples** |
-| `record_selection` | `action` | writes the chosen LDFs into the assumption ledger |
+| id | kind | tenant | body |
+|---|---|---|---|
+| `get_triangle` | `read` | `"required"` | returns the `TriangleDoc` built at step 4 |
+| `compute_chain_ladder` | `read` | `"required"` | **the only thing that differs across the three examples** |
+| `record_selection` | `action` | `"required"` | writes the chosen LDFs into the assumption ledger |
 
-All three are built with `defineActuarialTool` and read their tenant via
-`tenantOf`. The `kind` discriminator is set honestly even though the SDK does not
-currently use it for authorization.
+All three are built with `defineActuarialTool` **using the 0.3.0 API**: every
+tool declares `tenant: "required"` (there is deliberately no default), execute
+is `(input, tenant, context)`, and the wrapper resolves the tenant from the
+trusted source before the body runs. There is no `tenantOf` call in any tool
+body — that is the 0.2.0 idiom, removed in the 0.3.0 breaking change. The
+`kind` discriminator is set honestly even though the SDK does not currently
+use it for authorization.
+
+Tool **input schemas stay simple** (empty objects or plain scalars). The 0.3.0
+tenant lint fails closed on `z.unknown()`, records, and `.passthrough()` unless
+the exact path is declared in `allowUninspected` — the examples should never
+need that escape hatch, and not needing it is part of the lesson.
 
 ### 3.2 The three judgment gates
 
@@ -130,6 +147,15 @@ Ordered, each suspending for a human decision supplied as `resumeData`:
 
 Each gate records to the ledger with `actor: "actuary"` and a rationale, so the
 generated disclosure has three genuine judgment entries in ASOP 41 Section 5.
+
+**Actor identity (0.3.0).** Since finding 3.6 landed, the authenticated
+identity is read from the request context under
+`ACTOR_IDENTITY_CONTEXT_KEY` (`"actorIdentity"`,
+`packages/agents/src/judgment.ts:61`) — the resume payload supplies only the
+coarse `actor` enum and **cannot assert an identity**. The examples set
+`actorIdentity` in the run's `RequestContext` (e.g. `"jane.actuary@example.com"`)
+and the tests assert the ledger entries carry it. This demonstrates the
+security property the 0.3.0 fix introduced, rather than working around it.
 
 ---
 
@@ -150,9 +176,16 @@ That is the lesson.
 `defineRemoteMethod` produces a Mastra tool whose input schema is
 required-but-nullable on every field, so a hand-scripted call must pass explicit
 `null` for `secondary`, `selection`, `exposure`, `parameters` and `seed`.
-`callRemoteMethod` has no such requirement. Since the example wraps the call in
-its own `defineActuarialTool` anyway, it gets the tenant seam either way, and
-`callRemoteMethod` reads far better in a teaching context.
+`callRemoteMethod` has no such requirement (verified unchanged at 0.3.0). Since
+the example wraps the call in its own `defineActuarialTool` anyway, it gets the
+tenant seam either way, and `callRemoteMethod` reads far better in a teaching
+context.
+
+The contrast is itself instructive: 0.3.0's `defineRemoteMethod` declares
+`tenant: "none"` with a documented reason (the sidecar is stateless; the wire
+body carries no tenant surface), while the example's own `compute_chain_ladder`
+wrapper declares `tenant: "required"`. The example's comments should point this
+out — it is the `tenant: "none"` audit trail working as designed.
 
 ---
 
@@ -160,9 +193,10 @@ its own `defineActuarialTool` anyway, it gets the tenant seam either way, and
 
 ### 5.1 `tools/interop/run-mack.R` — new, ~40 lines
 
-CLI entrypoint. Today `ats_extract_mack_result` takes a live fit *object* and
-`conformance.R` is a hardcoded three-fixture comparison loop that takes no
-arguments and never writes a document.
+CLI entrypoint. Verified still absent at 0.3.0: `ats_extract_mack_result` takes
+a live fit *object*, and `conformance.R` — though it now also asserts the
+literature anchors — remains a comparison loop that takes no arguments and
+never writes a document.
 
 ```
 Rscript tools/interop/run-mack.R --in <triangle.json> --out <result.json> --created-at <iso8601>
@@ -194,16 +228,28 @@ Rationale: the SDK is mid-remediation against the 2026-07-18 review, and growing
 its public surface during that is a bad trade. It can graduate to the package
 later if a second consumer appears.
 
-### 5.3 `.github/workflows/r-conformance.yml` — new
+### 5.3 Extend `.github/workflows/r-conformance.yml` — **exists since 0.3.0**
 
-`r-lib/actions/setup-r`, install `ChainLadder` + `jsonlite`, run `run-mack.R`
-against one fixture and then `tools/interop/conformance.R`. A failing comparison
-must fail the job.
+The workflow the original spec proposed was created by the remediation
+(finding 4.4): `r-lib/actions/setup-r@v2` pinned to R 4.4, RSPM binary
+packages, a package cache, the 23 JCS vectors, and `conformance.R` over the
+frozen corpus. **Do not create a second workflow.** Extend the existing one:
 
-### 5.4 A toolchain pin — new
+- add a step invoking `run-mack.R` against a fixture triangle and verifying the
+  written result document (the CLI smoke test);
+- add a step running the `chain-ladder-r` example's test suite;
+- add `examples/chain-ladder-r/**` to the workflow's `paths:` filters (both
+  `push` and `pull_request`) — today they cover only `tools/interop/**` and the
+  fixtures, so example regressions would never trigger it.
 
-`renv.lock`, or at minimum a version assertion at `source()` time. Today the pin
-is a prose line in `tools/interop/README.md:4`.
+### 5.4 Toolchain pinning — partially resolved; decide the remainder
+
+0.3.0 pinned the R version (4.4) in CI but installs the latest CRAN
+`ChainLadder`/`jsonlite` (with a cache whose key does not include versions).
+There is still no `renv.lock`. The implementation plan should either accept the
+floating-CRAN posture the workflow chose — it is a defensible "tripwire"
+stance, matching how `py-conformance.yml` treats its matrix — or add a version
+assertion at `source()` time. Do not silently introduce a third posture.
 
 ---
 
@@ -228,8 +274,9 @@ configuration that is not worse than no test.
 
 **The capstone deliberately requires full setup.** It is the interop proof, so it
 computes all three results live rather than reading committed fixtures. Reading
-committed fixtures would reproduce exactly the circularity the 2026-07-18 review
-identified in `interop/conformance/ts/conformance.test.ts:143-164`.
+committed fixtures would reproduce the self-comparison circularity the
+2026-07-18 review identified in the TS conformance suite — an assertion 0.3.0
+removed for exactly that reason. The capstone must not reintroduce it.
 
 ### 6.1 Root scripts
 
@@ -282,14 +329,22 @@ Each shore example asserts:
 | ultimate, to the dollar | `53_038_946` |
 | unpaid, to the dollar | `18_680_856` |
 | ledger judgment entries | `3` |
+| ledger entries carry the context-set `actorIdentity` | true |
 | disclosure contains ASOP 41 Section 5 | true |
-| tenant-less call returns a fail-closed envelope | `code === "NO_TENANT_CONTEXT"` |
+| tenant-less call returns a fail-closed envelope | fail-closed error code, body never ran |
 
 The published figures reuse the repo's existing Mack (1993) anchor rather than
 introducing a new one.
 
-The capstone asserts `verdict === "agree"` across all three engines, and that all
-three result documents carry the same `appliesTo.triangleIntegrity`.
+The capstone asserts, per pairing:
+
+- `verdict === "agree"`;
+- all three result documents carry the same `appliesTo.triangleIntegrity`;
+- **`coverage.central.comparedCells > 0`** — the 0.3.0 report records what was
+  actually examined precisely so that "agreed on everything the profile asked
+  about" is distinguishable from "agreed on what happened to be present." An
+  `agree` assertion without a coverage assertion would repeat the weakness the
+  review found in the pre-0.3.0 referee.
 
 ---
 
@@ -321,29 +376,41 @@ three result documents carry the same `appliesTo.triangleIntegrity`.
 
 ---
 
-## 11. Dependencies on in-flight work
+## 11. The 0.3.0 remediation — landed; what this spec inherits
 
-A concurrent session is remediating the 2026-07-18 review. Two items intersect:
+The remediation this section originally tracked has shipped as 0.3.0
+(43 findings triaged: 32 valid, 10 partial, 1 refuted). What matters here:
 
-- **Finding 2.1** rewrites `examples/reserve-review`'s referee. These examples
-  should follow whatever pattern that fix establishes rather than copying the
-  current no-op.
-- **Findings 1.1–1.4** change `runChainLadder`/`runMack` internals. The asserted
-  ultimate and unpaid are unaffected (plain chain ladder on a tidy triangle), but
-  the implementation plan should be written against post-fix `main`.
+- **The referee pattern to imitate exists now.** `reserve-review`'s referee is
+  a genuine intent replay via `docToSelections(..., { strictness: "refuse" })`
+  — copy that pattern, not the pre-0.3.0 no-op.
+- **The math fixes landed with the anchors intact.** Mack's cross-covariance is
+  pairwise, ODP φ counts only contributing cells, and Taylor & Ashe's
+  2,447,095 is bit-identical — the §8 assertions hold on 0.3.0.
+- **The interchange package restructured internally** (`src/referee/`,
+  `src/convert/`, `src/schemas/`). Public exports are unchanged; examples
+  import from the package root and are unaffected.
+- **Finding 2.4 (the integrity tag does not cover `kind`) was NOT changed** —
+  `SEMANTIC_BODY_KEYS` still maps both result kinds to `["result"]`, verified
+  at 0.3.0. This does not affect these examples (every document here is a
+  `method-result`), but the capstone must not be sold as proving anything the
+  tag does not cover.
+- **`parseCsv` now returns `{ rows, warnings }`** (breaking). Irrelevant here —
+  the examples use a grid literal, not CSV — noted so nobody "helpfully" adds
+  CSV ingestion against the old shape.
 
 ---
 
 ## 12. Questions resolved during spec review
 
-Verified against the source on 2026-07-18; recorded so the implementation plan
-does not re-litigate them.
+Verified against the source on 2026-07-18 and re-verified against 0.3.0 on
+2026-07-19; recorded so the implementation plan does not re-litigate them.
 
 1. **Does the judgment chain's ledger feed `generateDisclosure` directly?**
-   **Yes, no adapter.** `packages/agents/src/judgment.ts:142-146` types
+   **Yes, no adapter.** `packages/agents/src/judgment.ts:161` types
    `JudgmentChainOutcome.ledger` as `AssumptionLedger`, commented "Ready for
    @actuarial-ts/compliance generateDisclosure".
-   `packages/compliance/src/disclosure.ts:159` takes a single `DisclosureInput`.
+   `generateDisclosure` takes a single `DisclosureInput`.
    The seam exists and is deliberate; it has simply never been exercised.
 2. **Which sidecar method for the Python example?** `Chainladder`, not
    `MackChainladder`. `interop/sidecar/methods.py:376-391` shows the
@@ -352,6 +419,7 @@ does not re-litigate them.
    `runChainLadder` produces. That pairing is what makes the referee comparable.
    `mack1993-vw` is reserved for volume-weighted all-period fits with Mack sigma
    and no exclusions (`methods.py:394-407`), which is a different example.
+   (`methods.py` is untouched by 0.3.0; line references remain valid.)
 3. **`triangleFromGrid` exists** at `packages/core/src/triangle.ts:220`.
 4. **`callRemoteMethod` signature** is
    `(options: RemoteMethodCallOptions, body: Record<string, unknown>, signal?: AbortSignal)`
