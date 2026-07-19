@@ -116,12 +116,16 @@ export interface McpToolServer {
     executionContext?: { requestContext?: unknown; messages?: unknown[]; toolCallId?: string },
   ): Promise<unknown>;
   /**
-   * Tool enumeration, present on the installed @mastra/mcp MCPServer
-   * (verified: `getToolListInfo()` returns `{ tools: [{ id, ... }] }`).
+   * Tool enumeration, present on the installed @mastra/mcp MCPServer. The
+   * DECLARATION (server.d.ts) types entries by `name` and allows a Promise
+   * return; the runtime also carries `id`. Typed from the declaration — a
+   * runtime probe is how the first draft of this signature broke assignability.
    * Optional so a bare `{ executeTool }` stub still satisfies the type; the
    * self-test's probe-everything form requires it and says so when absent.
    */
-  getToolListInfo?(): { tools: Array<{ id: string }> };
+  getToolListInfo?():
+    | { tools: Array<{ name: string; id?: string }> }
+    | Promise<{ tools: Array<{ name: string; id?: string }> }>;
 }
 
 export interface AssertFailClosedOptions {
@@ -212,7 +216,8 @@ export async function assertFailClosed(options: AssertFailClosedOptions): Promis
     );
   }
 
-  const toolIds = server.getToolListInfo().tools.map((tool) => tool.id);
+  const listing = await server.getToolListInfo();
+  const toolIds = listing.tools.map((tool) => tool.id ?? tool.name);
   const exempt = new Set(options.exempt ?? []);
   const failures: string[] = [];
 

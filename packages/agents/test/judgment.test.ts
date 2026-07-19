@@ -9,6 +9,7 @@ import {
   type JudgmentGateSpec,
   type JudgmentSkipRecord,
 } from "../src/judgment.js";
+import type { JudgmentTrailEntry } from "../src/judgment.js";
 
 /**
  * Programmatic suspend/resume runs, no LLM: the same pattern as the server's
@@ -134,9 +135,9 @@ describe("createJudgmentChain", () => {
     })) as SuspendedResult;
     expect(result.status).toBe("success");
 
-    const trail = result.result!.trail as Array<Record<string, unknown>>;
-    expect(trail[0]!["actor"]).toBe("actuary");
-    expect(trail[0]!["actorIdentity"]).toBe("jane.actuary@example.com (SSO)");
+    const trail: JudgmentTrailEntry[] = result.result!.trail;
+    expect(trail[0]!.actor).toBe("actuary");
+    expect(trail[0]!.actorIdentity).toBe("jane.actuary@example.com (SSO)");
   });
 
   it("omits actorIdentity when the host sets none (identity is never invented)", async () => {
@@ -155,8 +156,8 @@ describe("createJudgmentChain", () => {
       resumeData: { decision: "accept", cap: 150_000, rationale: "documented" },
       requestContext,
     })) as SuspendedResult;
-    const trail = result.result!.trail as Array<Record<string, unknown>>;
-    expect("actorIdentity" in trail[0]!).toBe(false);
+    const trail: JudgmentTrailEntry[] = result.result!.trail;
+    expect(trail[0]!.actorIdentity).toBeUndefined();
   });
 
   it("suspends at each gate, records rationale/actor/timestamp into the ledger, and completes with { trail, ledger }", async () => {
