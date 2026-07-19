@@ -91,12 +91,13 @@ describe("defineActuarialTool", () => {
   it("returns the execute result untouched on success", async () => {
     const tool = defineActuarialTool({
       id: "get_thing",
+      tenant: "required",
       description: "reads a thing",
       kind: "read",
       inputSchema: z.object({ label: z.string() }),
-      execute: async (input, context) => ({
+      execute: async (input, tenant, _context) => ({
         success: true,
-        tenant: tenantOf(context),
+        tenant,
         label: input.label,
       }),
     });
@@ -110,10 +111,11 @@ describe("defineActuarialTool", () => {
   it("converts a thrown coded error into an envelope with code passthrough", async () => {
     const tool = defineActuarialTool({
       id: "explodes_coded",
+      tenant: "none",
       description: "throws an HttpError-like coded error",
       kind: "read",
       inputSchema: z.object({}),
-      execute: async () => {
+      execute: async (_input, _tenant) => {
         throw Object.assign(new Error("no analysis yet"), { code: "NOT_FOUND" });
       },
     });
@@ -127,10 +129,11 @@ describe("defineActuarialTool", () => {
   it("converts a plain thrown error into a TOOL_ERROR envelope (never throws into the model)", async () => {
     const tool = defineActuarialTool({
       id: "explodes_plain",
+      tenant: "none",
       description: "throws a plain error",
       kind: "action",
       inputSchema: z.object({}),
-      execute: async () => {
+      execute: async (_input, _tenant) => {
         throw new Error("service blew up");
       },
     });
@@ -140,18 +143,37 @@ describe("defineActuarialTool", () => {
     });
   });
 
-  it("turns a missing tenant context into an envelope, not a throw", async () => {
+  it("fails closed on a missing tenant WITHOUT ever invoking the body", async () => {
+    // The seam is enforced by construction now: the wrapper resolves the
+    // tenant before execute, so the body cannot forget the check — it never
+    // runs. The flag is the proof.
+    let executeRan = false;
     const tool = defineActuarialTool({
       id: "needs_tenant",
       description: "reads the tenant",
       kind: "read",
       inputSchema: z.object({}),
-      execute: async (_input, context) => ({ success: true, tenant: tenantOf(context) }),
+      tenant: "required",
+      execute: async (_input, tenant, _context) => {
+        executeRan = true;
+        return { success: true, tenant };
+      },
     });
+
     const result = (await tool.execute!({}, toolContext())) as ToolEnvelopeFailure;
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("NO_TENANT_CONTEXT");
     expect(result.error.message).toContain("projectId");
+    expect(executeRan).toBe(false);
+
+    // And with a tenant present, the body receives it as an argument.
+    const ok = (await tool.execute!(
+      {},
+      toolContext(contextWithTenant("p-42")),
+    )) as { success: true; tenant: string };
+    expect(ok.success).toBe(true);
+    expect(ok.tenant).toBe("p-42");
+    expect(executeRan).toBe(true);
   });
 
   it("rejects tenant-id keys in the input schema at definition time", () => {
@@ -160,10 +182,11 @@ describe("defineActuarialTool", () => {
         () =>
           defineActuarialTool({
             id: "leaky",
-            description: "declares a tenant id",
+          tenant: "none",
+      description: "declares a tenant id",
             kind: "read",
             inputSchema: z.object({ [key]: z.string() }),
-            execute: async () => ({ success: true }),
+            execute: async (_input, _tenant) => ({ success: true }),
           }),
         "TENANT_IN_SCHEMA",
       );
@@ -193,10 +216,11 @@ describe("defineActuarialTool", () => {
         () =>
           defineActuarialTool({
             id: `leaky-${name}`,
+            tenant: "none",
             description: `tenant id inside ${name}`,
             kind: "read",
             inputSchema: z.object({ payload: schema }),
-            execute: async () => ({ success: true }),
+            execute: async (_input, _tenant) => ({ success: true }),
           }),
         "TENANT_IN_SCHEMA",
       );
@@ -217,10 +241,11 @@ describe("defineActuarialTool", () => {
         () =>
           defineActuarialTool({
             id: `opaque-${name}`,
+            tenant: "none",
             description: `uninspectable ${name}`,
             kind: "read",
             inputSchema: z.object({ payload: schema }),
-            execute: async () => ({ success: true }),
+            execute: async (_input, _tenant) => ({ success: true }),
           }),
         "BAD_INPUT_SCHEMA",
       );
@@ -231,7 +256,8 @@ describe("defineActuarialTool", () => {
     expect(() =>
       defineActuarialTool({
         id: "kitchen-sink",
-        description: "every legitimate shape at once",
+        tenant: "none",
+      description: "every legitimate shape at once",
         kind: "read",
         inputSchema: z.object({
           name: z.string(),
@@ -244,7 +270,7 @@ describe("defineActuarialTool", () => {
           nested: z.object({ analysisId: z.string() }).readonly(),
           either: z.union([z.string(), z.number()]),
         }),
-        execute: async () => ({ success: true }),
+        execute: async (_input, _tenant) => ({ success: true }),
       }),
     ).not.toThrow();
   });
@@ -254,11 +280,12 @@ describe("defineActuarialTool", () => {
     expect(() =>
       defineActuarialTool({
         id: "declared-slot",
-        description: "one declared document slot",
+        tenant: "none",
+      description: "one declared document slot",
         kind: "read",
         inputSchema: z.object({ doc: z.unknown(), other: z.string() }),
         allowUninspected: ["input.doc"],
-        execute: async () => ({ success: true }),
+        execute: async (_input, _tenant) => ({ success: true }),
       }),
     ).not.toThrow();
 
@@ -266,11 +293,12 @@ describe("defineActuarialTool", () => {
       () =>
         defineActuarialTool({
           id: "undeclared-sibling",
-          description: "second opaque slot not declared",
+          tenant: "none",
+      description: "second opaque slot not declared",
           kind: "read",
           inputSchema: z.object({ doc: z.unknown(), also: z.unknown() }),
           allowUninspected: ["input.doc"],
-          execute: async () => ({ success: true }),
+          execute: async (_input, _tenant) => ({ success: true }),
         }),
       "BAD_INPUT_SCHEMA",
     );
@@ -281,11 +309,12 @@ describe("defineActuarialTool", () => {
       () =>
         defineActuarialTool({
           id: "stale-allowance",
-          description: "declares a path that is not opaque",
+          tenant: "none",
+      description: "declares a path that is not opaque",
           kind: "read",
           inputSchema: z.object({ name: z.string() }),
           allowUninspected: ["input.name"],
-          execute: async () => ({ success: true }),
+          execute: async (_input, _tenant) => ({ success: true }),
         }),
       "BAD_INPUT_SCHEMA",
     );
@@ -296,10 +325,11 @@ describe("defineActuarialTool", () => {
     expect(() =>
       defineActuarialTool({
         id: "fine",
-        description: "ordinary ids are fine",
+        tenant: "none",
+      description: "ordinary ids are fine",
         kind: "read",
         inputSchema: z.object({ analysisId: z.string(), projection: z.number() }),
-        execute: async () => ({ success: true }),
+        execute: async (_input, _tenant) => ({ success: true }),
       }),
     ).not.toThrow();
   });
@@ -308,17 +338,19 @@ describe("defineActuarialTool", () => {
 describe("toolRegistry", () => {
   const read = defineActuarialTool({
     id: "get_overview",
+    tenant: "none",
     description: "read",
     kind: "read",
     inputSchema: z.object({}),
-    execute: async () => ({ success: true }),
+    execute: async (_input, _tenant) => ({ success: true }),
   });
   const action = defineActuarialTool({
     id: "apply_selections",
+    tenant: "none",
     description: "action",
     kind: "action",
     inputSchema: z.object({}),
-    execute: async () => ({ success: true }),
+    execute: async (_input, _tenant) => ({ success: true }),
   });
 
   it("keys tools by id and classifies action tools", () => {
@@ -337,6 +369,7 @@ describe("tenant-key lint: fail-closed and recursive (adversarial-review hardeni
   const define = (inputSchema: z.ZodObject<z.ZodRawShape>) =>
     defineActuarialTool({
       id: "probe",
+      tenant: "none",
       description: "probe",
       kind: "read",
       inputSchema,
@@ -347,6 +380,7 @@ describe("tenant-key lint: fail-closed and recursive (adversarial-review hardeni
     expect(() =>
       defineActuarialTool({
         id: "probe",
+        tenant: "none",
         description: "probe",
         kind: "read",
         // Not an object schema at all; cast past the types like a JS caller could.

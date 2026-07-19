@@ -48,6 +48,7 @@
  */
 
 import type { ActuarialToolContext, ToolEnvelopeFailure } from "./tools.js";
+import { resolveTenant } from "./tools.js";
 import { AgentsError, type AgentsErrorCode } from "./errors.js";
 
 // ---------------------------------------------------------------------------
@@ -82,33 +83,7 @@ export interface McpToolContext extends ActuarialToolContext {
   mcp?: { extra?: McpRequestExtra };
 }
 
-/**
- * Resolves the MCP auth-info bag from a tool context, trying every shape the
- * installed and documented transports expose (see the file header). Returns
- * undefined when no auth info is present — the caller decides that is fatal.
- */
-function resolveMcpAuthInfo(context: McpToolContext | undefined): McpAuthInfo | undefined {
-  if (!context) return undefined;
 
-  // Primary: the streamable-HTTP call path passes the transport extra at
-  // context.mcp.extra (mcpOptions.mcp.extra in @mastra/mcp).
-  const directAuthInfo = context.mcp?.extra?.authInfo;
-  if (directAuthInfo) return directAuthInfo;
-
-  const requestContext = context.requestContext;
-  if (requestContext && typeof requestContext.get === "function") {
-    // Documented universal fallback: the whole extra bag under "mcp.extra".
-    const proxiedExtra = requestContext.get("mcp.extra") as McpRequestExtra | undefined;
-    if (proxiedExtra?.authInfo) return proxiedExtra.authInfo;
-
-    // Installed @mastra/mcp 1.14.0: createProxiedRequestContext copies each
-    // extra key onto the RequestContext verbatim, so authInfo is top-level.
-    const topLevelAuthInfo = requestContext.get("authInfo") as McpAuthInfo | undefined;
-    if (topLevelAuthInfo) return topLevelAuthInfo;
-  }
-
-  return undefined;
-}
 
 /**
  * Reads the tenant id (default key "projectId") from the MCP execution
@@ -119,15 +94,10 @@ function resolveMcpAuthInfo(context: McpToolContext | undefined): McpAuthInfo | 
  * built on requireMcpTenant fails CLOSED for any unauthenticated MCP caller.
  */
 export function requireMcpTenant(context: McpToolContext | undefined, key = "projectId"): string {
-  const authInfo = resolveMcpAuthInfo(context);
-  const value = authInfo?.[key];
-  if (typeof value !== "string" || value.length === 0) {
-    throw new AgentsError(
-      "NO_TENANT_CONTEXT",
-      `MCP tool invoked without a non-empty "${key}" in the request's authInfo; the host's bearer-token middleware must set req.auth = { ${key} } so it reaches context.mcp.extra.authInfo — the tenant never comes from the model`,
-    );
-  }
-  return value;
+  // One seam, one reader: this is resolveTenant with the MCP source pinned.
+  // Prefer declaring `tenant: "required", tenantSource: "mcp-auth"` on the
+  // tool itself, which makes the wrapper do this before the body runs.
+  return resolveTenant(context, { source: "mcp-auth", key });
 }
 
 // ---------------------------------------------------------------------------

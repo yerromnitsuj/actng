@@ -82,11 +82,86 @@ export interface TenantToolContext {
  * failure envelope, so the model sees a recoverable error, never a crash.
  */
 export function tenantOf(context: TenantToolContext | undefined, key = "projectId"): string {
-  const value = context?.requestContext?.get(key);
+  return resolveTenant(context, { source: "request-context", key });
+}
+
+/** The auth-info bag a bearer-token middleware sets (req.auth in the host). */
+export type McpAuthInfoLike = Record<string, unknown>;
+
+/** The MCP slice of a tool context this package reads auth info from. */
+export interface McpContextLike {
+  requestContext?: { get(key: string): unknown };
+  mcp?: { extra?: { authInfo?: McpAuthInfoLike } };
+}
+
+/**
+ * Resolves the MCP auth-info bag from a tool context, trying every shape the
+ * installed and documented transports expose (see mcp.ts's file header for
+ * the transport-by-transport story). Returns undefined when no auth info is
+ * present — the caller decides that is fatal.
+ */
+export function resolveMcpAuthInfo(context: McpContextLike | undefined): McpAuthInfoLike | undefined {
+  if (!context) return undefined;
+
+  // Primary: the streamable-HTTP call path passes the transport extra at
+  // context.mcp.extra (mcpOptions.mcp.extra in @mastra/mcp).
+  const directAuthInfo = context.mcp?.extra?.authInfo;
+  if (directAuthInfo) return directAuthInfo;
+
+  const requestContext = context.requestContext;
+  if (requestContext && typeof requestContext.get === "function") {
+    // Documented universal fallback: the whole extra bag under "mcp.extra".
+    const proxiedExtra = requestContext.get("mcp.extra") as
+      | { authInfo?: McpAuthInfoLike }
+      | undefined;
+    if (proxiedExtra?.authInfo) return proxiedExtra.authInfo;
+
+    // Installed @mastra/mcp 1.14.0: createProxiedRequestContext copies each
+    // extra key onto the RequestContext verbatim, so authInfo is top-level.
+    const topLevelAuthInfo = requestContext.get("authInfo") as McpAuthInfoLike | undefined;
+    if (topLevelAuthInfo) return topLevelAuthInfo;
+  }
+  return undefined;
+}
+
+/** Where a tool's tenant id is trusted to come from. */
+export type TenantSource = "request-context" | "mcp-auth";
+
+export interface ResolveTenantOptions {
+  /** The trusted path. Default "request-context" (the host sets it server-side). */
+  source?: TenantSource;
+  /** The key holding the tenant id. Default "projectId". */
+  key?: string;
+}
+
+/**
+ * THE tenant read. Every path a tenant id may enter this package goes through
+ * here — the agent-facing request context and the MCP auth info are the same
+ * seam with two transports, and having two independent readers is how they
+ * drift (they did: tools.ts read requestContext while mcp.ts read authInfo,
+ * with nothing forcing the two to stay in step).
+ *
+ * Throws AgentsError("NO_TENANT_CONTEXT") when the source has no non-empty
+ * string under the key. Inside a defineActuarialTool execute the wrapper
+ * converts that throw into a { success: false } envelope, so tools fail
+ * CLOSED for any unauthenticated caller.
+ */
+export function resolveTenant(
+  context: TenantToolContext | McpContextLike | undefined,
+  options: ResolveTenantOptions = {},
+): string {
+  const source = options.source ?? "request-context";
+  const key = options.key ?? "projectId";
+  const value =
+    source === "mcp-auth"
+      ? resolveMcpAuthInfo(context as McpContextLike | undefined)?.[key]
+      : (context as TenantToolContext | undefined)?.requestContext?.get(key);
   if (typeof value !== "string" || value.length === 0) {
     throw new AgentsError(
       "NO_TENANT_CONTEXT",
-      `Tool invoked without a "${key}" in the request context; the host must set it server-side from the authenticated request, never from the model`,
+      source === "mcp-auth"
+        ? `MCP tool invoked without a non-empty "${key}" in the request's authInfo; the host's bearer-token middleware must set req.auth = { ${key} } so it reaches the tool context — the tenant never comes from the model`
+        : `Tool invoked without a "${key}" in the request context; the host must set it server-side from the authenticated request, never from the model`,
     );
   }
   return value;
@@ -317,7 +392,7 @@ export type ActuarialToolKind = "read" | "action";
  */
 export type ActuarialToolContext = TenantToolContext;
 
-export interface DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResult> {
+interface DefineActuarialToolCommon<TShape extends z.ZodRawShape> {
   /**
    * Exact schema paths (the lint's dot notation, rooted at "input") where an
    * uninspectable type — z.unknown(), z.any(), z.map() — is INTENTIONAL
@@ -340,16 +415,50 @@ export interface DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResul
    * AgentsError("TENANT_IN_SCHEMA") at definition time if it does.
    */
   inputSchema: z.ZodObject<TShape>;
-  /**
-   * The tool body. May throw freely (HttpError-style coded errors keep their
-   * code); the wrapper guarantees the model receives either the return value
-   * or a { success: false, error } envelope, never an exception.
-   */
-  execute: (
-    input: z.infer<z.ZodObject<TShape>>,
-    context: ActuarialToolContext,
-  ) => Promise<TResult>;
 }
+
+/**
+ * Every tool STATES its relationship to the tenant seam; there is no default.
+ *
+ * `tenant: "required"` — the wrapper resolves the tenant from the trusted
+ * source BEFORE invoking execute and passes it as the second argument. The
+ * body cannot forget the read, because the read is not the body's job any
+ * more: an unauthenticated call fails closed with NO_TENANT_CONTEXT and
+ * execute never runs.
+ *
+ * `tenant: "none"` — for the handful of genuinely tenant-free tools (e.g.
+ * get_divergence_evidence, which restates evidence already injected by the
+ * host). The second argument is null, and the opt-out is greppable: searching
+ * `tenant: "none"` lists every tool that skips the seam, with its reason
+ * reviewable at the definition site.
+ */
+export type DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResult> =
+  | (DefineActuarialToolCommon<TShape> & {
+      tenant: "required";
+      /** Trusted source for the tenant id. Default "request-context". */
+      tenantSource?: TenantSource;
+      /** Key holding the tenant id at the source. Default "projectId". */
+      tenantKey?: string;
+      /**
+       * The tool body. `tenant` is the resolved id — already authenticated,
+       * never model-supplied. May throw freely; the wrapper guarantees the
+       * model receives either the return value or a { success: false, error }
+       * envelope, never an exception.
+       */
+      execute: (
+        input: z.infer<z.ZodObject<TShape>>,
+        tenant: string,
+        context: ActuarialToolContext,
+      ) => Promise<TResult>;
+    })
+  | (DefineActuarialToolCommon<TShape> & {
+      tenant: "none";
+      execute: (
+        input: z.infer<z.ZodObject<TShape>>,
+        tenant: null,
+        context: ActuarialToolContext,
+      ) => Promise<TResult>;
+    });
 
 /**
  * Wraps Mastra's createTool with the envelope + tenant-seam guarantees and
@@ -379,13 +488,31 @@ export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
       );
     }
   }
+  if (options.tenant !== "required" && options.tenant !== "none") {
+    // Runtime backstop for JS callers the union type cannot reach: the seam
+    // relationship is stated, never assumed.
+    throw new AgentsError(
+      "BAD_INPUT_SCHEMA",
+      `Tool "${(options as { id: string }).id}": \`tenant\` must be "required" or "none" — every tool states its ` +
+        "relationship to the tenant seam explicitly",
+    );
+  }
   const tool = createTool({
     id: options.id,
     description: options.description,
     inputSchema: options.inputSchema,
     execute: async (input: z.infer<z.ZodObject<TShape>>, context: unknown) => {
       try {
-        return await options.execute(input, context as ActuarialToolContext);
+        if (options.tenant === "required") {
+          // Resolve BEFORE the body runs: an unauthenticated call fails closed
+          // here, and execute never sees it.
+          const tenant = resolveTenant(context as ActuarialToolContext, {
+            source: options.tenantSource,
+            key: options.tenantKey,
+          });
+          return await options.execute(input, tenant, context as ActuarialToolContext);
+        }
+        return await options.execute(input, null, context as ActuarialToolContext);
       } catch (err) {
         return envelopeFailure(err);
       }

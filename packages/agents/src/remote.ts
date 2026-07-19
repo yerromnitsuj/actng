@@ -332,7 +332,11 @@ export function defineRemoteMethod(options: DefineRemoteMethodOptions) {
     // no tenant identifiers by spec section 12. Declaring the paths here keeps
     // the tenant lint fail-closed for everything else.
     allowUninspected: ["input.triangles.primary", "input.triangles.secondary", "input.selection"],
-    execute: async (input, context): Promise<RemoteMethodResult> => {
+    // Tenant-free BY DESIGN: the sidecar is stateless and the wire body is
+    // spec-7 minus engagementRef minus any tenant surface (see the file
+    // header). There is no tenant-scoped read or write on this path.
+    tenant: "none",
+    execute: async (input, _tenant, context): Promise<RemoteMethodResult> => {
       const badPrimary = checkDocumentSlot(input.triangles.primary, "triangles.primary", "triangle");
       if (badPrimary !== null) return badPrimary;
       if (input.triangles.secondary !== null && input.triangles.secondary !== undefined) {

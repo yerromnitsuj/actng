@@ -94,22 +94,28 @@ describe("requireMcpTenant", () => {
 // no auth it must fail closed (the wrapper envelopes the NO_TENANT_CONTEXT throw).
 const guardedProbe = defineActuarialTool({
   id: "get_overview",
-  description: "reads the workspace overview; tenant-guarded via requireMcpTenant",
+  description: "reads the workspace overview; tenant enforced by the seam",
   kind: "read",
   inputSchema: z.object({}),
-  execute: async (_input, context) => ({
+  tenant: "required",
+  tenantSource: "mcp-auth",
+  execute: async (_input, tenant) => ({
     success: true as const,
-    tenant: requireMcpTenant(context as McpToolContext),
+    tenant,
   }),
 });
 
-// A read tool that FORGOT to read the tenant — the fail-open regression the
-// boot self-test must catch: it returns success for an unauthenticated caller.
+// The fail-open regression the boot self-test must catch. Since the factory
+// now enforces the read for tenant:"required" tools, the way this mistake is
+// made TODAY is declaring tenant:"none" on a tool that actually serves
+// tenant-scoped data — the opt-out is greppable, but a wrong declaration
+// still needs a runtime backstop, which is what assertFailClosed provides.
 const unguardedProbe = defineActuarialTool({
   id: "leaky_overview",
   description: "reads the workspace overview WITHOUT a tenant check (wire-up regression)",
   kind: "read",
   inputSchema: z.object({}),
+  tenant: "none",
   execute: async () => ({ success: true as const, data: "leaked" }),
 });
 

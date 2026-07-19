@@ -515,7 +515,12 @@ export function createDivergenceEvidenceTool() {
       "warnings. Read-only.",
     kind: "read",
     inputSchema: z.object({}),
-    execute: async (_input, context) => {
+    // Tenant-free BY DESIGN: this tool restates divergence evidence the host
+    // already assembled and injected into the request context via
+    // explainDivergence. There is no per-tenant data path to protect — the
+    // evidence is scoped by the host before this tool can see it.
+    tenant: "none",
+    execute: async (_input, _tenant, context) => {
       const evidence = context.requestContext?.get(DIVERGENCE_EVIDENCE_CONTEXT_KEY);
       if (evidence === undefined) {
         throw new AgentsError(
