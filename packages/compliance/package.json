@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/compliance",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "ASOP-compliance-support layer for the actuarial-ts SDK: estimate metadata, assumption ledger, ASOP 41 disclosure generation, ASOP 56 model cards, reproducibility bundles, and actual-vs-expected roll-forward. Responsibility for compliance remains with the credentialed actuary.",
   "license": "Apache-2.0",
   "type": "module",
@@ -46,8 +46,8 @@
     "prepack": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.2.0",
-    "@actuarial-ts/interchange": "^0.2.0"
+    "@actuarial-ts/core": "^0.3.0",
+    "@actuarial-ts/interchange": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

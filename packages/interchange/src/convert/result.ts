@@ -46,7 +46,7 @@ export type ConvertibleResult =
  * The engine stamp for results computed by @actuarial-ts/core. A sync test
  * pins the version to the installed core package so it cannot drift.
  */
-export const CORE_ENGINE: EngineStamp = { name: "actuarial-ts", version: "0.2.0" };
+export const CORE_ENGINE: EngineStamp = { name: "actuarial-ts", version: "0.3.0" };
 
 export interface ResultToDocOptions {
   /** The triangle document the result was computed from. */

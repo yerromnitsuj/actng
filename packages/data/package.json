@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/data",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Data ingestion and ASOP No. 23 data-quality review for the actuarial-ts SDK: RFC 4180 CSV parsing, loss-run import, long-format triangle assembly, and claim/triangle review checks.",
   "license": "Apache-2.0",
   "type": "module",
@@ -48,7 +48,7 @@
     "prepack": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.2.0"
+    "@actuarial-ts/core": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

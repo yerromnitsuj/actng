@@ -180,7 +180,7 @@ export function runReserveReview(): ReviewOutcome {
     ],
     ledger,
     dataReview,
-    sdkVersion: "0.2.0",
+    sdkVersion: "0.3.0",
     generatedAt: CREATED_AT,
   });
 
@@ -195,7 +195,7 @@ export function runReserveReview(): ReviewOutcome {
         totals: { ultimate: cl.totals.ultimate, unpaid: cl.totals.unpaid },
       },
     },
-    sdkVersions: { "@actuarial-ts/core": "0.2.0", "@actuarial-ts/compliance": "0.2.0" },
+    sdkVersions: { "@actuarial-ts/core": "0.3.0", "@actuarial-ts/compliance": "0.3.0" },
     createdAt: CREATED_AT,
   });
   // verifyBundle's second argument is the RE-RUN RESULTS ONLY, not the whole

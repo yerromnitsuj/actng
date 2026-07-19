@@ -46,7 +46,7 @@ const cl = runChainLadder(paid, { selected, tailFactor: 1.02 });
 const mack = runMack(paid, { selected, tailFactor: 1.02 });
 const dist = runOdpBootstrap(paid, { nSims: 10_000, seed: 42 }); // seeded, reproducible
 
-const markdown = generateDisclosure({ metadata, methods, ledger, dataReview: review, sdkVersion: "0.2.0", generatedAt });
+const markdown = generateDisclosure({ metadata, methods, ledger, dataReview: review, sdkVersion: "0.3.0", generatedAt });
 ```
 
 ## Try it

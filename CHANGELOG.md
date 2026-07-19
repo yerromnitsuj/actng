@@ -3,7 +3,10 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
-## Unreleased (targeting 0.3.0)
+## 0.3.0 — 2026-07-19
+
+All five packages version together (see VERSIONING.md for why lockstep is
+mandatory on 0.x). Publish order: core, interchange, data, compliance, agents.
 
 The review-remediation release: an external review's 43 findings were
 independently verified (32 valid, 10 partial, 1 refuted) and worked through in

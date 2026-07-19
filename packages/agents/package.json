@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/agents",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Mastra agent toolkit for the actuarial-ts SDK: typed actuarial tools with a hard tenant seam, human-gated judgment workflows that write the compliance assumption ledger, a reserving advisor factory, and a golden-prompt eval harness.",
   "license": "Apache-2.0",
   "type": "module",
@@ -46,10 +46,10 @@
     "prepack": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@actuarial-ts/compliance": "^0.2.0",
-    "@actuarial-ts/core": "^0.2.0",
-    "@actuarial-ts/data": "^0.2.0",
-    "@actuarial-ts/interchange": "^0.2.0"
+    "@actuarial-ts/compliance": "^0.3.0",
+    "@actuarial-ts/core": "^0.3.0",
+    "@actuarial-ts/data": "^0.3.0",
+    "@actuarial-ts/interchange": "^0.3.0"
   },
   "devDependencies": {
     "@mastra/core": "^1.49.0",

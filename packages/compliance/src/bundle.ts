@@ -89,7 +89,7 @@ export const WRAPPED_BUNDLE_INTERCHANGE_VERSION = "1.0.0";
  * silently drift (mirroring interchange's INTERCHANGE_PACKAGE_VERSION
  * discipline).
  */
-export const COMPLIANCE_PACKAGE_VERSION = "0.2.0";
+export const COMPLIANCE_PACKAGE_VERSION = "0.3.0";
 
 /**
  * The interchange mirror for a wrapped bundle (spec 3.2): the triangles the

@@ -37,7 +37,7 @@ export const INTERCHANGE_SPEC_MAJOR = 1;
  * This package's version, stamped into `generator` by default. A sync test
  * asserts it matches package.json so it cannot silently drift.
  */
-export const INTERCHANGE_PACKAGE_VERSION = "0.2.0";
+export const INTERCHANGE_PACKAGE_VERSION = "0.3.0";
 
 export interface GeneratorStamp {
   name: string;

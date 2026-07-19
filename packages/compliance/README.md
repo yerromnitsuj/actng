@@ -65,7 +65,7 @@ const markdown = generateDisclosure({
     { methodId: "mack", basisLabel: "paid", resultSummary: { standardError: mack.totals.standardError } },
   ],
   ledger,
-  sdkVersion: "0.2.0",
+  sdkVersion: "0.3.0",
   generatedAt: "2026-01-05T10:15:00Z",
 });
 ```
