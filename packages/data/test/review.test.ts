@@ -5,6 +5,7 @@ import { reviewClaimData, reviewTriangles } from "../src/review.js";
 import type { DataCheck, DataReviewReport } from "../src/review.js";
 
 const CLAIM_CHECK_IDS = [
+  "non-finite-value",
   "negative-paid",
   "negative-case",
   "paid-decreasing",
@@ -15,6 +16,7 @@ const CLAIM_CHECK_IDS = [
 ];
 
 const TRIANGLE_CHECK_IDS = [
+  "non-finite-value",
   "shape-mismatch",
   "paid-exceeds-incurred",
   "negative-incremental-paid",
@@ -41,6 +43,55 @@ function check(report: DataReviewReport, id: string): DataCheck {
   return found!;
 }
 
+describe("non-finite values fail the review instead of sailing through it (finding data.4)", () => {
+  it("an all-NaN triangle pair is a FAIL, not a clean bill of health", () => {
+    // Every check is a relational operator, and every relational operator is
+    // false for NaN — so a triangle of NaN cells passed 5/5 checks and
+    // rendered into disclosure Section 3 as clean data. NaN is not clean
+    // data; it is the absence of a number wearing a number's type.
+    const nan = triangleFromGrid("paid", ["2021", "2022"], [12, 24], [
+      [Number.NaN, Number.NaN],
+      [Number.NaN, null],
+    ]);
+    const report = reviewTriangles(nan, { ...nan, kind: "incurred" });
+    const check = report.checks.find((c) => c.id === "non-finite-value");
+    expect(check).toBeDefined();
+    expect(check!.status).toBe("fail");
+    expect(check!.details.join(" ")).toContain("2021");
+    expect(report.summary.fail).toBeGreaterThan(0);
+  });
+
+  it("flags NaN and Infinity in claim-level money fields", () => {
+    const report = reviewClaimData(
+      [
+        {
+          claimId: "C1",
+          accidentDate: "2024-01-01",
+          reportDate: "2024-02-01",
+          status: "open",
+          evaluationDate: "2025-12-31",
+          paidToDate: Number.NaN,
+          caseReserve: Number.POSITIVE_INFINITY,
+        },
+      ],
+      { asOfDate: "2025-12-31" },
+    );
+    const check = report.checks.find((c) => c.id === "non-finite-value");
+    expect(check).toBeDefined();
+    expect(check!.status).toBe("fail");
+    expect(check!.details.join(" ")).toContain("C1");
+  });
+
+  it("passes clean data through the new check untouched", () => {
+    const clean = triangleFromGrid("paid", ["2021", "2022"], [12, 24], [
+      [100, 180],
+      [120, null],
+    ]);
+    const report = reviewTriangles(clean, { ...clean, kind: "incurred" });
+    expect(report.checks.find((c) => c.id === "non-finite-value")!.status).toBe("pass");
+  });
+});
+
 describe("reviewClaimData", () => {
   it("reports every check id, all passing, on clean data", () => {
     const clean = [
@@ -55,7 +106,7 @@ describe("reviewClaimData", () => {
       expect(c.details).toEqual([]);
       expect(c.description.length).toBeGreaterThan(0);
     }
-    expect(report.summary).toEqual({ pass: 7, warning: 0, fail: 0, notEvaluated: 0 });
+    expect(report.summary).toEqual({ pass: 8, warning: 0, fail: 0, notEvaluated: 0 });
   });
 
   it("fails negative-paid", () => {
@@ -155,7 +206,7 @@ describe("reviewClaimData", () => {
     expect(report.summary.fail).toBe(1); // negative-paid
     expect(report.summary.warning).toBe(1); // negative-case
     // future-dated has no asOfDate here, so it is explicitly not evaluated.
-    expect(report.summary.pass).toBe(4);
+    expect(report.summary.pass).toBe(5);
     expect(report.summary.notEvaluated).toBe(1);
   });
 });
@@ -189,7 +240,7 @@ describe("reviewTriangles", () => {
       expect(c.status).toBe("pass");
       expect(c.details).toEqual([]);
     }
-    expect(report.summary).toEqual({ pass: 5, warning: 0, fail: 0, notEvaluated: 0 });
+    expect(report.summary).toEqual({ pass: 6, warning: 0, fail: 0, notEvaluated: 0 });
   });
 
   it("fails shape-mismatch and skips the remaining checks (still listed)", () => {
@@ -199,12 +250,15 @@ describe("reviewTriangles", () => {
     const shape = check(report, "shape-mismatch");
     expect(shape.status).toBe("fail");
     expect(shape.details.length).toBeGreaterThan(0);
-    for (const id of TRIANGLE_CHECK_IDS.slice(1)) {
+    // non-finite-value is evaluated even when shapes mismatch (finiteness
+    // does not need matching grids); everything AFTER shape-mismatch is not.
+    expect(check(report, "non-finite-value").status).toBe("pass");
+    for (const id of TRIANGLE_CHECK_IDS.slice(2)) {
       const c = check(report, id);
       expect(c.status).toBe("not-evaluated");
       expect(c.details[0]).toContain("not evaluated");
     }
-    expect(report.summary).toEqual({ pass: 0, warning: 0, fail: 1, notEvaluated: 4 });
+    expect(report.summary).toEqual({ pass: 1, warning: 0, fail: 1, notEvaluated: 4 });
   });
 
   it("fails shape-mismatch on differing ages too", () => {

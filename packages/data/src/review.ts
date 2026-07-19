@@ -79,6 +79,7 @@ function summarize(checks: DataCheck[]): DataReviewReport {
 }
 
 const CLAIM_DESCRIPTIONS = {
+  "non-finite-value": "Every money field is a finite number (no NaN or Infinity)",
   "negative-paid": "Cumulative paid amounts are non-negative",
   "negative-case": "Case reserves are non-negative (negative case is legitimate but rare)",
   "paid-decreasing":
@@ -166,12 +167,21 @@ export function reviewClaimData(
     }
   }
 
+  const nonFinite: string[] = [];
+  for (const c of claims) {
+    const where = `claim ${c.claimId}`;
+    if (!Number.isFinite(c.paidToDate)) nonFinite.push(`${where}: paid_to_date ${String(c.paidToDate)}`);
+    if (!Number.isFinite(c.caseReserve)) nonFinite.push(`${where}: case_reserve ${String(c.caseReserve)}`);
+  }
+
   const futureCheck =
     opts.asOfDate === undefined
       ? notEvaluated("future-dated", CLAIM_DESCRIPTIONS["future-dated"], "no asOfDate provided")
       : makeCheck("future-dated", CLAIM_DESCRIPTIONS["future-dated"], "fail", futureDated);
 
   return summarize([
+    // First: if the numbers are not numbers, the other verdicts are noise.
+    makeCheck("non-finite-value", CLAIM_DESCRIPTIONS["non-finite-value"], "fail", nonFinite),
     makeCheck("negative-paid", CLAIM_DESCRIPTIONS["negative-paid"], "fail", negativePaid),
     makeCheck("negative-case", CLAIM_DESCRIPTIONS["negative-case"], "warning", negativeCase),
     makeCheck("paid-decreasing", CLAIM_DESCRIPTIONS["paid-decreasing"], "fail", paidDecreasing),
@@ -183,6 +193,7 @@ export function reviewClaimData(
 }
 
 const TRIANGLE_DESCRIPTIONS = {
+  "non-finite-value": "Every observed cell is a finite number (no NaN or Infinity)",
   "shape-mismatch": "Paid and incurred triangles share the same origins and ages",
   "paid-exceeds-incurred": "Paid never exceeds incurred in any cell (1e-9 relative tolerance)",
   "negative-incremental-paid":
@@ -191,6 +202,28 @@ const TRIANGLE_DESCRIPTIONS = {
     "Cumulative incurred is non-decreasing along each origin row (case takedowns can legitimately violate this)",
   "interior-missing": "No row has a missing cell between observed cells",
 } as const;
+
+/**
+ * Findings for NaN/Infinity in observed cells. This check exists because every
+ * OTHER check is a relational comparison, and every relational comparison is
+ * false for NaN — so without it, a triangle of NaN cells passes the entire
+ * review and renders into disclosure Section 3 as clean data. It runs FIRST:
+ * if the numbers are not numbers, the other verdicts are noise.
+ */
+function nonFiniteTriangleFindings(tri: Triangle): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < tri.values.length; i++) {
+    const row = tri.values[i]!;
+    for (let j = 0; j < row.length; j++) {
+      const v = row[j];
+      if (v === null || v === undefined) continue;
+      if (!Number.isFinite(v)) {
+        out.push(`${tri.kind} ${tri.origins[i]} age ${tri.ages[j]}: ${String(v)}`);
+      }
+    }
+  }
+  return out;
+}
 
 /** Findings where a row's cumulative values decrease between observed cells. */
 function negativeIncrementalFindings(tri: Triangle): string[] {
@@ -252,6 +285,12 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
       `ages differ: paid [${paid.ages.join(", ")}] vs incurred [${incurred.ages.join(", ")}]`,
     );
   }
+  const nonFiniteCheck = makeCheck(
+    "non-finite-value",
+    TRIANGLE_DESCRIPTIONS["non-finite-value"],
+    "fail",
+    [...nonFiniteTriangleFindings(paid), ...nonFiniteTriangleFindings(incurred)],
+  );
   const shapeCheck = makeCheck(
     "shape-mismatch",
     TRIANGLE_DESCRIPTIONS["shape-mismatch"],
@@ -263,6 +302,7 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
     // remaining checks stay listed (disclosure) but are not evaluated.
     const reason = "triangle shapes differ";
     return summarize([
+      nonFiniteCheck,
       shapeCheck,
       notEvaluated("paid-exceeds-incurred", TRIANGLE_DESCRIPTIONS["paid-exceeds-incurred"], reason),
       notEvaluated(
@@ -295,6 +335,7 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
   }
 
   return summarize([
+    nonFiniteCheck,
     shapeCheck,
     makeCheck(
       "paid-exceeds-incurred",
