@@ -154,8 +154,10 @@ identity is read from the request context under
 `packages/agents/src/judgment.ts:61`) — the resume payload supplies only the
 coarse `actor` enum and **cannot assert an identity**. The examples set
 `actorIdentity` in the run's `RequestContext` (e.g. `"jane.actuary@example.com"`)
-and the tests assert the ledger entries carry it. This demonstrates the
-security property the 0.3.0 fix introduced, rather than working around it.
+and the tests assert the **judgment trail** entries carry it —
+`JudgmentTrailEntry.actorIdentity`; at 0.3.0 the compliance `AssumptionEntry`
+deliberately has no identity field. This demonstrates the security property the
+0.3.0 fix introduced, rather than working around it.
 
 ---
 
@@ -329,7 +331,7 @@ Each shore example asserts:
 | ultimate, to the dollar | `53_038_946` |
 | unpaid, to the dollar | `18_680_856` |
 | ledger judgment entries | `3` |
-| ledger entries carry the context-set `actorIdentity` | true |
+| judgment trail carries the context-set `actorIdentity` | true |
 | disclosure contains ASOP 41 Section 5 | true |
 | tenant-less call returns a fail-closed envelope | fail-closed error code, body never ran |
 
