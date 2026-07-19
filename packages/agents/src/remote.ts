@@ -326,6 +326,12 @@ export function defineRemoteMethod(options: DefineRemoteMethodOptions) {
     description,
     kind: "read",
     inputSchema: remoteRunInputSchema,
+    // The document slots are z.unknown() ON PURPOSE: each is a whole
+    // interchange document, validated at execute time by checkDocumentSlot ->
+    // parseDocument (schema + integrity tag), and interchange documents carry
+    // no tenant identifiers by spec section 12. Declaring the paths here keeps
+    // the tenant lint fail-closed for everything else.
+    allowUninspected: ["input.triangles.primary", "input.triangles.secondary", "input.selection"],
     execute: async (input, context): Promise<RemoteMethodResult> => {
       const badPrimary = checkDocumentSlot(input.triangles.primary, "triangles.primary", "triangle");
       if (badPrimary !== null) return badPrimary;

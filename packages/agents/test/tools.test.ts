@@ -171,6 +171,127 @@ describe("defineActuarialTool", () => {
     }
   });
 
+  it("catches a tenant id nested inside EVERY zod container, not just the common ones", () => {
+    // Each of these smuggled z.object({ projectId }) past the old lint, which
+    // recursed into known wrappers and silently returned for everything else.
+    // .readonly(), .brand() and z.tuple() are things people write without
+    // thinking; a fail-open lint on a security seam is a hole, not a gap.
+    const leaky = z.object({ projectId: z.string() });
+    const containers: Record<string, z.ZodTypeAny> = {
+      tuple: z.tuple([leaky]),
+      intersection: z.intersection(leaky, z.object({ other: z.string() })),
+      lazy: z.lazy(() => leaky),
+      pipeline: z.string().pipe(leaky as never),
+      set: z.set(leaky),
+      promise: z.promise(leaky),
+      catch: leaky.catch({ projectId: "x" }),
+      readonly: leaky.readonly(),
+      branded: leaky.brand("Branded"),
+    };
+    for (const [name, schema] of Object.entries(containers)) {
+      expectAgentsError(
+        () =>
+          defineActuarialTool({
+            id: `leaky-${name}`,
+            description: `tenant id inside ${name}`,
+            kind: "read",
+            inputSchema: z.object({ payload: schema }),
+            execute: async () => ({ success: true }),
+          }),
+        "TENANT_IN_SCHEMA",
+      );
+    }
+  });
+
+  it("refuses containers that admit arbitrary keys or arbitrary values outright", () => {
+    // A map keyed by strings is a record by another name; any/unknown admit
+    // whole objects the lint cannot see into. On a security seam, "cannot
+    // inspect" must mean "refused", not "waved through".
+    const cases: Record<string, z.ZodTypeAny> = {
+      map: z.map(z.string(), z.number()),
+      any: z.any(),
+      unknown: z.unknown(),
+    };
+    for (const [name, schema] of Object.entries(cases)) {
+      expectAgentsError(
+        () =>
+          defineActuarialTool({
+            id: `opaque-${name}`,
+            description: `uninspectable ${name}`,
+            kind: "read",
+            inputSchema: z.object({ payload: schema }),
+            execute: async () => ({ success: true }),
+          }),
+        "BAD_INPUT_SCHEMA",
+      );
+    }
+  });
+
+  it("still accepts the ordinary leaves and containers a real tool uses", () => {
+    expect(() =>
+      defineActuarialTool({
+        id: "kitchen-sink",
+        description: "every legitimate shape at once",
+        kind: "read",
+        inputSchema: z.object({
+          name: z.string(),
+          count: z.number().int().optional(),
+          flag: z.boolean().default(false),
+          mode: z.enum(["a", "b"]),
+          when: z.literal("now").nullable(),
+          pair: z.tuple([z.string(), z.number()]),
+          tags: z.array(z.string()),
+          nested: z.object({ analysisId: z.string() }).readonly(),
+          either: z.union([z.string(), z.number()]),
+        }),
+        execute: async () => ({ success: true }),
+      }),
+    ).not.toThrow();
+  });
+
+  it("permits a DECLARED opaque path and refuses the undeclared one beside it", () => {
+    // The opt-out is per-path: naming one slot must not loosen its siblings.
+    expect(() =>
+      defineActuarialTool({
+        id: "declared-slot",
+        description: "one declared document slot",
+        kind: "read",
+        inputSchema: z.object({ doc: z.unknown(), other: z.string() }),
+        allowUninspected: ["input.doc"],
+        execute: async () => ({ success: true }),
+      }),
+    ).not.toThrow();
+
+    expectAgentsError(
+      () =>
+        defineActuarialTool({
+          id: "undeclared-sibling",
+          description: "second opaque slot not declared",
+          kind: "read",
+          inputSchema: z.object({ doc: z.unknown(), also: z.unknown() }),
+          allowUninspected: ["input.doc"],
+          execute: async () => ({ success: true }),
+        }),
+      "BAD_INPUT_SCHEMA",
+    );
+  });
+
+  it("refuses a stale allowUninspected declaration, so the list cannot rot", () => {
+    const err = expectAgentsError(
+      () =>
+        defineActuarialTool({
+          id: "stale-allowance",
+          description: "declares a path that is not opaque",
+          kind: "read",
+          inputSchema: z.object({ name: z.string() }),
+          allowUninspected: ["input.name"],
+          execute: async () => ({ success: true }),
+        }),
+      "BAD_INPUT_SCHEMA",
+    );
+    expect(err.message).toContain("stale");
+  });
+
   it("allows non-tenant keys that merely resemble ids", () => {
     expect(() =>
       defineActuarialTool({

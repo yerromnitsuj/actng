@@ -113,11 +113,39 @@ type ZodDefLike = {
   typeName?: unknown;
   unknownKeys?: unknown;
   catchall?: { _def?: { typeName?: unknown } };
-  type?: unknown;
-  innerType?: unknown;
-  schema?: unknown;
-  options?: unknown[];
+  type?: unknown; // ZodArray, ZodPromise, ZodBranded
+  innerType?: unknown; // ZodOptional, ZodNullable, ZodDefault, ZodCatch, ZodReadonly
+  schema?: unknown; // ZodEffects
+  options?: unknown[]; // ZodUnion, ZodDiscriminatedUnion
+  items?: unknown[]; // ZodTuple
+  rest?: unknown; // ZodTuple
+  left?: unknown; // ZodIntersection
+  right?: unknown; // ZodIntersection
+  getter?: () => unknown; // ZodLazy
+  in?: unknown; // ZodPipeline
+  out?: unknown; // ZodPipeline
+  valueType?: unknown; // ZodSet, ZodMap
 };
+
+/** Leaves that end recursion: nothing the model sends through them can carry a key. */
+const LEAF_TYPE_NAMES = new Set([
+  "ZodString",
+  "ZodNumber",
+  "ZodBigInt",
+  "ZodBoolean",
+  "ZodDate",
+  "ZodEnum",
+  "ZodNativeEnum",
+  "ZodLiteral",
+  "ZodNull",
+  "ZodUndefined",
+  "ZodVoid",
+  "ZodNever",
+  "ZodNaN",
+]);
+
+/** Wholly uninspectable values: the lint cannot see into what they admit. */
+const OPAQUE_TYPE_NAMES = new Set(["ZodAny", "ZodUnknown", "ZodMap"]);
 
 /**
  * The recursive tenant-key lint behind defineActuarialTool. Walks every
@@ -127,12 +155,31 @@ type ZodDefLike = {
  * - .passthrough() objects and non-never .catchall(...) (they let the model
  *   smuggle arbitrary keys past the lint);
  * - z.record(...) (dynamic string keys — same smuggling surface).
- * Leaves (strings, numbers, enums, literals) end recursion. Anything with
- * an unrecognized CONTAINER shape simply is not traversed further; the
- * fail-closed top-level check in defineActuarialTool guarantees the root is
- * an inspectable plain object.
+ * Leaves (strings, numbers, enums, literals) end recursion. Everything else
+ * is decided by an EXPLICIT list: known containers are traversed, known
+ * uninspectable shapes (any/unknown/map) are refused, and an unrecognized
+ * typeName throws rather than passing. The lint used to silently return for
+ * shapes it did not recognize, which made it fail-open: z.tuple, z.lazy,
+ * .readonly(), .brand(), z.intersection and five other ordinary containers
+ * each smuggled a nested tenant id straight past it. On a security seam,
+ * "I don't know what this is" has to mean "refused", not "fine".
  */
-function assertNoTenantKeys(schema: unknown, toolId: string, path: string): void {
+function assertNoTenantKeys(
+  schema: unknown,
+  toolId: string,
+  path: string,
+  allowUninspected?: ReadonlySet<string>,
+  usedAllowances?: Set<string>,
+): void {
+  // Path depth doubles as a cycle guard: a self-referential z.lazy() would
+  // otherwise recurse forever. 64 levels is far beyond any real tool input.
+  if (path.split(".").length > 64) {
+    throw new AgentsError(
+      "BAD_INPUT_SCHEMA",
+      `Tool "${toolId}": the input schema nests deeper than 64 levels at "${path.slice(0, 120)}..." ` +
+        "(likely a self-referential z.lazy()); the tenant lint cannot verify unbounded schemas",
+    );
+  }
   if (typeof schema !== "object" || schema === null) return;
   const def = (schema as { _def?: ZodDefLike })._def;
   if (!def) return;
@@ -160,7 +207,7 @@ function assertNoTenantKeys(schema: unknown, toolId: string, path: string): void
           `Tool "${toolId}" declares input key "${path}.${key}": tenant ids travel only via the server-set RequestContext (read them with tenantOf), never through the model-facing input schema`,
         );
       }
-      assertNoTenantKeys(value, toolId, `${path}.${key}`);
+      assertNoTenantKeys(value, toolId, `${path}.${key}`, allowUninspected, usedAllowances);
     }
     return;
   }
@@ -170,22 +217,91 @@ function assertNoTenantKeys(schema: unknown, toolId: string, path: string): void
       `Tool "${toolId}": the record at "${path}" admits arbitrary string keys (including tenant ids); use an explicit z.object shape`,
     );
   }
-  if (typeName === "ZodArray") {
-    assertNoTenantKeys(def.type, toolId, `${path}[]`);
+  if (typeof typeName === "string" && LEAF_TYPE_NAMES.has(typeName)) {
     return;
   }
-  if (typeName === "ZodOptional" || typeName === "ZodNullable" || typeName === "ZodDefault") {
-    assertNoTenantKeys(def.innerType, toolId, path);
+  if (typeof typeName === "string" && OPAQUE_TYPE_NAMES.has(typeName)) {
+    if (allowUninspected?.has(path)) {
+      // A DECLARED opt-out: the tool's definition names this exact path as
+      // intentionally opaque because validation happens downstream of zod
+      // (e.g. whole interchange documents checked by parseDocument, which
+      // carry no tenant identifiers by spec section 12). The declaration is
+      // greppable at the definition site; silence is still refused.
+      usedAllowances?.add(path);
+      return;
+    }
+    throw new AgentsError(
+      "BAD_INPUT_SCHEMA",
+      `Tool "${toolId}": the ${typeName} at "${path}" admits values the tenant lint cannot ` +
+        'inspect. Either declare the shape with typed keys, or — if this input is validated ' +
+        'downstream (parseDocument etc.) — name the exact path in `allowUninspected` so the ' +
+        "exception is deliberate and greppable",
+    );
+  }
+  if (typeName === "ZodArray") {
+    assertNoTenantKeys(def.type, toolId, `${path}[]`, allowUninspected, usedAllowances);
+    return;
+  }
+  if (
+    typeName === "ZodOptional" ||
+    typeName === "ZodNullable" ||
+    typeName === "ZodDefault" ||
+    typeName === "ZodCatch" ||
+    typeName === "ZodReadonly"
+  ) {
+    assertNoTenantKeys(def.innerType, toolId, path, allowUninspected, usedAllowances);
+    return;
+  }
+  if (typeName === "ZodPromise" || typeName === "ZodBranded") {
+    assertNoTenantKeys(def.type, toolId, path, allowUninspected, usedAllowances);
     return;
   }
   if (typeName === "ZodEffects") {
-    assertNoTenantKeys(def.schema, toolId, path);
+    assertNoTenantKeys(def.schema, toolId, path, allowUninspected, usedAllowances);
     return;
   }
   if (typeName === "ZodUnion" || typeName === "ZodDiscriminatedUnion") {
-    for (const opt of def.options ?? []) assertNoTenantKeys(opt, toolId, path);
+    for (const opt of def.options ?? []) assertNoTenantKeys(opt, toolId, path, allowUninspected, usedAllowances);
     return;
   }
+  if (typeName === "ZodTuple") {
+    for (const [index, item] of (def.items ?? []).entries()) {
+      assertNoTenantKeys(item, toolId, `${path}[${index}]`, allowUninspected, usedAllowances);
+    }
+    if (def.rest !== undefined && def.rest !== null) {
+      assertNoTenantKeys(def.rest, toolId, `${path}[rest]`, allowUninspected, usedAllowances);
+    }
+    return;
+  }
+  if (typeName === "ZodIntersection") {
+    assertNoTenantKeys(def.left, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.right, toolId, path, allowUninspected, usedAllowances);
+    return;
+  }
+  if (typeName === "ZodPipeline") {
+    assertNoTenantKeys(def.in, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.out, toolId, path, allowUninspected, usedAllowances);
+    return;
+  }
+  if (typeName === "ZodSet") {
+    assertNoTenantKeys(def.valueType, toolId, `${path}[]`, allowUninspected, usedAllowances);
+    return;
+  }
+  if (typeName === "ZodLazy") {
+    // Resolve once. A directly self-referential lazy would recurse forever;
+    // the depth guard below catches that as a schema error rather than a hang.
+    assertNoTenantKeys(def.getter?.(), toolId, path, allowUninspected, usedAllowances);
+    return;
+  }
+
+  // Fail closed: a typeName this lint has never heard of gets refused, not
+  // waved through. New zod container types must be added here DELIBERATELY,
+  // with a decision about how the tenant lint traverses them.
+  throw new AgentsError(
+    "BAD_INPUT_SCHEMA",
+    `Tool "${toolId}": the schema at "${path}" has unrecognized type "${String(typeName)}"; ` +
+      "the tenant lint refuses shapes it cannot traverse (fail closed)",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +318,19 @@ export type ActuarialToolKind = "read" | "action";
 export type ActuarialToolContext = TenantToolContext;
 
 export interface DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResult> {
+  /**
+   * Exact schema paths (the lint's dot notation, rooted at "input") where an
+   * uninspectable type — z.unknown(), z.any(), z.map() — is INTENTIONAL
+   * because the value is validated downstream of zod. Example:
+   * `["input.triangles.primary"]` for a whole interchange document checked by
+   * parseDocument at execute time.
+   *
+   * Every declared path must actually match an opaque node; a leftover
+   * declaration is an error, so the list cannot rot as the schema evolves.
+   * Undeclared opaque nodes remain refused — this is a per-path opt-out, not
+   * a switch.
+   */
+  allowUninspected?: string[];
   id: string;
   description: string;
   kind: ActuarialToolKind;
@@ -238,7 +367,18 @@ export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
       `Tool "${options.id}": inputSchema must be a plain z.object(...) the tenant seam can inspect; got a schema whose shape is unreadable`,
     );
   }
-  assertNoTenantKeys(options.inputSchema, options.id, "input");
+  const allowUninspected = new Set(options.allowUninspected ?? []);
+  const usedAllowances = new Set<string>();
+  assertNoTenantKeys(options.inputSchema, options.id, "input", allowUninspected, usedAllowances);
+  for (const declared of allowUninspected) {
+    if (!usedAllowances.has(declared)) {
+      throw new AgentsError(
+        "BAD_INPUT_SCHEMA",
+        `Tool "${options.id}": allowUninspected names "${declared}", but no uninspectable ` +
+          "schema node exists at that path; remove the stale declaration",
+      );
+    }
+  }
   const tool = createTool({
     id: options.id,
     description: options.description,
