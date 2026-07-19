@@ -23,7 +23,11 @@ together; this file covers them all.
   that proposes typed selections for the actuary to apply with one click.
   Plus `tools/interop/run-cl.R`, a chain-ladder-projection CLI (ldfs supplied,
   not derived) with fail-closed input guards that the R app's engine shells
-  out to.
+  out to. `npm run app` is the one front door for all three — an interactive
+  engine menu (or `npm run app -- <ts|python|r>`) with per-engine preflight;
+  the Python app now auto-boots its own chainladder sidecar as a child
+  process when none is configured, so picking it needs nothing beyond the
+  venv.
 
 ## 0.3.0 — 2026-07-19
 
