@@ -123,11 +123,27 @@ function tailFactorGate(): JudgmentGateSpec<{ tailFactor: number; rationale: str
  * shape, chunk shapes, pass/fail accounting — and deliberately proves nothing
  * about a model. The live check is one flag away: ACTNG_RUN_AGENT=1 reruns
  * the same cases against the real advisor (costs tokens; see step 9).
+ *
+ * A lesson the first live run taught: a golden prompt must be ANSWERABLE by
+ * the tool surface it grades. compute_chain_ladder takes explicit factor
+ * values, so its prompt supplies them — a vaguer prompt ("run it on the
+ * selected factors") asks the model to invent numbers, and a good model
+ * rightly refuses. The live score measures tool descriptions and prompts
+ * together; a low score is signal about THEM, not about the model.
  */
 const EVAL_CASES: ToolSelectionEvalCase[] = [
   { id: "triangle-fetch", prompt: "Show me the triangle we are working from", expectTools: ["get_triangle"] },
-  { id: "compute", prompt: "Run the chain ladder on the selected factors", expectTools: ["compute_chain_ladder"] },
-  { id: "record", prompt: "Record the selection for the workpaper", expectTools: ["record_selection"] },
+  {
+    id: "compute",
+    prompt:
+      "Run the chain ladder with these factors: 3.4906, 1.7473, 1.4574, 1.1739, 1.1038, 1.0863, 1.0539, 1.0766, 1.0177 and tail factor 1.0",
+    expectTools: ["compute_chain_ladder"],
+  },
+  {
+    id: "record",
+    prompt: "Record the selection under the field chainLadder.ldfs for the workpaper",
+    expectTools: ["record_selection"],
+  },
 ];
 
 /** A canned agent whose stream "calls" exactly the expected tools per case. */
@@ -365,6 +381,9 @@ export async function runChainLadderPython(): Promise<ClExampleOutcome> {
       maxSteps: 8,
     });
     liveEvalsPassed = live.summary.passed;
+    for (const r of live.results) {
+      if (!r.pass) console.error(`  eval ${r.id} missed: expected ${r.missing.join(", ")} (called: ${r.called.join(", ") || "none"})`);
+    }
     const turn = await advisor.generate(
       [{ role: "user", content: "Use your tools: fetch the triangle document and report how many origin years it has." }],
       { requestContext: authed, maxSteps: 4 },
