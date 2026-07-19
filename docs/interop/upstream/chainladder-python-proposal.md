@@ -80,8 +80,8 @@ your users from the outside.
 The format is a versioned spec with a committed conformance suite, not a
 sketch:
 
-- **Spec:** `docs/superpowers/specs/2026-07-17-actuarial-interchange-design.md`
-  (full design, rev 2.2 — built and shipped, Phases A–E). The convention
+- **Spec:** `docs/spec/actuarial-interchange.md`
+  (full design, rev 2.3 — built and shipped, Phases A–E). The convention
   map (`docs/interop/convention-map.md`) is the practitioner's translation
   table between actuarial-ts, chainladder-python, and R ChainLadder, and
   is part of the normative contract.

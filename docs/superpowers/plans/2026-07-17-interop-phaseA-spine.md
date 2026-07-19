@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The interchange format made real: spec section 3 as code on both shores, with the referee and the conformance proof. The AUTHORITY for every shape and rule is `docs/superpowers/specs/2026-07-17-actuarial-interchange-design.md` (rev 2) sections 3, 4.1, 4.2, 5, 10, and 13's Phase A acceptance criteria — this plan sequences, it does not restate.
+**Goal:** The interchange format made real: spec section 3 as code on both shores, with the referee and the conformance proof. The AUTHORITY for every shape and rule is `docs/spec/actuarial-interchange.md` (rev 2) sections 3, 4.1, 4.2, 5, 10, and 13's Phase A acceptance criteria — this plan sequences, it does not restate.
 
 **Architecture:** Readability-first organization (founder mandate): one module per document kind on the TS side (`schemas/`, `convert/`, `referee/` folders, no god-files); the Python package mirrors that layout (`documents.py`, `jcs.py`, `bridge_triangle.py`, `bridge_selection.py`, `bridge_result.py`) so a human can hold each file in one read. Python dev env: `.venv-interop/` (Python 3.12, chainladder 0.9.2 pinned — gitignored; CI uses the same pins).
 

@@ -1,5 +1,11 @@
 # actuarial-interchange: cross-ecosystem interop (full design, rev 2.3)
 
+> **Stable home.** This is the normative interchange specification; two other
+> documents cite it by section number. It moved here from
+> `docs/superpowers/specs/2026-07-17-actuarial-interchange-design.md` — a path
+> that read as internal planning scaffolding — on 2026-07-19. Revision history
+> is unchanged.
+
 Status: BUILT — Phases A through E implemented and shipped (see the
 Progress Log in `docs/superpowers/plans/2026-07-16-actuarial-ts-sdk-master.md`
 and CHANGELOG `Unreleased`→0.2.0). This is no longer an unscheduled design:

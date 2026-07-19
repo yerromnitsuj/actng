@@ -98,7 +98,7 @@ consumer.
 
 ```bash
 npm install        # workspace install; builds SDK dist via the root prepare
-npm test           # every package + the example (735 tests)
+npm test           # every package + the example (766 tests)
 npm run typecheck  # all workspaces
 npm run build      # the SDK packages
 npm run example    # the end-to-end reserve review

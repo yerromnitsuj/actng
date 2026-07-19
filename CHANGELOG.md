@@ -3,7 +3,94 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
-## Unreleased
+## Unreleased (targeting 0.3.0)
+
+The review-remediation release: an external review's 43 findings were
+independently verified (32 valid, 10 partial, 1 refuted) and worked through in
+six packages — numerics, outward-facing claims, referee integrity, the
+security seam, the data layer, and packaging. Entries below are grouped by
+what a consumer must know first.
+
+### Breaking
+
+- **`defineActuarialTool` enforces the tenant seam by construction.** execute
+  is now `(input, tenant, context)` and every tool declares `tenant:
+  "required" | "none"`; the wrapper resolves the tenant from the trusted
+  source before the body runs, so an unauthenticated call fails closed without
+  the body ever executing. `resolveTenant` unifies the request-context and MCP
+  auth readers. Migration: add `tenant: "required"`, take the id from the
+  second argument, delete the `tenantOf(context)` line.
+- **`parseCsv` returns `{ rows, warnings }`.** One stray quote used to swallow
+  the remainder of the file into a single field silently; the structural
+  problem is now reported with the line where the quote opened.
+- **The tenant-key lint fails closed.** Nine zod containers (tuple,
+  intersection, lazy, pipe, set, promise, catch, readonly, brand) used to
+  carry a nested tenant id past it; unrecognized shapes now throw, and
+  z.any()/z.unknown()/z.map() are refused unless the exact path is declared in
+  `allowUninspected`.
+- **The disclosure integrity tag covers every disclosed section** (previously
+  metadata/methods/ledger only — fabricating the data-review section did not
+  move it). All previously generated tags change.
+
+### Numerics (silently wrong numbers, both fixed with published values intact)
+
+- **Mack total standard error was row-order dependent**: the cross-covariance
+  aggregation used the earlier row's maturity as the summation floor instead
+  of the pairwise max. Overstated (never understated) by up to ~65% on ragged
+  orderings; provably a no-op on maturity-sorted triangles, so Taylor & Ashe's
+  2,447,095 is bit-identical.
+- **ODP dispersion phi divided by degrees of freedom it never earned**: cells
+  with non-positive fitted means were excluded from the numerator but counted
+  in the denominator, understating reserve variability (~1.43x too-small phi
+  on a 6x6 with three such cells). The dof guard was inflated the same way and
+  now refuses fits with no usable residuals.
+
+### Referee and corpus
+
+- `agree` is unreachable when a profile-scoped metric was never compared on
+  any cell; a profile stated on one side now governs (with a warning) instead
+  of silently falling back; `absoluteTolerance` provides the missing float
+  floor; coverage is recorded on every report.
+- The conformance corpus carries a `published` literature anchor (Mack's
+  tabled values, cited, at printing precision) asserted by ALL THREE shores —
+  previously every expectation was the TS engine's own frozen output, which
+  detects drift but can never catch a shared error. RAA's lack of published
+  values is declared rather than implicit.
+- The TS-vs-TS referee assertion was removed (redundant with the byte-freeze
+  and misread as cross-engine evidence). Embedded documents inside studies and
+  bundles are now integrity-verified at parse.
+
+### Security and honesty
+
+- MCP boot self-test probes EVERY tool (was: exactly one), with greppable
+  exemptions; stale exemptions fail the test.
+- verifyBundle recomputes the bundle's own hash first; document-sourced text
+  is neutralized before ASOP 41 markdown interpolation; judgment trails record
+  the authenticated actor identity from the request context (the resume
+  payload cannot assert it); the advisor's instructions state that tool-result
+  text is data, never instruction.
+- Overclaims corrected across the docs: "tamper-evident" (unkeyed FNV-1a),
+  the ten-ASOP list (six have implementation), "proof" language, the
+  2,447,095 attribution, the convention map's normativity, and three
+  unsupported claims in the unsent chainladder-python draft. The AI-authored
+  review files moved to the workbench repo with an explicit disclosure.
+
+### Data layer
+
+- Non-finite values fail the ASOP 23 review (NaN triangles previously scored
+  a clean bill of health); currency must be plain decimal (Number() accepted
+  hex/binary/octal/scientific); review findings identify claims by
+  claimId + evaluation date instead of a fabricated row number; undefined is
+  a gap in every check; the leap rule is arithmetic.
+
+### Infrastructure
+
+- The R shore runs in CI (`R interop conformance`), the py-conformance paths
+  filter includes packages/compliance, published sourcemaps resolve (src ships
+  in the tarballs), tsx is declared where invoked, the interchange spec moved
+  to its stable home at docs/spec/actuarial-interchange.md, and the repo gains
+  CODE_OF_CONDUCT.md, VERSIONING.md and a docs index.
+
 
 - **The ActNG reserving workbench moved to its own repository.** It used the SDK
   substantively (34 import sites across all five packages), so this is not a

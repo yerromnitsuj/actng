@@ -81,7 +81,7 @@ read them right.
 
 ## Evidence and spec
 
-- **Spec:** `docs/superpowers/specs/2026-07-17-actuarial-interchange-design.md`
+- **Spec:** `docs/spec/actuarial-interchange.md`
   (rev 2.2). The R profile-alignment requirements and the alpha/delta note
   are normative parts of it.
 - **Conformance:** `interop/conformance/` — frozen fixtures the R recipes

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The governed seams: wrapped reproducibility bundles openable in Python, notebook studies promotable into ledgered judgments through a Mastra judgment chain, and cross-implementation verification rendered in ASOP 41 disclosures. Spec authority: docs/superpowers/specs/2026-07-17-actuarial-interchange-design.md rev 2.1 sections 3.2 (BundleDoc, StudyDoc, CrosscheckReportDoc), 4.2 (load_bundle/save_study), 5 (disclosure integration), 6 (the promotion chain, entire), 9.6 (contract-test split), 13 Phase B acceptance.
+**Goal:** The governed seams: wrapped reproducibility bundles openable in Python, notebook studies promotable into ledgered judgments through a Mastra judgment chain, and cross-implementation verification rendered in ASOP 41 disclosures. Spec authority: docs/spec/actuarial-interchange.md rev 2.1 sections 3.2 (BundleDoc, StudyDoc, CrosscheckReportDoc), 4.2 (load_bundle/save_study), 5 (disclosure integration), 6 (the promotion chain, entire), 9.6 (contract-test split), 13 Phase B acceptance.
 
 **Sequencing:** B1 (compliance/interchange TS) ∥ B2 (agents promoteStudy). Then B3 (Python load_bundle; consumes B1's fixtures) ∥ B4 (workbench Import Study; consumes B2). Then review + gates + /ship.
 

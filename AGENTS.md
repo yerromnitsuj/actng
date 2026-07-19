@@ -18,9 +18,8 @@ vectors).
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run example` - the end-to-end reserve review (reproduces Mack 1993's published unpaid and R ChainLadder's published SE)
-- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, and the reserve-review example - 727 tests (1 skipped). `npm run test:py` runs the 252-case Python interop suite (needs `.venv-interop`, Python >= 3.10).
-- `npm run typecheck` - every workspace (five @actuarial-ts packages + two apps)
-- `npm run seed --workspace @actng/server` - regenerate demo data (deterministic seed)
+- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, and the reserve-review example - 766 tests (1 skipped). `npm run test:py` runs the 255-case Python interop suite (needs `.venv-interop`, Python >= 3.10). The R shore runs via `Rscript tools/interop/conformance.R` and in the `R interop conformance` workflow.
+- `npm run typecheck` - every workspace (five @actuarial-ts packages + the example)
 
 ## Non-negotiable domain rules
 
@@ -32,8 +31,8 @@ vectors).
 - The published-value validation tests (`packages/core/test/validation.test.ts`)
   are the contract: reserving math changes are wrong until they pass.
 - All reserving math lives in `packages/core` - pure, framework-free, no I/O.
-  Server and advisor tools call it through `workspaceService`; never fork the
-  math into a route or tool.
+  Consumers (the extracted ActNG workbench, agent tools) call the public API;
+  never fork the math into a host application.
 
 ## Mastra / Anthropic rules
 
