@@ -89,9 +89,22 @@ and echoes it back. When the advisor calls it, the SSE forwards a typed
 `proposal` event; the page's **Apply** button applies the most recent proposal
 to the exploratory state. No parsing of model prose anywhere.
 
-The compute handler's body is **the only engine-specific code** — in-process
-`runChainLadder` / `callRemoteMethod` to the sidecar / `runRscript` +
-`run-mack.R` (reusing the example's existing `src/rscript.ts` for the R app).
+The compute handler's body is **the only engine-specific code**. The contract —
+arbitrary per-column LDFs plus a tail — meets each engine differently:
+
+- **TypeScript:** `runChainLadder(triangle, selections)` accepts any
+  `LdfSelections` natively.
+- **Python:** the sidecar replays a **value-carrying selection document** built
+  from the current selections (`selectionsToDoc` with per-column value intents;
+  the chainladder-python bridge explicitly supports value-only replays). The
+  implementer verifies live that an overridden selection matches the TS result
+  within 1e-9 before the task closes.
+- **R:** `MackChainLadder` derives its own factors and cannot accept supplied
+  LDFs, so the R app gains **`tools/interop/run-cl.R`** — a small CLI that
+  projects ultimates from supplied factors in R (cumulative products down each
+  row; trivial and honest R arithmetic) and writes a method-result document via
+  the existing adapter (`ats_assemble_document`). No standard errors — the apps
+  display ultimates/unpaid only, so none are needed.
 
 ## 5. The page — four regions
 
