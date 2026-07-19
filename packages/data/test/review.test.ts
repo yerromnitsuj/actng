@@ -43,6 +43,47 @@ function check(report: DataReviewReport, id: string): DataCheck {
   return found!;
 }
 
+describe("finding identifiers and gap coherence (findings data.5, data.6)", () => {
+  it("identifies claim findings by claimId and evaluation date, never a fabricated row number", () => {
+    // The old label said "row N" using the index of the caller's ARRAY — but
+    // this function receives already-parsed claims and cannot know file rows.
+    // parseLossRunCsv numbers real CSV rows (header-inclusive) in its own
+    // errors; a second, different "row" here pointed auditors at the wrong
+    // line. An identifier we cannot compute is one we must not print.
+    const report = reviewClaimData(
+      [
+        {
+          claimId: "CLM-7",
+          accidentDate: "2024-01-01",
+          reportDate: "2024-02-01",
+          evaluationDate: "2024-06-30",
+          status: "open",
+          paidToDate: -50,
+          caseReserve: 0,
+        },
+      ],
+      {},
+    );
+    const finding = report.checks.find((c) => c.id === "negative-paid")!.details[0]!;
+    expect(finding).toContain("CLM-7");
+    expect(finding).toContain("2024-06-30");
+    expect(finding).not.toMatch(/\brow \d+/);
+  });
+
+  it("treats undefined exactly like null in every gap check", () => {
+    // interior-missing used (v !== null) while negative-incremental used
+    // (null || undefined): the same absent cell was "observed" to one check
+    // and a gap to the other. undefined and null are both absences here.
+    const withUndefined = triangleFromGrid("paid", ["2021"], [12, 24, 36], [[100, 180, 220]]);
+    // Simulate a JSON round-trip artifact: an interior cell becomes undefined.
+    (withUndefined.values[0] as (number | null | undefined)[])[1] = undefined;
+    const report = reviewTriangles(withUndefined, { ...withUndefined, kind: "incurred" });
+    const interior = report.checks.find((c) => c.id === "interior-missing")!;
+    expect(interior.status).toBe("warning");
+    expect(interior.details.join(" ")).toContain("age 24");
+  });
+});
+
 describe("non-finite values fail the review instead of sailing through it (finding data.4)", () => {
   it("an all-NaN triangle pair is a FAIL, not a clean bill of health", () => {
     // Every check is a relational operator, and every relational operator is

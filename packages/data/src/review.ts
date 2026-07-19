@@ -101,8 +101,14 @@ export function reviewClaimData(
   const futureDated: string[] = [];
   const closedWithCase: string[] = [];
 
-  claims.forEach((c, idx) => {
-    const where = `claim ${c.claimId} row ${idx + 1} (eval ${c.evaluationDate})`;
+  claims.forEach((c) => {
+    // Identified by claimId + evaluation date, which the DATA carries. The old
+    // label fabricated "row N" from this array's index — but this function
+    // receives parsed claims, not the file, and parseLossRunCsv numbers real
+    // CSV rows (header-inclusive) in its own errors. Two different "row"
+    // meanings pointed auditors at the wrong line; an identifier we cannot
+    // compute is one we must not print.
+    const where = `claim ${c.claimId} (eval ${c.evaluationDate})`;
     if (c.paidToDate < 0) {
       negativePaid.push(`${where}: paid_to_date ${c.paidToDate}`);
     }
@@ -253,7 +259,10 @@ function interiorMissingFindings(tri: Triangle): string[] {
   const out: string[] = [];
   for (let i = 0; i < tri.values.length; i++) {
     const row = tri.values[i]!;
-    const observed = row.map((v) => v !== null);
+    // undefined and null are both absences (a JSON round-trip can produce
+    // either); the negative-incremental walk above already treats them
+    // identically, and a gap must not change meaning between checks.
+    const observed = row.map((v) => v !== null && v !== undefined);
     const first = observed.indexOf(true);
     const last = observed.lastIndexOf(true);
     if (first === -1) continue;
