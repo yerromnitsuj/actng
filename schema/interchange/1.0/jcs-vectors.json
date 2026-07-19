@@ -73,6 +73,16 @@
       "canonical": "123.456"
     },
     {
+      "name": "parse-oracle-16-digit-a",
+      "value": 984888.6390497377,
+      "canonical": "984888.6390497377"
+    },
+    {
+      "name": "parse-oracle-16-digit-b",
+      "value": 971257.8064699435,
+      "canonical": "971257.8064699435"
+    },
+    {
       "name": "negative-decimal",
       "value": -0.5,
       "canonical": "-0.5"
