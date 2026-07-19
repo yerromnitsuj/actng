@@ -1,6 +1,13 @@
 # Publishing @actuarial-ts to npm
 
-**Release record:** v0.2.0 shipped 2026-07-18 — all FIVE packages
+**Release record:** v0.3.0 shipped 2026-07-19 — all five packages published
+to npm, tag `v0.3.0` pushed, GitHub Release created. The review-remediation
+release; breaking changes and migrations in the CHANGELOG's 0.3.0 section.
+Registry-install smoke test passed (Mack row-order invariance, ODP dof guard,
+parseCsv warnings, NaN review failure, tenant seam fail-closed, fail-closed
+lint — all verified against the published tarballs).
+
+v0.2.0 shipped 2026-07-18 — all FIVE packages
 (`@actuarial-ts/core`, `interchange`, `data`, `compliance`, `agents`)
 published to npm and tag `v0.2.0` pushed. `interchange` was new in 0.2.0;
 `data` was republished source-unchanged to hold the lockstep (its `^0.1.0`
@@ -50,6 +57,6 @@ consumer's `npm install` resolving an unpublished dependency.
 
 - Verify: `npm view @actuarial-ts/core version` and a scratch-project
   install + import smoke test.
-- Tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (v0.1.0 and v0.2.0: done).
+- Tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (v0.1.0, v0.2.0 and v0.3.0: done).
 - Org hygiene (one-time, if not yet done): require 2FA for publishing in
   the org settings on npmjs.com.
