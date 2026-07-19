@@ -6,6 +6,7 @@
   "description": "Chain ladder computed by chainladder-python via the HTTP sidecar, orchestrated from TypeScript",
   "scripts": {
     "example": "tsx src/main.ts",
+    "app": "tsx app/server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
