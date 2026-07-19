@@ -103,6 +103,62 @@ function register(chain: ReturnType<typeof createJudgmentChain>) {
 }
 
 describe("createJudgmentChain", () => {
+  it("records the AUTHENTICATED actor identity from the request context, not the payload", async () => {
+    // The coarse enum (default | actuary | agent) stays payload-supplied — it
+    // is a classification, not a claim of identity. WHO decided comes from the
+    // same server-set context as the tenant: the resume payload cannot assert
+    // it, and a payload that tries changes nothing.
+    const chain = createJudgmentChain({
+      id: "identity-chain",
+      gates: [capGate([])],
+      now: tickingNow(),
+      requestContextSchema: z.object({ projectId: z.string() }),
+    });
+    const workflow = register(chain);
+    const requestContext = runContext("p-1");
+    requestContext.set("actorIdentity", "jane.actuary@example.com (SSO)");
+    const run = await workflow.createRun();
+
+    await run.start({ inputData: {}, requestContext });
+    const result = (await run.resume({
+      step: "cap-gate",
+      resumeData: {
+        decision: "accept",
+        cap: 150_000,
+        rationale: "documented",
+        actor: "actuary",
+        // An identity claim in the MODEL-REACHABLE payload must be ignored.
+        actorIdentity: "the.ceo@example.com",
+      },
+      requestContext,
+    })) as SuspendedResult;
+    expect(result.status).toBe("success");
+
+    const trail = result.result!.trail as Array<Record<string, unknown>>;
+    expect(trail[0]!["actor"]).toBe("actuary");
+    expect(trail[0]!["actorIdentity"]).toBe("jane.actuary@example.com (SSO)");
+  });
+
+  it("omits actorIdentity when the host sets none (identity is never invented)", async () => {
+    const chain = createJudgmentChain({
+      id: "no-identity-chain",
+      gates: [capGate([])],
+      now: tickingNow(),
+      requestContextSchema: z.object({ projectId: z.string() }),
+    });
+    const workflow = register(chain);
+    const requestContext = runContext("p-1");
+    const run = await workflow.createRun();
+    await run.start({ inputData: {}, requestContext });
+    const result = (await run.resume({
+      step: "cap-gate",
+      resumeData: { decision: "accept", cap: 150_000, rationale: "documented" },
+      requestContext,
+    })) as SuspendedResult;
+    const trail = result.result!.trail as Array<Record<string, unknown>>;
+    expect("actorIdentity" in trail[0]!).toBe(false);
+  });
+
   it("suspends at each gate, records rationale/actor/timestamp into the ledger, and completes with { trail, ledger }", async () => {
     const applied: unknown[] = [];
     const onComplete = vi.fn();
@@ -161,8 +217,15 @@ describe("createJudgmentChain", () => {
         decision: "capped at 150000",
         rationale: "volatile large losses distort development",
         skipped: false,
+        actor: "agent",
       },
-      { stage: "elr", decision: "selected ELR 0.65", rationale: "weighted average", skipped: false },
+      {
+        stage: "elr",
+        decision: "selected ELR 0.65",
+        rationale: "weighted average",
+        skipped: false,
+        actor: "actuary", // payload named none; the coarse default
+      },
     ]);
     expect(outcome.ledger.entries).toHaveLength(2);
     const [capEntry, elrEntry] = outcome.ledger.entries;

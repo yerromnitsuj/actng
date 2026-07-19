@@ -51,12 +51,29 @@ import { zodObjectShape } from "./tools.js";
 // ---------------------------------------------------------------------------
 // Public types
 
+/**
+ * The request-context key a host sets (server-side, from its authenticated
+ * session — the same trust path as the tenant id) to identify WHO is resuming
+ * gates. The resume payload cannot supply it: a payload travels through
+ * model-reachable surfaces, and an identity that can be asserted from there
+ * is a claim, not a record.
+ */
+export const ACTOR_IDENTITY_CONTEXT_KEY = "actorIdentity";
+
 /** One decision in the audit trail; skip gates record skipped: true. */
 export interface JudgmentTrailEntry {
   stage: string;
   decision: string;
   rationale: string;
   skipped: boolean;
+  /** Coarse classification from the resume payload (default | actuary | agent). */
+  actor?: AssumptionActor;
+  /**
+   * The authenticated identity from the request context, when the host set
+   * one. Absent means the host supplied none — identity is never invented,
+   * and never read from the resume payload.
+   */
+  actorIdentity?: string;
 }
 
 /**
@@ -167,11 +184,16 @@ export interface CreateJudgmentChainOptions {
 // ---------------------------------------------------------------------------
 // Chain state threaded through step outputs
 
+// Declares EVERY JudgmentTrailEntry field: zod strips undeclared keys on the
+// step-output parse, so an undeclared field here is silently erased between
+// gates (the ledger schema below carries the same warning for the same reason).
 const trailEntrySchema = z.object({
   stage: z.string(),
   decision: z.string(),
   rationale: z.string(),
   skipped: z.boolean(),
+  actor: z.enum(["default", "actuary", "agent"]).optional(),
+  actorIdentity: z.string().optional(),
 });
 
 // Declares EVERY AssumptionEntry field: zod strips undeclared keys on parse,
@@ -350,6 +372,11 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
           );
         }
         const actor = actorOf(decision);
+        // WHO decided comes from the server-set context, never the payload:
+        // the payload's job is the decision and its coarse classification.
+        const rawIdentity = requestContext?.get(ACTOR_IDENTITY_CONTEXT_KEY);
+        const actorIdentity =
+          typeof rawIdentity === "string" && rawIdentity.length > 0 ? rawIdentity : undefined;
 
         const applied = await gate.applyDecision(ctx, decision);
 
@@ -373,6 +400,8 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
           trail: [
             ...state.trail,
             {
+              actor,
+              ...(actorIdentity !== undefined ? { actorIdentity } : {}),
               stage: gate.stage,
               decision: applied.summary ?? describeDecision(decision),
               rationale,
