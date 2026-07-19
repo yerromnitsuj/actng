@@ -40,6 +40,7 @@ import {
   toolRegistry,
 } from "@actuarial-ts/agents";
 import { RequestContext } from "@mastra/core/request-context";
+import { resolveSidecar, type SidecarHandle } from "./sidecar.js";
 
 // ---------------------------------------------------------------- the data
 const TAYLOR_ASHE: (number | null)[][] = [
@@ -67,25 +68,24 @@ const DEV_COLS = AGES.length - 1;
 // -------------------------------------------------------------- preflight
 /**
  * The sidecar IS this engine's compute backend — unlike @actuarial-ts/core,
- * which runs in-process, there is no math here without one. A CLI boot with
- * no sidecar configured fails loud with the exact boot command, the same
- * posture as the CLI spine (../src/main.ts), rather than starting a server
- * whose every /api/compute silently 502s. startAppServer's sidecarUrl/
- * sidecarToken options write to this module-level binding, so the most
- * recent call's values win process-wide — a single-instance demo posture,
- * not per-instance isolation; they default from the environment otherwise,
- * read once here (the host may read the environment, same as it may read
- * the clock).
+ * which runs in-process, there is no math here without one. startAppServer
+ * resolves it in this order: explicit options.sidecarUrl/sidecarToken (how
+ * the test suite pins it — resolveSidecar, and any child it might spawn, is
+ * never invoked in that case), otherwise resolveSidecar(REPO_ROOT), which
+ * itself prefers SIDECAR_URL/SIDECAR_TOKEN from the environment (CI's path)
+ * and falls back to launching .venv-interop's sidecar as a child that lives
+ * and dies with this server. The resolved url/token write to this
+ * module-level binding, so the most recent call's values win process-wide —
+ * a single-instance demo posture, not per-instance isolation. A resolve
+ * failure in CLI mode fails loud with the exact boot/setup commands, the
+ * same posture as the CLI spine (../src/main.ts), rather than starting a
+ * server whose every /api/compute silently 502s.
  */
-let sidecarUrl = process.env.SIDECAR_URL ?? "";
-let sidecarToken = process.env.SIDECAR_TOKEN ?? "";
-if (process.argv[1]?.endsWith("server.ts") && (sidecarUrl === "" || sidecarToken === "")) {
-  console.error(
-    "chain-ladder-python app needs a live sidecar: set SIDECAR_URL and SIDECAR_TOKEN\n" +
-      "  PYTHONPATH=interop SIDECAR_TOKEN=dev-secret .venv-interop/bin/python -m sidecar",
-  );
-  process.exit(2);
-}
+let sidecarUrl = "";
+let sidecarToken = "";
+let sidecarLaunched = false;
+let sidecarPid: number | undefined;
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 // ------------------------------------------------------------- the engine
 /** THE ONLY ENGINE-SPECIFIC CODE. Siblings replace this body. */
@@ -119,10 +119,10 @@ async function computeWithEngine(selections: LdfSelections) {
     { triangles: { primary: triangleDoc }, selection: selectionDoc },
   );
   if (!remote.success) {
-    throw new Error(
-      `${remote.error.code}: ${remote.error.message}` +
-        " — boot one with: PYTHONPATH=interop SIDECAR_TOKEN=... .venv-interop/bin/python -m sidecar",
-    );
+    const suffix = sidecarLaunched
+      ? " — the sidecar this app launched has died; restart the app"
+      : " — boot one with: PYTHONPATH=interop SIDECAR_TOKEN=... .venv-interop/bin/python -m sidecar";
+    throw new Error(`${remote.error.code}: ${remote.error.message}` + suffix);
   }
   // Re-verified here even though callRemoteMethod already parse-verified the
   // response (defense in depth, and it narrows the result/stochastic-result
@@ -287,12 +287,29 @@ export async function startAppServer(
     sidecarToken?: string;
   } = {},
 ) {
-  // Re-reads the environment on every call (not just the previous value of
-  // the module binding) so that a later startAppServer() without an
-  // explicit override still defaults from env rather than inheriting an
-  // earlier call's explicit fixture value.
-  sidecarUrl = options.sidecarUrl ?? process.env.SIDECAR_URL ?? sidecarUrl;
-  sidecarToken = options.sidecarToken ?? process.env.SIDECAR_TOKEN ?? sidecarToken;
+  // options.sidecarUrl/sidecarToken (both set) short-circuits resolution
+  // entirely — the test suite's fixture path, so resolveSidecar (and any
+  // child process it might spawn) is never invoked under test. Otherwise
+  // resolveSidecar(REPO_ROOT) decides: env (CI's path) or auto-launch.
+  let sidecarHandle: SidecarHandle;
+  if (options.sidecarUrl !== undefined && options.sidecarToken !== undefined) {
+    sidecarHandle = { url: options.sidecarUrl, token: options.sidecarToken, launched: false, stop() {} };
+  } else {
+    try {
+      sidecarHandle = await resolveSidecar(REPO_ROOT);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (process.argv[1]?.endsWith("server.ts")) {
+        console.error(message);
+        process.exit(2);
+      }
+      throw err;
+    }
+  }
+  sidecarUrl = sidecarHandle.url;
+  sidecarToken = sidecarHandle.token;
+  sidecarLaunched = sidecarHandle.launched;
+  sidecarPid = sidecarHandle.pid;
   const advisorEnabled = options.advisorEnabled ?? Boolean(process.env.ANTHROPIC_API_KEY);
   // Constructing the advisor is free and offline; only chat turns call the
   // provider. Built once so every chat shares tool wiring.
@@ -462,7 +479,14 @@ export async function startAppServer(
   const port = typeof address === "object" && address !== null ? address.port : requestedPort;
   return {
     port,
-    close: () => new Promise<void>((resolve, reject) => server.close((e) => (e ? reject(e) : resolve()))),
+    close: () =>
+      new Promise<void>((resolve, reject) =>
+        server.close((e) => {
+          sidecarHandle.stop();
+          if (e) reject(e);
+          else resolve();
+        }),
+      ),
   };
 }
 
@@ -470,6 +494,9 @@ export async function startAppServer(
 if (process.argv[1]?.endsWith("server.ts")) {
   const app = await startAppServer();
   console.log(`chain-ladder app (${ENGINE.badge}) → http://127.0.0.1:${app.port}`);
+  if (sidecarLaunched) {
+    console.log(`sidecar     auto-launched (pid ${sidecarPid}, port 18091)`);
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log("advisor disabled: export ANTHROPIC_API_KEY=... to enable the chat panel");
   }

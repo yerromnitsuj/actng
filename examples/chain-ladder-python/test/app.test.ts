@@ -57,6 +57,25 @@ describe("the chain-ladder app server", () => {
     });
     expect(res.status).toBe(503);
   });
+
+  it("fails with setup instructions when no sidecar is configured and no venv exists", async () => {
+    // Scrub SIDECAR_URL/SIDECAR_TOKEN so this hits the venv-launch path even
+    // when the suite is running against a live sidecar (CI's gated describe
+    // below reads these from the environment for the whole test file).
+    const savedUrl = process.env.SIDECAR_URL;
+    const savedToken = process.env.SIDECAR_TOKEN;
+    delete process.env.SIDECAR_URL;
+    delete process.env.SIDECAR_TOKEN;
+    try {
+      const { resolveSidecar } = await import("../app/sidecar.js");
+      await expect(resolveSidecar("/tmp/definitely-no-venv-here")).rejects.toThrow(/venv-interop/);
+    } finally {
+      if (savedUrl === undefined) delete process.env.SIDECAR_URL;
+      else process.env.SIDECAR_URL = savedUrl;
+      if (savedToken === undefined) delete process.env.SIDECAR_TOKEN;
+      else process.env.SIDECAR_TOKEN = savedToken;
+    }
+  });
 });
 
 // ------------------------------------------------------ live sidecar only
