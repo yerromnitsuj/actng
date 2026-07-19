@@ -11,11 +11,17 @@ on:
       - "tools/interop/**"
       - "interop/conformance/fixtures/**"
       - ".github/workflows/r-conformance.yml"
+      - "examples/chain-ladder-r/**"
+      - "packages/**"
+      - "package-lock.json"
   pull_request:
     branches: [main]
     paths:
       - "tools/interop/**"
       - "interop/conformance/fixtures/**"
+      - "examples/chain-ladder-r/**"
+      - "packages/**"
+      - "package-lock.json"
 
 jobs:
   r-conformance:
@@ -40,3 +46,20 @@ jobs:
         run: Rscript -e 'source("tools/interop/actuarialInterchange.R"); ats_test_jcs()'
       - name: Cross-engine conformance (frozen corpus, mack1993-vw profile)
         run: Rscript tools/interop/conformance.R
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: npm ci (workspace + SDK build via prepare)
+        run: npm ci
+      - name: run-mack.R CLI smoke (literature anchor)
+        run: |
+          Rscript tools/interop/run-mack.R \
+            --in interop/conformance/fixtures/taylor-ashe/triangle.json \
+            --selection interop/conformance/fixtures/taylor-ashe/selection.json \
+            --out /tmp/r-result.json --created-at 2026-07-19T00:00:00Z
+          Rscript -e 'source("tools/interop/actuarialInterchange.R");
+            doc <- ats_read_document("/tmp/r-result.json");
+            stopifnot(abs(doc$result$totals$unpaid - 18680856) <= 1)'
+      - name: Chain-ladder R example (live Rscript)
+        run: npm test -w @actuarial-ts/example-chain-ladder-r

@@ -39,14 +39,26 @@ if (!"jsonlite" %in% loadedNamespaces()) {
 # Mirrors interop/python/actuarial_interchange/_jcs.py::_format_number. R has
 # no shortest-round-trip repr the way Python's repr does, so we search for the
 # fewest significant digits whose %g rendering parses back to the exact double
-# (correctly-rounded %g + strtod round-trip == ECMAScript's shortest digits),
-# then re-lay the digit string out with the ES algorithm.
+# (correctly-rounded %g + round-trip == ECMAScript's shortest digits), then
+# re-lay the digit string out with the ES algorithm.
+#
+# The round-trip check below parses candidates with jsonlite::fromJSON, NOT
+# base R's as.numeric()/strtod: on at least one verified R build (4.6.1,
+# macOS arm64) as.numeric() mis-rounds specific decimal strings by one ULP
+# (e.g. "984888.6390497377" -> ...186f7 instead of the correctly-rounded
+# ...186f8 that jsonlite, Python, and every JS engine agree on). That bug
+# made this search silently fall through to a needlessly long, non-canonical
+# 17-digit fallback whenever a fitted value landed on one of the mis-rounded
+# strings — producing a valid-but-non-shortest number that fails byte-level
+# integrity re-verification on every OTHER shore. jsonlite::fromJSON is
+# already a hard dependency of this file and is independently exercised by
+# ats_read_document, so this reuses a parser already proven correct here.
 
 ats_shortest_repr <- function(x) {
-  # Fewest significant digits d in 1..17 such that as.numeric(%.dg) == x.
+  # Fewest significant digits d in 1..17 such that fromJSON(%.dg) == x.
   for (d in 1:17) {
     s <- sprintf(paste0("%.", d, "g"), x)
-    if (as.numeric(s) == x) {
+    if (jsonlite::fromJSON(s) == x) {
       return(s)
     }
   }

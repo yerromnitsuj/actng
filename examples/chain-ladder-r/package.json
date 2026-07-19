@@ -1,0 +1,25 @@
+{
+  "name": "@actuarial-ts/example-chain-ladder-r",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Chain ladder computed by R ChainLadder via Rscript, orchestrated from TypeScript",
+  "scripts": {
+    "example": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actuarial-ts/agents": "*",
+    "@actuarial-ts/compliance": "*",
+    "@actuarial-ts/core": "*",
+    "@actuarial-ts/interchange": "*"
+  },
+  "devDependencies": {
+    "@mastra/core": "^1.49.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.6",
+    "zod": "^3.25.76"
+  }
+}
