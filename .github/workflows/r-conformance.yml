@@ -9,7 +9,8 @@ on:
     branches: [main]
     paths:
       - "tools/interop/**"
-      - "interop/conformance/fixtures/**"
+      - "interop/**"
+      - "schema/interchange/**"
       - ".github/workflows/r-conformance.yml"
       - "examples/chain-ladder-r/**"
       - "examples/chain-ladder-crosscheck/**"
@@ -19,7 +20,9 @@ on:
     branches: [main]
     paths:
       - "tools/interop/**"
-      - "interop/conformance/fixtures/**"
+      - "interop/**"
+      - "schema/interchange/**"
+      - ".github/workflows/r-conformance.yml"
       - "examples/chain-ladder-r/**"
       - "examples/chain-ladder-crosscheck/**"
       - "packages/**"

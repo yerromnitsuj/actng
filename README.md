@@ -86,7 +86,7 @@ consumer.
 | Path | What it is |
 |---|---|
 | `packages/*` | The five published SDK packages (each with its own README). |
-| `examples/` | A runnable, tested reserve review across four of the five packages (agents needs a Mastra host). |
+| `examples/` | A tested reserve review plus the chain-ladder trilogy (TypeScript / Python / R engines) and its cross-engine capstone — all five packages exercised. |
 | `interop/` | The Python shore (`interop/python`), the frozen cross-engine conformance corpus, and the chainladder-python FastAPI compute sidecar (the live second engine). |
 | `tools/interop/` | The R shore: ChainLadder interchange recipes and the conformance verdict runner. |
 | `schema/interchange/` | Versioned JSON Schema + JCS test vectors that every shore reproduces. |
@@ -98,7 +98,7 @@ consumer.
 
 ```bash
 npm install        # workspace install; builds SDK dist via the root prepare
-npm test           # every package + the example (766 tests)
+npm test           # every package + the examples
 npm run typecheck  # all workspaces
 npm run build      # the SDK packages
 npm run example    # the end-to-end reserve review

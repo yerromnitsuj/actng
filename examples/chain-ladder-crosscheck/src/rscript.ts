@@ -1,8 +1,9 @@
 /**
  * Minimal Rscript subprocess helper. Lives INSIDE this example on purpose:
  * the SDK packages ship no subprocess machinery, and an example should not
- * grow their public surface. (examples/chain-ladder-crosscheck carries an
- * identical copy — self-containment beats DRY in teaching code.)
+ * grow their public surface. (examples/chain-ladder-r and
+ * examples/chain-ladder-crosscheck each carry an identical copy —
+ * self-containment beats DRY in teaching code.)
  */
 import { execFile, spawnSync } from "node:child_process";
 

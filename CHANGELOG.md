@@ -3,6 +3,18 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
+## Unreleased
+
+- **fix(interop): the R adapter's JCS shortest-round-trip oracle mis-rounded
+  certain doubles by one ULP on R 4.6.1/arm64** (`as.numeric` vs.
+  `jsonlite::fromJSON`). Pinned by two new shared JCS vectors (23→25) that the
+  pre-fix adapter fails.
+- **feat(examples): the chain-ladder trilogy** (TypeScript /
+  chainladder-python sidecar / R ChainLadder) + a cross-engine crosscheck
+  capstone, each driving the Mastra agent layer (typed tools, fail-closed
+  tenant seam, judgment chain → ASOP 41 disclosure). New root scripts
+  `example:cl-*`.
+
 ## 0.3.0 — 2026-07-19
 
 All five packages version together (see VERSIONING.md for why lockstep is

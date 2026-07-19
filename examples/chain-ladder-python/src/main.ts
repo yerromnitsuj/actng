@@ -1,10 +1,10 @@
 /**
  * Chain ladder, computed by CHAINLADDER-PYTHON over the HTTP sidecar.
  *
- * One of three sibling examples that are deliberately line-for-line identical
- * except for the body of the `compute_chain_ladder` tool — see
- * ../chain-ladder-typescript and ../chain-ladder-r. Diff them: where the math runs
- * is the ONLY difference. examples/chain-ladder-crosscheck referees all three.
+ * One of three sibling examples that are deliberately identical except where
+ * the engine forces a difference: the compute tool body, its preflight, and
+ * how the result is verified — see ../chain-ladder-typescript and
+ * ../chain-ladder-r. examples/chain-ladder-crosscheck referees all three.
  */
 import { z } from "zod";
 import { Mastra } from "@mastra/core/mastra";
@@ -167,6 +167,7 @@ export interface ClExampleOutcome {
   ledgerJudgments: number;
   trailActorIdentity: string | undefined;
   disclosureHasJudgmentSection: boolean;
+  disclosureSections: number;
   tenantFailClosedCode: string;
 }
 
@@ -184,7 +185,7 @@ export async function runChainLadderPython(): Promise<ClExampleOutcome> {
   }
 
   // 1. Triangle -> factors. The SDK never selects for you; picking "all-wtd"
-  //    (volume-weighted, all periods) is a judgment, recorded as one in Task 2.
+  //    (volume-weighted, all periods) is a judgment, recorded as one at step 3 (the judgment chain).
   const triangle = triangleFromGrid("paid", ORIGINS, AGES, TAYLOR_ASHE);
   const factors = computeDevelopmentFactors(triangle);
   const allWtd = factors.averages.find((a) => a.spec.key === "all-wtd");
@@ -312,6 +313,7 @@ export async function runChainLadderPython(): Promise<ClExampleOutcome> {
     disclosureHasJudgmentSection:
       disclosure.includes("## 5. Assumptions and judgments") &&
       disclosure.includes("chainLadder.tailFactor"),
+    disclosureSections: (disclosure.match(/^## /gm) ?? []).length,
     tenantFailClosedCode: denied.success === false ? denied.error.code : "",
   };
 }
@@ -324,5 +326,7 @@ if (process.argv[1]?.endsWith("main.ts")) {
   console.log(`  ultimate   ${Math.round(out.ultimate).toLocaleString("en-US")}`);
   console.log(`  unpaid     ${Math.round(out.unpaid).toLocaleString("en-US")}`);
   console.log(`  engine     clpy:Chainladder`);
+  console.log(`  tenant gate  ${out.tenantFailClosedCode} (fail-closed, body never ran)`);
+  console.log(`  disclosure   ${out.disclosureSections} sections (ASOP 41)`);
 }
 /* c8 ignore stop */
