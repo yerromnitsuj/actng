@@ -18,7 +18,11 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/interchange -w @actuarial-ts/data -w @actuarial-ts/compliance -w @actuarial-ts/agents",
-    "example": "npm run example -w @actuarial-ts/example-reserve-review"
+    "example": "npm run example -w @actuarial-ts/example-reserve-review",
+    "example:cl-ts": "npm run example -w @actuarial-ts/example-chain-ladder-typescript",
+    "example:cl-py": "npm run example -w @actuarial-ts/example-chain-ladder-python",
+    "example:cl-r": "npm run example -w @actuarial-ts/example-chain-ladder-r",
+    "example:cl-crosscheck": "npm run example -w @actuarial-ts/example-chain-ladder-crosscheck"
   },
   "devDependencies": {
     "tsx": "^4.19.2"
