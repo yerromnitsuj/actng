@@ -1,0 +1,22 @@
+{
+  "name": "@actuarial-ts/example-chain-ladder-crosscheck",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The interop proof: the same triangle through TypeScript, chainladder-python, and R ChainLadder, refereed pairwise",
+  "scripts": {
+    "example": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actuarial-ts/agents": "*",
+    "@actuarial-ts/core": "*",
+    "@actuarial-ts/interchange": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.6"
+  }
+}

@@ -12,6 +12,7 @@ on:
       - "interop/conformance/fixtures/**"
       - ".github/workflows/r-conformance.yml"
       - "examples/chain-ladder-r/**"
+      - "examples/chain-ladder-crosscheck/**"
       - "packages/**"
       - "package-lock.json"
   pull_request:
@@ -20,6 +21,7 @@ on:
       - "tools/interop/**"
       - "interop/conformance/fixtures/**"
       - "examples/chain-ladder-r/**"
+      - "examples/chain-ladder-crosscheck/**"
       - "packages/**"
       - "package-lock.json"
 
@@ -63,3 +65,61 @@ jobs:
             stopifnot(abs(doc$result$totals$unpaid - 18680856) <= 1)'
       - name: Chain-ladder R example (live Rscript)
         run: npm test -w @actuarial-ts/example-chain-ladder-r
+
+  # The capstone (Task 6): boots BOTH the sidecar and Rscript, then computes
+  # the Taylor & Ashe result with all three engines live and referees them
+  # pairwise. Sidecar-boot block mirrors py-conformance.yml's crosscheck-ci
+  # job (pip upgrade first, fail-loud health poll) rather than drifting.
+  examples-capstone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4"
+          use-public-rspm: true
+      - name: Cache R packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: r-libs-${{ runner.os }}-chainladder-jsonlite-v1
+      - name: Install ChainLadder + jsonlite
+        run: |
+          Rscript -e 'installed <- rownames(installed.packages());
+            need <- setdiff(c("ChainLadder", "jsonlite"), installed);
+            if (length(need) > 0) install.packages(need, repos = "https://packagemanager.posit.co/cran/__linux__/jammy/latest")'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Provision + boot the sidecar
+        run: |
+          python3 -m venv .venv-interop
+          .venv-interop/bin/python -m pip install --upgrade pip
+          .venv-interop/bin/pip install -e interop/python -r interop/sidecar/requirements.txt
+          PYTHONPATH=interop SIDECAR_TOKEN=ci-secret nohup .venv-interop/bin/python -m sidecar > sidecar.log 2>&1 &
+          echo $! > sidecar.pid
+      - name: Wait for /v1/health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:8091/v1/health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "sidecar never became healthy" >&2
+          cat sidecar.log >&2
+          exit 1
+      - name: Capstone — three engines, one referee
+        run: npm test -w @actuarial-ts/example-chain-ladder-crosscheck
+        env:
+          SIDECAR_URL: http://127.0.0.1:8091
+          SIDECAR_TOKEN: ci-secret
+      - name: Sidecar log on failure
+        if: failure()
+        run: cat sidecar.log || true
+      - name: Teardown
+        if: always()
+        run: kill "$(cat sidecar.pid)" 2>/dev/null || true
