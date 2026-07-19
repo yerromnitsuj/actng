@@ -15,6 +15,7 @@ on:
       - "packages/core/**"
       - "packages/agents/**"
       - "packages/compliance/**"
+      - "examples/chain-ladder-python/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/py-conformance.yml"
@@ -87,6 +88,11 @@ jobs:
         run: npm ci
       - name: Cross-engine referee (crosscheck:ci)
         run: npm run crosscheck:ci
+      - name: Chain-ladder Python example (live sidecar)
+        run: npm test -w @actuarial-ts/example-chain-ladder-python
+        env:
+          SIDECAR_URL: http://127.0.0.1:8091
+          SIDECAR_TOKEN: ci-crosscheck-token
       - name: Sidecar log on failure
         if: failure()
         run: cat sidecar.log || true
