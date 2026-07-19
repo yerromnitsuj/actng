@@ -9,6 +9,44 @@ function csv(...dataRows: string[]): string {
   return [HEADER, ...dataRows].join("\n");
 }
 
+describe("strict numeric and date forms (findings data.2, data.1)", () => {
+  const header = "claim_id,accident_date,report_date,evaluation_date,status,paid_to_date,case_reserve\n";
+  const row = (paid: string, accident = "2024-01-15"): string =>
+    `C1,${accident},2024-03-01,2024-06-30,open,${paid},0\n`;
+
+  it("rejects JS numeric literals that are not decimal currency", () => {
+    // Number() accepts hex, binary, octal and scientific notation — "0x2710"
+    // became 10,000 dollars with no complaint. Currency is decimal digits, an
+    // optional sign and an optional fraction; everything else is an error the
+    // author needs to see, not a silent magnitude change.
+    for (const bad of ["0x2710", "0b1010", "0o17", "1e5", "Infinity"]) {
+      const { claims, errors } = parseLossRunCsv(header + row(bad));
+      expect(claims).toHaveLength(0);
+      expect(errors.map((e) => e.message).join(" ")).toContain("paid_to_date");
+    }
+  });
+
+  it("still accepts plain decimal currency, signed and fractional", () => {
+    for (const good of ["100", "-50.25", "0", "12345.6"]) {
+      const { claims, errors } = parseLossRunCsv(header + row(good));
+      expect(errors).toHaveLength(0);
+      expect(claims).toHaveLength(1);
+    }
+  });
+
+  it("rejects formatted amounts with a message naming the formatting", () => {
+    const { claims, errors } = parseLossRunCsv(header + row('"1,234"'));
+    expect(claims).toHaveLength(0);
+    expect(errors.map((e) => e.message).join(" ")).toMatch(/thousands|formatting/i);
+  });
+
+  it("validates leap days with the arithmetic rule, any century", () => {
+    // 2023-02-29 does not exist; 2024-02-29 does.
+    expect(parseLossRunCsv(header + row("100", "2023-02-29")).errors).toHaveLength(1);
+    expect(parseLossRunCsv(header + row("100", "2024-02-29")).errors).toHaveLength(0);
+  });
+});
+
 describe("parseLossRunCsv", () => {
   it("parses a clean loss run into ClaimSnapshots with no errors", () => {
     const { claims, errors } = parseLossRunCsv(

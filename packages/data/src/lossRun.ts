@@ -56,7 +56,13 @@ function isValidIsoDate(value: string): boolean {
   const m = Number(match[2]);
   const d = Number(match[3]);
   if (m < 1 || m > 12 || d < 1) return false;
-  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  // Arithmetic rule, mirroring compliance/src/metadata.ts (this package cannot
+  // import compliance — the dependency points the other way). The previous
+  // Date.UTC form mapped years 0-99 into the 1900s; the mapping happens to
+  // preserve leapness for every year except 0000, so this is a correctness-of-
+  // form consolidation rather than a live-bug fix.
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]!;
   return d <= daysInMonth;
 }
 
@@ -110,9 +116,22 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
 
     const amount = (name: string): number | null => {
       const value = cell(name);
-      const n = value === "" ? NaN : Number(value);
+      // Currency is decimal digits with an optional sign and fraction —
+      // Number() also accepts hex (0x2710 -> 10000), binary, octal and
+      // scientific notation, which silently changes magnitudes instead of
+      // erroring. Formatted amounts are rejected with a pointed message
+      // rather than guessed at: "1,234" could be one thousand or 1.234
+      // depending on locale, and a loss run is no place to guess.
+      if (/[,()]|\s/.test(value.trim()) && value.trim() !== "") {
+        rowErrors.push(
+          `${name} must be an unformatted decimal (got "${value}"); remove thousands separators, ` +
+            "parentheses and spaces",
+        );
+        return null;
+      }
+      const n = /^-?\d+(\.\d+)?$/.test(value.trim()) ? Number(value.trim()) : NaN;
       if (!Number.isFinite(n)) {
-        rowErrors.push(`${name} must be a finite number (got "${value}")`);
+        rowErrors.push(`${name} must be a finite decimal number (got "${value}")`);
         return null;
       }
       return n;
