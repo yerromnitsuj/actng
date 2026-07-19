@@ -22,7 +22,19 @@ Rscript tools/interop/actuarialInterchange.R    # sources clean; ats_test_jcs() 
 
 # the cross-engine conformance runner (verdict table)
 Rscript tools/interop/conformance.R
+
+# the CLI entrypoint: triangle document in, Mack fit, method-result document out
+Rscript tools/interop/run-mack.R \
+  --in <triangle.json> --out <result.json> --created-at <iso8601> \
+  [--selection <selection.json>] [--profile <name>]
 ```
+
+`run-mack.R`'s `--created-at` is mandatory by design: the assemble/extract
+helpers default it to a hardcoded literal, and a document that always claims
+the same date breaks byte-determinism for everyone downstream. `--profile`
+defaults to `deterministic-cl` (the trilogy's comparison profile — alpha=1,
+all periods, no tail IS that chain ladder point estimate); pass
+`mack1993-vw` for SE-focused runs.
 
 `conformance.R` reads the committed fixtures under
 `interop/conformance/fixtures/`, runs `MackChainLadder(alpha=1,
