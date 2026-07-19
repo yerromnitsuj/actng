@@ -106,26 +106,28 @@ arbitrary per-column LDFs plus a tail — meets each engine differently:
   the existing adapter (`ats_assemble_document`). No standard errors — the apps
   display ultimates/unpaid only, so none are needed.
 
-## 5. The page — four regions
+## 5. The page — five regions
 
-1. **Factor table.** Development columns across; one row per average key
+1. **Triangle exhibit.** The cumulative paid triangle itself: origins × ages,
+   with unobserved (lower-right) cells rendered blank.
+2. **Factor table.** Development columns across; one row per average key
    (`all-wtd`, `all-str`, `5-wtd`, `5-str`, `3-wtd`, `3-str`, `med-5x1`,
    `geo-all`), values to 4 decimals; clicking a row's cell selects that
    average's value for that column. A **Selected** row shows the active values
    with per-column numeric override inputs; a tail-factor input sits at the
-   row's end. Any change fires `/api/compute` (debounced) and updates region 2.
-2. **Results.** Per-origin latest / ultimate / unpaid + totals, engine badge
+   row's end. Any change fires `/api/compute` (debounced) and updates region 3.
+3. **Results.** Per-origin latest / ultimate / unpaid + totals, engine badge
    with compute timing, delta vs the last committed totals.
-3. **Commit + governance.** Rationale textarea, actor display, **Commit
+4. **Commit + governance.** Rationale textarea, actor display, **Commit
    selection** button. Below: the ledger (seq, actor tag — `actuary` vs
    `agent` styled differently — field, value, rationale) and a collapsible
    disclosure preview (`<pre>` of the markdown; Section 5 visibly grows per
    commit).
-4. **Advisor chat.** Message list, input box, streamed replies; tool-call chips
+5. **Advisor chat.** Message list, input box, streamed replies; tool-call chips
    inline as they happen. "Apply suggestion" (when the reply carries applicable
    selections) writes the exploratory state only. Key absent → panel disabled
    showing the exact `export ANTHROPIC_API_KEY=…` + restart instruction;
-   regions 1–3 fully functional regardless.
+   regions 1–4 fully functional regardless.
 
 No horizontal page scroll; the factor table scrolls inside its own container.
 Numbers right-aligned, tabular-nums. Restraint over flash: this is teaching

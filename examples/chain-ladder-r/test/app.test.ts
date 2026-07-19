@@ -99,4 +99,14 @@ describe.skipIf(!haveR)("the chain-ladder app server", () => {
     });
     expect(res.status).toBe(503);
   });
+
+  it("carries the full cumulative triangle for the exhibit", async () => {
+    const state = (await (await fetch(`${base}/api/state`)).json()) as {
+      triangle: { origins: string[]; ages: number[]; values: (number | null)[][] };
+    };
+    expect(state.triangle.origins).toHaveLength(10);
+    expect(state.triangle.ages).toHaveLength(10);
+    expect(state.triangle.values[0]!.filter((v) => v !== null)).toHaveLength(10);
+    expect(state.triangle.values[9]!.filter((v) => v !== null)).toHaveLength(1);
+  });
 });

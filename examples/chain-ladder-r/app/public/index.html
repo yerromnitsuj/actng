@@ -38,10 +38,13 @@
 <div id="banner">loading…</div>
 <div id="engine-error" class="error-box"></div>
 
-<h2>1 · Development factors — click an average to select it per column, or override</h2>
+<h2>1 · Triangle — cumulative paid</h2>
+<div class="scroll"><table id="triangle"></table></div>
+
+<h2>2 · Development factors — click an average to select it per column, or override</h2>
 <div class="scroll"><table id="factors"></table></div>
 
-<h2>2 · Results</h2>
+<h2>3 · Results</h2>
 <div id="results-strip">
   <span>ultimate <span class="big" id="tot-ult">—</span></span>
   <span>unpaid <span class="big" id="tot-unp">—</span></span>
@@ -50,7 +53,7 @@
 </div>
 <div class="scroll"><table id="results"></table></div>
 
-<h2>3 · Commit — a selection becomes an assumption only with a rationale</h2>
+<h2>4 · Commit — a selection becomes an assumption only with a rationale</h2>
 <div id="commit-panel">
   <textarea id="rationale" placeholder="Why these factors? (required — the ledger refuses judgment without a rationale)"></textarea>
   <button id="commit">Commit selection</button>
@@ -60,7 +63,7 @@
   <details><summary>ASOP 41 disclosure (regenerates on commit)</summary><pre id="disclosure"></pre></details>
 </div>
 
-<h2>4 · Advisor</h2>
+<h2>5 · Advisor</h2>
 <div id="chat-disabled" class="error-box"></div>
 <div id="chat-log"></div>
 <div id="proposal-box"></div>
@@ -97,11 +100,26 @@ async function boot() {
       "export ANTHROPIC_API_KEY=...   then restart: npm run app";
     $("chat-input").disabled = true;
   }
+  renderTriangle();
   renderFactors();
   renderLedger(state.ledger);
   refreshDisclosure();
   updateCommitActor();
   compute();
+}
+
+function renderTriangle() {
+  const { origins, ages, values } = state.triangle;
+  const head = ["<tr><th>origin</th>"];
+  for (const age of ages) head.push(`<th>${age}</th>`);
+  head.push("</tr>");
+  const rows = origins.map((o, i) => {
+    const cells = values[i]
+      .map((v) => `<td>${v === null ? "" : fmt(v)}</td>`)
+      .join("");
+    return `<tr><td>${o}</td>${cells}</tr>`;
+  });
+  $("triangle").innerHTML = head.join("") + rows.join("");
 }
 
 function renderFactors() {

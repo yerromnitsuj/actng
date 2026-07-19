@@ -39,6 +39,16 @@ describe("the chain-ladder app server", () => {
     expect(state.advisorEnabled).toBe(false);
   });
 
+  it("carries the full cumulative triangle for the exhibit", async () => {
+    const state = (await (await fetch(`${base}/api/state`)).json()) as {
+      triangle: { origins: string[]; ages: number[]; values: (number | null)[][] };
+    };
+    expect(state.triangle.origins).toHaveLength(10);
+    expect(state.triangle.ages).toHaveLength(10);
+    expect(state.triangle.values[0]!.filter((v) => v !== null)).toHaveLength(10);
+    expect(state.triangle.values[9]!.filter((v) => v !== null)).toHaveLength(1);
+  });
+
   it("rejects a commit without a rationale, as a fail-closed envelope", async () => {
     const res = await fetch(`${base}/api/commit`, {
       method: "POST",
