@@ -94,6 +94,6 @@ Carried indication moved from 4,050,000 to 4,222,111 (172,111).
 
 ## 8. Reproducibility
 
-This disclosure derives deterministically from its inputs (integrity tag \`1eca02e985cd98e0\`, actuarial-ts v0.1.0). Rerunning the same inputs on the same SDK version reproduces the analysis and this document byte for byte; pair with a reproducibility bundle for auditor/examiner requests under ASOP No. 21.
+This disclosure derives deterministically from its inputs (integrity tag \`63eb943a4b50aced\` over every disclosed section, actuarial-ts v0.1.0). Rerunning the same inputs on the same SDK version reproduces the analysis and this document byte for byte; pair with a reproducibility bundle for auditor/examiner requests under ASOP No. 21.
 "
 `;

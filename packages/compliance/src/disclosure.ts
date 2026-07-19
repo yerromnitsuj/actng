@@ -401,15 +401,21 @@ export function generateDisclosure(input: DisclosureInput): string {
   // 8. Reproducibility.
   L.push("## 8. Reproducibility");
   L.push("");
-  const inputHash = fnv1a64(
-    canonicalJson({
-      metadata: input.metadata,
-      methods: input.methods,
-      ledger: input.ledger ?? null,
-    }),
+  // The tag covers the WHOLE disclosed input, not a subset. It previously
+  // hashed only metadata/methods/ledger, so fabricating the entire data-review
+  // section or swapping the named preparer did not move it — while this
+  // sentence presented it as certifying the document. Excluded on purpose:
+  // generatedAt (a timestamp is not content) and sdkVersion (stated in clear
+  // text beside the tag, so a reader checks it directly).
+  const { generatedAt: _generatedAt, sdkVersion: _sdkVersion, ...disclosed } = input;
+  // canonicalJson refuses undefined on purpose; an absent section and an
+  // explicitly-undefined one are the same disclosure, so both hash identically.
+  const hashable = Object.fromEntries(
+    Object.entries(disclosed).filter(([, value]) => value !== undefined),
   );
+  const inputHash = fnv1a64(canonicalJson({ ...hashable, ledger: input.ledger ?? null }));
   L.push(
-    `This disclosure derives deterministically from its inputs (integrity tag \`${inputHash}\`, actuarial-ts v${input.sdkVersion}). Rerunning the same inputs on the same SDK version reproduces the analysis and this document byte for byte; pair with a reproducibility bundle for auditor/examiner requests under ASOP No. 21.`,
+    `This disclosure derives deterministically from its inputs (integrity tag \`${inputHash}\` over every disclosed section, actuarial-ts v${input.sdkVersion}). Rerunning the same inputs on the same SDK version reproduces the analysis and this document byte for byte; pair with a reproducibility bundle for auditor/examiner requests under ASOP No. 21.`,
   );
   L.push("");
 

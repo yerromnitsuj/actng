@@ -212,7 +212,7 @@ describe("generateDisclosure (ASOP 41)", () => {
     expect(bare).toContain("No reliances on data or analyses supplied by others were recorded");
     // No referee reports were provided, so Section 4b must not exist — the
     // disclosure never claims a verification that was not performed.
-    expect(bare).not.toContain("4b");
+    expect(bare).not.toContain("## 4b");
     expect(bare).not.toContain("Cross-implementation");
   });
 
@@ -258,6 +258,40 @@ describe("generateDisclosure (ASOP 41)", () => {
     const markdown = generateDisclosure(crossed);
     expect(markdown).not.toMatch(/^## Fabricated heading/m);
     expect(markdown).not.toContain("<script>");
+  });
+
+  it("moves the integrity tag when ANY disclosed content changes", () => {
+    // The tag hashed only metadata/methods/ledger, so fabricating the entire
+    // ASOP 23 data-review section — or swapping the named preparer — did not
+    // move it, while Section 8 presented it as certifying the document.
+    const base = generateDisclosure(input);
+    const tagOf = (doc: string): string => {
+      const match = doc.match(/integrity tag `([0-9a-f]{16})`/);
+      expect(match).not.toBeNull();
+      return match![1]!;
+    };
+    const baseTag = tagOf(base);
+
+    const differentPreparer = generateDisclosure({
+      ...structuredClone(input),
+      preparedBy: "A Completely Different Actuary, FCAS",
+    });
+    expect(tagOf(differentPreparer)).not.toBe(baseTag);
+
+    const strippedReview = generateDisclosure({
+      ...structuredClone(input),
+      dataReview: undefined,
+    });
+    expect(tagOf(strippedReview)).not.toBe(baseTag);
+
+    const extraLimitation = generateDisclosure({
+      ...structuredClone(input),
+      limitations: [...(input.limitations ?? []), "fabricated limitation"],
+    });
+    expect(tagOf(extraLimitation)).not.toBe(baseTag);
+
+    // Regenerating with identical inputs still reproduces the tag.
+    expect(tagOf(generateDisclosure(structuredClone(input)))).toBe(baseTag);
   });
 
   it("matches the golden snapshot", () => {
@@ -310,7 +344,7 @@ describe("Section 4b — cross-implementation verification (interchange spec 5)"
 
   it("omits Section 4b for an empty report list, exactly like an absent one", () => {
     const empty = generateDisclosure({ ...structuredClone(input), crossImplementation: [] });
-    expect(empty).not.toContain("4b");
+    expect(empty).not.toContain("## 4b");
     expect(empty).not.toContain("Cross-implementation");
   });
 });
