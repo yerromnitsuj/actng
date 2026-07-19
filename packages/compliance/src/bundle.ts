@@ -259,6 +259,14 @@ function firstDifference(stored: unknown, rerun: unknown, path: string): string 
 
 /** Inner verification — the pre-wrapped behavior, unchanged byte for byte. */
 function verifyUnwrapped(bundle: ReproducibilityBundle, rerunResults: unknown): VerifyBundleResult {
+  // The bundle's own hash first. Without this, the attestation ("these results
+  // came from exactly these inputs, parameters, and SDK versions") checked the
+  // results segment only — a bundle with rewritten inputs and hash "deadbeef"
+  // verified. The wrapped path always recomputed its tag; the unwrapped one
+  // must too.
+  if (fnv1a64(bundle.payload) !== bundle.hash) {
+    return { reproduced: false, mismatchPath: "$.hash" };
+  }
   let stored: unknown;
   try {
     stored = JSON.parse(bundle.payload);

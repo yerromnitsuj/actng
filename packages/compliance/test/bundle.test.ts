@@ -154,6 +154,30 @@ describe("createBundle", () => {
   });
 });
 
+describe("verifyBundle rejects a bundle whose own hash does not match its payload", () => {
+  it("returns reproduced: false with mismatchPath $.hash before comparing results", () => {
+    // The unwrapped path compared re-run results against stored results and
+    // never recomputed fnv1a64(payload) against bundle.hash — so a bundle with
+    // rewritten inputs, parameters and sdkVersions and hash "deadbeef" still
+    // verified. The header's claim ("these results came from exactly these
+    // inputs...") depends on this check; the wrapped path always had it.
+    const bundle = createBundle({
+      inputs: { a: 1 },
+      parameters: { b: 2 },
+      results: { total: 42 },
+      sdkVersions: { "@actuarial-ts/core": "0.2.0" },
+      createdAt: "2026-07-18T00:00:00Z",
+    });
+    const tampered = { ...bundle, hash: "deadbeefdeadbeef" };
+    const verdict = verifyBundle(tampered, { total: 42 });
+    expect(verdict.reproduced).toBe(false);
+    expect(verdict.mismatchPath).toBe("$.hash");
+
+    // And the untampered bundle still verifies.
+    expect(verifyBundle(bundle, { total: 42 }).reproduced).toBe(true);
+  });
+});
+
 describe("verifyBundle", () => {
   it("round-trips: a re-run with structurally equal results is reproduced", () => {
     const input = bundleInput();
@@ -205,8 +229,25 @@ describe("verifyBundle", () => {
     expect(verifyBundle(bundle, { alpha: 2, zeta: 2 }).mismatchPath).toBe("$.alpha");
   });
 
-  it("throws BAD_BUNDLE on a corrupted payload", () => {
-    expectComplianceError(() => verifyBundle({ payload: "not json", hash: "0".repeat(16) }, {}), "BAD_BUNDLE");
-    expectComplianceError(() => verifyBundle({ payload: '{"no":"results"}', hash: "0".repeat(16) }, {}), "BAD_BUNDLE");
+  it("reports a payload/hash mismatch as $.hash, and still throws BAD_BUNDLE past it", () => {
+    // The hash check now runs FIRST (a corrupted payload cannot hash to its
+    // stored tag), so these fabricated hashes surface as $.hash rather than
+    // reaching the parser.
+    expect(verifyBundle({ payload: "not json", hash: "0".repeat(16) }, {})).toEqual({
+      reproduced: false,
+      mismatchPath: "$.hash",
+    });
+
+    // BAD_BUNDLE is still the verdict for structurally bad payloads whose
+    // hash IS consistent — i.e. a bundle that was AUTHORED wrong, not altered.
+    expectComplianceError(
+      () => verifyBundle({ payload: "not json", hash: fnv1a64("not json") }, {}),
+      "BAD_BUNDLE",
+    );
+    expectComplianceError(
+      () =>
+        verifyBundle({ payload: '{"no":"results"}', hash: fnv1a64('{"no":"results"}') }, {}),
+      "BAD_BUNDLE",
+    );
   });
 });
