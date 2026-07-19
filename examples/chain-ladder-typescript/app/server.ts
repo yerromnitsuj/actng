@@ -353,12 +353,18 @@ export async function startAppServer(options: { port?: number; advisorEnabled?: 
                 emit({ type: "proposal", selection: pendingProposals.shift() });
               }
             }
+            while (pendingProposals.length > 0) {
+              emit({ type: "proposal", selection: pendingProposals.shift() });
+            }
           } catch (err) {
             emit({ type: "error", message: err instanceof Error ? err.message : String(err) });
           }
           emit({ type: "done" });
           res.end();
         } finally {
+          // A turn's proposals never outlive it: clear any that survived a
+          // stream error so they cannot leak into the next chat turn.
+          pendingProposals.length = 0;
           chatBusy = false;
         }
         return;

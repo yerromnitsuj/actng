@@ -89,7 +89,7 @@ const RUN_CL = join(REPO_ROOT, "tools", "interop", "run-cl.R");
 
 // ------------------------------------------------------------- the engine
 /** THE ONLY ENGINE-SPECIFIC CODE. Siblings replace this body. */
-const ENGINE = { name: "R " + "(ldf projection)", badge: "computed by Rscript (R)" };
+const ENGINE = { name: "R (ldf projection)", badge: "computed by Rscript (R)" };
 async function computeWithEngine(selections: LdfSelections) {
   const t0 = Date.now();
   const dir = mkdtempSync(join(tmpdir(), "cl-r-app-"));
@@ -104,7 +104,11 @@ async function computeWithEngine(selections: LdfSelections) {
       "--out", outPath,
       "--created-at", BOOT_AT,
     ]);
-    if (!ran.ok) throw new Error(`${ran.code}: ${ran.message}`);
+    if (!ran.ok) {
+      throw new Error(
+        `${ran.code}: ${ran.message}` + " — install R: brew install r; see tools/interop/README.md",
+      );
+    }
     const raw: unknown = JSON.parse(readFileSync(outPath, "utf8"));
     const parsed = parseDocument(raw, { strictness: "refuse" });
     if (parsed.doc.kind !== "method-result") {
@@ -403,12 +407,18 @@ export async function startAppServer(options: { port?: number; advisorEnabled?: 
                 emit({ type: "proposal", selection: pendingProposals.shift() });
               }
             }
+            while (pendingProposals.length > 0) {
+              emit({ type: "proposal", selection: pendingProposals.shift() });
+            }
           } catch (err) {
             emit({ type: "error", message: err instanceof Error ? err.message : String(err) });
           }
           emit({ type: "done" });
           res.end();
         } finally {
+          // A turn's proposals never outlive it: clear any that survived a
+          // stream error so they cannot leak into the next chat turn.
+          pendingProposals.length = 0;
           chatBusy = false;
         }
         return;

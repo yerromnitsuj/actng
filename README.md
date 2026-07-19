@@ -86,7 +86,7 @@ consumer.
 | Path | What it is |
 |---|---|
 | `packages/*` | The five published SDK packages (each with its own README). |
-| `examples/` | A tested reserve review plus the chain-ladder trilogy (TypeScript / Python / R engines) and its cross-engine capstone — all five packages exercised. |
+| `examples/` | A tested reserve review plus the chain-ladder trilogy (TypeScript / Python / R engines) and its cross-engine capstone — all five packages exercised. Each chain-ladder shore also ships an interactive app (`npm run app -w <example>`). |
 | `interop/` | The Python shore (`interop/python`), the frozen cross-engine conformance corpus, and the chainladder-python FastAPI compute sidecar (the live second engine). |
 | `tools/interop/` | The R shore: ChainLadder interchange recipes and the conformance verdict runner. |
 | `schema/interchange/` | Versioned JSON Schema + JCS test vectors that every shore reproduces. |

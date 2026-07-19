@@ -54,6 +54,7 @@
 <div id="commit-panel">
   <textarea id="rationale" placeholder="Why these factors? (required — the ledger refuses judgment without a rationale)"></textarea>
   <button id="commit">Commit selection</button>
+  <span class="delta" id="commit-actor"></span>
   <span class="delta" id="commit-note"></span>
   <ul id="ledger"></ul>
   <details><summary>ASOP 41 disclosure (regenerates on commit)</summary><pre id="disclosure"></pre></details>
@@ -99,6 +100,7 @@ async function boot() {
   renderFactors();
   renderLedger(state.ledger);
   refreshDisclosure();
+  updateCommitActor();
   compute();
 }
 
@@ -171,6 +173,11 @@ async function refreshDisclosure() {
   const out = await (await fetch("/api/disclosure")).json();
   $("disclosure").textContent = out.disclosure;
 }
+function updateCommitActor() {
+  $("commit-actor").textContent = lastAppliedProposal
+    ? "committing as: agent (advisor-proposed)"
+    : "committing as: actuary";
+}
 
 $("commit").addEventListener("click", async () => {
   const rationale = $("rationale").value;
@@ -183,6 +190,7 @@ $("commit").addEventListener("click", async () => {
   $("commit-note").textContent = "committed";
   $("rationale").value = "";
   lastAppliedProposal = false;
+  updateCommitActor();
   committedTotals = out.committed.totals;
   renderLedger(out.ledger);
   $("disclosure").textContent = out.disclosure;
@@ -228,7 +236,7 @@ $("chat-form").addEventListener("submit", async (e) => {
         const line = buf.slice(0, idx); buf = buf.slice(idx + 2);
         if (!line.startsWith("data: ")) continue;
         const ev = JSON.parse(line.slice(6));
-        if (ev.type === "text") reply.textContent += ev.delta;
+        if (ev.type === "text") reply.appendChild(document.createTextNode(ev.delta));
         if (ev.type === "tool") {
           const chip = document.createElement("span");
           chip.className = "chip"; chip.textContent = "→ " + ev.name;
@@ -249,7 +257,7 @@ function renderProposal(p) {
     <button id="apply-proposal">Apply to selection</button></div>`;
   $("apply-proposal").addEventListener("click", () => {
     selected = p.selected.slice(); tailFactor = p.tailFactor; lastAppliedProposal = true;
-    renderFactors(); scheduleCompute();
+    renderFactors(); scheduleCompute(); updateCommitActor();
     box.innerHTML = "";
   });
 }

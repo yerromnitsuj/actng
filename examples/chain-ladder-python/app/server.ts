@@ -71,10 +71,11 @@ const DEV_COLS = AGES.length - 1;
  * no sidecar configured fails loud with the exact boot command, the same
  * posture as the CLI spine (../src/main.ts), rather than starting a server
  * whose every /api/compute silently 502s. startAppServer's sidecarUrl/
- * sidecarToken options let a test point ONE server instance at a fixture
- * value without touching process.env; they default from the environment
- * otherwise, read once here (the host may read the environment, same as it
- * may read the clock).
+ * sidecarToken options write to this module-level binding, so the most
+ * recent call's values win process-wide — a single-instance demo posture,
+ * not per-instance isolation; they default from the environment otherwise,
+ * read once here (the host may read the environment, same as it may read
+ * the clock).
  */
 let sidecarUrl = process.env.SIDECAR_URL ?? "";
 let sidecarToken = process.env.SIDECAR_TOKEN ?? "";
@@ -117,7 +118,12 @@ async function computeWithEngine(selections: LdfSelections) {
     { sidecarUrl, method: "Chainladder", headers: { authorization: `Bearer ${sidecarToken}` }, timeoutMs: 120_000 },
     { triangles: { primary: triangleDoc }, selection: selectionDoc },
   );
-  if (!remote.success) throw new Error(`${remote.error.code}: ${remote.error.message}`);
+  if (!remote.success) {
+    throw new Error(
+      `${remote.error.code}: ${remote.error.message}` +
+        " — boot one with: PYTHONPATH=interop SIDECAR_TOKEN=... .venv-interop/bin/python -m sidecar",
+    );
+  }
   // Re-verified here even though callRemoteMethod already parse-verified the
   // response (defense in depth, and it narrows the result/stochastic-result
   // union without an unchecked cast).
@@ -428,12 +434,18 @@ export async function startAppServer(
                 emit({ type: "proposal", selection: pendingProposals.shift() });
               }
             }
+            while (pendingProposals.length > 0) {
+              emit({ type: "proposal", selection: pendingProposals.shift() });
+            }
           } catch (err) {
             emit({ type: "error", message: err instanceof Error ? err.message : String(err) });
           }
           emit({ type: "done" });
           res.end();
         } finally {
+          // A turn's proposals never outlive it: clear any that survived a
+          // stream error so they cannot leak into the next chat turn.
+          pendingProposals.length = 0;
           chatBusy = false;
         }
         return;

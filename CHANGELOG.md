@@ -15,6 +15,15 @@ together; this file covers them all.
   tenant seam, judgment chain → ASOP 41 disclosure). New root scripts
   `example:cl-*`; opt-in live-advisor tail (`ACTNG_RUN_AGENT=1`) running the
   golden-prompt evals and one tool-calling turn against a real model.
+- **feat(examples): three interactive chain-ladder apps** (`npm run app -w
+  <example>`, one per shore) — clickable development-factor averages with
+  per-column overrides, engine-computed ultimates on every change, an
+  assumption ledger that refuses a commit without a rationale, a live ASOP 41
+  disclosure that regenerates per commit, and a streaming reserving advisor
+  that proposes typed selections for the actuary to apply with one click.
+  Plus `tools/interop/run-cl.R`, a chain-ladder-projection CLI (ldfs supplied,
+  not derived) with fail-closed input guards that the R app's engine shells
+  out to.
 
 ## 0.3.0 — 2026-07-19
 
