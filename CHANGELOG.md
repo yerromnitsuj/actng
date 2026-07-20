@@ -5,6 +5,12 @@ together; this file covers them all.
 
 ## Unreleased
 
+- **fix(interchange): embedded documents inside a study/bundle now fail the
+  spec 3.5 wrong-major check** — TS `parseDocument` and the R
+  `ats_read_document` recipe previously verified only the outer envelope's
+  `interchangeVersion`, accepting e.g. a 2.0.0 TriangleDoc embedded in a
+  1.0.0 study that the Python adapter refuses. All three shores now refuse
+  identically; refusal is unconditional (not `strictness`-governed).
 - **fix(interop): the R adapter's JCS shortest-round-trip oracle mis-rounded
   certain doubles by one ULP on R 4.6.1/arm64** (`as.numeric` vs.
   `jsonlite::fromJSON`). Pinned by two new shared JCS vectors (23→25) that the

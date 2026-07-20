@@ -10,6 +10,7 @@ import pytest
 
 from actuarial_interchange import (
     BadInterchangeError,
+    BundlePayload,
     CrosscheckDeviations,
     CrosscheckEngines,
     CrosscheckParameters,
@@ -136,6 +137,53 @@ class TestVersionHandling:
         raw["interchangeVersion"] = "1.0"
         with pytest.raises(BadInterchangeError, match="malformed"):
             parse_document(raw)
+
+    def test_embedded_wrong_major_in_study_raises(self) -> None:
+        # Finding #2: a study's embedded documents are complete envelopes in
+        # their own right (spec 3.5 applies recursively, "all adapters") —
+        # this pins the reference behavior TS/R parity is being aligned to.
+        # interchange_version is set directly on the Document (an envelope
+        # field, not part of the semantic body), so both the embedded
+        # triangle's own tag and the study's outer tag stay self-consistent
+        # — only the recursive version check can catch this.
+        wrong_major_triangle = Document(
+            kind="triangle",
+            payload=make_triangle_payload(),
+            created_at=CREATED_AT,
+            interchange_version="2.0.0",
+        )
+        study = Document(
+            kind="study",
+            payload=StudyPayload(
+                title="embedded-version guard",
+                narrative={"summary": "s"},
+                triangles=[wrong_major_triangle],
+                selections=[],
+            ),
+            created_at=CREATED_AT,
+        )
+        with pytest.raises(UnsupportedVersionError):
+            parse_document(json.loads(serialize_document(study)))
+
+    def test_embedded_wrong_major_in_bundle_raises(self) -> None:
+        wrong_major_triangle = Document(
+            kind="triangle",
+            payload=make_triangle_payload(),
+            created_at=CREATED_AT,
+            interchange_version="2.0.0",
+        )
+        bundle = Document(
+            kind="bundle",
+            payload=BundlePayload(
+                bundle={"payload": "opaque"},
+                triangles=[wrong_major_triangle],
+                selections=[],
+                results=[],
+            ),
+            created_at=CREATED_AT,
+        )
+        with pytest.raises(UnsupportedVersionError):
+            parse_document(json.loads(serialize_document(bundle)))
 
 
 class TestRoundTrips:
