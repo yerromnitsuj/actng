@@ -537,13 +537,18 @@ ats_matrix_to_triangle_doc <- function(m,
 # NOT chainladder's delta scale (alpha = 2 - delta) — CLFMdelta returns the
 # delta scale, which we report as-is without conflating it with alpha.
 
+# Selected development factors from a selection object, ordered by
+# fromAgeMonths (one per development step) -- the shared prep step both
+# CLFMdelta injection and the vw-match check need before doing anything else.
+.ats_selected_factors <- function(sel) {
+  dev <- sel$development
+  from_ages <- vapply(dev, function(d) as.numeric(d$fromAgeMonths), numeric(1))
+  vapply(dev[order(from_ages)], function(d) as.numeric(d$value), numeric(1))
+}
+
 ats_selection_to_delta <- function(triangle, selection_doc, tolerance = 5e-4) {
   sel <- if (!is.null(selection_doc$selection)) selection_doc$selection else selection_doc
-  dev <- sel$development
-  # Selected factors, ordered by fromAgeMonths (one per development step).
-  from_ages <- vapply(dev, function(d) as.numeric(d$fromAgeMonths), numeric(1))
-  ord <- order(from_ages)
-  selected <- vapply(dev[ord], function(d) as.numeric(d$value), numeric(1))
+  selected <- .ats_selected_factors(sel)
 
   if (!inherits(triangle, "triangle")) {
     triangle <- as.triangle(triangle)
@@ -588,9 +593,7 @@ ats_mack_selection_plan <- function(triangle, selection_doc, match_tol = 1e-9) {
     return(list(mode = "not-injectable", alpha = 1, warnings =
       "the selection carries a tail factor != 1, which rcl:MackChainLadder (tail = FALSE) does not consume; the result was computed WITHOUT the selection and appliesTo.selectionIntegrity is null (not-comparable)"))
   }
-  dev <- sel$development
-  from_ages <- vapply(dev, function(d) as.numeric(d$fromAgeMonths), numeric(1))
-  selected <- vapply(dev[order(from_ages)], function(d) as.numeric(d$value), numeric(1))
+  selected <- .ats_selected_factors(sel)
   if (length(selected) != ncol(triangle) - 1L) {
     stop(sprintf("selection has %d development factors; triangle needs %d",
                  length(selected), ncol(triangle) - 1L))
