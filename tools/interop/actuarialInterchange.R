@@ -578,6 +578,36 @@ ats_selection_to_delta <- function(triangle, selection_doc, tolerance = 5e-4) {
   list(delta = delta, foundSolution = as.logical(found), selected = selected, warnings = warnings)
 }
 
+# Decide how run-mack.R should honor a selection document: "vw-match" (the
+# selection IS the alpha=1 fit's factors -> reuse today's exact path),
+# "injected" (CLFMdelta solved for a per-period alpha), or "not-injectable"
+# (fit runs WITHOUT the selection; stamp must be null; warnings say so).
+ats_mack_selection_plan <- function(triangle, selection_doc, match_tol = 1e-9) {
+  sel <- selection_doc$selection
+  if (!is.null(sel$tail) && !isTRUE(as.numeric(sel$tail$value) == 1)) {
+    return(list(mode = "not-injectable", alpha = 1, warnings =
+      "the selection carries a tail factor != 1, which rcl:MackChainLadder (tail = FALSE) does not consume; the result was computed WITHOUT the selection and appliesTo.selectionIntegrity is null (not-comparable)"))
+  }
+  dev <- sel$development
+  from_ages <- vapply(dev, function(d) as.numeric(d$fromAgeMonths), numeric(1))
+  selected <- vapply(dev[order(from_ages)], function(d) as.numeric(d$value), numeric(1))
+  if (length(selected) != ncol(triangle) - 1L) {
+    stop(sprintf("selection has %d development factors; triangle needs %d",
+                 length(selected), ncol(triangle) - 1L))
+  }
+  f_vw <- as.numeric(suppressWarnings(
+    MackChainLadder(triangle, alpha = 1, est.sigma = "Mack"))$f)[seq_along(selected)]
+  if (all(abs(selected - f_vw) / pmax(abs(f_vw), 1) <= match_tol)) {
+    return(list(mode = "vw-match", alpha = 1, warnings = character(0)))
+  }
+  inj <- ats_selection_to_delta(triangle, selection_doc)
+  if (all(inj$foundSolution)) {
+    return(list(mode = "injected", alpha = 2 - inj$delta, warnings = inj$warnings))
+  }
+  list(mode = "not-injectable", alpha = 1, warnings = c(inj$warnings,
+    "the result was computed under volume-weighted (alpha = 1) factors, NOT the supplied selection; appliesTo.selectionIntegrity is null (injection honesty, spec 3.2/5)"))
+}
+
 # ===========================================================================
 # 11. MackChainLadder -> MethodResultDoc (est.sigma effective recording).
 # ===========================================================================
@@ -603,7 +633,9 @@ ats_detect_effective_est_sigma <- function(triangle, alpha, requested) {
 .ats_fit_requested <- function(fit) {
   call_list <- as.list(fit$call)
   est_sigma <- if (!is.null(call_list[["est.sigma"]])) tryCatch(eval(call_list[["est.sigma"]]), error = function(e) "log-linear") else "log-linear"
-  alpha <- if (!is.null(fit$alpha)) as.numeric(fit$alpha)[1] else if (!is.null(call_list[["alpha"]])) as.numeric(eval(call_list[["alpha"]])) else 1
+  alpha <- if (!is.null(fit$alpha)) as.numeric(fit$alpha) else
+    if (!is.null(call_list[["alpha"]])) as.numeric(eval(call_list[["alpha"]])) else 1
+  if (length(alpha) > 1L && all(alpha == alpha[1])) alpha <- alpha[1]
   list(est_sigma = est_sigma, alpha = alpha)
 }
 
@@ -666,16 +698,22 @@ ats_extract_mack_result <- function(fit, triangle_doc, selection_doc = NULL,
     applies_to$selectionIntegrity <- selection_integrity
   }
 
+  # conventionProfile is .optional() (not .nullable()): a downgraded run
+  # OMITS the key rather than emitting "conventionProfile":null.
+  engine <- list(
+    name = "R ChainLadder",
+    version = as.character(utils::packageVersion("ChainLadder"))
+  )
+  if (!is.null(convention_profile)) engine$conventionProfile <- convention_profile
+
   body <- list(
     appliesTo = applies_to,
-    engine = list(
-      name = "R ChainLadder",
-      version = as.character(utils::packageVersion("ChainLadder")),
-      conventionProfile = convention_profile
-    ),
+    engine = engine,
     method = "rcl:MackChainLadder",
     parameters = list(
-      alpha = req$alpha,
+      # A per-period alpha (injected selection) echoes as a JSON array; a scalar
+      # (VW or simple) stays a number, keeping the committed path byte-identical.
+      alpha = if (length(req$alpha) > 1L) as.list(req$alpha) else req$alpha,
       est.sigma = as.character(req$est_sigma),
       tail = FALSE
     ),
