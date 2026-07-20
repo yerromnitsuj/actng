@@ -143,6 +143,12 @@ let committed: Committed | null = null;
 /** One advisor turn at a time: pendingProposals is shared, so a concurrent
  * chat could drain another turn's proposal onto the wrong SSE connection. */
 let chatBusy = false;
+/** One commit at a time: the ledger append and the committed write must land
+ * as one judgment. The engine call between them can suspend (HTTP sidecar /
+ * Rscript in the sibling apps), so an overlapping commit could otherwise
+ * leave `committed` staler than the ledger's latest entries — inside the
+ * generated disclosure itself. Same single-flight posture as chatBusy. */
+let commitBusy = false;
 const allWtd = factors.averages.find((a) => a.spec.key === "all-wtd");
 if (allWtd === undefined) throw new Error("expected an all-wtd average");
 // Narrowing above doesn't cross the request-handler closure below (a
@@ -325,43 +331,52 @@ export async function startAppServer(options: { port?: number; advisorEnabled?: 
         return;
       }
       if (req.method === "POST" && url === "/api/commit") {
-        const parsed = z
-          .object({
-            ...selectionShape,
-            rationale: z.string().trim().min(1, "a rationale is required to commit"),
-            actor: z.enum(["actuary", "agent"]).optional(),
-          })
-          .safeParse(await readJson(req));
-        if (!parsed.success) {
-          sendJson(res, 400, envelope("BAD_INPUT", parsed.error.issues[0]?.message ?? "invalid"));
+        if (commitBusy) {
+          sendJson(res, 429, envelope("COMMIT_BUSY", "one commit at a time in this demo app"));
           return;
         }
-        const { selected, tailFactor, rationale } = parsed.data;
-        const actor = parsed.data.actor ?? "actuary";
-        const now = new Date().toISOString(); // host clock, see docblock
-        ledger = recordAssumption(
-          recordAssumption(ledger, {
-            timestamp: now,
-            actor,
-            field: "chainLadder.ldfs",
-            value: selected,
-            rationale,
-          }),
-          { timestamp: now, actor, field: "chainLadder.tailFactor", value: tailFactor, rationale },
-        );
-        let totals: Committed["totals"] = null;
+        commitBusy = true; // set before any await: no window between check and set
         try {
-          totals = (await computeWithEngine({ selected, tailFactor })).totals;
-        } catch {
-          totals = null; // engine down: the commit still records; disclosure omits the summary
+          const parsed = z
+            .object({
+              ...selectionShape,
+              rationale: z.string().trim().min(1, "a rationale is required to commit"),
+              actor: z.enum(["actuary", "agent"]).optional(),
+            })
+            .safeParse(await readJson(req));
+          if (!parsed.success) {
+            sendJson(res, 400, envelope("BAD_INPUT", parsed.error.issues[0]?.message ?? "invalid"));
+            return;
+          }
+          const { selected, tailFactor, rationale } = parsed.data;
+          const actor = parsed.data.actor ?? "actuary";
+          const now = new Date().toISOString(); // host clock, see docblock
+          ledger = recordAssumption(
+            recordAssumption(ledger, {
+              timestamp: now,
+              actor,
+              field: "chainLadder.ldfs",
+              value: selected,
+              rationale,
+            }),
+            { timestamp: now, actor, field: "chainLadder.tailFactor", value: tailFactor, rationale },
+          );
+          let totals: Committed["totals"] = null;
+          try {
+            totals = (await computeWithEngine({ selected, tailFactor })).totals;
+          } catch {
+            totals = null; // engine down: the commit still records; disclosure omits the summary
+          }
+          committed = { selections: { selected, tailFactor }, totals };
+          sendJson(res, 200, {
+            success: true,
+            ledger: ledger.entries,
+            committed,
+            disclosure: currentDisclosure(),
+          });
+        } finally {
+          commitBusy = false;
         }
-        committed = { selections: { selected, tailFactor }, totals };
-        sendJson(res, 200, {
-          success: true,
-          ledger: ledger.entries,
-          committed,
-          disclosure: currentDisclosure(),
-        });
         return;
       }
       if (req.method === "POST" && url === "/api/chat") {

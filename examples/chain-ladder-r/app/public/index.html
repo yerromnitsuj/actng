@@ -198,21 +198,28 @@ function updateCommitActor() {
 }
 
 $("commit").addEventListener("click", async () => {
-  const rationale = $("rationale").value;
-  const res = await fetch("/api/commit", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ selected, tailFactor, rationale, actor: lastAppliedProposal ? "agent" : "actuary" }),
-  });
-  const out = await res.json();
-  if (!out.success) { $("commit-note").textContent = out.error.message; return; }
-  $("commit-note").textContent = "committed";
-  $("rationale").value = "";
-  lastAppliedProposal = false;
-  updateCommitActor();
-  committedTotals = out.committed.totals;
-  renderLedger(out.ledger);
-  $("disclosure").textContent = out.disclosure;
-  compute();
+  const btn = $("commit");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const rationale = $("rationale").value;
+    const res = await fetch("/api/commit", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ selected, tailFactor, rationale, actor: lastAppliedProposal ? "agent" : "actuary" }),
+    });
+    const out = await res.json();
+    if (!out.success) { $("commit-note").textContent = out.error.message; return; }
+    $("commit-note").textContent = "committed";
+    $("rationale").value = "";
+    lastAppliedProposal = false;
+    updateCommitActor();
+    committedTotals = out.committed.totals;
+    renderLedger(out.ledger);
+    $("disclosure").textContent = out.disclosure;
+    compute();
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // ------------------------------------------------------------------ chat

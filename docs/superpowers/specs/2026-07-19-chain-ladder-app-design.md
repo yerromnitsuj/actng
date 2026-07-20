@@ -77,7 +77,7 @@ at boot use one boot-time constant.
 | `GET /` | serves `index.html` |
 | `GET /api/state` | triangle (origins, ages, cumulative grid), all `DEFAULT_AVERAGES` computed factor rows, current exploratory selections, current results, committed snapshot, ledger entries, engine info `{ name, badge }`, `advisorEnabled` |
 | `POST /api/compute` | `{ selected: (number\|null)[], tailFactor }` → zod-validated → **the engine** runs → per-origin `{ origin, latest, ultimate, unpaid }` + totals. Does not touch the ledger |
-| `POST /api/commit` | `{ selected, tailFactor, rationale, actor? }` → rationale required (SDK-enforced via `recordAssumption`) → ledger grows (LDF entry + tail entry), disclosure regenerates → returns `{ ledger, disclosure }` |
+| `POST /api/commit` | `{ selected, tailFactor, rationale, actor? }` → rationale required (SDK-enforced via `recordAssumption`) → ledger grows (LDF entry + tail entry), disclosure regenerates → returns `{ ledger, disclosure }`. Single-flight; an overlapping commit gets `429` + `COMMIT_BUSY` envelope (same posture as `/api/chat`'s `CHAT_BUSY`) |
 | `GET /api/disclosure` | current disclosure markdown |
 | `POST /api/chat` | `{ message }` → SSE stream of `{ type: "text", delta }`, `{ type: "tool", name }`, `{ type: "proposal", selection }`, `{ type: "done" }` from `advisor.stream(...)` with the server's `RequestContext`. `503` + envelope when `advisorEnabled` is false |
 
