@@ -181,6 +181,18 @@
         "k": "\ud800"
       },
       "canonical": "{\"k\":\"\\ud800\"}"
+    },
+    {
+      "name": "key-sort-locale-hostile-latin1",
+      "note": "Keys U+00AA/U+00AB produce UTF-16BE sortkeys 00aa/00ab, which straddle the Danish/Norwegian 'aa' contraction (collates as the letter aa/å, after all other letters). Under an ICU da_DK/nb_NO collator, a locale-sensitive character sort reverses these members; spec 3.1 requires UTF-16 code-unit (byte) order. Guards the R shore's order(..., method = \"radix\") in ats_canonical_json.",
+      "value": { "«": 1, "ª": 2 },
+      "canonical": "{\"ª\":2,\"«\":1}"
+    },
+    {
+      "name": "key-sort-locale-hostile-cjk",
+      "note": "Keys U+9AA6/U+9ECB: hex sortkeys 9aa6/9ecb put the 'aa' digraph inside a single BMP code unit — the same Danish/Norwegian contraction trap reached through ordinary CJK, not Latin-1. Same guard as key-sort-locale-hostile-latin1.",
+      "value": { "黋": 2, "骦": 1 },
+      "canonical": "{\"骦\":1,\"黋\":2}"
     }
   ]
 }

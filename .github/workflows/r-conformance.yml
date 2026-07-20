@@ -48,7 +48,16 @@ jobs:
             need <- setdiff(c("ChainLadder", "jsonlite"), installed);
             if (length(need) > 0) install.packages(need, repos = "https://packagemanager.posit.co/cran/__linux__/jammy/latest")'
       - name: JCS serializer self-test (committed vectors)
-        run: Rscript -e 'source("tools/interop/actuarialInterchange.R"); ats_test_jcs()'
+        run: Rscript -e 'source("tools/interop/actuarialInterchange.R"); r <- ats_test_jcs(); stopifnot(r$failed == 0L)'
+      - name: JCS serializer under a hostile collator (da_DK 'aa' contraction)
+        # icuSetCollate needs no OS locale generation; if this R build lacks ICU
+        # it warns and the step degenerates to a byte-order re-run (still valid).
+        run: |
+          Rscript -e 'icuSetCollate(locale = "da_DK");
+            if (capabilities("ICU") && order(c("00ab","00aa"))[1] != 1L)
+              message("NOTICE: collator not hostile; locale leg is not exercising the trap");
+            source("tools/interop/actuarialInterchange.R");
+            r <- ats_test_jcs(); stopifnot(r$failed == 0L)'
       - name: Cross-engine conformance (frozen corpus, mack1993-vw profile)
         run: Rscript tools/interop/conformance.R
       - uses: actions/setup-node@v4
