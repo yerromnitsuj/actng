@@ -41,6 +41,30 @@ defaults to `deterministic-cl` (the trilogy's comparison profile — alpha=1,
 all periods, no tail IS that chain ladder point estimate); pass
 `mack1993-vw` for SE-focused runs.
 
+`--selection` is honored, never merely stamped — the fit is computed UNDER the
+selection or the stamp is withheld (Finding #1), matching the Python sidecar's
+replay-before-stamp discipline:
+
+- **volume-weighted match** — a selection whose factors equal the alpha=1
+  fit's own volume-weighted factors reuses today's exact path; the
+  `appliesTo.selectionIntegrity` stamp is now VERIFIED true and the output
+  bytes are unchanged (the committed taylor-ashe pipeline is byte-identical).
+- **feasible non-VW** — `ats_mack_selection_plan` calls `CLFMdelta` to solve a
+  per-period delta, refits `MackChainLadder(alpha = 2 - delta)`, stamps the
+  tag, and echoes the per-period alpha vector in `parameters.alpha` (a JSON
+  array; a scalar alpha still serializes as a number).
+- **not-injectable** — an infeasible selection (`CLFMdelta` finds no delta), or
+  one carrying a `tail` factor `MackChainLadder(tail = FALSE)` cannot consume,
+  runs the fit WITHOUT the selection: `selectionIntegrity` is null and
+  `warnings` say the rows are not-comparable. An explicit `--profile
+  mack1993-vw` on an injected non-VW fit likewise downgrades to profile-less
+  with a warning rather than overclaiming.
+- **wrong triangle** — a selection whose `appliesTo.triangleIntegrity` does not
+  match `--in` is a hard error (input-linkage mismatch).
+
+`tools/interop/test-run-mack-selection.R` drives all four outcomes through the
+CLI end-to-end (run: `Rscript tools/interop/test-run-mack-selection.R`).
+
 `run-cl.R` projects ultimates from per-column loss development factors an
 actuary (or the interactive example app) SUPPLIES directly, rather than
 factors `MackChainLadder` derives from the triangle itself — the honest way
@@ -74,10 +98,12 @@ published 2,447,095.
   via a four-16-bit-limb multiply (R has no unsigned 64-bit int).
 - `ats_triangle_to_matrix` / `ats_matrix_to_triangle_doc` — NA (null)
   preservation both ways.
-- `ats_selection_to_delta` — `CLFMdelta` injection with `foundSolution`
-  honesty (a failed injection surfaces as a not-comparable warning, never
-  silent). Respects the alpha/delta trap: `MackChainLadder(alpha=1)` is
-  volume-weighted; the reported `delta` is never conflated with it.
+- `ats_selection_to_delta` / `ats_mack_selection_plan` — `CLFMdelta` injection
+  with `foundSolution` honesty (a failed injection surfaces as a not-comparable
+  warning, never silent). Respects the alpha/delta trap: `MackChainLadder(alpha=1)`
+  is volume-weighted; the reported `delta` is never conflated with it.
+  `ats_mack_selection_plan` is the triage `run-mack.R` calls to choose
+  vw-match / injected / not-injectable for a supplied `--selection`.
 - `ats_extract_mack_result` — MethodResultDoc with `effectiveParameters`
   recording the est.sigma actually used (the log-linear->Mack auto-fallback
   is detected and recorded; it does not fire on the well-behaved committed

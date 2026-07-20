@@ -77,6 +77,8 @@ jobs:
           Rscript -e 'source("tools/interop/actuarialInterchange.R");
             doc <- ats_read_document("/tmp/r-result.json");
             stopifnot(abs(doc$result$totals$unpaid - 18680856) <= 1)'
+      - name: run-mack.R selection honesty (injection + not-comparable)
+        run: Rscript tools/interop/test-run-mack-selection.R
       - name: Chain-ladder R example (live Rscript)
         run: npm test -w @actuarial-ts/example-chain-ladder-r
 
