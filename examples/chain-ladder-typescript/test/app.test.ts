@@ -1,3 +1,4 @@
+import { setTimeout } from "node:timers/promises";
 import { afterAll, describe, expect, it } from "vitest";
 import { startAppServer } from "../app/server.js";
 
@@ -15,6 +16,33 @@ const ALL_WTD_BODY = async () => {
   if (allWtd === undefined) throw new Error("expected all-wtd in state");
   return { selected: allWtd.values, tailFactor: 1 };
 };
+
+/** Fires a /api/commit whose request body is streamed in two chunks with a
+ * gate between them, so the request provably reaches the server (headers +
+ * partial body) and stays open until `release()` is called — the
+ * deterministic way to make a second, fully-formed commit request overlap
+ * the first one in flight. */
+function heldCommit(fromBase: string, payload: object) {
+  const body = JSON.stringify(payload);
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(c) {
+      c.enqueue(enc.encode(body.slice(0, 10)));
+      await gate;
+      c.enqueue(enc.encode(body.slice(10)));
+      c.close();
+    },
+  });
+  const done = fetch(`${fromBase}/api/commit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: stream,
+    duplex: "half",
+  });
+  return { release, done };
+}
 
 describe("the chain-ladder app server", () => {
   it("serves the page at /", async () => {
@@ -75,6 +103,57 @@ describe("the chain-ladder app server", () => {
     };
     expect(out.ledger.length).toBeGreaterThan(0);
     expect(out.disclosure).toContain("## 5. Assumptions and judgments");
+  });
+
+  it("refuses a second commit while one is in flight (COMMIT_BUSY)", async () => {
+    const hold = heldCommit(base, {
+      ...(await ALL_WTD_BODY()),
+      tailFactor: 1.05,
+      rationale: "first (held)",
+    });
+    // Always release and drain the held request before asserting anything,
+    // regardless of what resB turns out to be — an unreleased stream would
+    // otherwise leave the connection open forever and hang this file's
+    // afterAll(() => app.close()).
+    let resB!: Response;
+    let doneRes!: Response;
+    try {
+      await setTimeout(50); // headers reach the server; the guard is set before the body finishes
+      resB = await fetch(`${base}/api/commit`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...(await ALL_WTD_BODY()), tailFactor: 1.1, rationale: "second" }),
+      });
+    } finally {
+      hold.release();
+      doneRes = await hold.done;
+    }
+    const resBBody = (await resB.json()) as { error?: { code: string } };
+    expect(resB.status).toBe(429);
+    expect(resBBody.error?.code).toBe("COMMIT_BUSY");
+    expect(doneRes.status).toBe(200);
+    await doneRes.json(); // drain
+
+    // committed coheres with the ledger's latest entries: A's held commit is
+    // the only one that landed, so both reflect its tailFactor (1.05), never
+    // rejected B's (1.1).
+    const state = (await (await fetch(`${base}/api/state`)).json()) as {
+      committed: { selections: { tailFactor: number } };
+      ledger: { field: string; value: unknown }[];
+    };
+    expect(state.committed.selections.tailFactor).toBe(1.05);
+    const tailEntries = state.ledger.filter((e) => e.field === "chainLadder.tailFactor");
+    expect(tailEntries[tailEntries.length - 1]?.value).toBe(1.05);
+
+    // The flag released through the try/finally: a follow-up sequential
+    // commit is not blocked.
+    const resFollowUp = await fetch(`${base}/api/commit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...(await ALL_WTD_BODY()), tailFactor: 1.07, rationale: "follow-up" }),
+    });
+    expect(resFollowUp.status).toBe(200);
+    await resFollowUp.json(); // drain
   });
 
   it("refuses chat while the advisor is disabled", async () => {
