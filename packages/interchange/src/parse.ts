@@ -20,7 +20,12 @@ import type { CrosscheckReportDoc } from "./schemas/crosscheck.js";
  * document.
  *
  * Order of checks:
- * 1. version acceptance (spec 3.5) — wrong major → UNSUPPORTED_VERSION;
+ * 1. version acceptance (spec 3.5) — wrong major → UNSUPPORTED_VERSION.
+ *    Applies to the outer envelope AND, recursively, to every document
+ *    embedded in a study or bundle: each embedded document is a complete
+ *    envelope in its own right, so a wrong-major embedded document makes
+ *    the enclosing document unreadable, matching the Python reference
+ *    adapter (which parses every embedded document recursively);
  * 2. kind dispatch — unknown kind → BAD_INTERCHANGE (a new kind is a spec
  *    minor this reader does not know how to interpret; refusing loudly
  *    beats pretending);
@@ -143,7 +148,22 @@ export function parseDocument(
   // referee relies on: a result claims to apply to a triangle BY TAG, so a
   // nested triangle whose tag no longer matches its own body makes every such
   // claim point at something other than what is actually there.
+  //
+  // Spec 3.5 applies PER DOCUMENT: each embedded document is a complete
+  // envelope, so a wrong-major embedded document makes the enclosing
+  // document unreadable — matching the Python reference adapter, which
+  // parses every embedded document recursively. Version acceptance is not
+  // strictness-governed (strictness covers integrity only), so this check
+  // runs unconditionally, before the nested integrity check.
   for (const { path, value } of embeddedDocuments(doc)) {
+    try {
+      acceptVersion((value as Record<string, unknown>)["interchangeVersion"]);
+    } catch (error) {
+      if (error instanceof ReservingError) {
+        throw new ReservingError(error.code, `Embedded document at ${path}: ${error.message}`);
+      }
+      throw error;
+    }
     const nested = verifyIntegrity(value as Parameters<typeof verifyIntegrity>[0]);
     if (nested.ok) continue;
     const nestedKind =

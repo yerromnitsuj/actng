@@ -361,6 +361,11 @@ R recipes `stop()` with a `condition` class `interchange_version_error`.
 Same-major unknown minors: accept, ignore unknown fields, round-trip
 `governance`/`extensions` opaquely.
 
+These rules apply recursively: every document embedded inside a study or
+bundle (3.2) is a complete enveloped document, and each embedded
+`interchangeVersion` is subject to the same acceptance rule — a wrong-major
+embedded document makes the enclosing document unreadable on every shore.
+
 ## 4. Packages and adapters
 
 ### 4.1 `@actuarial-ts/interchange` (TS; new package)

@@ -19,6 +19,36 @@ import { CREATED_AT, annualPaidDoc } from "./helpers.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+/** A study envelope wrapping a single embedded triangle document. */
+function studyContaining(triangle: TriangleDoc): unknown {
+  return stampIntegrity({
+    interchangeVersion: INTERCHANGE_SPEC_VERSION,
+    kind: "study",
+    generator: { name: "test", version: "0" },
+    createdAt: CREATED_AT,
+    extensions: {},
+    study: {
+      title: "study with an embedded triangle",
+      narrative: { summary: "s" },
+      triangles: [triangle],
+      selections: [],
+    },
+  } as never);
+}
+
+/** A bundle envelope mirroring a single embedded triangle document. */
+function bundleContaining(triangle: TriangleDoc): unknown {
+  return stampIntegrity({
+    interchangeVersion: INTERCHANGE_SPEC_VERSION,
+    kind: "bundle",
+    generator: { name: "test", version: "0" },
+    createdAt: CREATED_AT,
+    extensions: {},
+    bundle: { payload: "opaque" },
+    interchange: { triangles: [triangle], selections: [], results: [] },
+  } as never);
+}
+
 describe("integrity covers the semantic body only (spec 3.1)", () => {
   it("changing generator/createdAt does NOT change the tag", () => {
     const doc = annualPaidDoc();
@@ -193,22 +223,6 @@ describe("nested documents carry their own integrity (spec 3.1)", () => {
     return broken; // integrity tag left untouched, so it now lies about the body
   }
 
-  function studyContaining(triangle: TriangleDoc): unknown {
-    return stampIntegrity({
-      interchangeVersion: INTERCHANGE_SPEC_VERSION,
-      kind: "study",
-      generator: { name: "test", version: "0" },
-      createdAt: CREATED_AT,
-      extensions: {},
-      study: {
-        title: "study with an embedded triangle",
-        narrative: { summary: "s" },
-        triangles: [triangle],
-        selections: [],
-      },
-    } as never);
-  }
-
   it("refuses a study whose embedded triangle contradicts its own tag", () => {
     // appliesTo.triangleIntegrity is the linkage primitive the whole referee
     // relies on. If an embedded document's tag does not match its own body, a
@@ -227,6 +241,47 @@ describe("nested documents carry their own integrity (spec 3.1)", () => {
 
   it("accepts a study whose embedded documents are self-consistent", () => {
     const { warnings } = parseDocument(studyContaining(annualPaidDoc()));
+    expect(warnings).toEqual([]);
+  });
+});
+
+describe("embedded documents carry their own version (spec 3.5)", () => {
+  const wrongMajor = (): TriangleDoc => ({ ...annualPaidDoc(), interchangeVersion: "2.0.0" }); // envelope field: integrity tag stays valid
+
+  it("refuses a study whose embedded triangle declares a wrong major", () => {
+    let thrown: unknown;
+    try {
+      parseDocument(studyContaining(wrongMajor()));
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(ReservingError);
+    expect((thrown as ReservingError).code).toBe("UNSUPPORTED_VERSION");
+    expect((thrown as ReservingError).message).toMatch(/\$\.study\.triangles\[0\]/);
+  });
+
+  it("refuses a bundle whose mirrored triangle declares a wrong major", () => {
+    let thrown: unknown;
+    try {
+      parseDocument(bundleContaining(wrongMajor()));
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(ReservingError);
+    expect((thrown as ReservingError).code).toBe("UNSUPPORTED_VERSION");
+    expect((thrown as ReservingError).message).toMatch(/\$\.interchange\.triangles\[0\]/);
+  });
+
+  it("refuses even under strictness 'warn' (version acceptance is not strictness-governed)", () => {
+    expect(() =>
+      parseDocument(studyContaining(wrongMajor()), { strictness: "warn" }),
+    ).toThrowError(expect.objectContaining({ code: "UNSUPPORTED_VERSION" }));
+  });
+
+  it("accepts an embedded same-major unknown minor with no warnings", () => {
+    const { warnings } = parseDocument(
+      studyContaining({ ...annualPaidDoc(), interchangeVersion: "1.7.0" }),
+    );
     expect(warnings).toEqual([]);
   });
 });
