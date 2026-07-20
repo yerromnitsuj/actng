@@ -4,7 +4,9 @@
  * Supported: comma delimiter, quoted fields, doubled quotes ("") as escaped
  * quotes inside quoted fields, commas and newlines inside quoted fields,
  * CRLF and LF row endings, a leading UTF-8 BOM, and a tolerated trailing
- * newline. Lines that are completely empty outside quotes are skipped.
+ * newline. Lines that are completely empty outside quotes are skipped —
+ * skipped lines still advance the physical line count reported in
+ * `rowLines`, so later rows' reported start lines stay correct.
  *
  * Deliberately NOT here: header handling, type coercion, and shape
  * validation. Ragged rows are preserved as-is — validation is the caller's
@@ -14,6 +16,14 @@
 export interface CsvParseResult {
   /** The parsed grid (rows x columns). Ragged rows preserved as-is. */
   rows: string[][];
+  /**
+   * Physical 1-based line number in the input where each row of `rows`
+   * STARTS. Parallel to `rows`. Differs from index+1 whenever blank lines
+   * were skipped or a quoted field contains newlines — callers reporting
+   * row-level problems must use this, not the grid index, or their
+   * diagnostics point at the wrong line of the file.
+   */
+  rowLines: number[];
   /**
    * Structural problems the parser recovered from. Content is still parsed
    * leniently — a warning here means the OUTPUT may not mean what the file's
@@ -30,12 +40,14 @@ export function parseCsv(text: string): CsvParseResult {
   if (s.length > 0 && s.charCodeAt(0) === 0xfeff) s = s.slice(1);
 
   const rows: string[][] = [];
+  const rowLines: number[] = [];
   const warnings: string[] = [];
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
   let fieldWasQuoted = false;
   let line = 1;
+  let rowStartLine = 1;
   let quoteOpenedAtLine = 0;
 
   const endField = (): void => {
@@ -50,6 +62,7 @@ export function parseCsv(text: string): CsvParseResult {
     if (row.length === 0 && field === "" && !fieldWasQuoted) return;
     endField();
     rows.push(row);
+    rowLines.push(rowStartLine);
     row = [];
   };
 
@@ -88,12 +101,14 @@ export function parseCsv(text: string): CsvParseResult {
       if (s[i + 1] === "\n") i++;
       endRow();
       line++;
+      rowStartLine = line;
       i++;
       continue;
     }
     if (ch === "\n") {
       endRow();
       line++;
+      rowStartLine = line;
       i++;
       continue;
     }
@@ -112,5 +127,5 @@ export function parseCsv(text: string): CsvParseResult {
     );
   }
   endRow();
-  return { rows, warnings };
+  return { rows, rowLines, warnings };
 }

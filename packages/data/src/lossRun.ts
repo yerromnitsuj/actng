@@ -15,8 +15,9 @@ import { parseCsv } from "./csv.js";
  * collected — not thrown — so the caller decides whether to abort or load
  * the clean rows; a row with any error contributes no claim.
  *
- * Row numbers in errors are 1-based INCLUDING the header row, so the first
- * data row is row 2.
+ * Row numbers in errors are the 1-based PHYSICAL line in the file where the
+ * row starts (header included; blank lines and newlines inside quoted fields
+ * count), so in a file with no blank lines the first data row is row 2.
  *
  * Unlike the workbench importer, negative paid/case amounts are accepted
  * here: the ASOP 23 review layer (reviewClaimData) flags them, keeping the
@@ -34,7 +35,7 @@ const REQUIRED_COLUMNS = [
 ] as const;
 
 export interface LossRunRowError {
-  /** 1-based row number including the header (first data row = 2). */
+  /** 1-based physical file line where the row starts (first data row = 2 when nothing precedes it). */
   row: number;
   message: string;
 }
@@ -68,7 +69,7 @@ function isValidIsoDate(value: string): boolean {
 
 /** Parses a loss-run CSV into ClaimSnapshots plus per-row validation errors. */
 export function parseLossRunCsv(text: string): LossRunParseResult {
-  const { rows: grid, warnings: csvWarnings } = parseCsv(text);
+  const { rows: grid, rowLines, warnings: csvWarnings } = parseCsv(text);
   const headers = (grid[0] ?? []).map(normalizeHeader);
   const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
   if (missing.length > 0) {
@@ -94,7 +95,11 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
   }
 
   for (let r = 1; r < grid.length; r++) {
-    const rowNumber = r + 1; // 1-based including the header row
+    // Physical 1-based line in the file where this row starts — NOT r + 1:
+    // blank lines and quoted embedded newlines make grid index and file line
+    // diverge, and the structural-warning path above already reports physical
+    // lines. One errors array, one numbering scheme.
+    const rowNumber = rowLines[r]!;
     const cells = grid[r]!;
     const cell = (name: string): string => (cells[columnIndex.get(name)!] ?? "").trim();
     const rowErrors: string[] = [];

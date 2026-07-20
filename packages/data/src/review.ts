@@ -105,9 +105,9 @@ export function reviewClaimData(
     // Identified by claimId + evaluation date, which the DATA carries. The old
     // label fabricated "row N" from this array's index — but this function
     // receives parsed claims, not the file, and parseLossRunCsv numbers real
-    // CSV rows (header-inclusive) in its own errors. Two different "row"
-    // meanings pointed auditors at the wrong line; an identifier we cannot
-    // compute is one we must not print.
+    // physical file lines in its own errors. Two different "row" meanings
+    // pointed auditors at the wrong line; an identifier we cannot compute is
+    // one we must not print.
     const where = `claim ${c.claimId} (eval ${c.evaluationDate})`;
     if (c.paidToDate < 0) {
       negativePaid.push(`${where}: paid_to_date ${c.paidToDate}`);

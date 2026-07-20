@@ -5,6 +5,10 @@ together; this file covers them all.
 
 ## Unreleased
 
+- **fix(data): loss-run row errors now cite the physical file line** —
+  interior blank lines and quoted embedded newlines no longer shift
+  cell-error row numbers; `CsvParseResult` gains `rowLines` (per-row
+  physical start line).
 - **fix(interchange): embedded documents inside a study/bundle now fail the
   spec 3.5 wrong-major check** — TS `parseDocument` and the R
   `ats_read_document` recipe previously verified only the outer envelope's

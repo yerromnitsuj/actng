@@ -5,9 +5,11 @@ Data ingestion and ASOP No. 23 data-quality review for the
 (besides `@actuarial-ts/core`), fully typed.
 
 - `parseCsv(text)` — minimal RFC 4180-subset CSV parser (quoted fields,
-  escaped quotes, embedded commas/newlines, BOM, CRLF/LF).
+  escaped quotes, embedded commas/newlines, BOM, CRLF/LF); the result's
+  `rowLines` gives each row's 1-based physical start line in the file.
 - `parseLossRunCsv(text)` — loss-run import to `ClaimSnapshot[]` with
-  per-row validation errors (1-based row numbers including the header).
+  per-row validation errors (errors cite 1-based physical file lines,
+  header = line 1).
 - `triangleFromLongFormat(rows, { kind })` — pivots long-format
   `(origin, age, value)` rows into a `Triangle`.
 - `reviewClaimData(claims, { asOfDate? })` / `reviewTriangles(paid, incurred)`
