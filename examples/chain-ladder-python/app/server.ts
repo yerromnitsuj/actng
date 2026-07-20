@@ -284,6 +284,14 @@ function toolNameOf(chunk: unknown): string | null {
 
 const HTML_PATH = join(dirname(fileURLToPath(import.meta.url)), "public", "index.html");
 
+/** The only advisor surface /api/chat uses; lets tests inject a scripted turn. */
+export interface ChatAdvisor {
+  stream(
+    messages: { role: "user"; content: string }[],
+    options: { requestContext: RequestContext; maxSteps: number },
+  ): Promise<{ fullStream: AsyncIterable<unknown> }>;
+}
+
 // ---------------------------------------------------------------- server
 export async function startAppServer(
   options: {
@@ -291,6 +299,7 @@ export async function startAppServer(
     advisorEnabled?: boolean;
     sidecarUrl?: string;
     sidecarToken?: string;
+    advisor?: ChatAdvisor;
   } = {},
 ) {
   // options.sidecarUrl/sidecarToken (both set) short-circuits resolution
@@ -316,22 +325,25 @@ export async function startAppServer(
   sidecarToken = sidecarHandle.token;
   sidecarLaunched = sidecarHandle.launched;
   sidecarPid = sidecarHandle.pid;
-  const advisorEnabled = options.advisorEnabled ?? Boolean(process.env.ANTHROPIC_API_KEY);
+  const advisorEnabled =
+    options.advisor !== undefined || (options.advisorEnabled ?? Boolean(process.env.ANTHROPIC_API_KEY));
   // Constructing the advisor is free and offline; only chat turns call the
   // provider. Built once so every chat shares tool wiring.
-  const advisor = advisorEnabled
-    ? createReservingAdvisor({
-        model: process.env.ACTNG_EVAL_MODEL ?? "anthropic/claude-sonnet-4-5",
-        tools: registry.tools,
-        domainInstructions: [
-          "## This app",
-          "You are embedded in an interactive chain-ladder page for the Taylor and Ashe triangle. " +
-            "Use get_triangle to inspect the data and compute_chain_ladder to evaluate candidate selections. " +
-            "When you recommend specific factors, ALWAYS call propose_selection with the exact per-column values and tail so the actuary can apply them with one click. " +
-            "You never commit selections; committing is the actuary's act.",
-        ].join("\n"),
-      })
-    : null;
+  const advisor: ChatAdvisor | null =
+    options.advisor ??
+    (advisorEnabled
+      ? createReservingAdvisor({
+          model: process.env.ACTNG_EVAL_MODEL ?? "anthropic/claude-sonnet-4-5",
+          tools: registry.tools,
+          domainInstructions: [
+            "## This app",
+            "You are embedded in an interactive chain-ladder page for the Taylor and Ashe triangle. " +
+              "Use get_triangle to inspect the data and compute_chain_ladder to evaluate candidate selections. " +
+              "When you recommend specific factors, ALWAYS call propose_selection with the exact per-column values and tail so the actuary can apply them with one click. " +
+              "You never commit selections; committing is the actuary's act.",
+          ].join("\n"),
+        })
+      : null);
 
   const server = createServer(async (req, res) => {
     const url = req.url ?? "/";
@@ -439,13 +451,18 @@ export async function startAppServer(
           sendJson(res, 429, envelope("CHAT_BUSY", "one advisor turn at a time in this demo app"));
           return;
         }
-        const parsed = z.object({ message: z.string().min(1) }).safeParse(await readJson(req));
-        if (!parsed.success) {
-          sendJson(res, 400, envelope("BAD_INPUT", "message required"));
-          return;
-        }
+        // Claim the turn SYNCHRONOUSLY, before any await: reading the body
+        // yields to the event loop, and a second request checking the flag
+        // inside that window must already see busy (check-then-set with no
+        // await between is atomic in Node). Every exit below releases the
+        // claim via the finally.
         chatBusy = true;
         try {
+          const parsed = z.object({ message: z.string().min(1) }).safeParse(await readJson(req));
+          if (!parsed.success) {
+            sendJson(res, 400, envelope("BAD_INPUT", "message required"));
+            return; // finally releases the claim
+          }
           res.writeHead(200, {
             "content-type": "text/event-stream",
             "cache-control": "no-cache",

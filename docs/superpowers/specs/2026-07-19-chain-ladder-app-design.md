@@ -79,7 +79,7 @@ at boot use one boot-time constant.
 | `POST /api/compute` | `{ selected: (number\|null)[], tailFactor }` → zod-validated → **the engine** runs → per-origin `{ origin, latest, ultimate, unpaid }` + totals. Does not touch the ledger |
 | `POST /api/commit` | `{ selected, tailFactor, rationale, actor? }` → rationale required (SDK-enforced via `recordAssumption`) → ledger grows (LDF entry + tail entry), disclosure regenerates → returns `{ ledger, disclosure }`. Single-flight; an overlapping commit gets `429` + `COMMIT_BUSY` envelope (same posture as `/api/chat`'s `CHAT_BUSY`) |
 | `GET /api/disclosure` | current disclosure markdown |
-| `POST /api/chat` | `{ message }` → SSE stream of `{ type: "text", delta }`, `{ type: "tool", name }`, `{ type: "proposal", selection }`, `{ type: "done" }` from `advisor.stream(...)` with the server's `RequestContext`. `503` + envelope when `advisorEnabled` is false |
+| `POST /api/chat` | `{ message }` → SSE stream of `{ type: "text", delta }`, `{ type: "tool", name }`, `{ type: "proposal", selection }`, `{ type: "done" }` from `advisor.stream(...)` with the server's `RequestContext`. `503` + envelope when `advisorEnabled` is false. Single-flight; an overlapping chat gets `429` + `CHAT_BUSY` envelope (same posture as `/api/commit`'s `COMMIT_BUSY`) |
 
 **Proposals are tool calls, not parsed prose.** The app server registers one
 extra tool for the advisor only: `propose_selection` (`kind: "read"`, tenant
