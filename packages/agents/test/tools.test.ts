@@ -421,4 +421,45 @@ describe("tenant-key lint: fail-closed and recursive (adversarial-review hardeni
       ),
     ).not.toThrow();
   });
+
+  it("reports a schema cycle that never passes through an object key as a typed error, not a RangeError", () => {
+    // Each cycle is routed purely through dotless containers; the old guard
+    // counted dots and blew the call stack at definition time.
+    const viaArray: z.ZodTypeAny = z.lazy(() => z.union([z.string(), z.array(viaArray)]));
+    const viaSet: z.ZodTypeAny = z.lazy(() => z.union([z.string(), z.set(viaSet)]));
+    const viaTuple: z.ZodTypeAny = z.lazy(() => z.union([z.string(), z.tuple([viaTuple])]));
+    const direct: z.ZodTypeAny = z.lazy(() => direct); // the case the code comment promises to catch
+    for (const schema of [viaArray, viaSet, viaTuple, direct]) {
+      const err = expectAgentsError(() => define(z.object({ tree: schema })), "BAD_INPUT_SCHEMA");
+      expect(err.message).toMatch(/self-referential/);
+    }
+  });
+
+  it("still reports an object-keyed cycle as BAD_INPUT_SCHEMA (regression pin)", () => {
+    const node: z.ZodTypeAny = z.lazy(() => z.object({ children: z.array(node) }));
+    expectAgentsError(() => define(z.object({ tree: node })), "BAD_INPUT_SCHEMA");
+  });
+
+  it("terminates a generative lazy (fresh node every resolution) with the frame budget", () => {
+    const make = (): z.ZodTypeAny => z.lazy(make);
+    const err = expectAgentsError(() => define(z.object({ deep: make() })), "BAD_INPUT_SCHEMA");
+    expect(err.message).toMatch(/frame budget|nests deeper/);
+  });
+
+  it("re-visits a shared non-cyclic subschema per path, so allowUninspected stays per-path", () => {
+    // Guards against a global visited-set implementation: the same node under
+    // two keys must be linted (and allowance-marked) at BOTH paths.
+    const doc = z.unknown();
+    expect(() =>
+      defineActuarialTool({
+        id: "shared-doc",
+        tenant: "none",
+        description: "same opaque node under two declared paths",
+        kind: "read",
+        inputSchema: z.object({ a: doc, b: doc }),
+        allowUninspected: ["input.a", "input.b"],
+        execute: async () => ({ success: true as const }),
+      }),
+    ).not.toThrow();
+  });
 });
