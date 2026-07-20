@@ -5,6 +5,31 @@ together; this file covers them all.
 
 ## Unreleased
 
+- **fix(interop): the R adapter's canonical-JSON key sort now uses
+  `order(method = "radix")`** — the default locale-collating sort reordered
+  non-ASCII keys under Danish/Norwegian ICU collators (the "aa" contraction),
+  silently breaking cross-shore canonical-byte identity and integrity tags.
+  Pinned by two locale-hostile shared JCS vectors (25→27) and a da_DK CI leg;
+  the R vector gate now fails loudly (`stopifnot`) instead of exiting 0.
+- **fix(agents): the tenant-lint's cycle guard detects schema cycles by node
+  identity** — a self-referential input schema whose cycle avoids object keys
+  (lazy/union/array/set/tuple) previously crashed tool definition with a
+  `RangeError`; it now raises the typed `AgentsError("BAD_INPUT_SCHEMA")`,
+  with a 256-frame budget for generative schemas.
+- **fix(interop): `run-mack.R` now honors `--selection`** — three-outcome
+  triage: a volume-weighted match reuses the exact alpha=1 path (committed
+  pipelines byte-identical), a feasible non-VW selection is genuinely injected
+  via `CLFMdelta` (alpha = 2 − delta, per-period alpha echoed), and an
+  infeasible/tail-bearing selection yields a null `selectionIntegrity` stamp
+  plus not-comparable warnings — never a stamp the rows weren't computed
+  under. A selection for a different triangle is refused.
+- **fix(examples): single-flight guards on the three app servers** — `/api/commit`
+  gains a `COMMIT_BUSY` guard (a stale concurrent commit can no longer
+  overwrite newer committed state), `/api/chat` claims `CHAT_BUSY` before the
+  body read (closing a check-then-set race), and the Python sidecar launcher
+  turns spawn-level failures (e.g. a venv python missing its exec bit) into a
+  graceful boot error instead of a process crash.
+
 - **fix(data): loss-run row errors now cite the physical file line** —
   interior blank lines and quoted embedded newlines no longer shift
   cell-error row numbers; `CsvParseResult` gains `rowLines` (per-row
