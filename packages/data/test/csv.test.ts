@@ -89,6 +89,29 @@ describe("parseCsv", () => {
   });
 });
 
+describe("physical row line numbers", () => {
+  it("reports the physical start line of each row", () => {
+    expect(parseCsv("a,b\n1,2").rowLines).toEqual([1, 2]);
+  });
+
+  it("skipped blank lines advance the reported line", () => {
+    const { rows, rowLines } = parseCsv("a,b\n\n\r\n1,2\n");
+    expect(rows).toEqual([
+      ["a", "b"],
+      ["1", "2"],
+    ]);
+    expect(rowLines).toEqual([1, 4]);
+  });
+
+  it("a quoted embedded newline anchors the row at its start line and shifts the next row", () => {
+    expect(parseCsv('"line1\nline2",b\nc,d').rowLines).toEqual([1, 3]);
+  });
+
+  it("CRLF endings and a lone trailing newline count normally", () => {
+    expect(parseCsv("a,b\r\n\r\n1,2\r\n").rowLines).toEqual([1, 3]);
+  });
+});
+
 describe("unterminated quoted fields", () => {
   it("warns with the starting line instead of silently swallowing the file", () => {
     // One stray opening quote used to consume the remainder of the input into

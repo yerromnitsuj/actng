@@ -226,3 +226,71 @@ describe("parseLossRunCsv", () => {
     expect(errors.every((e) => e.row === 2)).toBe(true);
   });
 });
+
+describe("row numbers are physical file lines (finding: blank-line desync)", () => {
+  // Line 1 = HEADER, line 2 = a valid C1 row, line 3 = blank (skipped from the
+  // grid but not from the physical line count), line 4 = a C2 row with a bad
+  // paid_to_date.
+  const blankLineText = [
+    HEADER,
+    "C1,2021-01-01,2021-01-02,2021-12-31,10,0,open",
+    "",
+    "C2,2021-01-01,2021-01-02,2021-12-31,bad,0,open",
+  ].join("\n");
+
+  it("cell errors after an interior blank line cite the physical line", () => {
+    const { claims, errors } = parseLossRunCsv(blankLineText);
+    expect(claims.map((c) => c.claimId)).toEqual(["C1"]);
+    expect(errors).toEqual([
+      { row: 4, message: expect.stringContaining("paid_to_date") },
+    ]);
+  });
+
+  it("blank lines never affect which claims load", () => {
+    // Diagnostics-only property: this must pass both before and after the
+    // fix — it pins that the bug is purely about the reported row number,
+    // never about which rows load.
+    const { claims } = parseLossRunCsv(blankLineText);
+    expect(claims).toHaveLength(1);
+  });
+
+  it("structural warnings and cell errors agree on one physical numbering", () => {
+    // Line 1 = HEADER, line 2 = blank, line 3 = a C3 row with a bad
+    // paid_to_date, line 4 = a C4 row with an unterminated quoted field
+    // (consumes the rest of the input into one ragged row).
+    const text = [
+      HEADER,
+      "",
+      "C3,2021-01-01,2021-01-02,2021-12-31,bad,0,open",
+      'C4,2021-01-01,2021-01-02,2021-12-31,"100,50,open',
+    ].join("\n");
+    const { errors } = parseLossRunCsv(text);
+
+    const [structuralError, c3PaidError, ...c4Errors] = errors;
+    expect(structuralError).toBeDefined();
+    expect(structuralError!.message).toContain("CSV structure");
+    expect(structuralError!.row).toBe(4);
+
+    expect(c3PaidError).toBeDefined();
+    expect(c3PaidError!.message).toContain("paid_to_date");
+    expect(c3PaidError!.row).toBe(3);
+
+    expect(c4Errors.length).toBeGreaterThan(0);
+    expect(c4Errors.every((e) => e.row === 4)).toBe(true);
+  });
+
+  it("a quoted multiline extra column does not shift later rows' numbers", () => {
+    // Line 1 = HEADER + an extra "note" column, lines 2-3 = a valid C1 row
+    // whose note field is a quoted, embedded-newline value spanning two
+    // physical lines, line 4 = a C2 row with a bad paid_to_date.
+    const text =
+      `${HEADER},note\n` +
+      'C1,2021-01-01,2021-01-02,2021-12-31,10,0,open,"l1\nl2"\n' +
+      "C2,2021-01-01,2021-01-02,2021-12-31,bad,0,open";
+    const { claims, errors } = parseLossRunCsv(text);
+    expect(claims.map((c) => c.claimId)).toEqual(["C1"]);
+    expect(errors).toEqual([
+      { row: 4, message: expect.stringContaining("paid_to_date") },
+    ]);
+  });
+});
