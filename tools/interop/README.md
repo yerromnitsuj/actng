@@ -18,7 +18,7 @@ install.packages(c("ChainLadder", "jsonlite"),
 
 ```bash
 # the adapter self-tests its JCS serializer against the shared vector suite
-Rscript tools/interop/actuarialInterchange.R    # sources clean; ats_test_jcs() = 25/25
+Rscript tools/interop/actuarialInterchange.R    # sources clean; ats_test_jcs() = 27/27
 
 # the cross-engine conformance runner (verdict table)
 Rscript tools/interop/conformance.R

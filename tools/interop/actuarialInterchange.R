@@ -277,7 +277,11 @@ ats_canonical_json <- function(x, path = "$") {
       return(if (!is.null(nms)) "{}" else "[]")
     }
     if (is_object) {
-      order_idx <- order(vapply(nms, ats_utf16be_sortkey, character(1)))
+      # method = "radix" sorts in the C locale (bytewise), per ?order — the
+      # sortkeys are ASCII hex, so this IS UTF-16BE byte order. The default
+      # "auto" method collates per LC_COLLATE/ICU, and Danish/Norwegian
+      # collation reorders the "aa" digraph, breaking canonical-byte identity.
+      order_idx <- order(vapply(nms, ats_utf16be_sortkey, character(1)), method = "radix")
       parts <- vapply(
         order_idx,
         function(i) {
