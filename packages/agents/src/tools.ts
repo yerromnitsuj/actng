@@ -239,23 +239,63 @@ const OPAQUE_TYPE_NAMES = new Set(["ZodAny", "ZodUnknown", "ZodMap"]);
  * each smuggled a nested tenant id straight past it. On a security seam,
  * "I don't know what this is" has to mean "refused", not "fine".
  */
+/**
+ * Frame budget for the tenant lint. Cycles are caught exactly by the on-stack
+ * set below; this cap only terminates GENERATIVE schemas (a z.lazy() whose
+ * getter builds a fresh node every resolution, so no node ever repeats) and
+ * absurd finite nesting. 256 frames is far beyond any real tool input —
+ * wrappers (.optional(), .default(), z.lazy resolution) each cost one frame.
+ */
+const MAX_LINT_FRAMES = 256;
+
 function assertNoTenantKeys(
   schema: unknown,
   toolId: string,
   path: string,
   allowUninspected?: ReadonlySet<string>,
   usedAllowances?: Set<string>,
+  stack: Set<unknown> = new Set(),
+  depth = 0,
 ): void {
-  // Path depth doubles as a cycle guard: a self-referential z.lazy() would
-  // otherwise recurse forever. 64 levels is far beyond any real tool input.
-  if (path.split(".").length > 64) {
+  // Cycle guard by node identity, NOT by counting dots in `path`: only the
+  // object branch appends ".", so a cycle routed purely through lazy/union/
+  // array/set/tuple/intersection/pipeline used to recurse with a frozen dot
+  // count straight into a RangeError. `stack` holds the nodes on the CURRENT
+  // recursion path (added on entry, removed on exit), so meeting one again is
+  // a true cycle; shared non-cyclic subschemas are deliberately re-visited so
+  // per-path allowUninspected accounting keeps working.
+  if (depth > MAX_LINT_FRAMES) {
     throw new AgentsError(
       "BAD_INPUT_SCHEMA",
-      `Tool "${toolId}": the input schema nests deeper than 64 levels at "${path.slice(0, 120)}..." ` +
-        "(likely a self-referential z.lazy()); the tenant lint cannot verify unbounded schemas",
+      `Tool "${toolId}": the input schema nests deeper than the tenant lint's ${MAX_LINT_FRAMES}-frame budget at "${path.slice(0, 120)}..." ` +
+        "(likely a z.lazy() that constructs a fresh schema on every resolution); the tenant lint cannot verify unbounded schemas",
     );
   }
   if (typeof schema !== "object" || schema === null) return;
+  if (stack.has(schema)) {
+    throw new AgentsError(
+      "BAD_INPUT_SCHEMA",
+      `Tool "${toolId}": the input schema is self-referential at "${path.slice(0, 120)}" ` +
+        "(a cyclic z.lazy()); the tenant lint cannot verify unbounded schemas",
+    );
+  }
+  stack.add(schema);
+  try {
+    lintSchemaNode(schema, toolId, path, allowUninspected, usedAllowances, stack, depth);
+  } finally {
+    stack.delete(schema);
+  }
+}
+
+function lintSchemaNode(
+  schema: object,
+  toolId: string,
+  path: string,
+  allowUninspected: ReadonlySet<string> | undefined,
+  usedAllowances: Set<string> | undefined,
+  stack: Set<unknown>,
+  depth: number,
+): void {
   const def = (schema as { _def?: ZodDefLike })._def;
   if (!def) return;
   const typeName = def.typeName;
@@ -282,7 +322,7 @@ function assertNoTenantKeys(
           `Tool "${toolId}" declares input key "${path}.${key}": tenant ids travel only via the server-set RequestContext (read them with tenantOf), never through the model-facing input schema`,
         );
       }
-      assertNoTenantKeys(value, toolId, `${path}.${key}`, allowUninspected, usedAllowances);
+      assertNoTenantKeys(value, toolId, `${path}.${key}`, allowUninspected, usedAllowances, stack, depth + 1);
     }
     return;
   }
@@ -314,7 +354,7 @@ function assertNoTenantKeys(
     );
   }
   if (typeName === "ZodArray") {
-    assertNoTenantKeys(def.type, toolId, `${path}[]`, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.type, toolId, `${path}[]`, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (
@@ -324,48 +364,49 @@ function assertNoTenantKeys(
     typeName === "ZodCatch" ||
     typeName === "ZodReadonly"
   ) {
-    assertNoTenantKeys(def.innerType, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.innerType, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodPromise" || typeName === "ZodBranded") {
-    assertNoTenantKeys(def.type, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.type, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodEffects") {
-    assertNoTenantKeys(def.schema, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.schema, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodUnion" || typeName === "ZodDiscriminatedUnion") {
-    for (const opt of def.options ?? []) assertNoTenantKeys(opt, toolId, path, allowUninspected, usedAllowances);
+    for (const opt of def.options ?? []) assertNoTenantKeys(opt, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodTuple") {
     for (const [index, item] of (def.items ?? []).entries()) {
-      assertNoTenantKeys(item, toolId, `${path}[${index}]`, allowUninspected, usedAllowances);
+      assertNoTenantKeys(item, toolId, `${path}[${index}]`, allowUninspected, usedAllowances, stack, depth + 1);
     }
     if (def.rest !== undefined && def.rest !== null) {
-      assertNoTenantKeys(def.rest, toolId, `${path}[rest]`, allowUninspected, usedAllowances);
+      assertNoTenantKeys(def.rest, toolId, `${path}[rest]`, allowUninspected, usedAllowances, stack, depth + 1);
     }
     return;
   }
   if (typeName === "ZodIntersection") {
-    assertNoTenantKeys(def.left, toolId, path, allowUninspected, usedAllowances);
-    assertNoTenantKeys(def.right, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.left, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(def.right, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodPipeline") {
-    assertNoTenantKeys(def.in, toolId, path, allowUninspected, usedAllowances);
-    assertNoTenantKeys(def.out, toolId, path, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.in, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(def.out, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodSet") {
-    assertNoTenantKeys(def.valueType, toolId, `${path}[]`, allowUninspected, usedAllowances);
+    assertNoTenantKeys(def.valueType, toolId, `${path}[]`, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
   if (typeName === "ZodLazy") {
-    // Resolve once. A directly self-referential lazy would recurse forever;
-    // the depth guard below catches that as a schema error rather than a hang.
-    assertNoTenantKeys(def.getter?.(), toolId, path, allowUninspected, usedAllowances);
+    // Resolve once. A self-referential lazy resolves to a node already on the
+    // recursion stack and is caught by the cycle guard in assertNoTenantKeys;
+    // a generative lazy (fresh node per resolution) hits the frame budget.
+    assertNoTenantKeys(def.getter?.(), toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
     return;
   }
 
