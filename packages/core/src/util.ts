@@ -1,8 +1,28 @@
 /** Shared numeric helpers. All null-safe by construction. */
 
+import type { Triangle } from "./types.js";
+import { ReservingError } from "./types.js";
+
 /** True when v is a usable finite number. */
 export function isNum(v: number | null | undefined): v is number {
   return typeof v === "number" && Number.isFinite(v);
+}
+
+/**
+ * Shared origins/ages shape guard: throws ReservingError("SHAPE", message)
+ * unless both triangles have the same number of origins and ages AND the
+ * same origin/age labels in the same order. `message` is thrown verbatim,
+ * so callers own their exact wording.
+ */
+export function assertSameShape(a: Triangle, b: Triangle, message: string): void {
+  if (
+    a.origins.length !== b.origins.length ||
+    a.ages.length !== b.ages.length ||
+    a.origins.some((o, i) => o !== b.origins[i]) ||
+    a.ages.some((g, j) => g !== b.ages[j])
+  ) {
+    throw new ReservingError("SHAPE", message);
+  }
 }
 
 /**

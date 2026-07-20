@@ -4,7 +4,7 @@ import type {
   Triangle,
 } from "./types.js";
 import { ReservingError } from "./types.js";
-import { isNum, lastObservedIndex, ols, safeRatio } from "./util.js";
+import { assertSameShape, isNum, lastObservedIndex, ols, safeRatio } from "./util.js";
 
 /**
  * Berquist-Sherman adjustments (Berquist & Sherman 1977; Friedland ch. 13).
@@ -20,17 +20,6 @@ import { isNum, lastObservedIndex, ols, safeRatio } from "./util.js";
  * closed-count level -- the textbook interpolation on (closed count, paid)
  * points within each origin row, not a scalar ratio shortcut.
  */
-
-function assertSameShape(a: Triangle, b: Triangle, what: string): void {
-  if (
-    a.origins.length !== b.origins.length ||
-    a.ages.length !== b.ages.length ||
-    a.origins.some((o, i) => o !== b.origins[i]) ||
-    a.ages.some((g, j) => g !== b.ages[j])
-  ) {
-    throw new ReservingError("SHAPE", `${what} triangles must share origins and ages`);
-  }
-}
 
 /** Last observed row index in a column; -1 when the column is empty. */
 function lastObservedRowInColumn(tri: Triangle, j: number): number {
@@ -51,8 +40,8 @@ export function berquistCaseAdequacy(
   openCounts: Triangle,
   options: CaseAdequacyOptions = {},
 ): BerquistCaseAdequacyResult {
-  assertSameShape(paid, incurred, "Paid and incurred");
-  assertSameShape(paid, openCounts, "Paid and open-count");
+  assertSameShape(paid, incurred, "Paid and incurred triangles must share origins and ages");
+  assertSameShape(paid, openCounts, "Paid and open-count triangles must share origins and ages");
   const nOrigins = paid.origins.length;
   const nAges = paid.ages.length;
   const warnings: string[] = [];
@@ -252,7 +241,7 @@ export function berquistSettlement(
   closedCounts: Triangle,
   options: SettlementOptions,
 ): BerquistSettlementResult {
-  assertSameShape(paid, closedCounts, "Paid and closed-count");
+  assertSameShape(paid, closedCounts, "Paid and closed-count triangles must share origins and ages");
   const { ultimateCounts } = options;
   const interpolation = options.interpolation ?? "exponential";
   const nOrigins = paid.origins.length;

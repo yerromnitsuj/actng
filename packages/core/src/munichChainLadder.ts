@@ -1,7 +1,7 @@
 import { mackEstimators, extrapolateSigma2 } from "./mack.js";
 import type { Triangle } from "./types.js";
 import { ReservingError } from "./types.js";
-import { isNum, lastObservedIndex } from "./util.js";
+import { assertSameShape, isNum, lastObservedIndex } from "./util.js";
 
 /**
  * Munich chain ladder, Quarg & Mack (2004): a paired paid/incurred projection
@@ -116,17 +116,11 @@ export function runMunichChainLadder(
   const n = paid.origins.length;
   const K = paid.ages.length;
 
-  if (
-    incurred.origins.length !== n ||
-    incurred.ages.length !== K ||
-    paid.origins.some((o, i) => incurred.origins[i] !== o) ||
-    paid.ages.some((a, j) => incurred.ages[j] !== a)
-  ) {
-    throw new ReservingError(
-      "SHAPE",
-      "Munich chain ladder needs paid and incurred triangles with identical origins and ages",
-    );
-  }
+  assertSameShape(
+    paid,
+    incurred,
+    "Munich chain ladder needs paid and incurred triangles with identical origins and ages",
+  );
   for (const tri of [paid, incurred]) {
     if (tri.values.length !== n || tri.values.some((row) => row.length !== K)) {
       throw new ReservingError(

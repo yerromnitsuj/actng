@@ -1,6 +1,12 @@
 import type { Triangle } from "./types.js";
 import { ReservingError } from "./types.js";
-import { isNum, lastJointObservedIndex, lastObservedIndex, safeRatio } from "./util.js";
+import {
+  assertSameShape,
+  isNum,
+  lastJointObservedIndex,
+  lastObservedIndex,
+  safeRatio,
+} from "./util.js";
 
 /**
  * Case-outstanding development technique (Friedland, "Estimating Unpaid
@@ -78,24 +84,16 @@ export interface CaseOutstandingResult {
   warnings: string[];
 }
 
-function assertSameShape(a: Triangle, b: Triangle): void {
-  const sameOrigins =
-    a.origins.length === b.origins.length && a.origins.every((o, i) => o === b.origins[i]);
-  const sameAges = a.ages.length === b.ages.length && a.ages.every((v, j) => v === b.ages[j]);
-  if (!sameOrigins || !sameAges) {
-    throw new ReservingError(
-      "SHAPE",
-      "The paid and case-outstanding triangles must share identical origins and development ages",
-    );
-  }
-}
-
 export function runCaseOutstanding(
   paid: Triangle,
   caseOutstanding: Triangle,
   options: CaseOutstandingOptions,
 ): CaseOutstandingResult {
-  assertSameShape(paid, caseOutstanding);
+  assertSameShape(
+    paid,
+    caseOutstanding,
+    "The paid and case-outstanding triangles must share identical origins and development ages",
+  );
   const nOrigins = paid.origins.length;
   const nAges = paid.ages.length;
   const nIntervals = nAges - 1;

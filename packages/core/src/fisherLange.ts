@@ -1,7 +1,13 @@
 import type { Triangle } from "./types.js";
 import { ReservingError } from "./types.js";
 import { cumulativeToIncremental } from "./triangleAlgebra.js";
-import { isNum, lastJointObservedIndex, lastObservedIndex, safeRatio } from "./util.js";
+import {
+  assertSameShape,
+  isNum,
+  lastJointObservedIndex,
+  lastObservedIndex,
+  safeRatio,
+} from "./util.js";
 
 /**
  * Fisher-Lange disposal-rate (average-cost-per-claim-settled) method: the
@@ -92,25 +98,17 @@ export interface FisherLangeResult {
   warnings: string[];
 }
 
-function assertSameShape(a: Triangle, b: Triangle): void {
-  const sameOrigins =
-    a.origins.length === b.origins.length && a.origins.every((o, i) => o === b.origins[i]);
-  const sameAges = a.ages.length === b.ages.length && a.ages.every((v, j) => v === b.ages[j]);
-  if (!sameOrigins || !sameAges) {
-    throw new ReservingError(
-      "SHAPE",
-      "The paid and closed-count triangles must share identical origins and development ages",
-    );
-  }
-}
-
 export function runFisherLange(
   paid: Triangle,
   closedCounts: Triangle,
   ultimateCounts: number[],
   options: FisherLangeOptions,
 ): FisherLangeResult {
-  assertSameShape(paid, closedCounts);
+  assertSameShape(
+    paid,
+    closedCounts,
+    "The paid and closed-count triangles must share identical origins and development ages",
+  );
   const nOrigins = paid.origins.length;
   const nAges = paid.ages.length;
   if (nAges < 2) {

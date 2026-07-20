@@ -1,6 +1,6 @@
 import type { TriangleKind, LdfSelections, Triangle } from "./types.js";
 import { ReservingError } from "./types.js";
-import { isNum, lastObservedIndex, safeRatio } from "./util.js";
+import { assertSameShape, isNum, lastObservedIndex, safeRatio } from "./util.js";
 import { runChainLadder } from "./chainladder.js";
 
 /**
@@ -57,7 +57,11 @@ export interface FrequencySeverityResult {
  * missing, zero, or negative count yields a null severity cell.
  */
 export function severityTriangle(lossTri: Triangle, countTri: Triangle): Triangle {
-  assertSameShape(lossTri, countTri);
+  assertSameShape(
+    lossTri,
+    countTri,
+    "The loss and count triangles must share identical origins and development ages",
+  );
   return {
     kind: lossTri.kind,
     origins: [...lossTri.origins],
@@ -68,24 +72,16 @@ export function severityTriangle(lossTri: Triangle, countTri: Triangle): Triangl
   };
 }
 
-function assertSameShape(a: Triangle, b: Triangle): void {
-  const sameOrigins =
-    a.origins.length === b.origins.length && a.origins.every((o, i) => o === b.origins[i]);
-  const sameAges = a.ages.length === b.ages.length && a.ages.every((v, i) => v === b.ages[i]);
-  if (!sameOrigins || !sameAges) {
-    throw new ReservingError(
-      "SHAPE",
-      "The loss and count triangles must share identical origins and development ages",
-    );
-  }
-}
-
 export function runFrequencySeverity(
   lossTri: Triangle,
   countTri: Triangle,
   options: FrequencySeverityOptions,
 ): FrequencySeverityResult {
-  assertSameShape(lossTri, countTri);
+  assertSameShape(
+    lossTri,
+    countTri,
+    "The loss and count triangles must share identical origins and development ages",
+  );
   const warnings: string[] = [];
 
   const countCl = runChainLadder(countTri, {
