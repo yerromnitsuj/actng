@@ -741,6 +741,27 @@ ats_read_document <- function(path, verify_integrity = TRUE) {
     )))
   }
   kind <- doc$kind
+
+  # Spec 3.5 applies per document: study/bundle embed complete documents,
+  # each subject to the same major-acceptance rule (Python/TS parity).
+  embedded <- if (identical(kind, "study")) {
+    c(doc$study$triangles, doc$study$selections, doc$study$supportingResults)
+  } else if (identical(kind, "bundle")) {
+    c(doc$interchange$triangles, doc$interchange$selections, doc$interchange$results)
+  } else NULL
+  for (inner in embedded) {
+    v <- inner$interchangeVersion
+    if (is.null(v) || !grepl("^[0-9]+\\.[0-9]+\\.[0-9]+$", v)) {
+      stop(sprintf("embedded document: malformed interchangeVersion '%s'", v))
+    }
+    m <- as.integer(strsplit(v, ".", fixed = TRUE)[[1]][1])
+    if (m != 1L) {
+      stop(.ats_version_error(sprintf(
+        "embedded document: interchangeVersion %s has major %d; this adapter reads major 1 only", v, m
+      )))
+    }
+  }
+
   if (verify_integrity && !is.null(doc$integrity) && kind != "bundle") {
     body <- doc[[ats_body_key(kind)]]
     computed <- ats_integrity(body)

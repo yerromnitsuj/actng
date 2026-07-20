@@ -58,6 +58,8 @@ jobs:
               message("NOTICE: collator not hostile; locale leg is not exercising the trap");
             source("tools/interop/actuarialInterchange.R");
             r <- ats_test_jcs(); stopifnot(r$failed == 0L)'
+      - name: Embedded document version guard (spec 3.5)
+        run: Rscript tools/interop/test-read-document.R
       - name: Cross-engine conformance (frozen corpus, mack1993-vw profile)
         run: Rscript tools/interop/conformance.R
       - uses: actions/setup-node@v4
