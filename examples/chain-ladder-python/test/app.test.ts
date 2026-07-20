@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { startAppServer } from "../app/server.js";
 
@@ -86,6 +89,28 @@ describe("the chain-ladder app server", () => {
       else process.env.SIDECAR_TOKEN = savedToken;
     }
   });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects catchably (no process crash) when the venv python exists but cannot be spawned",
+    async () => {
+      const savedUrl = process.env.SIDECAR_URL;
+      const savedToken = process.env.SIDECAR_TOKEN;
+      delete process.env.SIDECAR_URL;
+      delete process.env.SIDECAR_TOKEN;
+      const fakeRoot = mkdtempSync(join(tmpdir(), "actng-noexec-venv-"));
+      try {
+        mkdirSync(join(fakeRoot, ".venv-interop", "bin"), { recursive: true });
+        // exists (passes the existsSync guard) but is NOT executable → spawn EACCES
+        writeFileSync(join(fakeRoot, ".venv-interop", "bin", "python"), "#!/bin/sh\n", { mode: 0o644 });
+        const { resolveSidecar } = await import("../app/sidecar.js");
+        await expect(resolveSidecar(fakeRoot)).rejects.toThrow(/could not be spawned.*EACCES|EACCES/);
+      } finally {
+        rmSync(fakeRoot, { recursive: true, force: true });
+        if (savedUrl === undefined) delete process.env.SIDECAR_URL; else process.env.SIDECAR_URL = savedUrl;
+        if (savedToken === undefined) delete process.env.SIDECAR_TOKEN; else process.env.SIDECAR_TOKEN = savedToken;
+      }
+    },
+  );
 });
 
 // ------------------------------------------------------ live sidecar only

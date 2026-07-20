@@ -45,6 +45,15 @@ export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
     },
     stdio: ["ignore", "ignore", "pipe"],
   });
+  // Spawn-level failures (EACCES on a non-executable python, EMFILE/EAGAIN)
+  // emit "error" — with no listener that throw is uncatchable and kills the
+  // process. Capture it here; the poll loop below turns it into the same
+  // catchable Error the timeout path produces. The listener stays attached
+  // for the child's lifetime so a kill()-time "error" can never crash us.
+  const spawnErrorBox: { error: Error | null } = { error: null };
+  child.on("error", (err) => {
+    spawnErrorBox.error = err;
+  });
   child.stderr.on("data", (d: Buffer) => {
     stderrTail.push(d.toString("utf8"));
     if (stderrTail.length > 20) stderrTail.shift();
@@ -68,11 +77,16 @@ export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
     } catch {
       /* not up yet */
     }
-    if (child.exitCode !== null || Date.now() > deadline) {
+    const err = spawnErrorBox.error;
+    if (err !== null || child.exitCode !== null || Date.now() > deadline) {
       stop();
-      throw new Error(
-        `the launched sidecar did not become healthy within 30s\n${stderrTail.join("").trim()}`,
-      );
+      const reason =
+        err !== null
+          ? `the sidecar process could not be spawned (${err.message}) — ` +
+            `check that ${python} is executable (a copied or restored venv can lose its exec bit; ` +
+            `recreate it with: python3.12 -m venv .venv-interop)`
+          : "the launched sidecar did not become healthy within 30s";
+      throw new Error(`${reason}\n${stderrTail.join("").trim()}`.trim());
     }
     await new Promise((r) => setTimeout(r, 250));
   }
