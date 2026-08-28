@@ -22,6 +22,10 @@ Actuarial Standards of Practice ask for.
 - **Reproducibility bundles** (ASOP 21 / 56): canonical serialization of
   inputs, parameters, and results with an integrity tag, so an analysis
   re-runs identically years later for an auditor or examiner.
+- **Diagnostics provenance composition**: `createDiagnosticsProvenance`
+  snapshots formula-pack/metric versions, executable-definition metadata,
+  layer configuration, exposure basis and scale, sparse/age conventions,
+  cutoffs, caller-selected filters/groups, and caller-owned input IDs/hashes.
 - **Actual-vs-expected roll-forward**: expected emergence from the prior
   valuation's pattern versus actual, by origin.
 
@@ -69,6 +73,13 @@ const markdown = generateDisclosure({
   generatedAt: "2026-01-05T10:15:00Z",
 });
 ```
+
+Diagnostic numeric results remain independent of this package. When an audit
+record is needed, call `createDiagnosticsProvenance({ metrics, layers, ... })`
+and place the returned plain record in `createBundle(...).parameters` or an
+interchange document's `extensions`. Executable warning callbacks are excluded
+from the record; their metric definition version is retained. Hashing,
+timestamps, persistence, and signatures remain caller-owned.
 
 ## The honest claim
 

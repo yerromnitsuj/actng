@@ -16,7 +16,7 @@ One repository, three things:
 |------|-----------|
 | `packages/*` | The **actuarial-ts SDK** — five npm packages: `core`, `interchange`, `data`, `compliance`, `agents` |
 | `interop/`, `tools/interop/`, `schema/interchange/` | The **actuarial-interchange** layer — the spec, its three shores (TypeScript, Python, R), the conformance corpus and the chainladder-python sidecar |
-| `examples/` | A runnable, **tested** end-to-end reserve review across all five packages — the SDK's in-repo consumer |
+| `examples/` | Runnable, **tested** consumers: the end-to-end reserve review, the reproducible real-world loss-run/exposure review, and the three-engine chain-ladder examples |
 
 ## Setup
 
@@ -40,6 +40,7 @@ To run the end-to-end example:
 
 ```bash
 npm run example    # triangle -> CL + Mack -> interchange -> referee -> bundle
+npm run example:real-world  # real claim development -> review -> CL + exposure-based Cape Cod
 ```
 
 It is covered by tests, so a change that makes the public API awkward breaks it

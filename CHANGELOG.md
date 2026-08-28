@@ -5,6 +5,21 @@ together; this file covers them all.
 
 ## Unreleased
 
+- **feat(core,data,compliance): reusable quarterly actuarial diagnostics primitives** —
+  versioned caller-defined ratio-of-sums metrics with audited raw components,
+  snapshot-safe exposure deduplication, explicit sparse/null semantics,
+  claim-row amount layers, emergence/triangle/maturity views, numeric quarterly
+  period helpers, and an optional 20-metric casualty preset. The data package
+  adds a Zod boundary and 19-code structured review suite while retaining the
+  existing `DataReviewReport` statuses. A compliance-side provenance helper
+  composes with current bundles, ledgers, and interchange extensions while
+  keeping core results metadata-free; no new package or interchange schema was
+  introduced.
+- **feat(data,examples): reproducible real-world loss-run and exposure review**
+  — annual-precision claim adaptation and exposure CSV import feed a tested
+  French motor example with pinned source manifest, transparent transformations,
+  quality findings, and an offline compact derivative path.
+
 - **fix(interop): the R adapter's canonical-JSON key sort now uses
   `order(method = "radix")`** — the default locale-collating sort reordered
   non-ASCII keys under Danish/Norwegian ICU collators (the "aa" contraction),

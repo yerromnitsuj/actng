@@ -1,0 +1,17 @@
+metric,value
+source_claim_rows,1012839
+distinct_claim_ids,750043
+source_first_development_claim_count,735079
+claim_id_collisions_at_first_development,269
+first_evaluation_after_origin,15233
+duplicate_claim_year_groups,438
+rows_in_duplicate_claim_year_groups,876
+exact_duplicate_extra_rows,82
+claims_with_multiple_evaluations,212755
+maximum_evaluations_per_claim,19
+annual_gap_transitions,3139
+paid_decrease_transitions,1797
+recourse_decrease_transitions,98
+negative_gross_case_records,23704
+negative_net_case_records,27001
+closed_with_positive_gross_case_records,1270

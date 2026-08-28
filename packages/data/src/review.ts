@@ -24,11 +24,29 @@ import type { ClaimSnapshot, Triangle } from "@actuarial-ts/core";
 
 export type DataCheckStatus = "pass" | "warning" | "fail" | "not-evaluated";
 
+export interface DataFindingContext {
+  origin?: string;
+  valuation?: string;
+  ageMonths?: number;
+  group?: string;
+  sourceFile?: string;
+  sourceRow?: number;
+}
+
+export interface DataFinding {
+  /** Stable machine-readable finding code, usually the containing check id. */
+  code: string;
+  message: string;
+  context?: DataFindingContext;
+}
+
 export interface DataCheck {
   id: string;
   description: string;
   status: DataCheckStatus;
   details: string[];
+  /** Additive structured detail for consumers that should not parse prose. */
+  findings?: DataFinding[];
 }
 
 export interface DataReviewReport {
@@ -76,6 +94,39 @@ function summarize(checks: DataCheck[]): DataReviewReport {
     else summary[c.status]++;
   }
   return { checks, summary };
+}
+
+/** Builds a structured check while retaining the established status/details contract. */
+export function createStructuredDataCheck(
+  id: string,
+  description: string,
+  statusWhenFound: "warning" | "fail",
+  findings: readonly DataFinding[],
+): DataCheck {
+  const capped = findings.length <= MAX_DETAILS ? [...findings] : [...findings.slice(0, MAX_DETAILS)];
+  const details = capped.map((finding) => finding.message);
+  if (findings.length > MAX_DETAILS) details.push(`+${findings.length - MAX_DETAILS} more`);
+  return {
+    id,
+    description,
+    status: findings.length > 0 ? statusWhenFound : "pass",
+    details,
+    findings: capped,
+  };
+}
+
+/** Public report summarizer for additive review suites. */
+export function summarizeDataChecks(checks: DataCheck[]): DataReviewReport {
+  return summarize(checks);
+}
+
+/** Public not-evaluated constructor so additive suites preserve report semantics. */
+export function createNotEvaluatedDataCheck(
+  id: string,
+  description: string,
+  reason: string,
+): DataCheck {
+  return notEvaluated(id, description, reason);
 }
 
 const CLAIM_DESCRIPTIONS = {

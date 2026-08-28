@@ -8,10 +8,10 @@ Five Apache-2.0 packages under the `@actuarial-ts` scope:
 
 | Package | What it is |
 |---|---|
-| [`@actuarial-ts/core`](packages/core) | Pure, zero-dependency reserving engine: triangles, development factors, chain ladder, Mack, Bornhuetter-Ferguson, Benktander, Cape Cod (with Gluck decay), Expected Claims, frequency-severity, Berquist-Sherman, Munich chain ladder, Clark growth curves, tails, capping/ILF, trend and on-leveling, ULAE, discounting, salvage/subro, diagnostics — and a seeded stochastic layer: ODP bootstrap, Merz-Wuthrich one-year risk. |
+| [`@actuarial-ts/core`](packages/core) | Pure, zero-dependency reserving engine: triangles, development factors, chain ladder, Mack, Bornhuetter-Ferguson, Benktander, Cape Cod (with Gluck decay), Expected Claims, frequency-severity, Berquist-Sherman, Munich chain ladder, Clark growth curves, tails, capping/ILF, trend and on-leveling, ULAE, discounting, salvage/subro, fixed and generic ratio-of-sums diagnostics — and a seeded stochastic layer: ODP bootstrap, Merz-Wuthrich one-year risk. |
 | [`@actuarial-ts/interchange`](packages/interchange) | The actuarial-interchange spec v1 in TypeScript: envelope + integrity stamping, versioned parsing, triangle/selection/result/study/bundle/crosscheck schemas, core converters, and the cross-engine **referee** (`crosscheck`) with executable convention profiles. |
-| [`@actuarial-ts/data`](packages/data) | Ingestion + data quality: loss-run CSV, long-format triangles, and the ASOP No. 23 data review report. |
-| [`@actuarial-ts/compliance`](packages/compliance) | The layer no calculator ships: estimate metadata, an assumption ledger separating machine defaults from judgment, ASOP No. 41 disclosure generation, ASOP No. 56 model cards, reproducibility bundles, actual-vs-expected roll-forward. |
+| [`@actuarial-ts/data`](packages/data) | Ingestion + data quality: loss-run and exposure CSVs, annual-precision claim-development adaptation, long-format triangles, and the ASOP No. 23 data review report. |
+| [`@actuarial-ts/compliance`](packages/compliance) | The layer no calculator ships: estimate metadata, an assumption ledger separating machine defaults from judgment, ASOP No. 41 disclosure generation, ASOP No. 56 model cards, diagnostic provenance composition, reproducibility bundles, actual-vs-expected roll-forward. |
 | [`@actuarial-ts/agents`](packages/agents) | Mastra agent toolkit: typed actuarial tools with a hard tenant seam, human-gated judgment workflows that write the compliance ledger, a reserving advisor factory, and a golden-prompt eval harness. |
 
 ## Why this exists
@@ -77,6 +77,19 @@ intent, not recomputed from the same in-memory values. The source is
 [`examples/reserve-review`](examples/reserve-review/src/main.ts), and it is
 covered by tests so it cannot quietly rot.
 
+A second tested example runs over 1,012,839 annual claim valuations from a
+real French motor insurer, paired with insurance-year exposure. It retains
+duplicate identifiers, paid reversals, negative inferred case, recovery-basis
+selection, and annual date precision as review findings and disclosures:
+
+```bash
+npm run example:real-world
+```
+
+The routine path is offline and reads compact derivatives. The full pinned
+source can be checksum-verified and regenerated with the opt-in instructions in
+[`examples/real-world-loss-run`](examples/real-world-loss-run/README.md).
+
 **ActNG**, the AI-native reserving workbench this SDK grew out of, now lives in
 its own repository and consumes the published packages like any other
 consumer.
@@ -86,7 +99,7 @@ consumer.
 | Path | What it is |
 |---|---|
 | `packages/*` | The five published SDK packages (each with its own README). |
-| `examples/` | A tested reserve review plus the chain-ladder trilogy (TypeScript / Python / R engines) and its cross-engine capstone — all five packages exercised. Each chain-ladder shore also ships an interactive app (`npm run app -w <example>`). |
+| `examples/` | A tested reserve review, a reproducible real-world loss-run/exposure review, plus the chain-ladder trilogy (TypeScript / Python / R engines) and its cross-engine capstone — all five packages exercised. Each chain-ladder shore also ships an interactive app (`npm run app -w <example>`). |
 | `interop/` | The Python shore (`interop/python`), the frozen cross-engine conformance corpus, and the chainladder-python FastAPI compute sidecar (the live second engine). |
 | `tools/interop/` | The R shore: ChainLadder interchange recipes and the conformance verdict runner. |
 | `schema/interchange/` | Versioned JSON Schema + JCS test vectors that every shore reproduces. |

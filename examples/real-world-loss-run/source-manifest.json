@@ -1,0 +1,9 @@
+{
+  "dataset": "CASdatasets freclaimset2motor",
+  "doi": "10.57745/P0KHAG",
+  "sourceCommit": "e51f30edc0b8dbfe096cad2d0967d42ce3707f63",
+  "pinnedUrl": "https://raw.githubusercontent.com/dutangc/CASdatasets/e51f30edc0b8dbfe096cad2d0967d42ce3707f63/data/freclaimset2motor.rda",
+  "sourceSha256": "4409adb022d18e24a3a0e724523706616e707c53e55f8625ce9fc122a20185d6",
+  "sourceUpdatedAt": "2024-07-09",
+  "license": "Etalab-2.0"
+}

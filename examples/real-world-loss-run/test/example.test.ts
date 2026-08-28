@@ -1,0 +1,59 @@
+import { describe, expect, it } from "vitest";
+import { runRealWorldLossRunReview } from "../src/main.js";
+
+const net = runRealWorldLossRunReview();
+const gross = runRealWorldLossRunReview({ basis: "gross" });
+
+describe("the real-world loss-run and exposure example", () => {
+  it("is pinned to the complete source rather than a hand-picked sample", () => {
+    expect(net.quality.source_claim_rows).toBe(1_012_839);
+    expect(net.quality.distinct_claim_ids).toBe(750_043);
+    expect(net.quality.source_first_development_claim_count).toBe(735_079);
+    expect(net.source.sourceSha256).toBe(
+      "4409adb022d18e24a3a0e724523706616e707c53e55f8625ce9fc122a20185d6",
+    );
+  });
+
+  it("loads all 20 exposure years without calling GWP earned premium", () => {
+    expect(net.exposureYears).toBe(20);
+    expect(net.totalExposureUnits).toBe(4_642_000);
+    expect(net.earnedPremiumRows).toBe(0);
+  });
+
+  it("assembles complete 20-by-20 cumulative triangle diagonals", () => {
+    expect(net.triangleCellsPerBasis).toBe(210);
+    expect(net.selectedLdfs).toBe(38);
+  });
+
+  it("pins the latest net diagonals derived from the full claim histories", () => {
+    expect(net.paid.latest).toBe(858_912_975);
+    expect(net.incurred.latest).toBe(860_950_725);
+  });
+
+  it("makes gross-versus-net basis an explicit and consequential selection", () => {
+    expect(gross.basis).toBe("gross");
+    expect(net.basis).toBe("net");
+    expect(gross.paid.latest).toBeGreaterThan(net.paid.latest);
+    expect(gross.incurred.latest).toBeGreaterThan(net.incurred.latest);
+  });
+
+  it("uses insurance-year exposure as a pure-premium Cape Cod base", () => {
+    expect(net.capeCod.expectedPurePremium).toBeGreaterThan(0);
+    expect(Number.isFinite(net.capeCod.ultimate)).toBe(true);
+  });
+
+  it("reports real data issues rather than presenting a falsely clean fixture", () => {
+    expect(net.quality.duplicate_claim_year_groups).toBe(438);
+    expect(net.quality.paid_decrease_transitions).toBe(1_797);
+    expect(net.quality.negative_net_case_records).toBe(27_001);
+    expect(net.dataReview.summary.warning).toBeGreaterThan(0);
+    expect(net.dataReview.summary.fail).toBe(1);
+  });
+
+  it("renders source interpretations, limitations, and selections into the disclosure", () => {
+    expect(net.disclosure).toContain("source.expectChargeInterpretation");
+    expect(net.disclosure).toContain("annual precision only");
+    expect(net.disclosure).toContain("Gross written premium is retained but is not used as earned premium");
+    expect(net.disclosure).toContain("all-wtd");
+  });
+});

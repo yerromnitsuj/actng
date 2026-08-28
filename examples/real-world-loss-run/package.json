@@ -1,0 +1,26 @@
+{
+  "name": "@actuarial-ts/example-real-world-loss-run",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "A tested real-world French motor loss-development and exposure example with reproducible source provenance",
+  "scripts": {
+    "example": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "data:fetch": "tsx scripts/fetch-source.mts",
+    "data:rebuild": "Rscript scripts/transform-source.R .cache/freclaimset2motor.rda data generated",
+    "data:refresh": "npm run data:fetch && npm run data:rebuild"
+  },
+  "dependencies": {
+    "@actuarial-ts/compliance": "*",
+    "@actuarial-ts/core": "*",
+    "@actuarial-ts/data": "*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.6"
+  }
+}

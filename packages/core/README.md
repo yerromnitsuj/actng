@@ -104,7 +104,111 @@ Three rules hold everywhere:
 | `trend` | `analyzeTrend`, `trendValue` (log-linear, windowed) | Werner & Modlin, *Basic Ratemaking* ch. 6 |
 | `onlevel` | `parallelogramOnLevel` (exact piecewise-linear earning geometry) | Werner & Modlin ch. 5 |
 | `diagnostics` | `runDiagnostics` (paid/incurred drift, case adequacy, closure rates), `calendarYearTest` | Mack (1994) calendar-year rank test |
+| `metricDiagnostics` | generic ratio-of-sums metrics, claim-level amount layers, emergence/triangle/maturity views, optional 20-metric casualty preset | actuarial diagnostic practice |
+| `periods` | quarterly parse/format/compare, development age, fiscal/policy mapping, complete-quarter cutoffs | explicit SDK conventions |
 | `canonical` | `canonicalJson` (RFC 8785 / JCS canonical serialization), `fnv1a64` (integrity tagging aid — not a security control) | RFC 8785 |
+
+## Quarterly metric diagnostics
+
+`runMetricDiagnostics` is the generic engine behind the optional
+`CASUALTY_QUARTERLY_METRICS` preset. A metric is a versioned definition with
+caller-selected additive component expressions. The engine sums components at
+the requested group/origin/valuation grain and divides once; it never averages
+row ratios. Each result retains the raw numerator, denominator, component
+values, labels, basis, scale, and structured warnings.
+
+```ts
+import {
+  CASUALTY_QUARTERLY_METRICS,
+  runMetricDiagnostics,
+} from "@actuarial-ts/core";
+
+const result = runMetricDiagnostics({
+  losses: [{
+    id: "snapshot-1",
+    group: "commercial-auto",
+    origin: "2025Q1",
+    valuation: "2025Q1",
+    ageMonths: 3,
+    policyPeriod: "PY2024",
+    measures: {
+      reportedCount: 80,
+      openCount: 30,
+      closedNoPayCount: 20,
+      closedWithPayCount: 30,
+      paid250: 450_000,
+      incurred250: 700_000,
+      paidPrimary: 600_000,
+      incurredPrimary: 950_000,
+    },
+  }],
+  exposures: [{
+    key: "fleet-2025Q1",
+    group: "commercial-auto",
+    origin: "2025Q1",
+    measures: { exposure: 1_600_000 },
+  }],
+  metrics: CASUALTY_QUARTERLY_METRICS,
+});
+
+const reported = result.emergence[0]!.metrics["reported-frequency"]!;
+console.log(reported.value, reported.rawNumerator, reported.rawDenominator);
+console.log(result.triangles[0]!.values, result.latestDiagonal);
+```
+
+Missing components remain null by default. An explicit `sparsePolicy:
+"zero-fill"` is required to treat sparse values as zero. A missing,
+non-finite, zero, or negative denominator produces a null metric and an
+`INVALID_DENOMINATOR` warning; negative numerators remain valid.
+`diagnosticWarningToFinding` adapts these warning payloads to the existing core
+`DiagnosticFinding` severity vocabulary when a consumer wants one findings
+stream; ASOP-oriented `DataReviewReport` statuses remain a separate contract.
+
+Use `createCasualtyQuarterlyMetrics` to override the source component keys,
+exposure key, frequency scale/unit, definition version, basis labels, and
+display metadata. The exported `CASUALTY_QUARTERLY_METRICS` constant is the
+standard one-million-scale configuration. `groupMap` combines arbitrary source
+groups at a requested output grain by summing their components first. When
+exposure rows are supplied, every contributing source group/origin must have
+exposure; a missing contributor makes the combined exposure null with an
+`INCOMPLETE_EXPOSURE` warning instead of using a partial denominator. Dated
+exposure copies honor valuation filters, while exposure rows without a
+valuation remain timeless.
+
+### Amount layers
+
+`deriveAmountLayers` evaluates a declarative layer on each claim row before
+aggregation. `CASUALTY_AMOUNT_LAYERS` documents two reference bases:
+
+- `$250K pre-capped total` reads already-limited paid and incurred components
+  as additive measures. The SDK does not attempt to recreate a lost
+  claim-level cap from an aggregate.
+- `Primary: $1M capped indemnity plus unlimited expense` caps paid and incurred
+  indemnity on each claim row, then adds expense without a cap.
+
+This distinction is intentional: capping an aggregate after summation is not
+equivalent to a claim-level layer and is not offered by the API.
+`createCasualtyAmountLayers` configures every source/output key, identifier,
+display label, and indemnity limit; arbitrary caller layers can be authored
+directly as `AmountLayerDefinition` values.
+
+### Views and periods
+
+The engine derives audited emergence points, nullable metric triangles, and a
+ragged latest diagonal from the same aggregated records. `sameMaturity` and
+`commonMaturity` select comparable points for any caller group IDs.
+`parseQuarterPeriod`, `compareQuarterPeriods`, `developmentAgeMonths`,
+`policyPeriodLabel`, `completeQuarterCutoff`, and
+`completeQuarterlyCutoffs` make period assumptions explicit. The default
+quarter-end convention starts at age 3; select the `elapsed` convention only
+for genuine age-zero observations.
+
+Core results deliberately contain no provenance, persistence state, or
+arbitrary application filter state. Use `createDiagnosticsProvenance` from
+`@actuarial-ts/compliance`, embed its record in
+`createBundle(...).parameters`, and record material judgment in the assumption
+ledger. Interchange consumers can carry the same record in `extensions`. No
+diagnostic-specific interchange schema is claimed.
 
 ## Validation against published results
 
