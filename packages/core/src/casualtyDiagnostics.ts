@@ -10,6 +10,13 @@ import { ReservingError } from "./types.js";
 const m = (measure: string): MeasureExpression => ({ op: "measure", measure });
 const sub = (left: MeasureExpression, right: MeasureExpression): MeasureExpression => ({ op: "subtract", left, right });
 
+function definedProperties<T extends object>(value: T | undefined): Partial<T> {
+  if (value === undefined) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== undefined),
+  ) as Partial<T>;
+}
+
 export interface CasualtyDiagnosticComponentKeys {
   reported: string;
   open: string;
@@ -83,7 +90,7 @@ function metric(
     ])],
     warningRules,
   };
-  return { ...definition, ...override };
+  return { ...definition, ...definedProperties(override) };
 }
 
 const paidWarning: readonly MetricWarningRule[] = [{
@@ -97,7 +104,10 @@ const paidWarning: readonly MetricWarningRule[] = [{
 export function createCasualtyQuarterlyMetrics(
   options: CasualtyMetricPresetOptions = {},
 ): readonly MetricDefinition[] {
-  const C = { ...CASUALTY_DIAGNOSTIC_COMPONENTS, ...options.components };
+  const C = {
+    ...CASUALTY_DIAGNOSTIC_COMPONENTS,
+    ...definedProperties(options.components),
+  };
   const frequencyScale = options.frequencyScale ?? 1_000_000;
   if (!Number.isFinite(frequencyScale) || frequencyScale <= 0) {
     throw new ReservingError("BAD_RATIO", `Casualty frequency scale must be positive; got ${frequencyScale}`);
@@ -159,7 +169,10 @@ export interface CasualtyAmountLayerOptions {
 export function createCasualtyAmountLayers(
   options: CasualtyAmountLayerOptions = {},
 ): readonly AmountLayerDefinition[] {
-  const C = { ...CASUALTY_DIAGNOSTIC_COMPONENTS, ...options.components };
+  const C = {
+    ...CASUALTY_DIAGNOSTIC_COMPONENTS,
+    ...definedProperties(options.components),
+  };
   const limit = options.primary?.indemnityLimit ?? 1_000_000;
   if (!Number.isFinite(limit) || limit <= 0) {
     throw new ReservingError("BAD_CAP", `Primary indemnity limit must be positive; got ${limit}`);

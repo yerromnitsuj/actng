@@ -3,7 +3,10 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
-## Unreleased
+## 0.4.0 — 2026-08-28
+
+All five packages version together (see VERSIONING.md for why lockstep is
+mandatory on 0.x). Publish order: core, interchange, data, compliance, agents.
 
 - **feat(core,data,compliance): reusable quarterly actuarial diagnostics primitives** —
   versioned caller-defined ratio-of-sums metrics with audited raw components,
@@ -15,6 +18,14 @@ together; this file covers them all.
   composes with current bundles, ledgers, and interchange extensions while
   keeping core results metadata-free; no new package or interchange schema was
   introduced.
+- **fix(core,data): diagnostics release hardening** — duplicate loss-row IDs
+  are rejected before aggregation; incomplete, conflicting, or partially
+  missing exposures remain null even under `zero-fill`; arbitrary metric,
+  component, and group keys are prototype-safe; output ordering is
+  locale-independent; omitted exposure datasets remain omitted through the
+  validated boundary; and measure-based review checks report missing inputs or
+  `not-evaluated` instead of false passes. Explicit `undefined` customization
+  values no longer erase casualty-preset defaults.
 - **feat(data,examples): reproducible real-world loss-run and exposure review**
   — annual-precision claim adaptation and exposure CSV import feed a tested
   French motor example with pinned source manifest, transparent transformations,
@@ -43,7 +54,9 @@ together; this file covers them all.
   overwrite newer committed state), `/api/chat` claims `CHAT_BUSY` before the
   body read (closing a check-then-set race), and the Python sidecar launcher
   turns spawn-level failures (e.g. a venv python missing its exec bit) into a
-  graceful boot error instead of a process crash.
+  graceful boot error instead of a process crash. Each Python app-server
+  instance now owns its sidecar target, so concurrent servers cannot redirect
+  one another's engine calls.
 
 - **fix(data): loss-run row errors now cite the physical file line** —
   interior blank lines and quoted embedded newlines no longer shift

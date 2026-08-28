@@ -1,8 +1,9 @@
 # ActNG - Codex Rules
 
 Open-source P&C actuarial SDK + the actuarial-interchange interop layer. npm-workspaces monorepo:
-`packages/{core,interchange,data,compliance,agents}` = the `@actuarial-ts/*` SDK
-(published to npm at 0.2.0, tag v0.2.0; core is the pure math;
+`packages/{core,interchange,data,compliance,agents}` = the lockstep-versioned
+`@actuarial-ts/*` SDK (see the package manifests and CHANGELOG for the current
+release; core is the pure math;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
 `npm install`), and `examples/reserve-review` — a runnable, TESTED end-to-end
 consumer of all five packages that exists so API awkwardness surfaces here
@@ -18,7 +19,7 @@ vectors).
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run example` - the end-to-end reserve review (reproduces Mack 1993's published unpaid and R ChainLadder's published SE)
-- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, and the reserve-review example - 766 tests (1 skipped). `npm run test:py` runs the 255-case Python interop suite (needs `.venv-interop`, Python >= 3.10). The R shore runs via `Rscript tools/interop/conformance.R` and in the `R interop conformance` workflow.
+- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, and the tested examples. `npm run test:py` runs the Python interop suite (needs `.venv-interop`, Python >= 3.10). The R shore runs via `Rscript tools/interop/conformance.R` and in the `R interop conformance` workflow.
 - `npm run typecheck` - every workspace (five @actuarial-ts packages + the example)
 
 ## Non-negotiable domain rules

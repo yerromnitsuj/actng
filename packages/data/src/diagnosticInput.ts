@@ -40,7 +40,8 @@ const diagnosticDatasetSchema = z.object({
 
 export interface ValidatedDiagnosticDataset {
   losses: DiagnosticLossRow[];
-  exposures: DiagnosticExposureRow[];
+  /** Omitted when the caller did not supply exposure data. */
+  exposures?: DiagnosticExposureRow[];
 }
 
 /** Zod-validates unknown diagnostic rows at the data package boundary. */
@@ -52,7 +53,10 @@ export function validateDiagnosticDataset(value: unknown): ValidatedDiagnosticDa
       .join("; ");
     throw new ReservingError("SHAPE", `Invalid diagnostic dataset: ${details}`);
   }
-  return { losses: parsed.data.losses, exposures: parsed.data.exposures ?? [] };
+  return {
+    losses: parsed.data.losses,
+    ...(parsed.data.exposures !== undefined ? { exposures: parsed.data.exposures } : {}),
+  };
 }
 
 /** Validates unknown exposure rows, then applies core's stable-key reconciliation. */
@@ -60,7 +64,7 @@ export function validateAndReconcileDiagnosticExposures(
   value: unknown,
 ): ReconciledDiagnosticExposures {
   const validated = validateDiagnosticDataset({ losses: [], exposures: value });
-  return reconcileDiagnosticExposureKeys(validated.exposures);
+  return reconcileDiagnosticExposureKeys(validated.exposures ?? []);
 }
 
 export type ValidatedMetricDiagnosticsOptions = Omit<RunMetricDiagnosticsInput, "losses" | "exposures">;

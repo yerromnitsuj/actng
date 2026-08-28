@@ -184,4 +184,60 @@ describe("reviewDiagnosticData", () => {
       expect(check(report, id).status).toBe("not-evaluated");
     }
   });
+
+  it("never passes measure-based checks when required measures are absent", () => {
+    const report = reviewDiagnosticData([
+      snapshot({ measures: {} }),
+    ], [exposure()], completeOptions);
+    for (const id of [
+      "count-reconciliation",
+      "closed-no-pay-exceeds-reported",
+      "paid-exceeds-incurred",
+      "cumulative-paid-decreasing",
+      "cumulative-reported-decreasing",
+      "closed-reopen-signal",
+      "layer-order",
+    ]) {
+      expect(check(report, id).status).toBe("not-evaluated");
+      expect(check(report, id).details[0]).toMatch(/^not evaluated:/);
+    }
+  });
+
+  it("reports partially missing required measures as findings", () => {
+    const report = reviewDiagnosticData([
+      snapshot({ measures: {
+        reportedCount: 10, openCount: 4, closedNoPayCount: 2,
+        paid250: 5, incurred250: 10, paidPrimary: 7,
+      } }),
+    ], [exposure()], completeOptions);
+    expect(check(report, "count-reconciliation")).toMatchObject({ status: "fail" });
+    expect(check(report, "count-reconciliation").findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ message: expect.stringContaining("closedWithPayCount") }),
+    ]));
+    expect(check(report, "paid-exceeds-incurred")).toMatchObject({ status: "fail" });
+    expect(check(report, "paid-exceeds-incurred").findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ message: expect.stringContaining("incurredPrimary") }),
+    ]));
+  });
+
+  it("does not claim cumulative checks passed when no timeline is comparable", () => {
+    const report = reviewDiagnosticData([snapshot()], [exposure()], completeOptions);
+    for (const id of [
+      "cumulative-paid-decreasing",
+      "cumulative-reported-decreasing",
+      "closed-reopen-signal",
+    ]) expect(check(report, id).status).toBe("not-evaluated");
+  });
+
+  it("still reports a known violation when another snapshot is incomplete", () => {
+    const report = reviewDiagnosticData([
+      snapshot({ measures: {
+        reportedCount: 5, openCount: 3, closedNoPayCount: 6, closedWithPayCount: 1,
+        paid250: 11, incurred250: 10, paidPrimary: 7, incurredPrimary: 14,
+      } }),
+      snapshot({ id: "incomplete", valuation: "2024Q2", ageMonths: 6, measures: {} }),
+    ], [exposure()], completeOptions);
+    expect(check(report, "count-reconciliation").status).toBe("fail");
+    expect(check(report, "paid-exceeds-incurred").status).toBe("fail");
+  });
 });

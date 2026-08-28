@@ -303,6 +303,84 @@ describe("amount layers", () => {
 });
 
 describe("exposure identity, aggregation, filtering, and views", () => {
+  it("rejects duplicate loss row ids before they can be double-counted", () => {
+    expect(() => run({
+      losses: [
+        loss({ id: "duplicate-row" }),
+        loss({ id: "duplicate-row", group: "another-group" }),
+      ],
+    })).toThrow(/Duplicate loss row id duplicate-row/);
+  });
+
+  it("orders fallback period labels and groups naturally without locale rules", () => {
+    const result = run({
+      losses: [
+        loss({ id: "ten-ten", group: "segment-10", origin: "AY10", valuation: "V10" }),
+        loss({ id: "two-ten", group: "segment-2", origin: "AY10", valuation: "V10" }),
+        loss({ id: "two-two", group: "segment-2", origin: "AY2", valuation: "V2" }),
+      ],
+      exposures: undefined,
+    });
+    expect(result.emergence.map((point) => `${point.group}/${point.origin}`)).toEqual([
+      "segment-2/AY2",
+      "segment-2/AY10",
+      "segment-10/AY10",
+    ]);
+    expect(result.triangles
+      .filter((triangle) => triangle.metricId === "reported-frequency")
+      .map((triangle) => triangle.group)).toEqual(["segment-2", "segment-10"]);
+  });
+
+  it("supports prototype-named metric, component, and mapped group keys", () => {
+    const measures = Object.assign(Object.create(null), {
+      ["__proto__"]: 2,
+      ["constructor"]: 4,
+    }) as Record<string, number>;
+    const metric: MetricDefinition = {
+      id: "__proto__",
+      version: "1",
+      displayName: "Prototype-safe ratio",
+      description: "Arbitrary caller keys remain data",
+      unit: "ratio",
+      scale: 1,
+      numerator: { op: "measure", measure: "__proto__" },
+      denominator: { op: "measure", measure: "constructor" },
+      numeratorLabel: "__proto__",
+      denominatorLabel: "constructor",
+      basis: "caller",
+      requiredComponents: ["__proto__", "constructor"],
+    };
+    const result = runMetricDiagnostics<{ label: string }>({
+      losses: [loss({ id: "prototype-row", group: "source", measures })],
+      metrics: [metric],
+      groupMap: { source: "__proto__" },
+      groupDimensions: { ["__proto__"]: { label: "prototype-safe group" } },
+    });
+    const point = result.emergence[0]!;
+    expect(point.group).toBe("__proto__");
+    expect(point.dimensions).toEqual({ label: "prototype-safe group" });
+    expect(Object.getPrototypeOf(point.components)).toBeNull();
+    expect(Object.getPrototypeOf(point.metrics)).toBeNull();
+    expect(Object.prototype.hasOwnProperty.call(point.metrics, "__proto__")).toBe(true);
+    expect(point.metrics["__proto__"]!.value).toBe(0.5);
+    expect(Object.getPrototypeOf(point.metrics["__proto__"]!.rawComponents)).toBeNull();
+    expect(point.components["__proto__"]).toBe(2);
+  });
+
+  it("uses only own groupMap properties", () => {
+    const metric: MetricDefinition = {
+      id: "identity", version: "1", displayName: "Identity", description: "identity", unit: "ratio", scale: 1,
+      numerator: { op: "measure", measure: "x" }, denominator: { op: "measure", measure: "x" },
+      numeratorLabel: "x", denominatorLabel: "x", basis: "caller", requiredComponents: ["x"],
+    };
+    const result = runMetricDiagnostics({
+      losses: [loss({ id: "own-map", group: "toString", measures: { x: 1 } })],
+      metrics: [metric],
+      groupMap: {},
+    });
+    expect(result.emergence[0]!.group).toBe("toString");
+  });
+
   it("counts one exposure key once across valuation snapshots", () => {
     const exposures = [
       { key: "vehicle-1", group: "all", origin: "2024Q1", valuation: "2024Q1", measures: { [C.exposure]: 10 } },
@@ -358,6 +436,41 @@ describe("exposure identity, aggregation, filtering, and views", () => {
     expect(incomplete.emergence[0]!.componentWarnings).toContainEqual(expect.objectContaining({ code: "INCOMPLETE_EXPOSURE" }));
   });
 
+  it("keeps conflicting, incomplete, and partially missing exposure components null under zero-fill", () => {
+    const conflicting = run({
+      sparsePolicy: "zero-fill",
+      exposures: [
+        { key: "x", group: "all", origin: "2024Q1", measures: { [C.exposure]: 10 } },
+        { key: "x", group: "all", origin: "2024Q1", measures: { [C.exposure]: 11 } },
+      ],
+    });
+    expect(conflicting.emergence[0]!.components[C.exposure]).toBeNull();
+    expect(conflicting.emergence[0]!.metrics["reported-frequency"]!.value).toBeNull();
+
+    const incomplete = run({
+      sparsePolicy: "zero-fill",
+      exposures: [
+        { key: "complete", group: "all", origin: "2024Q1", measures: { [C.exposure]: 10 } },
+        { key: "incomplete", group: "all", origin: "2024Q1", measures: { [C.exposure]: 20 }, complete: false },
+      ],
+    });
+    expect(incomplete.emergence[0]!.components[C.exposure]).toBeNull();
+    expect(incomplete.emergence[0]!.metrics["reported-frequency"]!.value).toBeNull();
+
+    const partiallyMissing = run({
+      sparsePolicy: "zero-fill",
+      exposures: [
+        { key: "observed", group: "all", origin: "2024Q1", measures: { [C.exposure]: 10 } },
+        { key: "missing", group: "all", origin: "2024Q1", measures: { [C.exposure]: null } },
+      ],
+    });
+    expect(partiallyMissing.emergence[0]!.components[C.exposure]).toBeNull();
+    expect(partiallyMissing.emergence[0]!.componentWarnings).toContainEqual(expect.objectContaining({
+      code: "MISSING_COMPONENT",
+      component: C.exposure,
+    }));
+  });
+
   it("fails closed when a combined source group has no exposure row", () => {
     const losses = [
       loss({ id: "a", group: "a", measures: { ...loss().measures, [C.reported]: 10 } }),
@@ -367,6 +480,7 @@ describe("exposure identity, aggregation, filtering, and views", () => {
       losses,
       exposures: [{ key: "a-exp", group: "a", origin: "2024Q1", measures: { [C.exposure]: 100 } }],
       groupMap: { a: "combined", b: "combined" },
+      sparsePolicy: "zero-fill",
     });
     const point = result.emergence[0]!;
     expect(point.components[C.exposure]).toBeNull();

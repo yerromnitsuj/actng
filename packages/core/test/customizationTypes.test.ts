@@ -1,6 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   CASUALTY_QUARTERLY_METRICS,
+  createCasualtyAmountLayers,
+  createCasualtyQuarterlyMetrics,
   deriveAmountLayers,
   runMetricDiagnostics,
   type AmountLayerDefinition,
@@ -16,6 +18,18 @@ interface CallerDimensions {
 }
 
 describe("public diagnostics customization types", () => {
+  it("does not let explicit undefined customization values erase preset defaults", () => {
+    const metric = createCasualtyQuarterlyMetrics({
+      components: { reported: undefined },
+      displayOverrides: { "reported-frequency": { displayName: undefined } },
+    })[0]!;
+    expect(metric.displayName).toBe("Reported claim frequency");
+    expect(metric.numerator).toEqual({ op: "measure", measure: "reportedCount" });
+
+    const layer = createCasualtyAmountLayers({ components: { paid250: undefined } })[0]!;
+    expect(layer.paidMeasure).toBe("paid250");
+  });
+
   it("preserves arbitrary caller group dimensions with custom components, layers, and metrics", () => {
     const rows: DiagnosticLossRow<CallerDimensions>[] = [{
       id: "row",

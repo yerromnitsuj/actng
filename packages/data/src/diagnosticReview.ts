@@ -189,6 +189,47 @@ function notEvaluated(code: DiagnosticReviewCheckCode, reason: string): DataChec
   return createNotEvaluatedDataCheck(code, DESCRIPTIONS[code], reason);
 }
 
+interface MeasureCoverage {
+  applicable: boolean;
+  findings: DataFinding[];
+}
+
+function reviewMeasureCoverage(
+  code: DiagnosticReviewCheckCode,
+  snapshots: readonly DiagnosticReviewSnapshot[],
+  measureNames: readonly string[],
+): MeasureCoverage {
+  const required = [...new Set(measureNames)];
+  const applicable = snapshots.some((row) => required.some(
+    (name) => Object.prototype.hasOwnProperty.call(row.measures, name),
+  ));
+  if (!applicable) return { applicable: false, findings: [] };
+
+  const findings: DataFinding[] = [];
+  for (const row of snapshots) {
+    const unavailable = required.filter((name) => finite(row.measures, name) === null);
+    if (unavailable.length > 0) findings.push(finding(
+      code,
+      `Required measure${unavailable.length === 1 ? "" : "s"} missing or non-finite: ${unavailable.join(", ")}`,
+      context(row),
+    ));
+  }
+  return { applicable: true, findings };
+}
+
+/** Known violations and incomplete inputs remain reportable; absent inputs do not pass. */
+function makeWithCoverage(
+  code: DiagnosticReviewCheckCode,
+  findings: readonly DataFinding[],
+  coverage: MeasureCoverage,
+  noApplicableReason: string,
+  options: ReviewDiagnosticDataOptions,
+): DataCheck {
+  const combined = [...findings, ...coverage.findings];
+  if (combined.length > 0 || coverage.applicable) return make(code, combined, options);
+  return notEvaluated(code, noApplicableReason);
+}
+
 /**
  * Quarterly aggregate diagnostics review using the existing DataReviewReport
  * status model. Every check remains listed, including checks that could not be
@@ -446,19 +487,54 @@ export function reviewDiagnosticData(
     }
   }
 
+  const countMeasures = [reported, open, cnp, cwp];
+  const amountMeasures = amountPairs.flatMap((pair) => [pair.paidMeasure, pair.incurredMeasure]);
+  const paidMeasures = amountPairs.map((pair) => pair.paidMeasure);
+  const comparableSnapshots = [...byTimeline.values()]
+    .filter((timeline) => timeline.length > 1)
+    .flat();
+  const layerComparisons = (options.layers ?? []).flatMap((layer) => {
+    if (!layer.broaderLayerId) return [];
+    const broader = layerById.get(layer.broaderLayerId);
+    return broader === undefined ? [] : [
+      layer.paidMeasure,
+      broader.paidMeasure,
+      layer.incurredMeasure,
+      broader.incurredMeasure,
+    ];
+  });
+
   const checks: DataCheck[] = [
     make("duplicate-aggregate-snapshot", duplicateSnapshots, options),
     make("duplicate-exposure-key", duplicateExposures, options),
     make("invalid-development-age", invalidAge, options),
     make("development-age-mismatch", ageMismatch, options),
     make("valuation-before-origin", valuationBefore, options),
-    make("count-reconciliation", countReconciliation, options),
-    make("closed-no-pay-exceeds-reported", cnpExceeds, options),
-    amountPairs.length > 0 ? make("paid-exceeds-incurred", paidExceeds, options) : notEvaluated("paid-exceeds-incurred", "no amountPairs configured"),
-    amountPairs.length > 0 ? make("cumulative-paid-decreasing", paidDecreasing, options) : notEvaluated("cumulative-paid-decreasing", "no amountPairs configured"),
-    make("cumulative-reported-decreasing", reportedDecreasing, options),
-    make("closed-reopen-signal", closedDecreasing, options),
-    (options.layers?.length ?? 0) > 0 ? make("layer-order", layerOrder, options) : notEvaluated("layer-order", "no layer definitions configured"),
+    makeWithCoverage("count-reconciliation", countReconciliation, reviewMeasureCoverage("count-reconciliation", snapshots, countMeasures), "no snapshots contain the configured count measures", options),
+    makeWithCoverage("closed-no-pay-exceeds-reported", cnpExceeds, reviewMeasureCoverage("closed-no-pay-exceeds-reported", snapshots, [reported, cnp]), `no snapshots contain ${reported} or ${cnp}`, options),
+    amountPairs.length > 0
+      ? makeWithCoverage("paid-exceeds-incurred", paidExceeds, reviewMeasureCoverage("paid-exceeds-incurred", snapshots, amountMeasures), "no snapshots contain the configured paid/incurred measures", options)
+      : notEvaluated("paid-exceeds-incurred", "no amountPairs configured"),
+    amountPairs.length > 0
+      ? comparableSnapshots.length > 0
+        ? makeWithCoverage("cumulative-paid-decreasing", paidDecreasing, reviewMeasureCoverage("cumulative-paid-decreasing", comparableSnapshots, paidMeasures), "no comparable snapshots contain the configured paid measures", options)
+        : notEvaluated("cumulative-paid-decreasing", "no group/origin timeline has multiple snapshots")
+      : notEvaluated("cumulative-paid-decreasing", "no amountPairs configured"),
+    comparableSnapshots.length > 0
+      ? makeWithCoverage("cumulative-reported-decreasing", reportedDecreasing, reviewMeasureCoverage("cumulative-reported-decreasing", comparableSnapshots, [reported]), `no comparable snapshots contain ${reported}`, options)
+      : notEvaluated("cumulative-reported-decreasing", "no group/origin timeline has multiple snapshots"),
+    comparableSnapshots.length > 0
+      ? makeWithCoverage("closed-reopen-signal", closedDecreasing, reviewMeasureCoverage("closed-reopen-signal", comparableSnapshots, [cnp, cwp]), `no comparable snapshots contain ${cnp} or ${cwp}`, options)
+      : notEvaluated("closed-reopen-signal", "no group/origin timeline has multiple snapshots"),
+    (options.layers?.length ?? 0) > 0
+      ? makeWithCoverage(
+        "layer-order",
+        layerOrder,
+        reviewMeasureCoverage("layer-order", snapshots, layerComparisons),
+        "no snapshots contain measures for a valid broader-layer relationship",
+        options,
+      )
+      : notEvaluated("layer-order", "no layer definitions configured"),
     (options.controlTotals?.length ?? 0) > 0 ? make("layer-control-reconciliation", controlReconciliation, options) : notEvaluated("layer-control-reconciliation", "no control totals configured"),
     make("loss-without-exposure", lossWithoutExposure, options),
     make("exposure-without-loss", exposureWithoutLoss, options),

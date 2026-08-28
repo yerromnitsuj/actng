@@ -2,6 +2,69 @@ import { compareQuarterPeriods, parseQuarterPeriod } from "./periods.js";
 import { ReservingError, type DiagnosticFinding } from "./types.js";
 import { safeRatio } from "./util.js";
 
+function nullRecord<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
+function copyOwnRecord<T>(source: Readonly<Record<string, T>>): Record<string, T> {
+  const copy = nullRecord<T>();
+  for (const key of Object.keys(source)) copy[key] = source[key]!;
+  return copy;
+}
+
+function nullRecordForKeys<T>(keys: Iterable<string>, value: T): Record<string, T> {
+  const record = nullRecord<T>();
+  for (const key of keys) record[key] = value;
+  return record;
+}
+
+function ownRecordValue<T>(
+  record: Readonly<Record<string, T>> | undefined,
+  key: string,
+): T | undefined {
+  return record !== undefined && Object.prototype.hasOwnProperty.call(record, key)
+    ? record[key]
+    : undefined;
+}
+
+function compareCodeUnits(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+/**
+ * Stable natural ordering without the host's locale or ICU data. ASCII digit
+ * runs compare by numeric magnitude; all other text compares by UTF-16 code
+ * units, with the original spelling as a total-order tie breaker.
+ */
+function compareDeterministicStrings(a: string, b: string): number {
+  if (a === b) return 0;
+  const left = a.match(/\d+|\D+/g) ?? [""];
+  const right = b.match(/\d+|\D+/g) ?? [""];
+  const count = Math.min(left.length, right.length);
+  for (let index = 0; index < count; index++) {
+    const leftPart = left[index]!;
+    const rightPart = right[index]!;
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) {
+      const leftSignificant = leftPart.replace(/^0+(?=\d)/, "");
+      const rightSignificant = rightPart.replace(/^0+(?=\d)/, "");
+      if (leftSignificant.length !== rightSignificant.length) {
+        return leftSignificant.length - rightSignificant.length;
+      }
+      const magnitude = compareCodeUnits(leftSignificant, rightSignificant);
+      if (magnitude !== 0) return magnitude;
+      if (leftPart.length !== rightPart.length) return leftPart.length - rightPart.length;
+    } else {
+      const text = compareCodeUnits(leftPart, rightPart);
+      if (text !== 0) return text;
+    }
+  }
+  if (left.length !== right.length) return left.length - right.length;
+  return compareCodeUnits(a, b);
+}
+
 export type SparseValuePolicy = "preserve-null" | "zero-fill";
 export type DiagnosticMeasureMap = Readonly<Record<string, number | null | undefined>>;
 
@@ -93,13 +156,13 @@ export interface MeasureAggregate {
 }
 
 export function aggregateMeasures(rows: readonly DiagnosticMeasureMap[]): MeasureAggregate {
-  const components: Record<string, MeasureAggregateCell> = {};
+  const components = nullRecord<MeasureAggregateCell>();
   const names = new Set(rows.flatMap((row) => Object.keys(row)));
   for (const name of names) components[name] = { sum: 0, observed: 0, missing: 0, nonFinite: 0 };
   for (const row of rows) {
     for (const name of names) {
       const cell = components[name]!;
-      const value = row[name];
+      const value = ownRecordValue(row, name);
       if (value === null || value === undefined) cell.missing++;
       else if (!Number.isFinite(value)) cell.nonFinite++;
       else {
@@ -112,7 +175,7 @@ export function aggregateMeasures(rows: readonly DiagnosticMeasureMap[]): Measur
 }
 
 export function mergeMeasureAggregates(aggregates: readonly MeasureAggregate[]): MeasureAggregate {
-  const components: Record<string, MeasureAggregateCell> = {};
+  const components = nullRecord<MeasureAggregateCell>();
   for (const aggregate of aggregates) {
     for (const [name, value] of Object.entries(aggregate.components)) {
       const target = components[name] ?? (components[name] = { sum: 0, observed: 0, missing: 0, nonFinite: 0 });
@@ -134,7 +197,7 @@ export function finalizeMeasureAggregate(
   aggregate: MeasureAggregate,
   sparsePolicy: SparseValuePolicy = "preserve-null",
 ): FinalizedMeasures {
-  const measures: Record<string, number | null> = {};
+  const measures = nullRecord<number | null>();
   const warnings: DiagnosticWarning[] = [];
   for (const [name, cell] of Object.entries(aggregate.components)) {
     if (cell.nonFinite > 0) {
@@ -175,7 +238,7 @@ export function measureExpressionComponents(expression: MeasureExpression): stri
 
 function evaluateExpression(expression: MeasureExpression, measures: DiagnosticMeasureMap): number | null {
   if (expression.op === "measure") {
-    const value = measures[expression.measure];
+    const value = ownRecordValue(measures, expression.measure);
     return value !== null && value !== undefined && Number.isFinite(value) ? value : null;
   }
   if (expression.op === "subtract") {
@@ -205,7 +268,7 @@ export function evaluateMetric(
     ...measureExpressionComponents(definition.numerator),
     ...measureExpressionComponents(definition.denominator),
   ]);
-  const rawComponents: Record<string, number | null> = {};
+  const rawComponents = nullRecord<number | null>();
   const warnings = inheritedWarnings.filter(
     (warning) =>
       warning.component === undefined ||
@@ -214,7 +277,7 @@ export function evaluateMetric(
       warning.code === "CONFLICTING_EXPOSURE",
   );
   for (const name of required) {
-    const value = components[name];
+    const value = ownRecordValue(components, name);
     rawComponents[name] = value !== null && value !== undefined && Number.isFinite(value) ? value : null;
     if (value === null || value === undefined) {
       if (!warnings.some((w) => w.code === "MISSING_COMPONENT" && w.component === name)) {
@@ -320,14 +383,14 @@ export interface DiagnosticClaimRow<T = unknown> {
 
 function evaluateLayerExpression(expression: LayerExpression, measures: DiagnosticMeasureMap): number | null {
   if (expression.op === "measure") {
-    const value = measures[expression.measure];
+    const value = ownRecordValue(measures, expression.measure);
     return value !== null && value !== undefined && Number.isFinite(value) ? value : null;
   }
   if (expression.op === "claim-cap") {
     if (!Number.isFinite(expression.limit) || expression.limit <= 0) {
       throw new ReservingError("BAD_CAP", `Claim-level layer cap must be positive; got ${expression.limit}`);
     }
-    const value = measures[expression.measure];
+    const value = ownRecordValue(measures, expression.measure);
     return value !== null && value !== undefined && Number.isFinite(value)
       ? Math.min(value, expression.limit)
       : null;
@@ -347,7 +410,7 @@ export function deriveAmountLayers<T>(
   layers: readonly AmountLayerDefinition[],
 ): DiagnosticClaimRow<T>[] {
   return rows.map((row) => {
-    const measures: Record<string, number | null | undefined> = { ...row.measures };
+    const measures = copyOwnRecord(row.measures);
     for (const layer of layers) {
       measures[layer.paidMeasure] = evaluateLayerExpression(layer.paid, row.measures);
       measures[layer.incurredMeasure] = evaluateLayerExpression(layer.incurred, row.measures);
@@ -448,7 +511,9 @@ function rowIncluded<TDimensions>(row: DiagnosticLossRow<TDimensions>, filter: D
 
 function sameMeasures(a: DiagnosticMeasureMap, b: DiagnosticMeasureMap): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const key of keys) if (!Object.is(a[key] ?? null, b[key] ?? null)) return false;
+  for (const key of keys) {
+    if (!Object.is(ownRecordValue(a, key) ?? null, ownRecordValue(b, key) ?? null)) return false;
+  }
   return true;
 }
 
@@ -478,7 +543,7 @@ export function reconcileDiagnosticExposureKeys<TDimensions = unknown>(
   for (const row of rows) {
     const previous = seen.get(row.key);
     if (!previous) {
-      seen.set(row.key, { ...row, measures: { ...row.measures } });
+      seen.set(row.key, { ...row, measures: copyOwnRecord(row.measures) });
       continue;
     }
     const consistent =
@@ -500,7 +565,7 @@ export function reconcileDiagnosticExposureKeys<TDimensions = unknown>(
     seen.set(row.key, {
       ...previous,
       complete: false,
-      measures: Object.fromEntries([...names].map((name) => [name, null])),
+      measures: nullRecordForKeys(names, null),
     });
     if (!findings.some((finding) =>
       finding.code === "CONFLICTING_EXPOSURE" && finding.exposureKey === row.key
@@ -523,13 +588,15 @@ function periodCompare(a: string, b: string): number {
     parseQuarterPeriod(b);
     return compareQuarterPeriods(a, b);
   } catch {
-    return a.localeCompare(b, undefined, { numeric: true });
+    return compareDeterministicStrings(a, b);
   }
 }
 
 interface ExposureBucket {
   aggregate: MeasureAggregate;
   warnings: DiagnosticWarning[];
+  /** Exposure components that must fail closed even when loss sparsity is zero-filled. */
+  nullComponents: ReadonlySet<string>;
 }
 
 type ExpectedExposureSources = ReadonlyMap<string, ReadonlySet<string>>;
@@ -559,7 +626,7 @@ function aggregateExposures<TDimensions>(
   const byCell = new Map<string, DiagnosticExposureRow<TDimensions>[]>();
   const sourceKeysByCell = new Map<string, Set<string>>();
   for (const row of reconciled.exposures) {
-    const group = groupMap?.[row.group] ?? row.group;
+    const group = ownRecordValue(groupMap, row.group) ?? row.group;
     const key = `${group}\u0000${row.origin}`;
     const list = byCell.get(key) ?? [];
     list.push(row);
@@ -573,6 +640,7 @@ function aggregateExposures<TDimensions>(
   for (const key of cellKeys) {
     const cellRows = byCell.get(key) ?? [];
     const warnings: DiagnosticWarning[] = [];
+    const nullComponents = new Set<string>();
     const safeRows = cellRows.map((row) => {
       warnings.push(...(findingsByKey.get(row.key) ?? []).map((finding) => ({
         code: finding.code,
@@ -580,12 +648,14 @@ function aggregateExposures<TDimensions>(
         message: finding.message,
       })));
       if (row.complete === false) {
+        const componentNames = Object.keys(row.measures);
+        for (const name of componentNames) nullComponents.add(name);
         warnings.push({
           code: "INCOMPLETE_EXPOSURE",
           exposureKey: row.key,
           message: `Exposure key ${row.key} is marked incomplete`,
         });
-        return Object.fromEntries(Object.keys(row.measures).map((name) => [name, null]));
+        return nullRecordForKeys(componentNames, null);
       }
       return row.measures;
     });
@@ -601,10 +671,15 @@ function aggregateExposures<TDimensions>(
       }
       const exposureMeasures = new Set(cellRows.flatMap((row) => Object.keys(row.measures)));
       if (exposureMeasures.size > 0) {
-        safeRows.push(Object.fromEntries([...exposureMeasures].map((name) => [name, null])));
+        for (const name of exposureMeasures) nullComponents.add(name);
+        safeRows.push(nullRecordForKeys(exposureMeasures, null));
       }
     }
-    result.set(key, { aggregate: aggregateMeasures(safeRows), warnings });
+    const aggregate = aggregateMeasures(safeRows);
+    for (const [name, cell] of Object.entries(aggregate.components)) {
+      if (cell.missing > 0) nullComponents.add(name);
+    }
+    result.set(key, { aggregate, warnings, nullComponents });
   }
   return result;
 }
@@ -618,6 +693,11 @@ export function runMetricDiagnostics<TDimensions = unknown>(
   input: RunMetricDiagnosticsInput<TDimensions>,
 ): MetricDiagnosticsResult<TDimensions> {
   const sparsePolicy = input.sparsePolicy ?? "preserve-null";
+  const lossIds = new Set<string>();
+  for (const row of input.losses) {
+    if (lossIds.has(row.id)) throw new ReservingError("BAD_TABLE", `Duplicate loss row id ${row.id}`);
+    lossIds.add(row.id);
+  }
   const metricIds = new Set<string>();
   for (const metric of input.metrics) {
     if (metricIds.has(metric.id)) throw new ReservingError("BAD_TABLE", `Duplicate metric id ${metric.id}`);
@@ -637,7 +717,7 @@ export function runMetricDiagnostics<TDimensions = unknown>(
     if (!Number.isFinite(row.ageMonths) || row.ageMonths < 0) {
       throw new ReservingError("BAD_DATE", `Loss row ${row.id} has invalid development age ${row.ageMonths}`);
     }
-    const group = input.groupMap?.[row.group] ?? row.group;
+    const group = ownRecordValue(input.groupMap, row.group) ?? row.group;
     if (input.exposures !== undefined) {
       const exposureCellKey = `${group}\u0000${row.origin}`;
       const sourceKeys = expectedExposureSources.get(exposureCellKey) ?? new Set<string>();
@@ -655,7 +735,7 @@ export function runMetricDiagnostics<TDimensions = unknown>(
       }
       bucket.rows.push(row.measures);
     } else {
-      const dimensions = input.groupDimensions?.[group] ?? (group === row.group ? row.dimensions : undefined);
+      const dimensions = ownRecordValue(input.groupDimensions, group) ?? (group === row.group ? row.dimensions : undefined);
       lossBuckets.set(key, {
         group,
         ...(dimensions !== undefined ? { dimensions } : {}),
@@ -679,7 +759,17 @@ export function runMetricDiagnostics<TDimensions = unknown>(
     const aggregate = exposure ? mergeMeasureAggregates([loss, exposure.aggregate]) : loss;
     const finalized = finalizeMeasureAggregate(aggregate, sparsePolicy);
     const componentWarnings = [...finalized.warnings, ...(exposure?.warnings ?? [])];
-    const metrics: Record<string, MetricEvaluation> = {};
+    for (const name of exposure?.nullComponents ?? []) {
+      finalized.measures[name] = null;
+      if (!componentWarnings.some((warning) => warning.code === "MISSING_COMPONENT" && warning.component === name)) {
+        componentWarnings.push({
+          code: "MISSING_COMPONENT",
+          component: name,
+          message: `${name} exposure is incomplete and remains null`,
+        });
+      }
+    }
+    const metrics = nullRecord<MetricEvaluation>();
     for (const definition of input.metrics) {
       metrics[definition.id] = evaluateMetric(definition, finalized.measures, componentWarnings);
     }
@@ -695,11 +785,11 @@ export function runMetricDiagnostics<TDimensions = unknown>(
     });
   }
   emergence.sort((a, b) =>
-    a.group.localeCompare(b.group) || periodCompare(a.origin, b.origin) || a.ageMonths - b.ageMonths || periodCompare(a.valuation, b.valuation),
+    compareDeterministicStrings(a.group, b.group) || periodCompare(a.origin, b.origin) || a.ageMonths - b.ageMonths || periodCompare(a.valuation, b.valuation),
   );
 
   const triangles: DiagnosticMetricTriangle[] = [];
-  for (const group of [...new Set(emergence.map((point) => point.group))].sort()) {
+  for (const group of [...new Set(emergence.map((point) => point.group))].sort(compareDeterministicStrings)) {
     const groupPoints = emergence.filter((point) => point.group === group);
     for (const metric of input.metrics) triangles.push(metricTriangleFromEmergence(groupPoints, metric.id));
   }
@@ -728,7 +818,7 @@ export function metricTriangleFromEmergence(
   const ageIndex = new Map(ages.map((age, index) => [age, index]));
   const cells: (MetricEvaluation | null)[][] = origins.map(() => ages.map(() => null));
   for (const point of points) {
-    const metric = point.metrics[metricId];
+    const metric = ownRecordValue(point.metrics, metricId);
     if (!metric) throw new ReservingError("BAD_TABLE", `Emergence point has no metric ${metricId}`);
     const i = originIndex.get(point.origin)!;
     const j = ageIndex.get(point.ageMonths)!;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CASUALTY_QUARTERLY_METRICS } from "@actuarial-ts/core";
+import { CASUALTY_QUARTERLY_METRICS, runMetricDiagnostics } from "@actuarial-ts/core";
 import {
   runValidatedMetricDiagnostics,
   validateAndReconcileDiagnosticExposures,
@@ -31,6 +31,28 @@ describe("diagnostic data boundary", () => {
       metrics: [CASUALTY_QUARTERLY_METRICS[0]!],
     });
     expect(result.emergence[0]!.metrics["reported-frequency"]!.value).toBe(200_000);
+  });
+
+  it("preserves omitted exposures so count-only metrics do not invent exposure warnings", () => {
+    const metric = CASUALTY_QUARTERLY_METRICS.find((item) => item.id === "open-share")!;
+    const result = runValidatedMetricDiagnostics({
+      losses: [{
+        ...dataset.losses[0]!,
+        measures: { reportedCount: 2, openCount: 1 },
+      }],
+    }, { metrics: [metric] });
+    const direct = runMetricDiagnostics({
+      losses: [{
+        ...dataset.losses[0]!,
+        measures: { reportedCount: 2, openCount: 1 },
+      }],
+      metrics: [metric],
+    });
+    expect(validateDiagnosticDataset({ losses: dataset.losses })).not.toHaveProperty("exposures");
+    expect(result.emergence[0]!.metrics[metric.id]).toEqual(direct.emergence[0]!.metrics[metric.id]);
+    expect(result.emergence[0]!.metrics[metric.id]!.warnings).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "INCOMPLETE_EXPOSURE" }),
+    ]));
   });
 
   it("validates and reconciles repeated exposure keys without value-based deduplication", () => {

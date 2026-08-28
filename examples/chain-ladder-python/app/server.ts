@@ -74,17 +74,12 @@ const DEV_COLS = AGES.length - 1;
  * never invoked in that case), otherwise resolveSidecar(REPO_ROOT), which
  * itself prefers SIDECAR_URL/SIDECAR_TOKEN from the environment (CI's path)
  * and falls back to launching .venv-interop's sidecar as a child that lives
- * and dies with this server. The resolved url/token write to this
- * module-level binding, so the most recent call's values win process-wide —
- * a single-instance demo posture, not per-instance isolation. A resolve
- * failure in CLI mode fails loud with the exact boot/setup commands, the
+ * and dies with this server. Each server instance closes over its own
+ * resolved target, so concurrent test/demo servers cannot redirect one
+ * another's engine calls. A resolve failure in CLI mode fails loud with the exact boot/setup commands, the
  * same posture as the CLI spine (../src/main.ts), rather than starting a
  * server whose every /api/compute silently 502s.
  */
-let sidecarUrl = "";
-let sidecarToken = "";
-let sidecarLaunched = false;
-let sidecarPid: number | undefined;
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 // ------------------------------------------------------------- the engine
@@ -102,7 +97,13 @@ const ENGINE = { name: "chainladder-python 0.9.2", badge: "computed by the sidec
  * "strict_allows_pure_value_only_selections"), with this honest provenance.
  */
 const SELECTION_PROVENANCE = "interactive selection in the example app";
-async function computeWithEngine(selections: LdfSelections) {
+interface EngineTarget {
+  url: string;
+  token: string;
+  launched: boolean;
+}
+
+async function computeWithEngine(selections: LdfSelections, target: EngineTarget) {
   const t0 = Date.now();
   const selectionDoc = selectionsToDoc(selections, {
     triangleDoc,
@@ -115,11 +116,11 @@ async function computeWithEngine(selections: LdfSelections) {
     strictness: "refuse",
   }).doc;
   const remote = await callRemoteMethod(
-    { sidecarUrl, method: "Chainladder", headers: { authorization: `Bearer ${sidecarToken}` }, timeoutMs: 120_000 },
+    { sidecarUrl: target.url, method: "Chainladder", headers: { authorization: `Bearer ${target.token}` }, timeoutMs: 120_000 },
     { triangles: { primary: triangleDoc }, selection: selectionDoc },
   );
   if (!remote.success) {
-    const suffix = sidecarLaunched
+    const suffix = target.launched
       ? " — the sidecar this app launched has died; restart the app"
       : " — boot one with: PYTHONPATH=interop SIDECAR_TOKEN=... .venv-interop/bin/python -m sidecar";
     throw new Error(`${remote.error.code}: ${remote.error.message}` + suffix);
@@ -189,7 +190,7 @@ function currentDisclosure(): string {
       },
     ],
     ledger,
-    sdkVersion: "0.3.0",
+    sdkVersion: "0.4.0",
     generatedAt: new Date().toISOString(), // host clock, see docblock
   });
 }
@@ -222,18 +223,6 @@ const getTriangle = defineActuarialTool({
   inputSchema: z.object({}),
   execute: async () => ({ success: true as const, doc: triangleDoc }),
 });
-const computeChainLadder = defineActuarialTool({
-  id: "compute_chain_ladder",
-  description:
-    "Runs the chain ladder for the given per-column LDFs and tail factor; returns per-origin and total ultimates and unpaid",
-  kind: "read",
-  tenant: "required",
-  inputSchema: z.object(selectionShape),
-  execute: async (input) => ({
-    success: true as const,
-    ...(await computeWithEngine({ selected: input.selected, tailFactor: input.tailFactor })),
-  }),
-});
 const proposeSelection = defineActuarialTool({
   id: "propose_selection",
   description:
@@ -250,7 +239,6 @@ const proposeSelection = defineActuarialTool({
     return { success: true as const, acknowledged: true };
   },
 });
-const registry = toolRegistry([getTriangle, computeChainLadder, proposeSelection]);
 
 // -------------------------------------------------------------- http bits
 type Json = Record<string, unknown>;
@@ -321,10 +309,25 @@ export async function startAppServer(
       throw err;
     }
   }
-  sidecarUrl = sidecarHandle.url;
-  sidecarToken = sidecarHandle.token;
-  sidecarLaunched = sidecarHandle.launched;
-  sidecarPid = sidecarHandle.pid;
+  const engineTarget: EngineTarget = {
+    url: sidecarHandle.url,
+    token: sidecarHandle.token,
+    launched: sidecarHandle.launched,
+  };
+  const compute = (selections: LdfSelections) => computeWithEngine(selections, engineTarget);
+  const computeChainLadder = defineActuarialTool({
+    id: "compute_chain_ladder",
+    description:
+      "Runs the chain ladder for the given per-column LDFs and tail factor; returns per-origin and total ultimates and unpaid",
+    kind: "read",
+    tenant: "required",
+    inputSchema: z.object(selectionShape),
+    execute: async (input) => ({
+      success: true as const,
+      ...(await compute({ selected: input.selected, tailFactor: input.tailFactor })),
+    }),
+  });
+  const registry = toolRegistry([getTriangle, computeChainLadder, proposeSelection]);
   const advisorEnabled =
     options.advisor !== undefined || (options.advisorEnabled ?? Boolean(process.env.ANTHROPIC_API_KEY));
   // Constructing the advisor is free and offline; only chat turns call the
@@ -380,7 +383,7 @@ export async function startAppServer(
           return;
         }
         try {
-          sendJson(res, 200, { success: true, ...(await computeWithEngine(parsed.data)) });
+          sendJson(res, 200, { success: true, ...(await compute(parsed.data)) });
         } catch (err) {
           sendJson(res, 502, envelope("ENGINE_FAILED", err instanceof Error ? err.message : String(err)));
         }
@@ -419,7 +422,7 @@ export async function startAppServer(
           );
           let totals: Committed["totals"] = null;
           try {
-            totals = (await computeWithEngine({ selected, tailFactor })).totals;
+            totals = (await compute({ selected, tailFactor })).totals;
           } catch {
             totals = null; // engine down: the commit still records; disclosure omits the summary
           }
@@ -511,6 +514,7 @@ export async function startAppServer(
   const port = typeof address === "object" && address !== null ? address.port : requestedPort;
   return {
     port,
+    sidecar: { launched: sidecarHandle.launched, pid: sidecarHandle.pid },
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((e) => {
@@ -526,8 +530,8 @@ export async function startAppServer(
 if (process.argv[1]?.endsWith("server.ts")) {
   const app = await startAppServer();
   console.log(`chain-ladder app (${ENGINE.badge}) → http://127.0.0.1:${app.port}`);
-  if (sidecarLaunched) {
-    console.log(`sidecar     auto-launched (pid ${sidecarPid}, port 18091)`);
+  if (app.sidecar.launched) {
+    console.log(`sidecar     auto-launched (pid ${app.sidecar.pid}, port 18091)`);
   }
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log("advisor disabled: export ANTHROPIC_API_KEY=... to enable the chat panel");
