@@ -1,6 +1,14 @@
 # Publishing @actuarial-ts to npm
 
-**Release record:** v0.3.0 shipped 2026-07-19 — all five packages published
+**Release record:** v0.4.0 shipped 2026-08-28 — all five packages published
+to npm in dependency order, tag `v0.4.0` pushed, and GitHub Release created.
+The diagnostics release adds reusable quarterly metrics, aggregate data review,
+period helpers, and compliance provenance. CI, Python interop, and R interop
+were green; all five tarballs were inspected; and a clean registry install
+confirmed working imports, one deduplicated core version, diagnostic calculation,
+validated-input semantics, review statuses, and package version stamps.
+
+v0.3.0 shipped 2026-07-19 — all five packages published
 to npm, tag `v0.3.0` pushed, GitHub Release created. The review-remediation
 release; breaking changes and migrations in the CHANGELOG's 0.3.0 section.
 Registry-install smoke test passed (Mack row-order invariance, ODP dof guard,
