@@ -1,5 +1,14 @@
 # Publishing @actuarial-ts to npm
 
+**Release record:** v0.5.0 shipped 2026-08-31 — all five packages published
+to npm in dependency order, tag `v0.5.0` pushed, and GitHub Release created.
+The release adds closed-with-pay and open shares of non-CNP claims to the
+quarterly casualty diagnostic catalog without changing the original twenty
+definitions. The full TypeScript, Python, and R verification matrix passed;
+all five tarballs were inspected; and a clean registry install confirmed all
+five public imports, one deduplicated core version, 22 metrics in the intended
+order, exact `50 / 70` and `20 / 70` calculations, and package version stamps.
+
 **Release record:** v0.4.0 shipped 2026-08-28 — all five packages published
 to npm in dependency order, tag `v0.4.0` pushed, and GitHub Release created.
 The diagnostics release adds reusable quarterly metrics, aggregate data review,
@@ -28,8 +37,8 @@ FUTURE releases.
 
 `npm login` once on the publishing machine (`npm whoami` must answer).
 Publishing requires an account with owner/admin rights on the
-`actuarial-ts` org; 2FA in auth-and-writes mode prompts for an OTP per
-publish.
+`actuarial-ts` org; auth-and-writes protection can require an interactive
+2FA or security-key confirmation for each publish.
 
 ## Release (per version)
 
@@ -65,6 +74,6 @@ consumer's `npm install` resolving an unpublished dependency.
 
 - Verify: `npm view @actuarial-ts/core version` and a scratch-project
   install + import smoke test.
-- Tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (v0.1.0, v0.2.0 and v0.3.0: done).
+- Tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (v0.1.0 through v0.5.0: done).
 - Org hygiene (one-time, if not yet done): require 2FA for publishing in
   the org settings on npmjs.com.
