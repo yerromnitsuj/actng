@@ -11,7 +11,7 @@
 | Exposure counted once by key | `ExposureRecord` has amounts but no stable identity | Add new API in `core`; validate/review in `data` | Exposure identity changes the numeric denominator, so pure key deduplication is enforced beside aggregation. Data owns unknown-input validation and duplicate/incomplete review. Equal values on distinct keys remain distinct. |
 | Pre-capped amount bases | Existing additive triangle amounts | Reuse unchanged through configuration | A pre-capped source measure is consumed as additive data and never re-capped. This does not compete with `capClaims`. |
 | Claim-level indemnity cap plus unlimited expense | `capClaims` caps total `ClaimSnapshot` paid/incurred | Add a narrow claim-row layer expression | `capClaims` cannot separate indemnity and expense. The new expression is explicitly claim-row-only, uses named split components, and never caps an aggregate; existing capping behavior is untouched. |
-| Optional 20-metric casualty preset | Fixed `runDiagnostics` grids | Add configurable factory and default preset in `core` | `createCasualtyQuarterlyMetrics` expresses all formulas over generic definitions while allowing source/exposure keys, scales, units, labels, bases, and versions to vary. `runDiagnostics` remains unchanged. |
+| Optional 22-metric casualty preset | Fixed `runDiagnostics` grids | Add configurable factory and default preset in `core` | `createCasualtyQuarterlyMetrics` expresses all formulas over generic definitions while allowing source/exposure keys, scales, units, labels, bases, and versions to vary. `runDiagnostics` remains unchanged. The two additional count-share definitions use the same `reported - CNP` denominator expression as the existing non-CNP frequency and severity definitions. |
 | Nullable diagnostic triangle | `Triangle`, `triangleFromLongFormat` | Add diagnostic-specific triangle result | `TriangleKind` is a deliberately closed reserving contract. A metric triangle carries audit cells without weakening or duplicating reserving triangle semantics. |
 | Emergence series and exact reconciliation | Existing triangle values only | Add new API in `core` | Emergence is the canonical aggregated record; triangle and maturity views project the same `MetricEvaluation` objects, preventing recomputation drift. |
 | Same maturity, ragged latest diagonal, and selected-group common maturity | `lastObservedIndex` helpers and triangle shape conventions | Add small pure view helpers | The helpers are diagnostic projections and do not perform reserving selections or create chart/view models. |
@@ -24,7 +24,7 @@
 | Unknown-input runtime validation | Zod-backed data boundaries | Add Zod schemas in `data` | `validateDiagnosticDataset` and its runner wrapper preserve a zero-dependency core and follow current boundary conventions. |
 | Diagnostic run provenance | Compliance bundle, ledger, disclosure, canonical payload | Add composition helper in `compliance` | `createDiagnosticsProvenance` snapshots serializable formula/metric/layer/exposure/convention metadata. Core numeric results carry no app filters or persistence state; hashes/timestamps/signatures remain caller-owned. |
 | Cross-language serialized diagnostics contract | Interchange `extensions`, custom measures, bundle parameters | Reuse unchanged | No current Python/R consumer requires a diagnostic document. Existing extensions carry provenance, avoiding a premature schema/version/conformance change. |
-| Realistic inputs and golden evidence | Published-value fixtures; real French motor example | Extend tests/examples | A small documented quarterly casualty fixture covers two groups, ragged maturity, repeated exposure, and exact 20-metric results; the full French motor example remains the real-world ingestion/review fixture. |
+| Realistic inputs and golden evidence | Published-value fixtures; real French motor example | Extend tests/examples | A small documented quarterly casualty fixture covers two groups, ragged maturity, repeated exposure, and exact 22-metric results; the full French motor example remains the real-world ingestion/review fixture. |
 | UI, charts, database, geography lists, packaging, advisor, cloud | None in SDK packages | Keep application-owned / decline | These concerns do not provide reusable deterministic actuarial math and would violate dependency and non-goal boundaries. |
 
 ## Boundaries
@@ -65,7 +65,7 @@
 
 | Required evidence | Authoritative source/test |
 |---|---|
-| All 20 formulas, both amount bases, raw audit fields | `packages/core/test/metricDiagnostics.test.ts` hand-calculated 20-value golden and documented quarterly fixture golden |
+| All 22 formulas, both amount bases, raw audit fields | `packages/core/test/metricDiagnostics.test.ts` hand-calculated 22-value golden and documented quarterly fixture golden |
 | Single/multi-group ratio-of-sums; average-of-ratios counterexample | Generic aggregation tests plus `groupMap` selected-group test |
 | Missing/zero/sparse/non-finite/negative denominator and overflow behavior | Metric null/denominator/overflow tests; deterministic generated finite-output invariant |
 | Negative case numerator and caller warning rule | Negative-case evaluation test with `NEGATIVE_CASE_REVIEW` callback |

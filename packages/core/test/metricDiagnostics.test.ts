@@ -59,7 +59,86 @@ function run(overrides: Partial<RunMetricDiagnosticsInput> = {}) {
 }
 
 describe("generic metric evaluation and casualty preset", () => {
-  it("matches hand calculations for all twenty reference metrics on both amount bases", () => {
+  it("keeps the original twenty definitions unchanged and inserts two unique non-CNP shares in place", () => {
+    const ids = CASUALTY_QUARTERLY_METRICS.map((metric) => metric.id);
+    expect(ids).toHaveLength(22);
+    expect(new Set(ids).size).toBe(22);
+    expect(ids).toEqual([
+      "reported-frequency",
+      "open-frequency",
+      "closed-no-pay-frequency",
+      "closed-with-pay-frequency",
+      "non-closed-no-pay-frequency",
+      "closed-no-pay-share",
+      "closed-with-pay-share",
+      "closed-with-pay-share-of-non-cnp",
+      "open-share",
+      "open-share-of-non-cnp",
+      "paid-to-incurred-250",
+      "paid-to-incurred-primary",
+      "incurred-250-per-exposure",
+      "incurred-primary-per-exposure",
+      "incurred-250-per-non-cnp",
+      "incurred-primary-per-non-cnp",
+      "paid-250-per-exposure",
+      "paid-primary-per-exposure",
+      "paid-250-per-closed-with-pay",
+      "paid-primary-per-closed-with-pay",
+      "case-250-per-open",
+      "case-primary-per-open",
+    ]);
+
+    const originalDefinitions = CASUALTY_QUARTERLY_METRICS
+      .filter((metric) => !metric.id.endsWith("share-of-non-cnp"))
+      .map((metric) => ({ id: metric.id, numerator: metric.numerator, denominator: metric.denominator }));
+    expect(originalDefinitions).toEqual([
+      { id: "reported-frequency", numerator: { op: "measure", measure: C.reported }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "open-frequency", numerator: { op: "measure", measure: C.open }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "closed-no-pay-frequency", numerator: { op: "measure", measure: C.closedNoPay }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "closed-with-pay-frequency", numerator: { op: "measure", measure: C.closedWithPay }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "non-closed-no-pay-frequency", numerator: { op: "subtract", left: { op: "measure", measure: C.reported }, right: { op: "measure", measure: C.closedNoPay } }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "closed-no-pay-share", numerator: { op: "measure", measure: C.closedNoPay }, denominator: { op: "measure", measure: C.reported } },
+      { id: "closed-with-pay-share", numerator: { op: "measure", measure: C.closedWithPay }, denominator: { op: "measure", measure: C.reported } },
+      { id: "open-share", numerator: { op: "measure", measure: C.open }, denominator: { op: "measure", measure: C.reported } },
+      { id: "paid-to-incurred-250", numerator: { op: "measure", measure: C.paid250 }, denominator: { op: "measure", measure: C.incurred250 } },
+      { id: "paid-to-incurred-primary", numerator: { op: "measure", measure: C.paidPrimary }, denominator: { op: "measure", measure: C.incurredPrimary } },
+      { id: "incurred-250-per-exposure", numerator: { op: "measure", measure: C.incurred250 }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "incurred-primary-per-exposure", numerator: { op: "measure", measure: C.incurredPrimary }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "incurred-250-per-non-cnp", numerator: { op: "measure", measure: C.incurred250 }, denominator: { op: "subtract", left: { op: "measure", measure: C.reported }, right: { op: "measure", measure: C.closedNoPay } } },
+      { id: "incurred-primary-per-non-cnp", numerator: { op: "measure", measure: C.incurredPrimary }, denominator: { op: "subtract", left: { op: "measure", measure: C.reported }, right: { op: "measure", measure: C.closedNoPay } } },
+      { id: "paid-250-per-exposure", numerator: { op: "measure", measure: C.paid250 }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "paid-primary-per-exposure", numerator: { op: "measure", measure: C.paidPrimary }, denominator: { op: "measure", measure: C.exposure } },
+      { id: "paid-250-per-closed-with-pay", numerator: { op: "measure", measure: C.paid250 }, denominator: { op: "measure", measure: C.closedWithPay } },
+      { id: "paid-primary-per-closed-with-pay", numerator: { op: "measure", measure: C.paidPrimary }, denominator: { op: "measure", measure: C.closedWithPay } },
+      { id: "case-250-per-open", numerator: { op: "subtract", left: { op: "measure", measure: C.incurred250 }, right: { op: "measure", measure: C.paid250 } }, denominator: { op: "measure", measure: C.open } },
+      { id: "case-primary-per-open", numerator: { op: "subtract", left: { op: "measure", measure: C.incurredPrimary }, right: { op: "measure", measure: C.paidPrimary } }, denominator: { op: "measure", measure: C.open } },
+    ]);
+
+    for (const [id, numeratorMeasure] of [
+      ["closed-with-pay-share-of-non-cnp", C.closedWithPay],
+      ["open-share-of-non-cnp", C.open],
+    ] as const) {
+      const definition = CASUALTY_QUARTERLY_METRICS.find((metric) => metric.id === id)!;
+      expect(definition).toMatchObject({
+        id,
+        version: "casualty-quarterly-v1",
+        unit: "ratio",
+        scale: 1,
+        numerator: { op: "measure", measure: numeratorMeasure },
+        denominator: {
+          op: "subtract",
+          left: { op: "measure", measure: C.reported },
+          right: { op: "measure", measure: C.closedNoPay },
+        },
+        numeratorLabel: id.startsWith("closed-with-pay") ? "closed-with-pay claims" : "open claims",
+        denominatorLabel: "reported less closed-no-pay claims",
+        basis: "count",
+        requiredComponents: [numeratorMeasure, C.reported, C.closedNoPay],
+      });
+    }
+  });
+
+  it("matches hand calculations for all twenty-two reference metrics on both amount bases", () => {
     const values = Object.fromEntries(
       Object.entries(run().emergence[0]!.metrics).map(([id, result]) => [id, result.value]),
     );
@@ -71,7 +150,9 @@ describe("generic metric evaluation and casualty preset", () => {
       "non-closed-no-pay-frequency": 35,
       "closed-no-pay-share": 0.3,
       "closed-with-pay-share": 0.5,
+      "closed-with-pay-share-of-non-cnp": 50 / 70,
       "open-share": 0.2,
+      "open-share-of-non-cnp": 20 / 70,
       "paid-to-incurred-250": 0.75,
       "paid-to-incurred-primary": 0.75,
       "incurred-250-per-exposure": 0.4,
@@ -85,6 +166,73 @@ describe("generic metric evaluation and casualty preset", () => {
       "case-250-per-open": 10_000,
       "case-primary-per-open": 15_000,
     });
+    expect(values["closed-with-pay-share-of-non-cnp"]! + values["open-share-of-non-cnp"]!).toBe(1);
+  });
+
+  it("calculates both non-CNP shares as ratios of sums across unequal rows", () => {
+    const definitions = CASUALTY_QUARTERLY_METRICS.filter((metric) =>
+      metric.id === "closed-with-pay-share-of-non-cnp" || metric.id === "open-share-of-non-cnp"
+    );
+    const result = runMetricDiagnostics({
+      losses: [
+        loss({ id: "small", measures: { [C.reported]: 20, [C.closedNoPay]: 10, [C.closedWithPay]: 9, [C.open]: 1 } }),
+        loss({ id: "large", measures: { [C.reported]: 100, [C.closedNoPay]: 10, [C.closedWithPay]: 9, [C.open]: 81 } }),
+      ],
+      metrics: definitions,
+    });
+    const metrics = result.emergence[0]!.metrics;
+    expect(metrics["closed-with-pay-share-of-non-cnp"]).toMatchObject({
+      rawNumerator: 18,
+      rawDenominator: 100,
+      value: 0.18,
+    });
+    expect(metrics["open-share-of-non-cnp"]).toMatchObject({
+      rawNumerator: 82,
+      rawDenominator: 100,
+      value: 0.82,
+    });
+    expect((9 / 10 + 9 / 90) / 2).not.toBe(0.18);
+    expect((1 / 10 + 81 / 90) / 2).not.toBe(0.82);
+  });
+
+  it("keeps standard fail-closed warnings for invalid non-CNP denominators", () => {
+    for (const id of ["closed-with-pay-share-of-non-cnp", "open-share-of-non-cnp"] as const) {
+      const definition = CASUALTY_QUARTERLY_METRICS.find((metric) => metric.id === id)!;
+      const numeratorMeasure = id.startsWith("closed-with-pay") ? C.closedWithPay : C.open;
+      for (const components of [
+        { [numeratorMeasure]: 1, [C.reported]: 10, [C.closedNoPay]: 10 },
+        { [numeratorMeasure]: 1, [C.reported]: 9, [C.closedNoPay]: 10 },
+      ]) {
+        const result = evaluateMetric(definition, components);
+        expect(result.value).toBeNull();
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: "INVALID_DENOMINATOR" }));
+      }
+      for (const missing of [C.reported, C.closedNoPay]) {
+        const components = {
+          [numeratorMeasure]: 1,
+          [C.reported]: 10,
+          [C.closedNoPay]: 2,
+        } as Record<string, number | undefined>;
+        delete components[missing];
+        const result = evaluateMetric(definition, components);
+        expect(result.value).toBeNull();
+        expect(result.warnings).toContainEqual(expect.objectContaining({
+          code: "MISSING_COMPONENT",
+          component: missing,
+        }));
+      }
+      const nonFinite = evaluateMetric(definition, {
+        [numeratorMeasure]: 1,
+        [C.reported]: Number.POSITIVE_INFINITY,
+        [C.closedNoPay]: 2,
+      });
+      expect(nonFinite.value).toBeNull();
+      expect(nonFinite.warnings).toContainEqual(expect.objectContaining({
+        code: "NON_FINITE_COMPONENT",
+        component: C.reported,
+      }));
+      expect(nonFinite.warnings).toContainEqual(expect.objectContaining({ code: "INVALID_DENOMINATOR" }));
+    }
   });
 
   it("aggregates components first and divides once, never averaging row ratios", () => {
@@ -208,6 +356,14 @@ describe("generic metric evaluation and casualty preset", () => {
           displayName: "Reported claims per thousand nights",
           denominatorLabel: "nights stayed",
         },
+        "closed-with-pay-share-of-non-cnp": {
+          displayName: "Paid-closure share of active claims",
+          description: "Caller display description",
+        },
+        "open-share-of-non-cnp": {
+          displayName: "Open share of active claims",
+          denominatorLabel: "active reported claims",
+        },
       },
     });
     const reportedFrequency = configured.find((metric) => metric.id === "reported-frequency")!;
@@ -219,6 +375,24 @@ describe("generic metric evaluation and casualty preset", () => {
     });
     expect(reportedFrequency.displayName).toBe("Reported claims per thousand nights");
     expect(reportedFrequency.requiredComponents).toEqual(["claimsReported", "nightsStayed"]);
+    const configuredCwp = configured.find((metric) => metric.id === "closed-with-pay-share-of-non-cnp")!;
+    const configuredOpen = configured.find((metric) => metric.id === "open-share-of-non-cnp")!;
+    expect(configuredCwp).toMatchObject({
+      displayName: "Paid-closure share of active claims",
+      description: "Caller display description",
+      numerator: { op: "measure", measure: "claimsClosedWithPay" },
+      denominator: {
+        op: "subtract",
+        left: { op: "measure", measure: "claimsReported" },
+        right: { op: "measure", measure: "claimsClosedNoPay" },
+      },
+    });
+    expect(configuredOpen).toMatchObject({
+      displayName: "Open share of active claims",
+      denominatorLabel: "active reported claims",
+      numerator: { op: "measure", measure: "claimsOpen" },
+      denominator: configuredCwp.denominator,
+    });
   });
 
   it("represents caller-defined reported-above-threshold counts without SDK vocabulary changes", () => {
@@ -652,7 +826,7 @@ describe("exposure identity, aggregation, filtering, and views", () => {
       metrics: CASUALTY_QUARTERLY_METRICS,
     });
     expect(result.emergence).toHaveLength(5);
-    expect(result.triangles).toHaveLength(40);
+    expect(result.triangles).toHaveLength(44);
     const golden = result.emergence.find(
       (point) => point.group === "fleet-a" && point.origin === "2024Q4" && point.ageMonths === 3,
     )!;

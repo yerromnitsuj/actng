@@ -104,7 +104,7 @@ Three rules hold everywhere:
 | `trend` | `analyzeTrend`, `trendValue` (log-linear, windowed) | Werner & Modlin, *Basic Ratemaking* ch. 6 |
 | `onlevel` | `parallelogramOnLevel` (exact piecewise-linear earning geometry) | Werner & Modlin ch. 5 |
 | `diagnostics` | `runDiagnostics` (paid/incurred drift, case adequacy, closure rates), `calendarYearTest` | Mack (1994) calendar-year rank test |
-| `metricDiagnostics` | generic ratio-of-sums metrics, claim-level amount layers, emergence/triangle/maturity views, optional 20-metric casualty preset | actuarial diagnostic practice |
+| `metricDiagnostics` | generic ratio-of-sums metrics, claim-level amount layers, emergence/triangle/maturity views, optional 22-metric casualty preset | actuarial diagnostic practice |
 | `periods` | quarterly parse/format/compare, development age, fiscal/policy mapping, complete-quarter cutoffs | explicit SDK conventions |
 | `canonical` | `canonicalJson` (RFC 8785 / JCS canonical serialization), `fnv1a64` (integrity tagging aid — not a security control) | RFC 8785 |
 
@@ -174,6 +174,17 @@ exposure; a missing contributor makes the combined exposure null with an
 `INCOMPLETE_EXPOSURE` warning instead of using a partial denominator. Dated
 exposure copies honor valuation filters, while exposure rows without a
 valuation remain timeless.
+
+The preset's count-share definitions include the reported-base ratios
+`CNP / reported`, `CWP / reported`, and `open / reported`, plus two
+non-CNP-base ratios:
+
+- `closed-with-pay-share-of-non-cnp` = `CWP / (reported - CNP)`
+- `open-share-of-non-cnp` = `open / (reported - CNP)`
+
+Both use the ordinary metric evaluator, so aggregation is a ratio of component
+sums and a non-positive or incomplete `reported - CNP` denominator fails
+closed with the standard structured warnings.
 
 ### Amount layers
 

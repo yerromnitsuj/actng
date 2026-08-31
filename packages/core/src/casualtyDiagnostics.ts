@@ -100,7 +100,7 @@ const paidWarning: readonly MetricWarningRule[] = [{
   tolerance: 1e-9,
 }];
 
-/** Builds the optional 20-metric reference preset from caller-selected keys and display metadata. */
+/** Builds the optional 22-metric reference preset from caller-selected keys and display metadata. */
 export function createCasualtyQuarterlyMetrics(
   options: CasualtyMetricPresetOptions = {},
 ): readonly MetricDefinition[] {
@@ -129,7 +129,9 @@ export function createCasualtyQuarterlyMetrics(
     metric("non-closed-no-pay-frequency", "Non-closed-no-pay frequency", "Reported less closed-no-pay claims per scaled exposure units", frequencyUnit, frequencyScale, nonClosedNoPay, m(C.exposure), "reported less closed-no-pay claims", "exposure", countBasis, version, override("non-closed-no-pay-frequency")),
     metric("closed-no-pay-share", "Closed-no-pay share", "Closed-no-pay claims divided by reported claims", "ratio", 1, m(C.closedNoPay), m(C.reported), "closed-no-pay claims", "reported claims", countBasis, version, override("closed-no-pay-share")),
     metric("closed-with-pay-share", "Closed-with-pay share", "Closed-with-pay claims divided by reported claims", "ratio", 1, m(C.closedWithPay), m(C.reported), "closed-with-pay claims", "reported claims", countBasis, version, override("closed-with-pay-share")),
+    metric("closed-with-pay-share-of-non-cnp", "Closed-with-pay share of non-CNP claims", "Closed-with-pay claims divided by reported less closed-no-pay claims", "ratio", 1, m(C.closedWithPay), nonClosedNoPay, "closed-with-pay claims", "reported less closed-no-pay claims", countBasis, version, override("closed-with-pay-share-of-non-cnp")),
     metric("open-share", "Open share", "Open claims divided by reported claims", "ratio", 1, m(C.open), m(C.reported), "open claims", "reported claims", countBasis, version, override("open-share")),
+    metric("open-share-of-non-cnp", "Open share of non-CNP claims", "Open claims divided by reported less closed-no-pay claims", "ratio", 1, m(C.open), nonClosedNoPay, "open claims", "reported less closed-no-pay claims", countBasis, version, override("open-share-of-non-cnp")),
     metric("paid-to-incurred-250", "Paid-to-incurred ($250K)", "Paid divided by incurred on the pre-capped $250K basis", "ratio", 1, m(C.paid250), m(C.incurred250), "$250K paid", "$250K incurred", limitedBasis, version, override("paid-to-incurred-250"), paidWarning),
     metric("paid-to-incurred-primary", "Paid-to-incurred (primary)", "Paid divided by incurred on the primary basis", "ratio", 1, m(C.paidPrimary), m(C.incurredPrimary), "primary paid", "primary incurred", primaryBasis, version, override("paid-to-incurred-primary"), paidWarning),
     metric("incurred-250-per-exposure", "Incurred per exposure ($250K)", "$250K incurred divided by exposure", "currency-per-exposure", 1, m(C.incurred250), m(C.exposure), "$250K incurred", "exposure", limitedBasis, version, override("incurred-250-per-exposure")),

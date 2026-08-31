@@ -382,7 +382,7 @@ export function runRealWorldLossRunReview(
       "Gross written premium is retained but is not used as earned premium; Cape Cod uses insurance-year exposure as a pure-premium base.",
       "The all-year volume-weighted factors and 1.0 tail are illustrative selections, not conclusions for production use.",
     ],
-    sdkVersion: "0.4.0",
+    sdkVersion: "0.5.0",
     generatedAt: GENERATED_AT,
   });
 

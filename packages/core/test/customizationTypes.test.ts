@@ -71,7 +71,7 @@ describe("public diagnostics customization types", () => {
 
     expectTypeOf(result).toEqualTypeOf<MetricDiagnosticsResult<CallerDimensions>>();
     expectTypeOf(result.emergence[0]!.dimensions).toEqualTypeOf<CallerDimensions | undefined>();
-    expect(CASUALTY_QUARTERLY_METRICS).toHaveLength(20);
+    expect(CASUALTY_QUARTERLY_METRICS).toHaveLength(22);
     expect(result.emergence[0]!.metrics[metric.id]!.value).toBe(0.6);
   });
 });

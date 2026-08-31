@@ -26,7 +26,7 @@ describe("diagnostics provenance composition", () => {
       metrics: [CASUALTY_QUARTERLY_METRICS[0]!],
     });
     const provenance = createDiagnosticsProvenance({
-      packageVersions: { "@actuarial-ts/core": "0.4.0", "@actuarial-ts/compliance": "0.4.0" },
+      packageVersions: { "@actuarial-ts/core": "0.5.0", "@actuarial-ts/compliance": "0.5.0" },
       formulaPack: { id: "fleet-quarterly", version: "2" },
       metrics: [CASUALTY_QUARTERLY_METRICS[0]!],
       layers: CASUALTY_AMOUNT_LAYERS,
@@ -42,7 +42,7 @@ describe("diagnostics provenance composition", () => {
       inputs: { ids: provenance.inputReferences },
       parameters: { diagnostics: provenance },
       results: result.emergence,
-      sdkVersions: { "@actuarial-ts/core": "0.4.0", "@actuarial-ts/compliance": "0.4.0" },
+      sdkVersions: { "@actuarial-ts/core": "0.5.0", "@actuarial-ts/compliance": "0.5.0" },
       createdAt: "2026-08-27T00:00:00.000Z",
     });
     expect(verifyBundle(bundle, result.emergence)).toEqual({ reproduced: true });

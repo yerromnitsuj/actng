@@ -121,7 +121,7 @@ function currentDisclosure(): string {
       },
     ],
     ledger,
-    sdkVersion: "0.4.0",
+    sdkVersion: "0.5.0",
     generatedAt: new Date().toISOString(), // host clock, see docblock
   });
 }

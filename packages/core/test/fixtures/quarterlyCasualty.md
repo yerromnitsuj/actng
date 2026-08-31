@@ -5,7 +5,7 @@ Q4-to-Q1 development, a ragged latest diagonal, and exposure rows repeated
 across valuation snapshots under the same stable key.
 
 The independently calculated expectations for `fleet-a`, origin `2024Q4`, age
-3 are exported beside the inputs in `quarterlyCasualty.ts`. They cover all 20
+3 are exported beside the inputs in `quarterlyCasualty.ts`. They cover all 22
 reference metrics. The source components are:
 
 | Component | Value |
@@ -18,6 +18,6 @@ reference metrics. The source components are:
 For example, reported frequency is `40 / 820,000 * 1,000,000`, incurred
 severity is `520,000 / (40 - 8)`, and primary average case is
 `(710,000 - 360,000) / 18`. The test asserts the full expected record exactly,
-along with five emergence points, forty group/metric triangles, three ragged
+along with five emergence points, forty-four group/metric triangles, three ragged
 latest-diagonal points, and single-count exposure despite the repeated
 valuation copy.

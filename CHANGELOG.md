@@ -3,6 +3,20 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
+## Unreleased
+
+## 0.5.0 — 2026-08-31
+
+All five packages version together (see VERSIONING.md for why lockstep is
+mandatory on 0.x). Publish order: core, interchange, data, compliance, agents.
+
+- **feat(core): add two generalized non-CNP count-share diagnostics** — the
+  optional casualty quarterly preset now contains 22 definitions, adding
+  `closed-with-pay-share-of-non-cnp` (`CWP / (reported - CNP)`) and
+  `open-share-of-non-cnp` (`open / (reported - CNP)`). Both are configurable
+  through the existing component and display overrides and retain the generic
+  ratio-of-sums, null, invalid-denominator, and structured-warning behavior.
+
 ## 0.4.0 — 2026-08-28
 
 All five packages version together (see VERSIONING.md for why lockstep is
