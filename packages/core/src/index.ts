@@ -128,6 +128,12 @@ export {
   sameMaturity,
   validateDiagnosticGroupingConfiguration,
 } from "./diagnosticRunner.js";
+export { evaluateDiagnosticReviewRules } from "./diagnosticReview.js";
+export type {
+  DiagnosticReviewCoordinate,
+  DiagnosticReviewEvaluationScope,
+  DiagnosticReviewRuleEvaluation,
+} from "./diagnosticReview.js";
 export type {
   CommonMaturityResult,
   DiagnosticEmergencePoint,

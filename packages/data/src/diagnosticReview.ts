@@ -44,7 +44,7 @@ export interface DiagnosticLayerControlTotal {
   valuation?: string;
 }
 
-export interface DiagnosticGroupingAssignment {
+export interface LegacyDiagnosticGroupingAssignment {
   key: string;
   group: string;
   source?: Pick<DataFindingContext, "sourceFile" | "sourceRow">;
@@ -94,7 +94,7 @@ export interface ReviewDiagnosticDataOptions {
   amountPairs?: readonly DiagnosticAmountPair[];
   layers?: readonly DiagnosticLayerReviewDefinition[];
   controlTotals?: readonly DiagnosticLayerControlTotal[];
-  groupingAssignments?: readonly DiagnosticGroupingAssignment[];
+  groupingAssignments?: readonly LegacyDiagnosticGroupingAssignment[];
   cachedFormulaProvenance?: readonly CachedFormulaProvenance[];
   ageConvention?: DevelopmentAgeConvention;
   tolerance?: { absolute?: number; relative?: number; ageMonths?: number };
@@ -464,7 +464,7 @@ export function reviewDiagnosticData(
   }
 
   const inconsistentGrouping: DataFinding[] = [];
-  const groupByKey = new Map<string, DiagnosticGroupingAssignment>();
+  const groupByKey = new Map<string, LegacyDiagnosticGroupingAssignment>();
   for (const assignment of options.groupingAssignments ?? []) {
     const previous = groupByKey.get(assignment.key);
     if (previous && previous.group !== assignment.group) {

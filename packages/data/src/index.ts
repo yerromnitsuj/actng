@@ -5,6 +5,8 @@ export * from "./diagnosticInput.js";
 export * from "./diagnosticDefinition.js";
 export * from "./version.js";
 export * from "./diagnosticReview.js";
+export * from "./diagnosticPreparedReview.js";
+export * from "./casualtyDiagnosticReview.js";
 export * from "./lossRun.js";
 export * from "./longFormat.js";
 export * from "./review.js";

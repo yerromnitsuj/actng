@@ -13,8 +13,10 @@ const definition: DiagnosticDefinition = {
 describe("diagnostic run input boundary",()=>{
   it("validates, brands, and executes the complete run",()=>{
     const validated=validateDiagnosticRunInput({definition,losses:[{rowType:"aggregate",recordId:"r1",sourceGroup:"all",origin:"2024",valuation:"2024",complete:true,measures:{claims:2}}]});
-    const result=runValidatedMetricDiagnostics(validated);
-    expect(result.emergence[0]!.metrics.identity!.calculation.value).toBe(1);
+    const outcome=runValidatedMetricDiagnostics(validated);
+    expect(outcome.status).toBe("completed");
+    if(outcome.status!=="completed")throw new Error("expected completed run");
+    expect(outcome.result.emergence[0]!.metrics.identity!.calculation.value).toBe(1);
   });
   it("rejects stale fields and row-grain mismatches atomically",()=>{
     expect(()=>validateDiagnosticRunInput({definition,losses:[{rowType:"aggregate",recordId:"r1",sourceGroup:"all",origin:"2024",valuation:"2024",ageMonths:12,complete:true,measures:{claims:2}}]})).toThrow();

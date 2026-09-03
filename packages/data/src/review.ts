@@ -25,12 +25,26 @@ import type { ClaimSnapshot, Triangle } from "@actuarial-ts/core";
 export type DataCheckStatus = "pass" | "warning" | "fail" | "not-evaluated";
 
 export interface DataFindingContext {
+  ruleId?: string;
+  measureId?: string;
+  expressionPath?: string;
+  offendingKey?: string;
+  groupingKey?: string;
+  cachedEvidenceId?: string;
+  sourceGroup?: string;
   origin?: string;
   valuation?: string;
+  developmentAge?: number;
+  ageUnit?: string;
+  recordId?: string;
+  claimId?: string;
+  exposureKey?: string;
   ageMonths?: number;
   group?: string;
   sourceFile?: string;
   sourceRow?: number;
+  sources?: readonly import("@actuarial-ts/core").DiagnosticSourceLocation[];
+  reviewScope?: import("@actuarial-ts/core").DiagnosticReviewEvaluationScope;
 }
 
 export interface DataFinding {
@@ -46,7 +60,7 @@ export interface DataCheck {
   status: DataCheckStatus;
   details: string[];
   /** Additive structured detail for consumers that should not parse prose. */
-  findings?: DataFinding[];
+  findings: DataFinding[];
 }
 
 export interface DataReviewReport {
@@ -78,13 +92,14 @@ function makeCheck(
     description,
     status: findings.length > 0 ? statusWhenFound : "pass",
     details: capDetails(findings),
+    findings: [],
   };
 }
 
 function notEvaluated(id: string, description: string, reason: string): DataCheck {
   // A check that could not run is REPORTED as such - counting it as "pass"
   // would overstate the review in the very disclosure this feeds.
-  return { id, description, status: "not-evaluated", details: [`not evaluated: ${reason}`] };
+  return { id, description, status: "not-evaluated", details: [`not evaluated: ${reason}`], findings: [] };
 }
 
 function summarize(checks: DataCheck[]): DataReviewReport {
@@ -111,7 +126,7 @@ export function createStructuredDataCheck(
     description,
     status: findings.length > 0 ? statusWhenFound : "pass",
     details,
-    findings: capped,
+    findings: [...findings],
   };
 }
 
