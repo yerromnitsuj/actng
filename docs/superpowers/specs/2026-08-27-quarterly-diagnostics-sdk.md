@@ -1,5 +1,10 @@
 # Quarterly diagnostics SDK design
 
+> **Status: HISTORICAL (`0.4.0` / `0.5.0`).** This document accurately records
+> the shipped quarterly diagnostics design and is not current implementation
+> guidance for the planned `0.6.0` API. It is superseded by the approved
+> [generalized diagnostics SDK design](2026-09-03-generalized-diagnostics-sdk.md).
+
 ## Gap analysis
 
 | Requested capability | Existing API/module that overlaps it | Decision | Reason and compatibility implications |
