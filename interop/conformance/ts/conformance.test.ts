@@ -10,6 +10,7 @@ import {
   docToSelections,
   docToTriangle,
   parseDocument,
+  stampIntegrity,
   triangleToDoc,
 } from "../../../packages/interchange/src/index.js";
 import { verifyBundle } from "../../../packages/compliance/src/index.js";
@@ -62,6 +63,25 @@ function readText(fixtureName: string, file: string): string {
   return readFileSync(path.join(FIXTURES_DIR, fixtureName, file), "utf8");
 }
 
+/** The conformance corpus is a permanently frozen 1.0 publication. Writers
+ * now emit 1.1; this projection proves their semantic output still reproduces
+ * the historical bytes without rewriting the corpus. */
+function asFrozenV1<T>(value: T): T {
+  const copy = structuredClone(value) as unknown;
+  const stack: unknown[] = [copy];
+  while (stack.length > 0) {
+    const item = stack.pop();
+    if (item === null || typeof item !== "object") continue;
+    if (Array.isArray(item)) stack.push(...item);
+    else {
+      const record = item as Record<string, unknown>;
+      if (typeof record["interchangeVersion"] === "string") record["interchangeVersion"] = "1.0.0";
+      stack.push(...Object.values(record));
+    }
+  }
+  return copy as T;
+}
+
 for (const fixture of CONFORMANCE_FIXTURES) {
   describe(`conformance fixture ${fixture.name}`, () => {
     const triangleRaw = readJson(fixture.name, "triangle.json");
@@ -91,10 +111,10 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       // run. Regeneration requires a documented convention change.
       const authored = authorFixture(fixture);
       const asFile = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;
-      expect(readText(fixture.name, "triangle.json")).toBe(asFile(authored.triangleDoc));
-      expect(readText(fixture.name, "selection.json")).toBe(asFile(authored.selectionDoc));
-      expect(readText(fixture.name, "deterministic-cl.json")).toBe(asFile(authored.clResultDoc));
-      expect(readText(fixture.name, "mack1993-vw.json")).toBe(asFile(authored.mackResultDoc));
+      expect(readText(fixture.name, "triangle.json")).toBe(asFile(asFrozenV1(authored.triangleDoc)));
+      expect(readText(fixture.name, "selection.json")).toBe(asFile(asFrozenV1(authored.selectionDoc)));
+      expect(readText(fixture.name, "deterministic-cl.json")).toBe(asFile(asFrozenV1(authored.clResultDoc)));
+      expect(readText(fixture.name, "mack1993-vw.json")).toBe(asFile(asFrozenV1(authored.mackResultDoc)));
       expect(readText(fixture.name, "expectations.json")).toBe(asFile(authored.expectations));
     });
 
@@ -175,7 +195,7 @@ for (const fixture of CONFORMANCE_FIXTURES) {
         selectionDoc,
         replay.selections,
       );
-      expect(recomputed).toEqual(clResultRaw);
+      expect(asFrozenV1(recomputed)).toEqual(clResultRaw);
     });
 
   });
@@ -260,7 +280,7 @@ describe("conformance: wrapped reproducibility bundle (Phase B, spec 3.2)", () =
 
   it("wrapped-bundle.json is byte-frozen: a fresh authoring run reproduces the file exactly", () => {
     const authored = authorWrappedBundleDoc(fixture, authorFixture(fixture));
-    expect(readText("taylor-ashe", "wrapped-bundle.json")).toBe(`${JSON.stringify(authored, null, 2)}\n`);
+    expect(readText("taylor-ashe", "wrapped-bundle.json")).toBe(`${JSON.stringify(stampIntegrity(asFrozenV1(authored)), null, 2)}\n`);
   });
 
   it("parses with an intact outer tag and wrapped verify reproduces inner AND outer", () => {

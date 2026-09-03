@@ -6,6 +6,7 @@ import { methodResultDocSchema, stochasticResultDocSchema } from "./result.js";
 import { studyDocSchema } from "./study.js";
 import { bundleDocSchema } from "./bundle.js";
 import { crosscheckReportDocSchema } from "./crosscheck.js";
+import { diagnosticDefinitionDocSchema } from "./diagnosticDefinition.js";
 
 /**
  * Schema publication manifest (spec 3.4). The zod schemas here are the
@@ -46,11 +47,16 @@ export const INTERCHANGE_SCHEMA_MANIFEST: readonly SchemaManifestEntry[] = [
     fileName: "crosscheck-report.schema.json",
     schema: crosscheckReportDocSchema,
   },
+  {
+    kind: "diagnostic-definition",
+    fileName: "diagnostic-definition.schema.json",
+    schema: diagnosticDefinitionDocSchema,
+  },
 ];
 
 /** Options both the emit script and the drift test must pass to the converter. */
 export function emitOptionsFor(kind: DocumentKind): { name: string; [key: string]: unknown } {
-  return { name: kind, target: "jsonSchema7", $refStrategy: "none" };
+  return { name: kind, target: "jsonSchema7", $refStrategy: "root" };
 }
 
 export interface EmittedSchema {

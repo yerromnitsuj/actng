@@ -28,7 +28,7 @@ import { z } from "zod";
  */
 
 /** The interchange spec version this package writes. */
-export const INTERCHANGE_SPEC_VERSION = "1.0.0";
+export const INTERCHANGE_SPEC_VERSION = "1.1.0";
 
 /** The spec major this package accepts (spec 3.5: readers accept same-major). */
 export const INTERCHANGE_SPEC_MAJOR = 1;
@@ -58,6 +58,7 @@ export const DOCUMENT_KINDS = [
   "study",
   "bundle",
   "crosscheck-report",
+  "diagnostic-definition",
 ] as const;
 
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
@@ -75,6 +76,7 @@ const SEMANTIC_BODY_KEYS: Record<DocumentKind, readonly string[]> = {
   study: ["study"],
   bundle: ["bundle", "interchange"],
   "crosscheck-report": ["report"],
+  "diagnostic-definition": ["diagnosticDefinition"],
 };
 
 /** A 16-hex-char fnv1a64 tag. */

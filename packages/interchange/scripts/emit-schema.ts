@@ -1,5 +1,5 @@
 /**
- * Regenerates the committed JSON Schemas under schema/interchange/1.0/
+ * Regenerates the current JSON Schemas under schema/interchange/1.1/
  * from the zod source of truth (spec 3.4). Run via:
  *
  *   npm run emit-schema --workspace @actuarial-ts/interchange
@@ -17,7 +17,7 @@ import { emitJsonSchema } from "../dist/index.js";
 const outDir = join(
   dirname(fileURLToPath(import.meta.url)),
   "../../..",
-  "schema/interchange/1.0",
+  "schema/interchange/1.1",
 );
 mkdirSync(outDir, { recursive: true });
 

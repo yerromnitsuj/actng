@@ -13,6 +13,7 @@ import type { MethodResultDoc, StochasticResultDoc } from "./schemas/result.js";
 import type { StudyDoc } from "./schemas/study.js";
 import type { BundleDoc } from "./schemas/bundle.js";
 import type { CrosscheckReportDoc } from "./schemas/crosscheck.js";
+import type { DiagnosticDefinitionDoc } from "./schemas/diagnosticDefinition.js";
 
 /**
  * `parseDocument` (spec 4.1): version-checked, schema-validated,
@@ -48,7 +49,8 @@ export type InterchangeDocument =
   | StochasticResultDoc
   | StudyDoc
   | BundleDoc
-  | CrosscheckReportDoc;
+  | CrosscheckReportDoc
+  | DiagnosticDefinitionDoc;
 
 export interface ParseDocumentOptions {
   /** How to treat a failed integrity check. Default "refuse". */
@@ -93,6 +95,7 @@ function embeddedDocuments(doc: InterchangeDocument): { path: string; value: unk
       collect("$.interchange.triangles", mirror["triangles"]);
       collect("$.interchange.selections", mirror["selections"]);
       collect("$.interchange.results", mirror["results"]);
+      collect("$.interchange.diagnosticDefinitions", mirror["diagnosticDefinitions"]);
     }
   }
   return found;

@@ -1,0 +1,1654 @@
+{
+  "$ref": "#/definitions/diagnostic-definition",
+  "definitions": {
+    "diagnostic-definition": {
+      "type": "object",
+      "properties": {
+        "interchangeVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "kind": {
+          "type": "string",
+          "const": "diagnostic-definition"
+        },
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ],
+          "additionalProperties": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "integrity": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "diagnosticDefinition": {
+          "type": "object",
+          "properties": {
+            "definition": {
+              "type": "object",
+              "properties": {
+                "diagnosticDefinitionVersion": {
+                  "type": "string",
+                  "const": "1.0.0"
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                },
+                "lossRowGrain": {
+                  "type": "string",
+                  "enum": [
+                    "claim",
+                    "aggregate"
+                  ]
+                },
+                "measures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "loss",
+                          "exposure",
+                          "derived"
+                        ]
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "count",
+                          "amount",
+                          "exposure"
+                        ]
+                      },
+                      "unit": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "developmentSemantics": {
+                        "type": "string",
+                        "enum": [
+                          "cumulative",
+                          "incremental",
+                          "point-in-time",
+                          "unknown"
+                        ]
+                      },
+                      "aggregation": {
+                        "type": "string",
+                        "const": "sum"
+                      },
+                      "missing": {
+                        "type": "string",
+                        "enum": [
+                          "unknown",
+                          "zero"
+                        ]
+                      },
+                      "basisId": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "countPopulationId": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                      },
+                      "exposureBasisId": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                      },
+                      "exposureTiming": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "origin-static",
+                              "valuation-specific"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                      "description",
+                      "source",
+                      "kind",
+                      "unit",
+                      "developmentSemantics",
+                      "aggregation",
+                      "missing",
+                      "basisId",
+                      "countPopulationId",
+                      "exposureBasisId",
+                      "exposureTiming"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "countPopulations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "subject": {
+                        "type": "string",
+                        "enum": [
+                          "claim",
+                          "claimant",
+                          "policy",
+                          "occurrence",
+                          "other",
+                          "unknown"
+                        ]
+                      },
+                      "unit": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "attributes": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                      "subject",
+                      "unit",
+                      "description",
+                      "attributes"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "exposureBases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "basis": {
+                        "type": "string",
+                        "enum": [
+                          "earned",
+                          "written",
+                          "in-force",
+                          "other",
+                          "unknown"
+                        ]
+                      },
+                      "unit": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "sourceDescription": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "attributes": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                      "basis",
+                      "unit",
+                      "description",
+                      "sourceDescription",
+                      "attributes"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "amountBases": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "displayName": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "perspective": {
+                        "type": "string",
+                        "enum": [
+                          "gross",
+                          "net",
+                          "ceded",
+                          "other",
+                          "unknown"
+                        ]
+                      },
+                      "components": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                            },
+                            "treatment": {
+                              "type": "string",
+                              "enum": [
+                                "included",
+                                "excluded",
+                                "unknown"
+                              ]
+                            },
+                            "limitation": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "unlimited"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "const": "unknown"
+                                    },
+                                    "description": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "description"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "layer",
+                                        "pre-limited"
+                                      ]
+                                    },
+                                    "attachment": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    "limit": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "application": {
+                                      "type": "string",
+                                      "enum": [
+                                        "claim",
+                                        "occurrence",
+                                        "policy",
+                                        "source-defined"
+                                      ]
+                                    },
+                                    "derivation": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "sdk"
+                                            }
+                                          },
+                                          "required": [
+                                            "kind"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "const": "external"
+                                            },
+                                            "actor": {
+                                              "type": "string",
+                                              "enum": [
+                                                "caller",
+                                                "source"
+                                              ]
+                                            },
+                                            "transformationRef": {
+                                              "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "actor",
+                                            "transformationRef"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "attachment",
+                                    "limit",
+                                    "application",
+                                    "derivation"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "treatment",
+                            "limitation"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "sourceDescription": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "attributes": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "displayName",
+                      "currency",
+                      "perspective",
+                      "components",
+                      "sourceDescription",
+                      "attributes"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "derivedMeasures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "outputMeasureId": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "expression": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "measure"
+                              },
+                              "measureId": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "measureId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "add"
+                              },
+                              "terms": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/derivedMeasures/items/properties/expression"
+                                },
+                                "minItems": 1
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "terms"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "subtract"
+                              },
+                              "left": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/derivedMeasures/items/properties/expression"
+                              },
+                              "right": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/derivedMeasures/items/properties/expression"
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "left",
+                              "right"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "claim-layer"
+                              },
+                              "measureId": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                              },
+                              "attachment": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "limit": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "measureId",
+                              "attachment",
+                              "limit"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "outputMeasureId",
+                      "expression"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "formulas": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "version": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "roles": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "count",
+                                "amount",
+                                "exposure"
+                              ]
+                            },
+                            "compatibilityGroup": {
+                              "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                            },
+                            "developmentSemantics": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "cumulative",
+                                    "incremental",
+                                    "point-in-time",
+                                    "unknown"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "compatibilityGroup",
+                            "developmentSemantics"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "numerator": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "role"
+                              },
+                              "role": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "role"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "add"
+                              },
+                              "terms": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/formulas/items/properties/numerator"
+                                },
+                                "minItems": 1
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "terms"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "op": {
+                                "type": "string",
+                                "const": "subtract"
+                              },
+                              "left": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/formulas/items/properties/numerator"
+                              },
+                              "right": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/formulas/items/properties/numerator"
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "left",
+                              "right"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "denominator": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/formulas/items/properties/numerator"
+                      },
+                      "denominatorPolicy": {
+                        "type": "string",
+                        "const": "positive-or-null"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "version",
+                      "roles",
+                      "numerator",
+                      "denominator",
+                      "denominatorPolicy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "instances": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "version": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "formulaId": {
+                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                      },
+                      "bindings": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "op": {
+                                  "type": "string",
+                                  "const": "measure"
+                                },
+                                "measureId": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                }
+                              },
+                              "required": [
+                                "op",
+                                "measureId"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "op": {
+                                  "type": "string",
+                                  "const": "add"
+                                },
+                                "terms": {
+                                  "type": "array",
+                                  "items": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                                  },
+                                  "minItems": 1
+                                }
+                              },
+                              "required": [
+                                "op",
+                                "terms"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "op": {
+                                  "type": "string",
+                                  "const": "subtract"
+                                },
+                                "left": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                                },
+                                "right": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                                }
+                              },
+                              "required": [
+                                "op",
+                                "left",
+                                "right"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "presentation": {
+                        "type": "object",
+                        "properties": {
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "displayUnit": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "scale": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "numeratorLabel": {
+                            "type": "string"
+                          },
+                          "denominatorLabel": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "displayName",
+                          "description",
+                          "displayUnit",
+                          "scale",
+                          "numeratorLabel",
+                          "denominatorLabel"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "rules": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                            },
+                            "code": {
+                              "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "severity": {
+                              "type": "string",
+                              "enum": [
+                                "warning",
+                                "fail"
+                              ]
+                            },
+                            "when": {
+                              "type": "object",
+                              "properties": {
+                                "left": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "measure"
+                                        },
+                                        "expression": {
+                                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "expression"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "calculation"
+                                        },
+                                        "field": {
+                                          "type": "string",
+                                          "enum": [
+                                            "numerator",
+                                            "denominator"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "field"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "source": {
+                                          "type": "string",
+                                          "const": "constant"
+                                        },
+                                        "value": {
+                                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                                        }
+                                      },
+                                      "required": [
+                                        "source",
+                                        "value"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                },
+                                "operator": {
+                                  "type": "string",
+                                  "enum": [
+                                    "lt",
+                                    "lte",
+                                    "eq",
+                                    "neq",
+                                    "gte",
+                                    "gt"
+                                  ]
+                                },
+                                "right": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/left"
+                                },
+                                "tolerance": {
+                                  "type": "object",
+                                  "properties": {
+                                    "absolute": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    "relative": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "absolute",
+                                    "relative"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "left",
+                                "operator",
+                                "right",
+                                "tolerance"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "message",
+                            "severity",
+                            "when"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "version",
+                      "formulaId",
+                      "bindings",
+                      "presentation",
+                      "rules"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "reviewRules": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "code": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "warning",
+                              "fail"
+                            ]
+                          },
+                          "missingInput": {
+                            "type": "string",
+                            "enum": [
+                              "not-evaluated",
+                              "finding"
+                            ]
+                          },
+                          "tolerance": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/tolerance"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "compare"
+                          },
+                          "when": {
+                            "type": "object",
+                            "properties": {
+                              "left": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "op": {
+                                        "type": "string",
+                                        "const": "constant"
+                                      },
+                                      "value": {
+                                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                                      }
+                                    },
+                                    "required": [
+                                      "op",
+                                      "value"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              "operator": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/operator"
+                              },
+                              "right": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/when/properties/left"
+                              }
+                            },
+                            "required": [
+                              "left",
+                              "operator",
+                              "right"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "description",
+                          "severity",
+                          "missingInput",
+                          "tolerance",
+                          "kind",
+                          "when"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "code": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "description": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/description"
+                          },
+                          "severity": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/severity"
+                          },
+                          "missingInput": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/missingInput"
+                          },
+                          "tolerance": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/tolerance"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "reconcile"
+                          },
+                          "actual": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                          },
+                          "expected": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/when/properties/left"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "description",
+                          "severity",
+                          "missingInput",
+                          "tolerance",
+                          "kind",
+                          "actual",
+                          "expected"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "code": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "description": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/description"
+                          },
+                          "severity": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/severity"
+                          },
+                          "missingInput": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/missingInput"
+                          },
+                          "tolerance": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/tolerance"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "monotonic"
+                          },
+                          "expression": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "nondecreasing",
+                              "nonincreasing"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "description",
+                          "severity",
+                          "missingInput",
+                          "tolerance",
+                          "kind",
+                          "expression",
+                          "direction"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "code": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "description": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/description"
+                          },
+                          "severity": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/severity"
+                          },
+                          "missingInput": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/missingInput"
+                          },
+                          "tolerance": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/tolerance"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "layer-order"
+                          },
+                          "narrower": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                          },
+                          "broader": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                          },
+                          "comparability": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "compiler-proven"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "caller-asserted"
+                                  },
+                                  "rationaleArtifactId": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "rationaleArtifactId"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "description",
+                          "severity",
+                          "missingInput",
+                          "tolerance",
+                          "kind",
+                          "narrower",
+                          "broader",
+                          "comparability"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "code": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                          },
+                          "description": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/description"
+                          },
+                          "severity": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/severity"
+                          },
+                          "missingInput": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/reviewRules/items/anyOf/0/properties/missingInput"
+                          },
+                          "tolerance": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/rules/items/properties/when/properties/tolerance"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "control-total"
+                          },
+                          "expression": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/instances/items/properties/bindings/additionalProperties"
+                          },
+                          "expected": {
+                            "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                          },
+                          "filter": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "sourceGroups": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "origins": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "originFrom": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                                  },
+                                  "originThrough": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                                  },
+                                  "valuations": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "valuationFrom": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                                  },
+                                  "valuationThrough": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/measures/items/properties/basisId"
+                                  },
+                                  "minDevelopmentAge": {
+                                    "anyOf": [
+                                      {
+                                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "maxDevelopmentAge": {
+                                    "anyOf": [
+                                      {
+                                        "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "sourceGroups",
+                                  "origins",
+                                  "originFrom",
+                                  "originThrough",
+                                  "valuations",
+                                  "valuationFrom",
+                                  "valuationThrough",
+                                  "minDevelopmentAge",
+                                  "maxDevelopmentAge"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "projection": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "valuation"
+                                  },
+                                  "valuation": {
+                                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "valuation"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "latest-valuation-per-origin"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "all-cells"
+                                  }
+                                },
+                                "required": [
+                                  "kind"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "code",
+                          "description",
+                          "severity",
+                          "missingInput",
+                          "tolerance",
+                          "kind",
+                          "expression",
+                          "expected",
+                          "filter",
+                          "projection"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "periodAxis": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "calendar"
+                        },
+                        "originCadence": {
+                          "type": "string",
+                          "enum": [
+                            "month",
+                            "quarter",
+                            "year"
+                          ]
+                        },
+                        "valuationCadence": {
+                          "type": "string",
+                          "enum": [
+                            "month",
+                            "quarter",
+                            "year"
+                          ]
+                        },
+                        "originAnchor": {
+                          "type": "string",
+                          "enum": [
+                            "start",
+                            "end"
+                          ]
+                        },
+                        "valuationAnchor": {
+                          "type": "string",
+                          "enum": [
+                            "start",
+                            "end"
+                          ]
+                        },
+                        "ageUnit": {
+                          "type": "string",
+                          "const": "month"
+                        },
+                        "ageOffset": {
+                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "originCadence",
+                        "valuationCadence",
+                        "originAnchor",
+                        "valuationAnchor",
+                        "ageUnit",
+                        "ageOffset"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "ordered"
+                        },
+                        "id": {
+                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                        },
+                        "version": {
+                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                        },
+                        "ageUnit": {
+                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                        },
+                        "ageOffset": {
+                          "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                        },
+                        "origins": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                              },
+                              "aliases": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                }
+                              },
+                              "coordinate": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "aliases",
+                              "coordinate"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "valuations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                              },
+                              "aliases": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/id"
+                                }
+                              },
+                              "coordinate": {
+                                "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/definition/properties/countPopulations/items/properties/attributes/additionalProperties/anyOf/1"
+                              }
+                            },
+                            "required": [
+                              "label",
+                              "aliases",
+                              "coordinate"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "version",
+                        "ageUnit",
+                        "ageOffset",
+                        "origins",
+                        "valuations"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "diagnosticDefinitionVersion",
+                "id",
+                "version",
+                "lossRowGrain",
+                "measures",
+                "countPopulations",
+                "exposureBases",
+                "amountBases",
+                "derivedMeasures",
+                "formulas",
+                "instances",
+                "reviewRules",
+                "periodAxis"
+              ],
+              "additionalProperties": false
+            },
+            "identities": {
+              "type": "object",
+              "properties": {
+                "algorithm": {
+                  "type": "string",
+                  "const": "fnv1a64-jcs-v1"
+                },
+                "formulaById": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "pattern": "^fnv1a64-jcs-v1:[0-9a-f]{16}$"
+                  }
+                },
+                "calculationByInstanceId": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/identities/properties/formulaById/additionalProperties"
+                  }
+                },
+                "definition": {
+                  "$ref": "#/definitions/diagnostic-definition/properties/diagnosticDefinition/properties/identities/properties/formulaById/additionalProperties"
+                }
+              },
+              "required": [
+                "algorithm",
+                "formulaById",
+                "calculationByInstanceId",
+                "definition"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "definition",
+            "identities"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "interchangeVersion",
+        "kind",
+        "generator",
+        "createdAt",
+        "integrity",
+        "diagnosticDefinition"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

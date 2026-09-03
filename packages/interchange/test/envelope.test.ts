@@ -111,7 +111,7 @@ describe("integrity covers the semantic body only (spec 3.1)", () => {
 
 describe("version handling (spec 3.5)", () => {
   it("accepts the current spec version", () => {
-    expect(acceptVersion(INTERCHANGE_SPEC_VERSION)).toEqual({ major: 1, minor: 0, patch: 0 });
+    expect(acceptVersion(INTERCHANGE_SPEC_VERSION)).toEqual({ major: 1, minor: 1, patch: 0 });
   });
 
   it("refuses a wrong major with UNSUPPORTED_VERSION", () => {

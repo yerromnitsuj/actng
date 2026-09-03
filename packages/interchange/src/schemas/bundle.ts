@@ -8,6 +8,7 @@ import {
   methodResultDocSchema,
   stochasticResultDocSchema,
 } from "./result.js";
+import { type DiagnosticDefinitionDoc, diagnosticDefinitionDocSchema } from "./diagnosticDefinition.js";
 
 /**
  * BundleDoc (spec 3.2) — the wrapped reproducibility bundle.
@@ -31,6 +32,7 @@ export interface BundleInterchange {
   triangles: TriangleDoc[];
   selections: SelectionDoc[];
   results: (MethodResultDoc | StochasticResultDoc)[];
+  diagnosticDefinitions?: DiagnosticDefinitionDoc[];
   [key: string]: unknown;
 }
 
@@ -52,6 +54,7 @@ export const bundleInterchangeSchema: z.ZodType<BundleInterchange> = z
     triangles: z.array(triangleDocSchema),
     selections: z.array(selectionDocSchema),
     results: z.array(z.union([methodResultDocSchema, stochasticResultDocSchema])),
+    diagnosticDefinitions: z.array(diagnosticDefinitionDocSchema).optional(),
   })
   .passthrough();
 
