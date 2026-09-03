@@ -77,6 +77,11 @@ export type {
 export {
   classifyDiagnosticComparison,
 } from "./diagnosticRules.js";
+export { deriveDiagnosticClaimMeasures } from "./diagnosticDerivations.js";
+export type {
+  DiagnosticMeasureValues,
+  DiagnosticRowWithDerivedMeasures,
+} from "./diagnosticDerivations.js";
 export type {
   DiagnosticComparisonClassification,
   DiagnosticExpressionOverflow,

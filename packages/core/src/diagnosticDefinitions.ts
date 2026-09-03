@@ -1347,7 +1347,7 @@ export function compileDiagnosticDefinition(
     calculationDependenciesByInstanceId: identities.calculationDependenciesByInstanceId,
     evaluationDependenciesByInstanceId: identities.evaluationDependenciesByInstanceId,
     derivationsByOutputMeasureId: new Map(
-      definition.derivedMeasures.map((derivation) => [derivation.outputMeasureId, derivation]),
+      normalized.derivedMeasures.map((derivation) => [derivation.outputMeasureId, derivation as DiagnosticDerivedMeasureDefinition]),
     ),
   });
   return compiled;
