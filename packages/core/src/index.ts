@@ -101,6 +101,43 @@ export {
   auditDiagnosticNumber,
   reconcileDiagnosticExposures,
 } from "./diagnosticExposure.js";
+export {
+  assertPreparedDiagnosticData,
+  getPreparedDiagnosticDataIdentity,
+  prepareDiagnosticData,
+  verifyPreparedDiagnosticDataIntegrity,
+} from "./diagnosticPreparation.js";
+export type {
+  DiagnosticClaimObservation,
+  DiagnosticCompletePeriodCutoff,
+  DiagnosticExpectedCell,
+  DiagnosticInputAuditRecord,
+  DiagnosticInputDisposition,
+  DiagnosticLossInput,
+  DiagnosticLossRecordBase,
+  DiagnosticLossSnapshot,
+  NormalizedDiagnosticPreparationIdentity,
+  PrepareDiagnosticDataInput,
+  PreparedDiagnosticData,
+  PreparedDiagnosticSourceCell,
+} from "./diagnosticPreparation.js";
+export {
+  commonMaturity,
+  getMetricDiagnosticsResultIdentity,
+  runMetricDiagnostics,
+  sameMaturity,
+  validateDiagnosticGroupingConfiguration,
+} from "./diagnosticRunner.js";
+export type {
+  CommonMaturityResult,
+  DiagnosticEmergencePoint,
+  DiagnosticMetricEvaluation,
+  DiagnosticMetricTriangle,
+  DiagnosticMetricTriangleCell,
+  MetricDiagnosticsResult,
+  NormalizedDiagnosticResultIdentity,
+  RunMetricDiagnosticsInput,
+} from "./diagnosticRunner.js";
 export type {
   DiagnosticAuditedNumericValue,
   DiagnosticExposureAuditObservation,

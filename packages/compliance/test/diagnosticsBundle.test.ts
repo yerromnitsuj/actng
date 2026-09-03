@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  CASUALTY_AMOUNT_LAYERS,
-  CASUALTY_DIAGNOSTIC_COMPONENTS as C,
-  CASUALTY_QUARTERLY_METRICS,
+  CASUALTY_FORMULA_TEMPLATES,
+  compileDiagnosticDefinition,
+  prepareDiagnosticData,
   runMetricDiagnostics,
   triangleFromGrid,
+  type DiagnosticDefinition,
+  type MetricDefinition,
 } from "@actuarial-ts/core";
 import { parseDocument, triangleToDoc } from "@actuarial-ts/interchange";
 import {
@@ -17,19 +19,26 @@ import {
 
 describe("diagnostics provenance composition", () => {
   it("embeds the complete run inventory in an existing compliance bundle and records judgment in the ledger", () => {
-    const result = runMetricDiagnostics({
-      losses: [{
-        id: "snapshot", group: "fleet", origin: "2025Q1", valuation: "2025Q1", ageMonths: 3,
-        measures: { [C.reported]: 4 },
-      }],
-      exposures: [{ key: "fleet-exp", group: "fleet", origin: "2025Q1", measures: { [C.exposure]: 20 } }],
-      metrics: [CASUALTY_QUARTERLY_METRICS[0]!],
-    });
+    const definition: DiagnosticDefinition = {
+      diagnosticDefinitionVersion: "1.0.0", id: "fleet", version: "2", lossRowGrain: "aggregate",
+      measures: [
+        { id: "reported", displayName: "Reported", description: "Reported claims", source: "loss", kind: "count", unit: "claim", developmentSemantics: "cumulative", aggregation: "sum", missing: "unknown", countPopulationId: "claims" },
+        { id: "exposure", displayName: "Exposure", description: "Vehicle years", source: "exposure", kind: "exposure", unit: "vehicle-year", developmentSemantics: "unknown", aggregation: "sum", missing: "unknown", exposureBasisId: "vehicle-years", exposureTiming: "origin-static" },
+      ],
+      countPopulations: [{ id: "claims", displayName: "Claims", subject: "claim", unit: "claim", description: "Claims" }],
+      exposureBases: [{ id: "vehicle-years", displayName: "Vehicle years", basis: "earned", unit: "vehicle-year", description: "Earned vehicle years" }], amountBases: [], derivedMeasures: [], formulas: [CASUALTY_FORMULA_TEMPLATES[0]],
+      instances: [{ id: "reported-frequency", version: "1", formulaId: "frequency", bindings: { claims: { op: "measure", measureId: "reported" }, exposure: { op: "measure", measureId: "exposure" } }, presentation: { displayName: "Reported frequency", description: "Reported frequency", displayUnit: "count per million", scale: 1_000_000, numeratorLabel: "reported", denominatorLabel: "exposure" }, rules: [] }], reviewRules: [],
+      periodAxis: { kind: "calendar", originCadence: "quarter", valuationCadence: "quarter", originAnchor: "start", valuationAnchor: "end", ageUnit: "month", ageOffset: 0 },
+    };
+    const compiled = compileDiagnosticDefinition(definition);
+    const prepared = prepareDiagnosticData({ definition: compiled, losses: [{ rowType: "aggregate", recordId: "snapshot", sourceGroup: "fleet", origin: "2025Q1", valuation: "2025Q1", complete: true, measures: { reported: 4 } }], exposures: [{ key: "fleet-exp", sourceGroup: "fleet", origin: "2025Q1", measureId: "exposure", value: 20, complete: true }] });
+    const result = runMetricDiagnostics({ prepared });
+    const legacyMetric: MetricDefinition = { id: "reported-frequency", version: "casualty-quarterly-v1", displayName: "Reported frequency", description: "Reported frequency", unit: "count-per-million", scale: 1_000_000, numerator: { op: "measure", measure: "reported" }, denominator: { op: "measure", measure: "exposure" }, numeratorLabel: "reported", denominatorLabel: "exposure", basis: "count", requiredComponents: ["reported", "exposure"] };
     const provenance = createDiagnosticsProvenance({
       packageVersions: { "@actuarial-ts/core": "0.5.0", "@actuarial-ts/compliance": "0.5.0" },
       formulaPack: { id: "fleet-quarterly", version: "2" },
-      metrics: [CASUALTY_QUARTERLY_METRICS[0]!],
-      layers: CASUALTY_AMOUNT_LAYERS,
+      metrics: [legacyMetric],
+      layers: [],
       exposure: { basis: "vehicle-years", frequencyScale: 1_000_000 },
       sparsePolicy: "preserve-null",
       ageConvention: "quarter-end-first-observation",

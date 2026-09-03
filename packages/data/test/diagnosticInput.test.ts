@@ -1,71 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { CASUALTY_QUARTERLY_METRICS, runMetricDiagnostics } from "@actuarial-ts/core";
-import {
-  runValidatedMetricDiagnostics,
-  validateAndReconcileDiagnosticExposures,
-  validateDiagnosticDataset,
-} from "../src/index.js";
+import { CASUALTY_FORMULA_TEMPLATES, type DiagnosticDefinition } from "@actuarial-ts/core";
+import { runValidatedMetricDiagnostics, validateDiagnosticRunInput } from "../src/index.js";
 
-const dataset = {
-  losses: [{
-    id: "loss-1", group: "segment", origin: "2024Q1", valuation: "2024Q1", ageMonths: 3,
-    measures: { reportedCount: 2 },
-  }],
-  exposures: [{ key: "exp-1", group: "segment", origin: "2024Q1", measures: { exposure: 10 } }],
+const definition: DiagnosticDefinition = {
+  diagnosticDefinitionVersion:"1.0.0",id:"data-test",version:"1",lossRowGrain:"aggregate",
+  measures:[{id:"claims",displayName:"Claims",description:"Reported",source:"loss",kind:"count",unit:"claim",developmentSemantics:"cumulative",aggregation:"sum",missing:"unknown",countPopulationId:"claims"}],
+  countPopulations:[{id:"claims",displayName:"Claims",subject:"claim",unit:"claim",description:"Claims"}],exposureBases:[],amountBases:[],derivedMeasures:[],formulas:[CASUALTY_FORMULA_TEMPLATES[1]],
+  instances:[{id:"identity",version:"1",formulaId:"share",bindings:{part:{op:"measure",measureId:"claims"},whole:{op:"measure",measureId:"claims"}},presentation:{displayName:"Identity",description:"Identity ratio",displayUnit:"ratio",scale:1,numeratorLabel:"claims",denominatorLabel:"claims"},rules:[]}],reviewRules:[],
+  periodAxis:{kind:"calendar",originCadence:"year",valuationCadence:"year",originAnchor:"start",valuationAnchor:"end",ageUnit:"month",ageOffset:0},
 };
 
-describe("diagnostic data boundary", () => {
-  it("Zod-validates diagnostic loss and exposure rows", () => {
-    expect(validateDiagnosticDataset(dataset)).toEqual(dataset);
+describe("diagnostic run input boundary",()=>{
+  it("validates, brands, and executes the complete run",()=>{
+    const validated=validateDiagnosticRunInput({definition,losses:[{rowType:"aggregate",recordId:"r1",sourceGroup:"all",origin:"2024",valuation:"2024",complete:true,measures:{claims:2}}]});
+    const result=runValidatedMetricDiagnostics(validated);
+    expect(result.emergence[0]!.metrics.identity!.calculation.value).toBe(1);
   });
-
-  it("rejects malformed unknown data with paths and no partial interpretation", () => {
-    expect(() => validateDiagnosticDataset({ losses: [{ ...dataset.losses[0], ageMonths: "three" }] }))
-      .toThrow(/losses\.0\.ageMonths/);
-    expect(() => validateDiagnosticDataset({ losses: [{ ...dataset.losses[0], measures: { x: "1" } }] }))
-      .toThrow(/measures\.x/);
+  it("rejects stale fields and row-grain mismatches atomically",()=>{
+    expect(()=>validateDiagnosticRunInput({definition,losses:[{rowType:"aggregate",recordId:"r1",sourceGroup:"all",origin:"2024",valuation:"2024",ageMonths:12,complete:true,measures:{claims:2}}]})).toThrow();
+    expect(()=>validateDiagnosticRunInput({definition,losses:[{rowType:"claim",claimId:"c1",recordId:"r1",sourceGroup:"all",origin:"2024",valuation:"2024",complete:true,measures:{claims:2}}]})).toThrow();
   });
-
-  it("runs the public validated boundary through the generic engine", () => {
-    const result = runValidatedMetricDiagnostics(dataset, {
-      metrics: [CASUALTY_QUARTERLY_METRICS[0]!],
-    });
-    expect(result.emergence[0]!.metrics["reported-frequency"]!.value).toBe(200_000);
-  });
-
-  it("preserves omitted exposures so count-only metrics do not invent exposure warnings", () => {
-    const metric = CASUALTY_QUARTERLY_METRICS.find((item) => item.id === "open-share")!;
-    const result = runValidatedMetricDiagnostics({
-      losses: [{
-        ...dataset.losses[0]!,
-        measures: { reportedCount: 2, openCount: 1 },
-      }],
-    }, { metrics: [metric] });
-    const direct = runMetricDiagnostics({
-      losses: [{
-        ...dataset.losses[0]!,
-        measures: { reportedCount: 2, openCount: 1 },
-      }],
-      metrics: [metric],
-    });
-    expect(validateDiagnosticDataset({ losses: dataset.losses })).not.toHaveProperty("exposures");
-    expect(result.emergence[0]!.metrics[metric.id]).toEqual(direct.emergence[0]!.metrics[metric.id]);
-    expect(result.emergence[0]!.metrics[metric.id]!.warnings).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "INCOMPLETE_EXPOSURE" }),
-    ]));
-  });
-
-  it("validates and reconciles repeated exposure keys without value-based deduplication", () => {
-    const reconciled = validateAndReconcileDiagnosticExposures([
-      dataset.exposures[0],
-      { ...dataset.exposures[0], valuation: "2024Q2" },
-      { ...dataset.exposures[0], key: "exp-2" },
-    ]);
-    expect(reconciled.exposures).toHaveLength(2);
-    expect(reconciled.exposures.map((row) => row.key)).toEqual(["exp-1", "exp-2"]);
-    expect(reconciled.findings).toContainEqual(expect.objectContaining({
-      code: "DUPLICATE_EXPOSURE_KEY",
-      exposureKey: "exp-1",
-    }));
+  it("requires rationale when policy allows a fail outcome",()=>{
+    expect(()=>validateDiagnosticRunInput({definition,losses:[],policy:{allowedMetricFindingSeverities:["fail"]}})).toThrow(/rationale/i);
   });
 });
