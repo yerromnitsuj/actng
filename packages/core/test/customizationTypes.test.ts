@@ -6,7 +6,9 @@ import {
   deriveAmountLayers,
   runMetricDiagnostics,
   type AmountLayerDefinition,
+  type DiagnosticFinding,
   type DiagnosticLossRow,
+  type DiagnosticsResult,
   type MetricDefinition,
   type MetricDiagnosticsResult,
 } from "../src/index.js";
@@ -18,6 +20,15 @@ interface CallerDimensions {
 }
 
 describe("public diagnostics customization types", () => {
+  it("keeps the pre-existing reserving diagnostic findings source-compatible", () => {
+    expectTypeOf<DiagnosticFinding>().toEqualTypeOf<{
+      severity: "info" | "warning" | "critical";
+      code: string;
+      message: string;
+    }>();
+    expectTypeOf<DiagnosticsResult["findings"]>().toEqualTypeOf<DiagnosticFinding[]>();
+  });
+
   it("does not let explicit undefined customization values erase preset defaults", () => {
     const metric = createCasualtyQuarterlyMetrics({
       components: { reported: undefined },

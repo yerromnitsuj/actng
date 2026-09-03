@@ -295,6 +295,167 @@ export interface DiagnosticFinding {
   message: string;
 }
 
+export type DiagnosticValidationErrorCode =
+  | "INVALID_DIAGNOSTIC_DEFINITION"
+  | "INVALID_DIAGNOSTIC_INPUT"
+  | "INVALID_DIAGNOSTIC_CONFIGURATION"
+  | "INVALID_DIAGNOSTIC_VIEW";
+
+export type DiagnosticValidationIssueCode =
+  | "missing-required"
+  | "invalid-type"
+  | "unknown-key"
+  | "invalid-string"
+  | "invalid-number"
+  | "invalid-json-value"
+  | "duplicate-id"
+  | "unknown-reference"
+  | "incompatible-semantics"
+  | "invalid-period"
+  | "invalid-input-relationship"
+  | "invalid-configuration"
+  | "expression-limit"
+  | "cycle";
+
+export type DiagnosticValidationDomain =
+  | "definition"
+  | "input"
+  | "configuration"
+  | "view";
+
+export interface DiagnosticValidationIssue {
+  readonly domain: DiagnosticValidationDomain;
+  readonly code: DiagnosticValidationIssueCode;
+  /** Canonical singular JSONPath, rooted at `$`. */
+  readonly path: string;
+  readonly message: string;
+}
+
+const DIAGNOSTIC_DOMAIN_ORDER: readonly DiagnosticValidationDomain[] = [
+  "definition",
+  "input",
+  "configuration",
+  "view",
+];
+
+const DIAGNOSTIC_ISSUE_ORDER: readonly DiagnosticValidationIssueCode[] = [
+  "missing-required",
+  "invalid-type",
+  "unknown-key",
+  "invalid-string",
+  "invalid-number",
+  "invalid-json-value",
+  "duplicate-id",
+  "unknown-reference",
+  "incompatible-semantics",
+  "invalid-period",
+  "invalid-input-relationship",
+  "invalid-configuration",
+  "expression-limit",
+  "cycle",
+];
+
+function compareCodeUnits(left: string, right: string): number {
+  return left === right ? 0 : left < right ? -1 : 1;
+}
+
+type DiagnosticPathSegment =
+  | { readonly kind: "property"; readonly value: string }
+  | { readonly kind: "index"; readonly value: number };
+
+function diagnosticPathSegments(path: string): readonly DiagnosticPathSegment[] {
+  const segments: DiagnosticPathSegment[] = [];
+  let cursor = 1;
+  while (cursor < path.length) {
+    if (path[cursor] === ".") {
+      const start = ++cursor;
+      while (cursor < path.length && path[cursor] !== "." && path[cursor] !== "[") cursor++;
+      segments.push({ kind: "property", value: path.slice(start, cursor) });
+      continue;
+    }
+    if (path[cursor] === "[") {
+      const close = path.indexOf("]", cursor);
+      if (close < 0) return [{ kind: "property", value: path }];
+      const token = path.slice(cursor + 1, close);
+      if (/^\d+$/.test(token)) segments.push({ kind: "index", value: Number(token) });
+      else {
+        try {
+          segments.push({ kind: "property", value: JSON.parse(token) as string });
+        } catch {
+          return [{ kind: "property", value: path }];
+        }
+      }
+      cursor = close + 1;
+      continue;
+    }
+    return [{ kind: "property", value: path }];
+  }
+  return segments;
+}
+
+function compareDiagnosticPaths(left: string, right: string): number {
+  if (left === right) return 0;
+  const a = diagnosticPathSegments(left);
+  const b = diagnosticPathSegments(right);
+  const length = Math.min(a.length, b.length);
+  for (let index = 0; index < length; index++) {
+    const x = a[index]!;
+    const y = b[index]!;
+    if (x.kind !== y.kind) return x.kind === "property" ? -1 : 1;
+    const compared = x.kind === "index"
+      ? x.value - (y as Extract<DiagnosticPathSegment, { kind: "index" }>).value
+      : compareCodeUnits(
+          x.value,
+          (y as Extract<DiagnosticPathSegment, { kind: "property" }>).value,
+        );
+    if (compared !== 0) return compared;
+  }
+  return a.length - b.length;
+}
+
+function normalizeDiagnosticIssues(
+  issues: readonly DiagnosticValidationIssue[],
+): readonly DiagnosticValidationIssue[] {
+  if (issues.length === 0) {
+    throw new Error("DiagnosticValidationError requires at least one issue");
+  }
+  const unique = new Map<string, DiagnosticValidationIssue>();
+  for (const issue of issues) {
+    const normalized = Object.freeze({ ...issue });
+    const key = `${issue.domain}\u0000${issue.code}\u0000${issue.path}\u0000${issue.message}`;
+    if (!unique.has(key)) unique.set(key, normalized);
+  }
+  return Object.freeze([...unique.values()].sort((left, right) =>
+    DIAGNOSTIC_DOMAIN_ORDER.indexOf(left.domain) - DIAGNOSTIC_DOMAIN_ORDER.indexOf(right.domain) ||
+    DIAGNOSTIC_ISSUE_ORDER.indexOf(left.code) - DIAGNOSTIC_ISSUE_ORDER.indexOf(right.code) ||
+    compareDiagnosticPaths(left.path, right.path) ||
+    compareCodeUnits(left.code, right.code) ||
+    compareCodeUnits(left.message, right.message),
+  ));
+}
+
+/** Public, deterministic validation failure for every generalized diagnostic boundary. */
+export class DiagnosticValidationError extends Error {
+  readonly code: DiagnosticValidationErrorCode;
+  readonly path: string;
+  readonly issues: readonly DiagnosticValidationIssue[];
+
+  constructor(issues: readonly DiagnosticValidationIssue[]) {
+    const normalized = normalizeDiagnosticIssues(issues);
+    super(normalized[0]!.message);
+    this.name = "DiagnosticValidationError";
+    this.issues = normalized;
+    this.path = normalized[0]!.path;
+    this.code = {
+      definition: "INVALID_DIAGNOSTIC_DEFINITION",
+      input: "INVALID_DIAGNOSTIC_INPUT",
+      configuration: "INVALID_DIAGNOSTIC_CONFIGURATION",
+      view: "INVALID_DIAGNOSTIC_VIEW",
+    }[normalized[0]!.domain] as DiagnosticValidationErrorCode;
+    Object.freeze(this);
+  }
+}
+
 /**
  * Every machine-readable code a ReservingError can carry. This registry is
  * public contract: consumers may switch exhaustively on ReservingErrorCode,

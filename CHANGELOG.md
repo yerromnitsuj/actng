@@ -5,6 +5,20 @@ together; this file covers them all.
 
 ## Unreleased
 
+### Breaking
+
+- **Generalize the diagnostics model for `0.6.0`.** Formula templates now
+  describe basis-independent arithmetic and metric instances bind those roles
+  to caller-declared measures, count populations, amount bases, and exposure
+  bases. Exposure input becomes one long-form observation per measure, with
+  explicit origin-static or valuation-specific timing. The former global
+  sparse policy, trusted `ageMonths`, callback warnings, basis-specific preset
+  formulas, and flattened provenance are replaced by measure-local missingness,
+  compiled period axes, declarative rules, reusable basis bindings, and
+  definition/run/result identities. This is a clean pre-1.0 break with no
+  compatibility aliases; the migration guide will map the old core, data, and
+  compliance diagnostics surface to the new API before release.
+
 ## 0.5.0 — 2026-08-31
 
 All five packages version together (see VERSIONING.md for why lockstep is

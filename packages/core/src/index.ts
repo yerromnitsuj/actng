@@ -1,6 +1,68 @@
 export * from "./types.js";
 export * from "./util.js";
 export * from "./canonical.js";
+export * from "./version.js";
+export {
+  MAX_DIAGNOSTIC_DEFINITION_EXPRESSION_NODES,
+  MAX_DIAGNOSTIC_EXPRESSION_DEPTH,
+  MAX_DIAGNOSTIC_EXPRESSION_NODES,
+} from "./diagnosticExpressions.js";
+export type {
+  DiagnosticClaimExpression,
+  DiagnosticMeasureExpression,
+  DiagnosticRoleExpression,
+} from "./diagnosticExpressions.js";
+export {
+  assertCompiledDiagnosticDefinition,
+  compileDiagnosticDefinition,
+} from "./diagnosticDefinitions.js";
+export type {
+  AmountBasisComponent,
+  AmountBasisDefinition,
+  AmountLimitation,
+  AmountPerspective,
+  CompiledDiagnosticDefinition,
+  DiagnosticAggregation,
+  DiagnosticComparisonPredicate,
+  DiagnosticComparisonRule,
+  DiagnosticControlTotalProjection,
+  DiagnosticCountPopulationDefinition,
+  DiagnosticDeepReadonly,
+  DiagnosticDefinition,
+  DiagnosticDerivedMeasureDefinition,
+  DiagnosticDevelopmentSemantics,
+  DiagnosticExposureBasisDefinition,
+  DiagnosticExposureTiming,
+  DiagnosticFormulaRole,
+  DiagnosticFormulaTemplate,
+  DiagnosticMeasureDefinition,
+  DiagnosticMeasureKind,
+  DiagnosticMeasureSource,
+  DiagnosticMeasureStats,
+  DiagnosticMetricInstance,
+  DiagnosticMetricPresentation,
+  DiagnosticMissingPolicy,
+  DiagnosticPeriodAxis,
+  DiagnosticPeriodCoordinate,
+  DiagnosticReviewFilter,
+  DiagnosticReviewOperand,
+  DiagnosticReviewPredicate,
+  DiagnosticReviewRule,
+  DiagnosticRuleOperand,
+  DiagnosticSourceLocation,
+  JsonValue,
+} from "./diagnosticDefinitions.js";
+export type {
+  NormalizedAmountLimitationIdentity,
+  NormalizedDiagnosticCalculationScope,
+  NormalizedDiagnosticDefinitionIdentity,
+  NormalizedDiagnosticFormulaIdentity,
+  NormalizedDiagnosticPeriodAxisIdentity,
+  NormalizedDiagnosticReviewFilterIdentity,
+  NormalizedDiagnosticReviewRuleIdentity,
+  NormalizedDiagnosticSourceLocationIdentity,
+  NormalizedDiagnosticToleranceIdentity,
+} from "./diagnosticIdentity.js";
 export * from "./triangle.js";
 export * from "./factors.js";
 export * from "./chainladder.js";
