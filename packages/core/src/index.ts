@@ -63,6 +63,26 @@ export type {
   NormalizedDiagnosticSourceLocationIdentity,
   NormalizedDiagnosticToleranceIdentity,
 } from "./diagnosticIdentity.js";
+export {
+  CASUALTY_FORMULA_TEMPLATES,
+  applyDiagnosticPresentation,
+  diagnosticRawRatio,
+} from "./diagnosticFormulas.js";
+export type {
+  DiagnosticMetricFinding,
+  DiagnosticQuantity,
+  DiagnosticQuantitySemantics,
+  FinalizedDiagnosticMeasure,
+} from "./diagnosticFormulas.js";
+export {
+  classifyDiagnosticComparison,
+} from "./diagnosticRules.js";
+export type {
+  DiagnosticComparisonClassification,
+  DiagnosticExpressionOverflow,
+  DiagnosticRuleEvaluation,
+  DiagnosticRuleNotEvaluatedReason,
+} from "./diagnosticRules.js";
 export * from "./triangle.js";
 export * from "./factors.js";
 export * from "./chainladder.js";
