@@ -218,6 +218,21 @@ warnings needed for post-refactor parity.
   migration examples and is proven against the live baseline declarations.
 - `packages/core/test/validation.test.ts` is byte-unchanged and passing.
 
+### Task 0 execution record — 2026-09-03
+
+- Verified the clean `0.5.0` baseline under Node `22.22.0`: build, typecheck,
+  all workspaces, reserve review, and the real-world example passed. The full
+  workspace run had 930 passing tests and 15 intentionally environment-gated
+  live-sidecar/capstone skips.
+- Frozen 22 metric IDs across five emergence points as 110 independently
+  stored records containing coordinates, raw numerators, raw denominators,
+  values, and warning codes.
+- The published-value anchor remained unpaid `18,680,856` with Mack standard
+  error `2,447,095`; `packages/core/test/validation.test.ts` remained
+  byte-unchanged and passed all 15 tests.
+- Compiled the checked migration source once against the live `0.5.0` package
+  declarations and once against the frozen ambient fixture; both succeeded.
+
 ---
 
 ## Task 1: Lock the new public contract and clean-break migration

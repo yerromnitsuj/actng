@@ -24,7 +24,9 @@ import {
   quarterlyCasualtyExpectedFleetA2024Q4Age3,
   quarterlyCasualtyExposures,
   quarterlyCasualtyLosses,
+  quarterlyCasualtyV05Input,
 } from "./fixtures/quarterlyCasualty.js";
+import { quarterlyCasualtyV05Golden } from "./fixtures/quarterlyCasualtyV05Golden.js";
 
 function loss<TDimensions = unknown>(
   overrides: Partial<DiagnosticLossRow<TDimensions>> = {},
@@ -58,7 +60,44 @@ function run(overrides: Partial<RunMetricDiagnosticsInput> = {}) {
   });
 }
 
+function compareCodeUnits(a: string, b: string): number {
+  return a === b ? 0 : a < b ? -1 : 1;
+}
+
+function serializeV05Fixture() {
+  const result = runMetricDiagnostics({
+    ...quarterlyCasualtyV05Input,
+    metrics: CASUALTY_QUARTERLY_METRICS,
+  });
+  return result.emergence.flatMap((point) =>
+    Object.values(point.metrics).map((metric) => ({
+      group: point.group,
+      origin: point.origin,
+      valuation: point.valuation,
+      ageMonths: point.ageMonths,
+      metricId: metric.metricId,
+      rawNumerator: metric.rawNumerator,
+      rawDenominator: metric.rawDenominator,
+      value: metric.value,
+      warningCodes: metric.warnings.map((warning) => warning.code).sort(compareCodeUnits),
+    })),
+  ).sort((left, right) =>
+    compareCodeUnits(left.group, right.group) ||
+    compareCodeUnits(left.origin, right.origin) ||
+    left.ageMonths - right.ageMonths ||
+    compareCodeUnits(left.valuation, right.valuation) ||
+    compareCodeUnits(left.metricId, right.metricId),
+  );
+}
+
 describe("generic metric evaluation and casualty preset", () => {
+  it("matches the immutable 0.5.0 quarterly migration golden", () => {
+    const actual = serializeV05Fixture();
+    expect(actual).toHaveLength(5 * 22);
+    expect(new Set(actual.map((record) => record.metricId))).toHaveLength(22);
+    expect(actual).toEqual(quarterlyCasualtyV05Golden);
+  });
+
   it("keeps the original twenty definitions unchanged and inserts two unique non-CNP shares in place", () => {
     const ids = CASUALTY_QUARTERLY_METRICS.map((metric) => metric.id);
     expect(ids).toHaveLength(22);

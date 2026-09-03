@@ -35,6 +35,15 @@ export const quarterlyCasualtyExposures: DiagnosticExposureRow[] = [
   { key: "fleet-b-unit-2024q4", group: "fleet-b", origin: "2024Q4", measures: { exposure: 430_000 } },
 ];
 
+/**
+ * The exact input used to capture the immutable 0.5.0 migration golden. The
+ * golden freezes numeric behavior, not this release's public API shape.
+ */
+export const quarterlyCasualtyV05Input = {
+  losses: quarterlyCasualtyLosses,
+  exposures: quarterlyCasualtyExposures,
+} as const;
+
 /** Independently calculated golden values for fleet-a / 2024Q4 / age 3. */
 export const quarterlyCasualtyExpectedFleetA2024Q4Age3 = {
   "reported-frequency": 40 / 820_000 * 1_000_000,
