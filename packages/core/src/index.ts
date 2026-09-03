@@ -82,6 +82,12 @@ export type {
   DiagnosticMeasureValues,
   DiagnosticRowWithDerivedMeasures,
 } from "./diagnosticDerivations.js";
+export {
+  compareDiagnosticPeriods,
+  diagnosticDevelopmentAge,
+  normalizeDiagnosticPeriod,
+} from "./diagnosticPeriods.js";
+export type { DiagnosticNormalizedPeriod } from "./diagnosticPeriods.js";
 export type {
   DiagnosticComparisonClassification,
   DiagnosticExpressionOverflow,
