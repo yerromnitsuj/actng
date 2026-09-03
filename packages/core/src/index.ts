@@ -88,6 +88,25 @@ export {
   normalizeDiagnosticPeriod,
 } from "./diagnosticPeriods.js";
 export type { DiagnosticNormalizedPeriod } from "./diagnosticPeriods.js";
+export {
+  auditedDiagnosticContribution,
+  finalizeDiagnosticContributions,
+} from "./diagnosticAggregation.js";
+export type {
+  DiagnosticMeasureContribution,
+  DiagnosticMeasureContributionBase,
+  DiagnosticStructuralBlocker,
+} from "./diagnosticAggregation.js";
+export {
+  auditDiagnosticNumber,
+  reconcileDiagnosticExposures,
+} from "./diagnosticExposure.js";
+export type {
+  DiagnosticAuditedNumericValue,
+  DiagnosticExposureAuditObservation,
+  DiagnosticExposureObservation,
+  ReconciledDiagnosticExposure,
+} from "./diagnosticExposure.js";
 export type {
   DiagnosticComparisonClassification,
   DiagnosticExpressionOverflow,
