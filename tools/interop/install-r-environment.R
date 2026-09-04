@@ -74,9 +74,12 @@ for (item in plan) {
     untar(archives[[item$package]], files = description_path, exdir = extraction)
     read.dcf(file.path(extraction, description_path))
   }, finally = unlink(extraction, recursive = TRUE, force = TRUE))
-  if (!identical(description[1L, "Package"], item$package) ||
-      !identical(description[1L, "Version"], item$version)) stop(
-    "Downloaded archive identity does not match the contract for ", item$package
+  archive_package <- unname(description[1L, "Package"])
+  archive_version <- unname(description[1L, "Version"])
+  if (!identical(archive_package, item$package) ||
+      !identical(archive_version, item$version)) stop(
+    "Downloaded archive identity ", archive_package, "@", archive_version,
+    " does not match the contract for ", item$package, "@", item$version
   )
 
   record <- rep(NA_character_, ncol(exact_available))

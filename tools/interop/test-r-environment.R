@@ -59,6 +59,7 @@ for (script in c("tools/interop/install-r-environment.R", "tools/interop/check-r
 
 installer_text <- paste(readLines("tools/interop/install-r-environment.R", warn = FALSE), collapse = "\n")
 stopifnot(grepl("read.dcf", installer_text, fixed = TRUE))
+stopifnot(grepl('unname(description[1L, "Version"])', installer_text, fixed = TRUE))
 stopifnot(grepl("db = exact_available", installer_text, fixed = TRUE))
 stopifnot(grepl("requireNamespace(package, quietly = TRUE)", installer_text, fixed = TRUE))
 stopifnot(grepl("installed.packages(lib.loc = library_path", installer_text, fixed = TRUE))
