@@ -11,6 +11,108 @@ import {
   type PublicSnippet,
 } from "./packed-snippets.mjs";
 
+interface PythonWorkflowStep {
+  uses?: string;
+  run?: string;
+  with?: Record<string, string>;
+  env?: Record<string, string>;
+  if?: unknown;
+  "continue-on-error"?: unknown;
+}
+interface PythonWorkflow {
+  jobs: {
+    "py-base-310": { steps: PythonWorkflowStep[] };
+    "py-conformance": {
+      strategy: { matrix: { "chainladder-version": string[] } };
+    };
+  };
+}
+function readPythonWorkflow(): PythonWorkflow {
+  const parsed = parseDocument(
+    readFileSync(".github/workflows/py-conformance.yml", "utf8"),
+  );
+  expect(parsed.errors).toEqual([]);
+  return parsed.toJS() as PythonWorkflow;
+}
+function assertPythonDocumentationProvisioning(workflow: PythonWorkflow): void {
+  const steps = workflow.jobs["py-base-310"].steps;
+  const setup = steps.find((step) =>
+    step.uses?.startsWith("actions/setup-python@"),
+  );
+  expect(setup?.with?.["python-version"]).toBe("3.10");
+  const baseInstall = steps.findIndex(
+    (step) => step.run === "python -m pip install -e interop/python pytest",
+  );
+  const baseProof = steps.findIndex(
+    (step) =>
+      step.run ===
+      "pytest interop/python/tests/test_jcs.py interop/python/tests/test_documents.py interop/python/tests/test_diagnostics.py -q",
+  );
+  const engineInstalls = steps.flatMap((step, index) =>
+    /pip\s+install[^\n]*(?:\[chainladder\]|chainladder==)/.test(step.run ?? "")
+      ? [index]
+      : [],
+  );
+  expect(baseInstall).toBeGreaterThanOrEqual(0);
+  expect(baseProof).toBeGreaterThan(baseInstall);
+  expect(
+    engineInstalls,
+    "An explicit optional-engine install must follow the dependency-free proof",
+  ).toHaveLength(1);
+  const engineInstall = engineInstalls[0]!;
+  expect(engineInstall).toBeGreaterThan(baseProof);
+  expect(
+    workflow.jobs["py-conformance"].strategy.matrix["chainladder-version"],
+  ).toEqual(["0.9.2"]);
+  expect(steps[engineInstall]!.run).toBe(
+    'python -m pip install -e "interop/python[chainladder]" "chainladder==0.9.2"',
+  );
+  const docs = steps.findIndex((step) => step.run === "npm run docs:check:py");
+  expect(docs).toBeGreaterThan(engineInstall);
+  expect(steps[docs]!.env?.ACTUARIAL_TS_PYTHON).toBe("python");
+  for (const index of [baseInstall, baseProof, engineInstall, docs]) {
+    expect(steps[index]!.if).toBeUndefined();
+    expect(steps[index]!["continue-on-error"]).toBeUndefined();
+  }
+}
+
+describe("Python 3.10 documentation provisioning", () => {
+  it("proves the dependency-free base before installing the pinned engine for full executable docs", () => {
+    assertPythonDocumentationProvisioning(readPythonWorkflow());
+  });
+  it("rejects missing, early, or unpinned provisioning and premature or conditional docs", () => {
+    for (const mutation of [
+      "remove-engine",
+      "engine-before-base",
+      "unpin-engine",
+      "docs-before-engine",
+      "conditional-docs",
+    ]) {
+      const workflow = readPythonWorkflow();
+      const steps = workflow.jobs["py-base-310"].steps;
+      const engineIndex = steps.findIndex((step) =>
+        step.run?.includes("interop/python[chainladder]"),
+      );
+      const docsIndex = steps.findIndex(
+        (step) => step.run === "npm run docs:check:py",
+      );
+      if (mutation === "remove-engine") steps.splice(engineIndex, 1);
+      if (mutation === "engine-before-base")
+        steps.unshift(steps.splice(engineIndex, 1)[0]!);
+      if (mutation === "unpin-engine")
+        steps[engineIndex]!.run =
+          'python -m pip install -e "interop/python[chainladder]"';
+      if (mutation === "docs-before-engine")
+        steps.unshift(steps.splice(docsIndex, 1)[0]!);
+      if (mutation === "conditional-docs") steps[docsIndex]!.if = "false";
+      expect(
+        () => assertPythonDocumentationProvisioning(workflow),
+        mutation,
+      ).toThrow();
+    }
+  });
+});
+
 describe("documentation governance artifacts", () => {
   it("inventory entries and every fence have explicit review metadata", () => {
     const inventory = JSON.parse(
