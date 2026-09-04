@@ -124,9 +124,6 @@ jobs:
         run: npm run crosscheck:ci
       - name: Chain-ladder Python example (live sidecar)
         run: npm test -w @actuarial-ts/example-chain-ladder-python
-        env:
-          SIDECAR_URL: http://127.0.0.1:8091
-          SIDECAR_TOKEN: ci-crosscheck-token
       - name: Sidecar log on failure
         if: failure()
         run: cat sidecar.log || true

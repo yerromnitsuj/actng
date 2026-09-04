@@ -28,6 +28,8 @@ test("workflow triggers and runtimes cover docs, release tooling, and the Node s
   const ci = readFileSync(".github/workflows/ci.yml", "utf8");
   for (const source of [python, r]) for (const path of ["docs/**", "tools/docs/**", "tools/release/**", "package.json", "package-lock.json"]) expectText(source, path);
   expectText(python, 'python-version: "3.10"'); expectText(python, 'python-version: "3.12"'); expectText(python, "docs:check:py");
+  expectText(python, 'echo "SIDECAR_URL=http://127.0.0.1:$SIDECAR_PORT" >> "$GITHUB_ENV"');
+  assert.doesNotMatch(python, /SIDECAR_URL:\s*http:\/\/127\.0\.0\.1:8091/);
   expectText(r, 'r-version: "4.4.3"'); expectText(r, "install-r-environment.R"); expectText(r, "docs:check:r");
   expectText(ci, "node-version: 22.22.0"); expectText(ci, "node-version: 20"); expectText(ci, "--consume-manifest");
 });
