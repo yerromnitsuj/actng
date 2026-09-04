@@ -34,7 +34,10 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Test
-        run: npm test
+        run: |
+          npm test
+          npm run validation:source
+          npm run validation:reconciliation
       - name: Pack check (all five published packages)
         run: npm run smoke:packed
 

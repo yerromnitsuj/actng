@@ -3,7 +3,7 @@
 Documentation, judgment, provenance, and reproducibility primitives for actuarial-ts. The package is designed to support compliance work under applicable ASOPs; it neither determines compliance nor replaces the actuary’s review.
 
 ```bash
-npm install @actuarial-ts/compliance@0.6.0 @actuarial-ts/core@0.6.0 @actuarial-ts/data@0.6.0 @actuarial-ts/interchange@0.6.0
+npm install @actuarial-ts/compliance@0.6.1 @actuarial-ts/core@0.6.1 @actuarial-ts/data@0.6.1 @actuarial-ts/interchange@0.6.1
 ```
 
 Node 20+, ESM.
@@ -19,14 +19,16 @@ if (outcome.status !== "completed") throw new Error(`diagnostics blocked at ${ou
 
 const provenance = await createDiagnosticRunIdentity({
   completedRun: outcome,
-  artifacts: [
-    { id: "loss-run", scope: "input", assurance: "sdk-computed", bytes: lossRunBytes },
-    { id: "exposures", scope: "input", assurance: "sdk-computed", bytes: exposureBytes },
-    { id: "source-archive", scope: "input", assurance: "caller-declared", algorithm: "sha-256", value: archiveSha256, byteLength: archiveByteLength },
-    { id: "transform-script", scope: "preparation", assurance: "caller-declared", algorithm: "git-sha", value: transformCommit, byteLength: 0 },
+  inputArtifacts: [
+    { id: "loss-run", assurance: "sdk-computed", bytes: lossRunBytes },
+    { id: "exposures", assurance: "sdk-computed", bytes: exposureBytes },
+    { id: "source-archive", assurance: "caller-declared", algorithm: "sha256", value: archiveSha256 },
   ],
-  lineage: [
-    { artifactId: "loss-run", inputArtifactIds: ["source-archive", "transform-script"] },
+  preparationArtifacts: [
+    { id: "transform-script", assurance: "caller-declared", algorithm: "git-sha", value: transformCommit },
+  ],
+  preparationLineage: [
+    { outputArtifactId: "loss-run", inputArtifactIds: ["source-archive"], transformationArtifactIds: ["transform-script"] },
   ],
 });
 
@@ -34,7 +36,11 @@ const bundle = createBundle({
   inputs,
   parameters,
   results: outcome.result,
-  sdkVersions: { ...provenance.manifest.packageVersions },
+  sdkVersions: {
+    "@actuarial-ts/core": provenance.manifest.engine.packages.core,
+    "@actuarial-ts/data": provenance.manifest.engine.packages.data,
+    "@actuarial-ts/compliance": provenance.manifest.engine.packages.compliance,
+  },
   createdAt: "2026-09-03T00:00:00Z",
   diagnosticRuns: [provenance],
   wrap: { triangles: [], selections: [], results: [] },
@@ -47,13 +53,13 @@ The manifest contains the complete normalized definition, preparation identity a
 
 The returned `VerifiedDiagnosticRunProvenance` is frozen and registered in private owner state. A cast, clone, or parsed JSON object cannot author a new bundle. Use `verifyDiagnosticRunIdentity(stored, sameRunAndEvidence)` to regenerate and authenticate stored provenance; it reports the first mismatching JSON path and returns regenerated authentic review text rather than trusting stored prose.
 
-Wrapped bundles include one deduplicated typed `diagnostic-definition` document per definition and require the outer SDK versions/generator to agree with every run manifest. FNV-1a/JCS tags are deterministic integrity aids, not cryptographic authentication.
+Wrapped bundles include one deduplicated typed `diagnostic-definition` document per definition and require the outer SDK versions/generator to agree with every run manifest. `verifyBundle` also recompiles serialized definitions and rechecks definition, review, result, run, and binding fingerprints plus the typed definition mirror; merely re-stamping inconsistent JSON cannot make it verify. FNV-1a/JCS tags are deterministic integrity aids, not cryptographic authentication.
 
 Material host judgments worth recording in the assumption ledger include amount basis and limit application, expense treatment, missingness, exposure timing, period convention, filters/grouping, communicated scale, and any policy that permits a failed review. Helpers never invent an actuary’s rationale.
 
 The package also provides estimate metadata, assumption ledgers, ASOP No. 41 draft disclosure generation, ASOP No. 56 model cards, actual-versus-expected roll-forward, and canonical reproducibility bundles.
 
-See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
+See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 

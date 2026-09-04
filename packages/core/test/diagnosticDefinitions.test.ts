@@ -169,7 +169,11 @@ const singleBasisDefinition: DiagnosticDefinition = {
       currency: "USD",
       perspective: "gross",
       components: [
-        { id: "loss", treatment: "included", limitation: { kind: "unlimited" } },
+        {
+          id: "loss",
+          treatment: "included",
+          limitation: { kind: "unlimited" },
+        },
       ],
     },
   ],
@@ -186,7 +190,8 @@ const singleBasisDefinition: DiagnosticDefinition = {
       },
       presentation: {
         displayName: "Gross paid to incurred",
-        description: "Cumulative gross paid divided by cumulative gross incurred",
+        description:
+          "Cumulative gross paid divided by cumulative gross incurred",
         displayUnit: "ratio",
         scale: 1,
         numeratorLabel: "gross paid",
@@ -263,7 +268,11 @@ const twoBasisDefinition: DiagnosticDefinition = {
       currency: "USD",
       perspective: "gross",
       components: [
-        { id: "loss", treatment: "included", limitation: { kind: "unlimited" } },
+        {
+          id: "loss",
+          treatment: "included",
+          limitation: { kind: "unlimited" },
+        },
       ],
     },
     {
@@ -272,7 +281,11 @@ const twoBasisDefinition: DiagnosticDefinition = {
       currency: "USD",
       perspective: "net",
       components: [
-        { id: "loss", treatment: "included", limitation: { kind: "unlimited" } },
+        {
+          id: "loss",
+          treatment: "included",
+          limitation: { kind: "unlimited" },
+        },
       ],
     },
   ],
@@ -519,7 +532,9 @@ describe("diagnostic definition compilation", () => {
       const compiled = compileDiagnosticDefinition(definition);
       assertCompiledDiagnosticDefinition(compiled);
       expect(compiled.definition.id).toBe(definition.id);
-      expect(compiled.definitionIntegrity).toMatch(/^fnv1a64-jcs-v1:[0-9a-f]{16}$/);
+      expect(compiled.definitionIntegrity).toMatch(
+        /^fnv1a64-jcs-v1:[0-9a-f]{16}$/,
+      );
       expect(Object.isFrozen(compiled)).toBe(true);
       expect(Object.isFrozen(compiled.definition)).toBe(true);
     }
@@ -527,13 +542,16 @@ describe("diagnostic definition compilation", () => {
 
   it("reuses one formula across two amount bases without cloning formula identity", () => {
     const compiled = compileDiagnosticDefinition(twoBasisDefinition);
-    expect(Object.keys(compiled.formulaFingerprints)).toEqual(["paid-to-incurred"]);
+    expect(Object.keys(compiled.formulaFingerprints)).toEqual([
+      "paid-to-incurred",
+    ]);
     expect(Object.keys(compiled.calculationFingerprints)).toEqual([
       "gross-paid-to-incurred",
       "net-paid-to-incurred",
     ]);
-    expect(compiled.calculationFingerprints["gross-paid-to-incurred"])
-      .not.toBe(compiled.calculationFingerprints["net-paid-to-incurred"]);
+    expect(compiled.calculationFingerprints["gross-paid-to-incurred"]).not.toBe(
+      compiled.calculationFingerprints["net-paid-to-incurred"],
+    );
   });
 
   it("normalizes ordered aliases and catalog order deterministically", () => {
@@ -546,13 +564,201 @@ describe("diagnostic definition compilation", () => {
     }
   });
 
+  it("canonicalizes review filter and projection period aliases", () => {
+    const compiled = compileDiagnosticDefinition({
+      ...orderedFiscalDefinition,
+      reviewRules: [
+        {
+          kind: "control-total",
+          id: "reported-control",
+          code: "reported-control",
+          description: "Reported claims match the control",
+          severity: "fail",
+          missingInput: "not-evaluated",
+          expression: { op: "measure", measureId: "reported" },
+          expected: 1,
+          filter: {
+            origins: ["25Q1"],
+            valuationFrom: "2025 FQ1",
+            valuationThrough: "25Q2",
+          },
+          projection: { kind: "valuation", valuation: "25Q2" },
+        },
+      ],
+    });
+    expect(compiled.definition.reviewRules[0]).toMatchObject({
+      filter: {
+        origins: ["FY2025-Q1"],
+        valuationFrom: "FY2025-Q1",
+        valuationThrough: "FY2025-Q2",
+      },
+      projection: { kind: "valuation", valuation: "FY2025-Q2" },
+    });
+  });
+
+  it("rejects invalid review periods and unsafe all-cell controls", () => {
+    const reviewRule = {
+      kind: "control-total" as const,
+      id: "reported-control",
+      code: "reported-control",
+      description: "Reported claims match the control",
+      severity: "fail" as const,
+      missingInput: "not-evaluated" as const,
+      expression: { op: "measure" as const, measureId: "reported" },
+      expected: 1,
+      projection: { kind: "valuation" as const, valuation: "not-a-period" },
+    };
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...orderedFiscalDefinition,
+        reviewRules: [reviewRule],
+      }),
+    ).toThrow(/period/i);
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...orderedFiscalDefinition,
+        reviewRules: [
+          { ...reviewRule, projection: { kind: "all-cells" as const } },
+        ],
+      }),
+    ).toThrow(/all-cells/i);
+  });
+
+  it("requires amount semantics for caller-asserted layer ordering", () => {
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...orderedFiscalDefinition,
+        reviewRules: [
+          {
+            kind: "layer-order",
+            id: "invalid-layer-order",
+            code: "invalid-layer-order",
+            description: "A count is not an amount layer",
+            severity: "fail",
+            missingInput: "not-evaluated",
+            narrower: { op: "measure", measureId: "reported" },
+            broader: { op: "measure", measureId: "reported" },
+            comparability: {
+              kind: "caller-asserted",
+              rationaleArtifactId: "review-note",
+            },
+          },
+        ],
+      }),
+    ).toThrow(/amounts/);
+  });
+
+  it("proves SDK-derived layer containment from a shared raw claim measure", () => {
+    const layered: DiagnosticDefinition = {
+      diagnosticDefinitionVersion: "1.0.0",
+      id: "layer-proof",
+      version: "1",
+      lossRowGrain: "claim",
+      measures: [
+        {
+          id: "raw-incurred",
+          displayName: "Raw incurred",
+          description: "Unlimited incurred",
+          source: "loss",
+          kind: "amount",
+          unit: "USD",
+          developmentSemantics: "cumulative",
+          aggregation: "sum",
+          missing: "unknown",
+          basisId: "unlimited",
+        },
+        {
+          id: "primary-incurred",
+          displayName: "Primary incurred",
+          description: "Primary incurred",
+          source: "derived",
+          kind: "amount",
+          unit: "USD",
+          developmentSemantics: "cumulative",
+          aggregation: "sum",
+          missing: "unknown",
+          basisId: "primary",
+        },
+      ],
+      countPopulations: [],
+      exposureBases: [],
+      amountBases: [
+        {
+          id: "unlimited",
+          displayName: "Unlimited",
+          currency: "USD",
+          perspective: "gross",
+          components: [
+            {
+              id: "loss",
+              treatment: "included",
+              limitation: { kind: "unlimited" },
+            },
+          ],
+        },
+        {
+          id: "primary",
+          displayName: "Primary",
+          currency: "USD",
+          perspective: "gross",
+          components: [
+            {
+              id: "loss",
+              treatment: "included",
+              limitation: {
+                kind: "layer",
+                attachment: 0,
+                limit: 250_000,
+                application: "claim",
+                derivation: { kind: "sdk" },
+              },
+            },
+          ],
+        },
+      ],
+      derivedMeasures: [
+        {
+          id: "derive-primary",
+          outputMeasureId: "primary-incurred",
+          expression: {
+            op: "claim-layer",
+            measureId: "raw-incurred",
+            attachment: 0,
+            limit: 250_000,
+          },
+        },
+      ],
+      formulas: [],
+      instances: [],
+      reviewRules: [
+        {
+          kind: "layer-order",
+          id: "primary-below-total",
+          code: "primary-below-total",
+          description: "Primary does not exceed total",
+          severity: "fail",
+          missingInput: "not-evaluated",
+          narrower: { op: "measure", measureId: "primary-incurred" },
+          broader: { op: "measure", measureId: "raw-incurred" },
+          comparability: { kind: "compiler-proven" },
+        },
+      ],
+      periodAxis: calendarAxis,
+    };
+    expect(
+      compileDiagnosticDefinition(layered).definition.reviewRules[0],
+    ).toMatchObject({ comparability: { kind: "compiler-proven" } });
+  });
+
   it("recompiles its normalized wire projection idempotently", () => {
     const first = compileDiagnosticDefinition(orderedFiscalDefinition);
     const second = compileDiagnosticDefinition(first.definition);
 
     expect(second.definition).toEqual(first.definition);
     expect(second.formulaFingerprints).toEqual(first.formulaFingerprints);
-    expect(second.calculationFingerprints).toEqual(first.calculationFingerprints);
+    expect(second.calculationFingerprints).toEqual(
+      first.calculationFingerprints,
+    );
     expect(second.definitionIntegrity).toBe(first.definitionIntegrity);
   });
 
@@ -560,11 +766,81 @@ describe("diagnostic definition compilation", () => {
     const mutable = structuredClone(countOnlyDefinition);
     const compiled = compileDiagnosticDefinition(mutable);
     mutable.measures[0]!.displayName = "mutated after compilation";
-    expect(compiled.definition.measures[0]!.displayName).toBe("Closed with payment");
+    expect(compiled.definition.measures[0]!.displayName).toBe(
+      "Closed with payment",
+    );
 
     const lookalike = JSON.parse(JSON.stringify(compiled));
     expect(() => assertCompiledDiagnosticDefinition(lookalike)).toThrow(
       /compiled diagnostic definition/i,
+    );
+  });
+
+  it("rejects unknown executable keys and invalid enum branches at exact paths", () => {
+    const futureFormula = structuredClone(
+      countOnlyDefinition,
+    ) as DiagnosticDefinition & {
+      formulas: Array<DiagnosticFormulaTemplate & { futureBehavior?: boolean }>;
+    };
+    futureFormula.formulas[0]!.futureBehavior = true;
+    expect(() => compileDiagnosticDefinition(futureFormula)).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            code: "unknown-key",
+            path: "$.formulas[0].futureBehavior",
+          }),
+        ]),
+      }),
+    );
+
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...countOnlyDefinition,
+        periodAxis: { ...calendarAxis, originAnchor: "middle" as never },
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({ path: "$.periodAxis.originAnchor" }),
+        ]),
+      }),
+    );
+  });
+
+  it("rejects comparisons between different quantity semantics", () => {
+    const instance = mixedExposureDefinition.instances[0]!;
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...mixedExposureDefinition,
+        instances: [
+          {
+            ...instance,
+            rules: [
+              {
+                id: "count-versus-exposure",
+                code: "count-versus-exposure",
+                message: "Invalid cross-quantity comparison",
+                severity: "fail",
+                when: {
+                  left: { source: "calculation", field: "numerator" },
+                  operator: "gt",
+                  right: { source: "calculation", field: "denominator" },
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            code: "incompatible-semantics",
+            path: "$.instances[0].rules[0].when",
+          }),
+        ]),
+      }),
     );
   });
 });

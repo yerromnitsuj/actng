@@ -11,6 +11,10 @@ export interface MackOptions {
   selected?: (number | null)[];
   /** Multiplicative tail factor beyond the last observed age (1 = none). */
   tailFactor?: number;
+  /** Standard error of the selected tail-factor estimate (Mack 1999). */
+  tailStandardError?: number;
+  /** Tail random-error scale sigma, applied as sigma / sqrt(C) (Mack 1999). */
+  tailSigma?: number;
 }
 
 /**
@@ -46,7 +50,10 @@ export function mackEstimators(tri: Triangle): {
   const n = tri.origins.length;
   const K = tri.ages.length;
   if (K < 2) {
-    throw new ReservingError("TOO_SMALL", "Mack requires at least two development ages");
+    throw new ReservingError(
+      "TOO_SMALL",
+      "Mack requires at least two development ages",
+    );
   }
   const f: number[] = [];
   const denomSums: number[] = [];
@@ -169,7 +176,45 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
   }
   const tail = options.tailFactor ?? 1;
   if (!isNum(tail) || tail <= 0) {
-    throw new ReservingError("BAD_TAIL", "Tail factor must be a positive number");
+    throw new ReservingError(
+      "BAD_TAIL",
+      "Tail factor must be a positive number",
+    );
+  }
+  const hasPublishedTailInputs =
+    options.tailStandardError !== undefined || options.tailSigma !== undefined;
+  if (
+    hasPublishedTailInputs &&
+    (options.tailStandardError === undefined || options.tailSigma === undefined)
+  ) {
+    throw new ReservingError(
+      "BAD_TAIL",
+      "tailStandardError and tailSigma must be supplied together",
+    );
+  }
+  if (
+    options.tailStandardError !== undefined &&
+    (!isNum(options.tailStandardError) || options.tailStandardError < 0)
+  ) {
+    throw new ReservingError(
+      "BAD_TAIL",
+      "Tail standard error must be a finite nonnegative number",
+    );
+  }
+  if (
+    options.tailSigma !== undefined &&
+    (!isNum(options.tailSigma) || options.tailSigma < 0)
+  ) {
+    throw new ReservingError(
+      "BAD_TAIL",
+      "Tail sigma must be a finite nonnegative number",
+    );
+  }
+  if (tail === 1 && hasPublishedTailInputs) {
+    throw new ReservingError(
+      "BAD_TAIL",
+      "Tail uncertainty inputs require a tailFactor other than 1",
+    );
   }
 
   // sigma^2_k estimates: data-estimated where possible; Mack's extrapolation
@@ -189,9 +234,10 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
       sigma2Tail = s2b;
     }
     denomTail = denomSums[K - 2]!;
-    warnings.push(
-      "The tail step's standard-error contribution extrapolates sigma^2 beyond the observed columns and reuses the final column's volume; treat it as approximate (Mack 1999)",
-    );
+    if (!hasPublishedTailInputs)
+      warnings.push(
+        "The tail step's standard-error contribution extrapolates sigma^2 beyond the observed columns and reuses the final column's volume; supply tailStandardError and tailSigma for the explicit Mack (1999) treatment",
+      );
   }
 
   // Project the full rectangle with the projection factors.
@@ -233,7 +279,12 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
       );
     }
     if (tail !== 1 && projected[i]![K - 1]! > 0) {
-      mse += (sigma2Tail / tail ** 2) * (1 / projected[i]![K - 1]! + 1 / denomTail);
+      const finalCumulative = projected[i]![K - 1]!;
+      mse += hasPublishedTailInputs
+        ? (options.tailSigma! ** 2 / finalCumulative +
+            options.tailStandardError! ** 2) /
+          tail ** 2
+        : (sigma2Tail / tail ** 2) * (1 / finalCumulative + 1 / denomTail);
     }
     mse *= ultimate ** 2;
     mseByRow[i] = mse;
@@ -283,7 +334,10 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
       const uj = ultimateOf(j);
       if (!(uj > 0)) continue;
       const floor = Math.max(maturity[i]!, maturity[j]!);
-      partnerUltimatesByFloor.set(floor, (partnerUltimatesByFloor.get(floor) ?? 0) + uj);
+      partnerUltimatesByFloor.set(
+        floor,
+        (partnerUltimatesByFloor.get(floor) ?? 0) + uj,
+      );
     }
 
     for (const [floor, partnerUltimates] of partnerUltimatesByFloor) {
@@ -295,7 +349,9 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
         shared += (2 * sigma2[k]!) / fEff[k]! ** 2 / denomSums[k]!;
       }
       if (tail !== 1) {
-        shared += (2 * sigma2Tail) / tail ** 2 / denomTail;
+        shared += hasPublishedTailInputs
+          ? (2 * options.tailStandardError! ** 2) / tail ** 2
+          : (2 * sigma2Tail) / tail ** 2 / denomTail;
       }
 
       totalMse += ui * partnerUltimates * shared;
@@ -317,7 +373,14 @@ export function runMack(tri: Triangle, options: MackOptions = {}): MackResult {
     developmentFactors: fEff,
     sigmaSquared: sigma2,
     tailFactor: tail,
-    sigmaSquaredTail: tail !== 1 ? sigma2Tail : undefined,
+    sigmaSquaredTail:
+      tail !== 1 && !hasPublishedTailInputs ? sigma2Tail : undefined,
+    tailStandardError:
+      tail !== 1 && hasPublishedTailInputs
+        ? options.tailStandardError
+        : undefined,
+    tailSigma:
+      tail !== 1 && hasPublishedTailInputs ? options.tailSigma : undefined,
     rows,
     totals: {
       ...totals,

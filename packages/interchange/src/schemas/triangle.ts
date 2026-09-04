@@ -1,3 +1,4 @@
+import { isRealIsoDate } from "@actuarial-ts/core";
 import { z } from "zod";
 import { envelopeShape } from "../envelope.js";
 
@@ -29,7 +30,12 @@ export type CoreMeasure = (typeof CORE_MEASURES)[number];
 
 export const measureSchema = z.union([
   z.enum([...CORE_MEASURES, "earnedPremium"]),
-  z.string().regex(/^custom:.+$/, 'custom measures must be namespaced as "custom:<label>"'),
+  z
+    .string()
+    .regex(
+      /^custom:.+$/,
+      'custom measures must be namespaced as "custom:<label>"',
+    ),
 ]);
 
 export type Measure = z.infer<typeof measureSchema>;
@@ -43,7 +49,9 @@ export const originLengthMonthsSchema = z.union([
 
 export type OriginLengthMonths = z.infer<typeof originLengthMonthsSchema>;
 
-const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected an ISO yyyy-mm-dd date");
+const isoDateSchema = z
+  .string()
+  .refine(isRealIsoDate, "expected a real ISO yyyy-mm-dd date");
 
 export const triangleOriginSchema = z
   .object({ label: z.string().min(1), start: isoDateSchema })
@@ -51,7 +59,11 @@ export const triangleOriginSchema = z
 
 /** Bulk-lane reference (spec 3.3). */
 export const valuesRefSchema = z
-  .object({ format: z.literal("arrow"), path: z.string().min(1), sha256: z.string().min(1) })
+  .object({
+    format: z.literal("arrow"),
+    path: z.string().min(1),
+    sha256: z.string().min(1),
+  })
   .passthrough();
 
 export const triangleBodySchema = z
@@ -73,10 +85,16 @@ export const triangleBodySchema = z
       .passthrough()
       .optional(),
     units: z
-      .object({ currency: z.string().optional(), scale: z.number().positive().optional() })
+      .object({
+        currency: z.string().optional(),
+        scale: z.number().positive().optional(),
+      })
       .passthrough()
       .optional(),
-    segment: z.object({ labels: z.record(z.string()) }).passthrough().optional(),
+    segment: z
+      .object({ labels: z.record(z.string()) })
+      .passthrough()
+      .optional(),
   })
   .passthrough()
   .superRefine((body, ctx) => {

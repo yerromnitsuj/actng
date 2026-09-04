@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { capClaims, claimSizeDiagnostics, effectiveCap } from "../src/capping.js";
+import {
+  capClaims,
+  claimSizeDiagnostics,
+  effectiveCap,
+} from "../src/capping.js";
 import { factorVolatility } from "../src/factors.js";
 import { computeDevelopmentFactors } from "../src/factors.js";
 import { buildTriangles } from "../src/triangle.js";
@@ -55,7 +59,11 @@ describe("capClaims", () => {
       snap("OLD", "2020-06-01", "2020-12-31", 0, 230_000), // 2020 cap ~195,882
       snap("NEW", "2025-06-01", "2025-12-31", 0, 230_000), // 2025 cap 250,000
     ];
-    const capped = capClaims(claims, { cap: 250_000, indexRate: 0.05, baseYear: 2025 });
+    const capped = capClaims(claims, {
+      cap: 250_000,
+      indexRate: 0.05,
+      baseYear: 2025,
+    });
     expect(capped[0]!.caseReserve).toBeCloseTo(250_000 / 1.05 ** 5, 4);
     expect(capped[1]!.caseReserve).toBe(230_000); // under its year's cap
   });
@@ -75,7 +83,9 @@ describe("capClaims", () => {
     const claims = [snap("A", "2024-01-01", "2024-12-31", 1, 1)];
     expect(() => capClaims(claims, { cap: 0 })).toThrowError(/positive/);
     expect(() => capClaims(claims, { cap: -5 })).toThrowError(/positive/);
-    expect(() => capClaims(claims, { cap: 100, indexRate: -1 })).toThrowError(/-100%/);
+    expect(() => capClaims(claims, { cap: 100, indexRate: -1 })).toThrowError(
+      /-100%/,
+    );
   });
 
   it("capping is idempotent and capped values never exceed unlimited", () => {
@@ -101,10 +111,25 @@ describe("capClaims", () => {
       ["2023", 900_000],
       ["2024", 700_000],
     ] as const) {
-      claims.push(snap(`${year}-big`, `${year}-02-01`, `${year}-12-31`, big / 4, big / 2));
-      claims.push(snap(`${year}-big`, `${year}-02-01`, `2025-12-31`, big, 0, "closed"));
-      claims.push(snap(`${year}-small`, `${year}-03-01`, `${year}-12-31`, 10_000, 20_000));
-      claims.push(snap(`${year}-small`, `${year}-03-01`, `2025-12-31`, 30_000, 0, "closed"));
+      claims.push(
+        snap(`${year}-big`, `${year}-02-01`, `${year}-12-31`, big / 4, big / 2),
+      );
+      claims.push(
+        snap(`${year}-big`, `${year}-02-01`, `2025-12-31`, big, 0, "closed"),
+      );
+      claims.push(
+        snap(`${year}-small`, `${year}-03-01`, `${year}-12-31`, 10_000, 20_000),
+      );
+      claims.push(
+        snap(
+          `${year}-small`,
+          `${year}-03-01`,
+          `2025-12-31`,
+          30_000,
+          0,
+          "closed",
+        ),
+      );
     }
     const options = { cadence: "annual" as const, asOfDate: "2025-12-31" };
     const unlimited = buildTriangles(claims, options);
@@ -197,5 +222,24 @@ describe("factorVolatility", () => {
     expect(vol[0]).toBeCloseTo(0, 9);
     // Later columns lack two factors -> null.
     expect(vol[1]).toBeNull();
+  });
+});
+
+describe("claim-size diagnostic input domains", () => {
+  const claims = [snap("a", "2024-01-01", "2024-12-31", 100, 0, "closed")];
+
+  it("rejects an empty as-of population and invalid candidate caps", () => {
+    expect(() =>
+      claimSizeDiagnostics(claims, { asOfDate: "1900-12-31" }),
+    ).toThrow(/No claim snapshots/);
+    expect(() => claimSizeDiagnostics(claims, { candidateCaps: [-1] })).toThrow(
+      /finite positive caps/,
+    );
+    expect(() =>
+      claimSizeDiagnostics(claims, { candidateCaps: [Number.NaN] }),
+    ).toThrow(/finite positive caps/);
+    expect(() =>
+      claimSizeDiagnostics(claims, { candidateCaps: [100], indexRate: -1 }),
+    ).toThrow(/greater than -100%/);
   });
 });

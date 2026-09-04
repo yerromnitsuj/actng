@@ -29,6 +29,9 @@ interop/conformance/
     ├── misaligned-mack-loglinear.json   (taylor-ashe only; see below)
     ├── clpy-deterministic-cl.json       (taylor-ashe only; see below)
     └── clpy-mack1993-vw.json            (taylor-ashe only; see below)
+└── fixtures/diagnostics/generalized-casualty/
+    ├── calendar-{definition,aggregate-cells,expected-output}.json
+    └── ordered-axis-{definition,aggregate-cells,expected-output}.json
 ```
 
 ## The fixtures
@@ -87,6 +90,12 @@ editable; CI runs this shore on every push touching `interop/**` via the "Python
 npm run test:py
 # equivalently: .venv-interop/bin/pytest interop/python/tests interop/conformance/py interop/sidecar/tests -q
 ```
+
+The diagnostic corpus is consumed by TypeScript, Python, and R. Each shore
+verifies the portable identities and independently replays all 22 aggregate
+cells for both a calendar and an explicitly ordered period axis. Python and R
+also prove that unknown executable behavior is rejected even after all outer
+and semantic integrity values are recomputed.
 
 ## What each runner proves
 
@@ -152,7 +161,10 @@ corpus is literature-anchored when a third of it is not.
 The committed fixture documents are frozen expectations — the compatibility
 statement other parties can hold us to. Do NOT regenerate them casually.
 
-Regeneration (`npx tsx interop/conformance/generate-fixtures.mts`, plus a
+The default generator updates only the current diagnostic corpus. Historical
+triangle fixtures require the explicit `--legacy` opt-in. Regeneration
+(`npx tsx interop/conformance/generate-fixtures.mts`, or the same command with
+`--legacy`, plus a
 pytest run to re-author the Python-authored documents — misaligned and
 `clpy-*` — if their inputs changed) is
 legitimate ONLY when a spec or convention change alters what the documents

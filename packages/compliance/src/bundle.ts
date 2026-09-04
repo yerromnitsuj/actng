@@ -30,6 +30,7 @@ import { canonicalJson, fnv1a64 } from "@actuarial-ts/core";
 import {
   INTERCHANGE_SPEC_VERSION,
   diagnosticDefinitionToDoc,
+  docToDiagnosticDefinition,
   type DiagnosticDefinitionDoc,
   BundleDoc,
   MethodResultDoc,
@@ -38,10 +39,18 @@ import {
   TriangleDoc,
 } from "@actuarial-ts/interchange";
 import type { VerifiedDiagnosticRunProvenance } from "./diagnosticRun.js";
-import { assertVerifiedDiagnosticRunProvenance, verifiedDefinitionForBundle } from "./diagnosticRun.js";
+import {
+  assertVerifiedDiagnosticRunProvenance,
+  serializedDiagnosticRunMismatch,
+  verifiedDefinitionForBundle,
+} from "./diagnosticRun.js";
 import { ComplianceError } from "./errors.js";
 import { COMPLIANCE_PACKAGE_VERSION } from "./version.js";
-export { ComplianceError, COMPLIANCE_ERROR_CODES, type ComplianceErrorCode } from "./errors.js";
+export {
+  ComplianceError,
+  COMPLIANCE_ERROR_CODES,
+  type ComplianceErrorCode,
+} from "./errors.js";
 export { COMPLIANCE_PACKAGE_VERSION } from "./version.js";
 
 export { canonicalJson, fnv1a64 };
@@ -63,8 +72,6 @@ export type WrappedBundleDoc = BundleDoc;
  * of this package. Add the code here when introducing a new throw.
  * (UNSUPPORTED_VALUE moved to core's registry with canonicalJson in 0.2.0.)
  */
-
-
 
 /**
  * The interchange version the wrapped form is written under. Kept in literal
@@ -158,9 +165,13 @@ export interface WrappedBundleResult extends ReproducibilityBundle {
  * ALSO returned as a wrapped BundleDoc; the unwrapped `{ payload, hash }` is
  * byte-identical either way (the v0.1.x compat fixture pins this).
  */
-export function createBundle(input: CreateBundleInput & { wrap: BundleWrapInput }): WrappedBundleResult;
+export function createBundle(
+  input: CreateBundleInput & { wrap: BundleWrapInput },
+): WrappedBundleResult;
 export function createBundle(input: CreateBundleInput): ReproducibilityBundle;
-export function createBundle(input: CreateBundleInput): ReproducibilityBundle | WrappedBundleResult {
+export function createBundle(
+  input: CreateBundleInput,
+): ReproducibilityBundle | WrappedBundleResult {
   const body: Record<string, unknown> = {
     createdAt: input.createdAt,
     inputs: input.inputs,
@@ -170,8 +181,54 @@ export function createBundle(input: CreateBundleInput): ReproducibilityBundle | 
   };
   if (input.seeds !== undefined) body["seeds"] = input.seeds;
   if (input.diagnosticRuns !== undefined) {
-    for (const run of input.diagnosticRuns) assertVerifiedDiagnosticRunProvenance(run);
-    if(input.diagnosticRuns.length>0){const expected=input.diagnosticRuns[0]!.manifest.packageVersions;for(const [runIndex,run] of input.diagnosticRuns.entries()){if(canonicalJson(run.manifest.packageVersions)!==canonicalJson(expected))throw new ComplianceError("BAD_DIAGNOSTIC_RUN","Diagnostic runs disagree on SDK package versions",`$.diagnosticRuns[${runIndex}].manifest.packageVersions`)}for(const [name,version] of Object.entries(expected))if(input.sdkVersions[name]!==version)throw new ComplianceError("BAD_DIAGNOSTIC_RUN",`Outer sdkVersions must record ${name} at ${version}`,`$.sdkVersions.${name}`);if(input.wrap!==undefined&&input.generator!==undefined&&(input.generator.name!=="@actuarial-ts/compliance"||input.generator.version!==COMPLIANCE_PACKAGE_VERSION))throw new ComplianceError("BAD_DIAGNOSTIC_RUN","Wrapped diagnostic bundles require the actual compliance generator stamp","$.generator")}
+    for (const run of input.diagnosticRuns)
+      assertVerifiedDiagnosticRunProvenance(run);
+    const seenBindings = new Set<string>();
+    for (const [runIndex, run] of input.diagnosticRuns.entries()) {
+      if (seenBindings.has(run.runResultFingerprint))
+        throw new ComplianceError(
+          "BAD_DIAGNOSTIC_RUN",
+          "Duplicate diagnostic run-result fingerprint",
+          `$.diagnosticRuns[${runIndex}].runResultFingerprint`,
+        );
+      seenBindings.add(run.runResultFingerprint);
+    }
+    if (input.diagnosticRuns.length > 0) {
+      const expected = input.diagnosticRuns[0]!.manifest.engine.packages;
+      for (const [runIndex, run] of input.diagnosticRuns.entries()) {
+        if (
+          canonicalJson(run.manifest.engine.packages) !==
+          canonicalJson(expected)
+        )
+          throw new ComplianceError(
+            "BAD_DIAGNOSTIC_RUN",
+            "Diagnostic runs disagree on SDK package versions",
+            `$.diagnosticRuns[${runIndex}].manifest.engine.packages`,
+          );
+      }
+      for (const [name, version] of Object.entries({
+        "@actuarial-ts/core": expected.core,
+        "@actuarial-ts/data": expected.data,
+        "@actuarial-ts/compliance": expected.compliance,
+      }))
+        if (input.sdkVersions[name] !== version)
+          throw new ComplianceError(
+            "BAD_DIAGNOSTIC_RUN",
+            `Outer sdkVersions must record ${name} at ${version}`,
+            `$.sdkVersions.${name}`,
+          );
+      if (
+        input.wrap !== undefined &&
+        input.generator !== undefined &&
+        (input.generator.name !== "@actuarial-ts/compliance" ||
+          input.generator.version !== COMPLIANCE_PACKAGE_VERSION)
+      )
+        throw new ComplianceError(
+          "BAD_DIAGNOSTIC_RUN",
+          "Wrapped diagnostic bundles require the actual compliance generator stamp",
+          "$.generator",
+        );
+    }
     body["diagnosticRuns"] = input.diagnosticRuns;
   }
   const payload = canonicalJson(body);
@@ -181,27 +238,48 @@ export function createBundle(input: CreateBundleInput): ReproducibilityBundle | 
   // The inner record is carried opaquely as the `bundle` segment; the outer
   // tag is fnv1a64(canonicalJson({ bundle, interchange })) — exactly
   // interchange's semanticBodyOf for kind "bundle" (spec 3.2).
-  const bundleSegment: Record<string, unknown> = { hash: inner.hash, payload: inner.payload };
+  const bundleSegment: Record<string, unknown> = {
+    hash: inner.hash,
+    payload: inner.payload,
+  };
   const definitions = new Map<string, DiagnosticDefinitionDoc>();
   for (const run of input.diagnosticRuns ?? []) {
     const compiled = verifiedDefinitionForBundle(run);
-    definitions.set(run.definitionIdentities.definition, diagnosticDefinitionToDoc(compiled, {
-      createdAt: input.createdAt,
-      generator: { name: "@actuarial-ts/compliance", version: COMPLIANCE_PACKAGE_VERSION },
-    }));
+    definitions.set(
+      run.definition.identities.definition,
+      diagnosticDefinitionToDoc(compiled, {
+        createdAt: input.createdAt,
+        generator: {
+          name: "@actuarial-ts/compliance",
+          version: COMPLIANCE_PACKAGE_VERSION,
+        },
+      }),
+    );
   }
   const interchange = {
     triangles: [...input.wrap.triangles],
     selections: [...input.wrap.selections],
     results: [...input.wrap.results],
-    ...(definitions.size === 0 ? {} : { diagnosticDefinitions: [...definitions.values()].sort((a,b)=>a.diagnosticDefinition.identities.definition<b.diagnosticDefinition.identities.definition?-1:1) }),
+    ...(definitions.size === 0
+      ? {}
+      : {
+          diagnosticDefinitions: [...definitions.values()].sort((a, b) =>
+            a.diagnosticDefinition.identities.definition <
+            b.diagnosticDefinition.identities.definition
+              ? -1
+              : 1,
+          ),
+        }),
   };
   const wrapped: WrappedBundleDoc = {
     interchangeVersion: WRAPPED_BUNDLE_INTERCHANGE_VERSION,
     kind: "bundle",
     generator: input.generator
       ? { ...input.generator }
-      : { name: "@actuarial-ts/compliance", version: COMPLIANCE_PACKAGE_VERSION },
+      : {
+          name: "@actuarial-ts/compliance",
+          version: COMPLIANCE_PACKAGE_VERSION,
+        },
     createdAt: input.createdAt,
     bundle: bundleSegment,
     interchange,
@@ -236,18 +314,29 @@ export interface VerifyBundleResult {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
   const proto: unknown = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
 
 /** First differing path between two canonicalizable structures, or null when equal. */
-function firstDifference(stored: unknown, rerun: unknown, path: string): string | null {
+function firstDifference(
+  stored: unknown,
+  rerun: unknown,
+  path: string,
+): string | null {
   if (isPlainObject(stored) && isPlainObject(rerun)) {
-    const keys = [...new Set([...Object.keys(stored), ...Object.keys(rerun)])].sort();
+    const keys = [
+      ...new Set([...Object.keys(stored), ...Object.keys(rerun)]),
+    ].sort();
     for (const key of keys) {
       const keyPath = `${path}.${key}`;
-      if (!(key in stored) || !(key in rerun)) return keyPath;
+      if (
+        !Object.prototype.hasOwnProperty.call(stored, key) ||
+        !Object.prototype.hasOwnProperty.call(rerun, key)
+      )
+        return keyPath;
       const diff = firstDifference(stored[key], rerun[key], keyPath);
       if (diff !== null) return diff;
     }
@@ -265,7 +354,10 @@ function firstDifference(stored: unknown, rerun: unknown, path: string): string 
 }
 
 /** Inner verification — the pre-wrapped behavior, unchanged byte for byte. */
-function verifyUnwrapped(bundle: ReproducibilityBundle, rerunResults: unknown): VerifyBundleResult {
+function verifyUnwrapped(
+  bundle: ReproducibilityBundle,
+  rerunResults: unknown,
+): VerifyBundleResult {
   // The bundle's own hash first. Without this, the attestation ("these results
   // came from exactly these inputs, parameters, and SDK versions") checked the
   // results segment only — a bundle with rewritten inputs and hash "deadbeef"
@@ -281,21 +373,69 @@ function verifyUnwrapped(bundle: ReproducibilityBundle, rerunResults: unknown): 
     throw new ComplianceError("BAD_BUNDLE", "bundle payload is not valid JSON");
   }
   if (!isPlainObject(stored) || !("results" in stored)) {
-    throw new ComplianceError("BAD_BUNDLE", 'bundle payload has no "results" segment');
+    throw new ComplianceError(
+      "BAD_BUNDLE",
+      'bundle payload has no "results" segment',
+    );
+  }
+  if (Object.prototype.hasOwnProperty.call(stored, "diagnosticRuns")) {
+    if (!Array.isArray(stored["diagnosticRuns"]))
+      throw new ComplianceError(
+        "BAD_BUNDLE",
+        'bundle payload "diagnosticRuns" must be an array',
+      );
+    const seen = new Set<string>();
+    for (const [index, run] of stored["diagnosticRuns"].entries()) {
+      const path = `$.diagnosticRuns[${index}]`;
+      const mismatch = serializedDiagnosticRunMismatch(run, path);
+      if (mismatch !== null)
+        return { reproduced: false, mismatchPath: mismatch };
+      const fingerprint = (run as Record<string, unknown>)[
+        "runResultFingerprint"
+      ] as string;
+      if (seen.has(fingerprint))
+        return {
+          reproduced: false,
+          mismatchPath: `${path}.runResultFingerprint`,
+        };
+      seen.add(fingerprint);
+      const packages = (
+        (run as Record<string, any>)["manifest"] as Record<string, any>
+      )["engine"]?.["packages"];
+      for (const [name, shortName] of [
+        ["@actuarial-ts/core", "core"],
+        ["@actuarial-ts/data", "data"],
+        ["@actuarial-ts/compliance", "compliance"],
+      ] as const) {
+        if (
+          !isPlainObject(stored["sdkVersions"]) ||
+          stored["sdkVersions"][name] !== packages?.[shortName]
+        )
+          return { reproduced: false, mismatchPath: `$.sdkVersions.${name}` };
+      }
+    }
   }
   const storedResults = stored["results"];
   const rerunCanonical = canonicalJson(rerunResults);
   const storedCanonical = canonicalJson(storedResults);
   if (rerunCanonical === storedCanonical) return { reproduced: true };
-  return { reproduced: false, mismatchPath: firstDifference(storedResults, rerunResults, "$") ?? "$" };
+  return {
+    reproduced: false,
+    mismatchPath: firstDifference(storedResults, rerunResults, "$") ?? "$",
+  };
 }
 
-function isWrappedBundleDoc(value: ReproducibilityBundle | WrappedBundleDoc): value is WrappedBundleDoc {
+function isWrappedBundleDoc(
+  value: ReproducibilityBundle | WrappedBundleDoc,
+): value is WrappedBundleDoc {
   return (value as { kind?: unknown }).kind === "bundle";
 }
 
 /** Wrapped mode: the outer tag (spec 3.2) AND the inner bundle exactly as today. */
-function verifyWrapped(doc: WrappedBundleDoc, rerunResults: unknown): VerifyBundleResult {
+function verifyWrapped(
+  doc: WrappedBundleDoc,
+  rerunResults: unknown,
+): VerifyBundleResult {
   const innerRaw: unknown = doc.bundle;
   if (
     !isPlainObject(innerRaw) ||
@@ -308,18 +448,74 @@ function verifyWrapped(doc: WrappedBundleDoc, rerunResults: unknown): VerifyBund
     );
   }
   if (doc.interchange === undefined || doc.interchange === null) {
-    throw new ComplianceError("BAD_BUNDLE", 'wrapped bundle is missing its "interchange" mirror');
+    throw new ComplianceError(
+      "BAD_BUNDLE",
+      'wrapped bundle is missing its "interchange" mirror',
+    );
   }
   // OUTER tag over the two-field semantic body { bundle, interchange } —
   // exactly interchange's semanticBodyOf for kind "bundle" (spec 3.2).
-  const expected = fnv1a64(canonicalJson({ bundle: doc.bundle, interchange: doc.interchange }));
+  const expected = fnv1a64(
+    canonicalJson({ bundle: doc.bundle, interchange: doc.interchange }),
+  );
   const actual = typeof doc.integrity === "string" ? doc.integrity : null;
-  const outerIntegrity: OuterIntegrityCheck = { ok: expected === actual, expected, actual };
+  const outerIntegrity: OuterIntegrityCheck = {
+    ok: expected === actual,
+    expected,
+    actual,
+  };
   if (!outerIntegrity.ok) {
     return { reproduced: false, mismatchPath: "$.integrity", outerIntegrity };
   }
-  const inner: ReproducibilityBundle = { payload: innerRaw["payload"], hash: innerRaw["hash"] };
-  return { ...verifyUnwrapped(inner, rerunResults), outerIntegrity };
+  const inner: ReproducibilityBundle = {
+    payload: innerRaw["payload"],
+    hash: innerRaw["hash"],
+  };
+  const innerResult = verifyUnwrapped(inner, rerunResults);
+  if (!innerResult.reproduced) return { ...innerResult, outerIntegrity };
+  const body = JSON.parse(inner.payload) as Record<string, unknown>;
+  const runs = Array.isArray(body["diagnosticRuns"])
+    ? body["diagnosticRuns"]
+    : [];
+  const docs = (doc.interchange as { diagnosticDefinitions?: unknown })
+    .diagnosticDefinitions;
+  if (runs.length > 0) {
+    if (!Array.isArray(docs))
+      return {
+        reproduced: false,
+        mismatchPath: "$.interchange.diagnosticDefinitions",
+        outerIntegrity,
+      };
+    const expected = new Set(
+      runs.map(
+        (run) => (run as Record<string, any>).definition.identities.definition,
+      ),
+    );
+    const actual = new Set<string>();
+    for (const [index, raw] of docs.entries()) {
+      try {
+        actual.add(
+          docToDiagnosticDefinition(raw as DiagnosticDefinitionDoc).definition
+            .definitionIntegrity,
+        );
+      } catch {
+        return {
+          reproduced: false,
+          mismatchPath: `$.interchange.diagnosticDefinitions[${index}]`,
+          outerIntegrity,
+        };
+      }
+    }
+    if (
+      canonicalJson([...actual].sort()) !== canonicalJson([...expected].sort())
+    )
+      return {
+        reproduced: false,
+        mismatchPath: "$.interchange.diagnosticDefinitions",
+        outerIntegrity,
+      };
+  }
+  return { ...innerResult, outerIntegrity };
 }
 
 /**
@@ -344,5 +540,7 @@ export function verifyBundle(
   bundle: ReproducibilityBundle | WrappedBundleDoc,
   rerunResults: unknown,
 ): VerifyBundleResult {
-  return isWrappedBundleDoc(bundle) ? verifyWrapped(bundle, rerunResults) : verifyUnwrapped(bundle, rerunResults);
+  return isWrappedBundleDoc(bundle)
+    ? verifyWrapped(bundle, rerunResults)
+    : verifyUnwrapped(bundle, rerunResults);
 }

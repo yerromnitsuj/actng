@@ -39,7 +39,10 @@ function accidentYear(snap: ClaimSnapshot): number {
  * diverge from what the exhibits report; services should resolve it once via
  * this helper and pass baseYear explicitly to both.
  */
-export function latestAccidentYear(claims: ClaimSnapshot[], asOfDate?: string): number {
+export function latestAccidentYear(
+  claims: ClaimSnapshot[],
+  asOfDate?: string,
+): number {
   const asOf = asOfDate ?? "9999-12-31";
   let year = -Infinity;
   for (const snap of claims) {
@@ -56,25 +59,61 @@ export function latestAccidentYear(claims: ClaimSnapshot[], asOfDate?: string): 
 }
 
 /** The effective cap for one accident year under the index. */
-export function effectiveCap(options: Required<CapOptions>, year: number): number {
-  return options.cap * Math.pow(1 + options.indexRate, year - options.baseYear);
+export function effectiveCap(
+  options: Required<CapOptions>,
+  year: number,
+): number {
+  if (
+    !isNum(options.cap) ||
+    options.cap <= 0 ||
+    !isNum(options.indexRate) ||
+    options.indexRate <= -1 ||
+    !Number.isSafeInteger(options.baseYear) ||
+    !Number.isSafeInteger(year)
+  ) {
+    throw new ReservingError(
+      "BAD_CAP",
+      "Cap, index rate, base year, and accident year must define a finite positive layer",
+    );
+  }
+  const value =
+    options.cap * Math.pow(1 + options.indexRate, year - options.baseYear);
+  if (!Number.isFinite(value) || value <= 0)
+    throw new ReservingError(
+      "BAD_CAP",
+      "Indexed effective cap must be finite and positive",
+    );
+  return value;
 }
 
-function resolveOptions(claims: ClaimSnapshot[], options: CapOptions): Required<CapOptions> {
+function resolveOptions(
+  claims: ClaimSnapshot[],
+  options: CapOptions,
+): Required<CapOptions> {
   if (!isNum(options.cap) || options.cap <= 0) {
-    throw new ReservingError("BAD_CAP", "The per-occurrence cap must be a positive number");
+    throw new ReservingError(
+      "BAD_CAP",
+      "The per-occurrence cap must be a positive number",
+    );
   }
   const indexRate = options.indexRate ?? 0;
   if (!isNum(indexRate) || indexRate <= -1) {
-    throw new ReservingError("BAD_CAP", "The cap index rate must be a number greater than -100%");
+    throw new ReservingError(
+      "BAD_CAP",
+      "The cap index rate must be a number greater than -100%",
+    );
   }
   let baseYear = options.baseYear ?? null;
   if (baseYear === null) {
     baseYear = -Infinity;
-    for (const snap of claims) baseYear = Math.max(baseYear, accidentYear(snap));
+    for (const snap of claims)
+      baseYear = Math.max(baseYear, accidentYear(snap));
   }
-  if (!isNum(baseYear) || !Number.isFinite(baseYear)) {
-    throw new ReservingError("BAD_CAP", "Could not resolve a base year for the cap index");
+  if (!isNum(baseYear) || !Number.isSafeInteger(baseYear)) {
+    throw new ReservingError(
+      "BAD_CAP",
+      "Could not resolve a base year for the cap index",
+    );
   }
   return { cap: options.cap, indexRate, baseYear };
 }
@@ -86,14 +125,18 @@ function resolveOptions(claims: ClaimSnapshot[], options: CapOptions): Required<
  * negative by construction). Claim counts and statuses are untouched - the
  * cap limits dollars, not claims.
  */
-export function capClaims(claims: ClaimSnapshot[], options: CapOptions): ClaimSnapshot[] {
+export function capClaims(
+  claims: ClaimSnapshot[],
+  options: CapOptions,
+): ClaimSnapshot[] {
   const resolved = resolveOptions(claims, options);
   return claims.map((snap) => {
     const capY = effectiveCap(resolved, accidentYear(snap));
     const incurred = snap.paidToDate + snap.caseReserve;
     const cappedIncurred = Math.min(incurred, capY);
     const cappedPaid = Math.min(snap.paidToDate, capY);
-    if (cappedIncurred === incurred && cappedPaid === snap.paidToDate) return snap;
+    if (cappedIncurred === incurred && cappedPaid === snap.paidToDate)
+      return snap;
     return {
       ...snap,
       paidToDate: cappedPaid,
@@ -161,7 +204,10 @@ const PERCENTILES = [0.5, 0.75, 0.9, 0.95, 0.99];
 // interpolated refinement in stochastic.ts's percentileOfSorted buys nothing.
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1));
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.ceil(p * sorted.length) - 1),
+  );
   return sorted[idx]!;
 }
 
@@ -183,7 +229,10 @@ export function claimSizeDiagnostics(
   options: ClaimSizeDiagnosticsOptions = {},
 ): ClaimSizeDiagnostics {
   if (claims.length === 0) {
-    throw new ReservingError("NO_CLAIMS", "Cannot analyze claim sizes with no claims");
+    throw new ReservingError(
+      "NO_CLAIMS",
+      "Cannot analyze claim sizes with no claims",
+    );
   }
   const asOf = options.asOfDate ?? "9999-12-31";
   // Latest evaluation per claim on or before the analysis date.
@@ -191,20 +240,48 @@ export function claimSizeDiagnostics(
   for (const snap of claims) {
     if (snap.evaluationDate > asOf) continue;
     const prev = latest.get(snap.claimId);
-    if (!prev || snap.evaluationDate > prev.evaluationDate) latest.set(snap.claimId, snap);
+    if (!prev || snap.evaluationDate > prev.evaluationDate)
+      latest.set(snap.claimId, snap);
   }
 
   const byYear = new Map<number, number[]>();
   for (const snap of latest.values()) {
     const year = accidentYear(snap);
     const incurred = snap.paidToDate + snap.caseReserve;
+    if (
+      !Number.isSafeInteger(year) ||
+      year < 1 ||
+      year > 9999 ||
+      !Number.isFinite(incurred) ||
+      incurred < 0
+    ) {
+      throw new ReservingError(
+        "BAD_LOSSES",
+        "Claim-size diagnostics require valid accident years and finite nonnegative incurred amounts",
+      );
+    }
     let arr = byYear.get(year);
     if (!arr) byYear.set(year, (arr = []));
     arr.push(incurred);
   }
   const years = [...byYear.keys()].sort((a, b) => a - b);
   const indexRate = options.indexRate ?? 0;
+  if (years.length === 0)
+    throw new ReservingError(
+      "NO_CLAIMS",
+      "No claim snapshots on or before the analysis date; cannot analyze claim sizes",
+    );
+  if (!isNum(indexRate) || indexRate <= -1)
+    throw new ReservingError(
+      "BAD_CAP",
+      "The cap index rate must be finite and greater than -100%",
+    );
   const baseYear = options.baseYear ?? years[years.length - 1]!;
+  if (!Number.isSafeInteger(baseYear))
+    throw new ReservingError(
+      "BAD_CAP",
+      "The cap base year must be a safe integer",
+    );
 
   const yearRows: ClaimSizeYearRow[] = years.map((year) => {
     const sorted = [...byYear.get(year)!].sort((a, b) => a - b);
@@ -213,7 +290,10 @@ export function claimSizeDiagnostics(
       claimCount: sorted.length,
       totalIncurred: sorted.reduce((a, v) => a + v, 0),
       maxClaim: sorted[sorted.length - 1] ?? 0,
-      percentiles: PERCENTILES.map((p) => ({ p, value: percentile(sorted, p) })),
+      percentiles: PERCENTILES.map((p) => ({
+        p,
+        value: percentile(sorted, p),
+      })),
     };
   });
 
@@ -223,6 +303,16 @@ export function claimSizeDiagnostics(
   // incurred is deflated to that level before taking percentiles - otherwise
   // a nominal anchor re-indexed forward overshoots the whole distribution
   // and every derived candidate reads near-zero pierce.
+  for (const [label, values] of [
+    ["candidateCaps", options.candidateCaps],
+    ["extraCaps", options.extraCaps],
+  ] as const) {
+    if (values?.some((value) => !isNum(value) || value <= 0))
+      throw new ReservingError(
+        "BAD_CAP",
+        `${label} must contain only finite positive caps`,
+      );
+  }
   let candidateCaps = options.candidateCaps;
   if (!candidateCaps || candidateCaps.length === 0) {
     const pooled = [...latest.values()]
@@ -251,7 +341,7 @@ export function claimSizeDiagnostics(
     let totalExcess = 0;
     let totalIncurred = 0;
     const cells: CapCandidateYearCell[] = years.map((year) => {
-      const capY = cap * Math.pow(1 + resolved.indexRate, year - resolved.baseYear);
+      const capY = effectiveCap({ ...resolved, cap }, year);
       const values = byYear.get(year)!;
       let pierce = 0;
       let excess = 0;
@@ -289,7 +379,8 @@ export function claimSizeDiagnostics(
     candidates,
     baseYear,
     indexRate,
-    nonZeroClaimCount: [...latest.values()].filter((s) => s.paidToDate + s.caseReserve > 0)
-      .length,
+    nonZeroClaimCount: [...latest.values()].filter(
+      (s) => s.paidToDate + s.caseReserve > 0,
+    ).length,
   };
 }

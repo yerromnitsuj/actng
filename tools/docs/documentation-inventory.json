@@ -342,6 +342,11 @@
       "reason": "Dated design, research, or immutable fixture record.",
       "packages": []
     },
+    "docs/superpowers/plans/2026-09-04-v0.6.1-full-sdk-hardening.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
     "docs/superpowers/specs/2026-07-07-expected-losses-design.md": {
       "classification": "historical-snapshot",
       "reason": "Dated design, research, or immutable fixture record.",
@@ -369,7 +374,7 @@
     },
     "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md": {
       "classification": "active",
-      "reason": "Current shipped 0.6.0 diagnostics contract.",
+      "reason": "Current diagnostics contract, corrected in 0.6.1.",
       "packages": [
         "core",
         "data",

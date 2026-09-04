@@ -6,5 +6,97 @@
   "sourceSha256": "4409adb022d18e24a3a0e724523706616e707c53e55f8625ce9fc122a20185d6",
   "sourceByteLength": 9482793,
   "sourceUpdatedAt": "2024-07-09",
-  "license": "Etalab-2.0"
+  "license": "Etalab-2.0",
+  "derivatives": [
+    {
+      "path": "data/diagnostic-snapshots.csv",
+      "sha256": "2b830b11db9a3c778df2021cba993e49957d8d902af603023617f4d031f36adf",
+      "byteLength": 14044,
+      "rowCount": 210,
+      "columns": [
+        "origin",
+        "valuation",
+        "reported",
+        "open",
+        "closed_no_pay",
+        "closed_with_pay",
+        "gross_paid",
+        "gross_incurred",
+        "net_paid",
+        "net_incurred"
+      ],
+      "semanticRole": "annual cumulative diagnostic cells"
+    },
+    {
+      "path": "data/exposures.csv",
+      "sha256": "b261ca4d0dd5e6ac62d4aa305cf0f5e91cdfa18fabddd730fd939ef76cf7f6f0",
+      "byteLength": 603,
+      "rowCount": 20,
+      "columns": [
+        "origin",
+        "exposure_units",
+        "gross_written_premium",
+        "source_claim_count"
+      ],
+      "semanticRole": "insurance-year exposure and source controls"
+    },
+    {
+      "path": "data/gross-incurred.csv",
+      "sha256": "74194fec4bf6c540a2c0223e064e4c02c0d699d31c0c24e717182248a0e1a072",
+      "byteLength": 3665,
+      "rowCount": 210,
+      "columns": ["origin", "age", "value"],
+      "semanticRole": "gross incurred cumulative triangle"
+    },
+    {
+      "path": "data/gross-paid.csv",
+      "sha256": "2b7625df931b9ad0e5471967228ff1a524199e0396ba8631bf541318fc6ee659",
+      "byteLength": 3665,
+      "rowCount": 210,
+      "columns": ["origin", "age", "value"],
+      "semanticRole": "gross paid cumulative triangle"
+    },
+    {
+      "path": "data/net-incurred.csv",
+      "sha256": "e1d7fbdc92b9bb74dd9b992615b63d2d01899ee26f2b8132c7a05fff5c38d496",
+      "byteLength": 3665,
+      "rowCount": 210,
+      "columns": ["origin", "age", "value"],
+      "semanticRole": "net incurred cumulative triangle"
+    },
+    {
+      "path": "data/net-paid.csv",
+      "sha256": "9491e7e8c8c4382bf1a279cdcad623fc95b4ff623715722391111564c76154a7",
+      "byteLength": 3665,
+      "rowCount": 210,
+      "columns": ["origin", "age", "value"],
+      "semanticRole": "net paid cumulative triangle"
+    },
+    {
+      "path": "data/quality-summary.csv",
+      "sha256": "1498bfa2c9b017419525d82b49c0c9842c721a234ead0504e74d677c1403e1e3",
+      "byteLength": 568,
+      "rowCount": 16,
+      "columns": ["metric", "value"],
+      "semanticRole": "source transformation quality controls"
+    },
+    {
+      "path": "generated/freclaimset2motor-annual.csv",
+      "sha256": "9c64ffcc2d6df41eb783a03349733806aed51f0f04a54006f8b560030c44a4bb",
+      "byteLength": 63954160,
+      "rowCount": 1012839,
+      "columns": [
+        "claim_id",
+        "origin_year",
+        "evaluation_year",
+        "status",
+        "source_status",
+        "gross_paid_to_date",
+        "gross_incurred_to_date",
+        "net_paid_to_date",
+        "net_incurred_to_date"
+      ],
+      "semanticRole": "annualized claim history derivative"
+    }
+  ]
 }

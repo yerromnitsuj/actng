@@ -12,20 +12,91 @@ const definition: DiagnosticDefinition = {
   version: "1.0.0",
   lossRowGrain: "claim",
   measures: [
-    { id: "gross", displayName: "Gross", description: "Ground-up loss", source: "loss", kind: "amount", unit: "USD", developmentSemantics: "cumulative", aggregation: "sum", missing: "unknown", basisId: "gross" },
-    { id: "primary", displayName: "Primary", description: "Primary layer loss", source: "derived", kind: "amount", unit: "USD", developmentSemantics: "cumulative", aggregation: "sum", missing: "unknown", basisId: "primary" },
+    {
+      id: "gross",
+      displayName: "Gross",
+      description: "Ground-up loss",
+      source: "loss",
+      kind: "amount",
+      unit: "USD",
+      developmentSemantics: "cumulative",
+      aggregation: "sum",
+      missing: "unknown",
+      basisId: "gross",
+    },
+    {
+      id: "primary",
+      displayName: "Primary",
+      description: "Primary layer loss",
+      source: "derived",
+      kind: "amount",
+      unit: "USD",
+      developmentSemantics: "cumulative",
+      aggregation: "sum",
+      missing: "unknown",
+      basisId: "primary",
+    },
   ],
   countPopulations: [],
   exposureBases: [],
   amountBases: [
-    { id: "gross", displayName: "Gross", currency: "USD", perspective: "gross", components: [{ id: "loss", treatment: "included", limitation: { kind: "unlimited" } }] },
-    { id: "primary", displayName: "Primary", currency: "USD", perspective: "gross", components: [{ id: "loss", treatment: "included", limitation: { kind: "layer", attachment: 0, limit: 250_000, application: "claim", derivation: { kind: "sdk" } } }] },
+    {
+      id: "gross",
+      displayName: "Gross",
+      currency: "USD",
+      perspective: "gross",
+      components: [
+        {
+          id: "loss",
+          treatment: "included",
+          limitation: { kind: "unlimited" },
+        },
+      ],
+    },
+    {
+      id: "primary",
+      displayName: "Primary",
+      currency: "USD",
+      perspective: "gross",
+      components: [
+        {
+          id: "loss",
+          treatment: "included",
+          limitation: {
+            kind: "layer",
+            attachment: 0,
+            limit: 250_000,
+            application: "claim",
+            derivation: { kind: "sdk" },
+          },
+        },
+      ],
+    },
   ],
-  derivedMeasures: [{ id: "derive-primary", outputMeasureId: "primary", expression: { op: "claim-layer", measureId: "gross", attachment: 0, limit: 250_000 } }],
+  derivedMeasures: [
+    {
+      id: "derive-primary",
+      outputMeasureId: "primary",
+      expression: {
+        op: "claim-layer",
+        measureId: "gross",
+        attachment: 0,
+        limit: 250_000,
+      },
+    },
+  ],
   formulas: [],
   instances: [],
   reviewRules: [],
-  periodAxis: { kind: "calendar", originCadence: "year", valuationCadence: "year", originAnchor: "start", valuationAnchor: "end", ageUnit: "month", ageOffset: 0 },
+  periodAxis: {
+    kind: "calendar",
+    originCadence: "year",
+    valuationCadence: "year",
+    originAnchor: "start",
+    valuationAnchor: "end",
+    ageUnit: "month",
+    ageOffset: 0,
+  },
 };
 
 describe("deriveDiagnosticClaimMeasures", () => {
@@ -36,25 +107,77 @@ describe("deriveDiagnosticClaimMeasures", () => {
       { recordId: "b", measures: { gross: 400_000 } },
     ];
     const result = deriveDiagnosticClaimMeasures(input, compiled);
-    expect(result.map((row) => row.measures.primary)).toEqual([250_000, 250_000]);
-    expect(result.reduce((sum, row) => sum + row.measures.primary!, 0)).toBe(500_000);
-    expect(Math.min(input.reduce((sum, row) => sum + row.measures.gross, 0), 250_000)).toBe(250_000);
+    expect(result.map((row) => row.measures.primary)).toEqual([
+      250_000, 250_000,
+    ]);
+    expect(result.reduce((sum, row) => sum + row.measures.primary!, 0)).toBe(
+      500_000,
+    );
+    expect(
+      Math.min(
+        input.reduce((sum, row) => sum + row.measures.gross, 0),
+        250_000,
+      ),
+    ).toBe(250_000);
     expect(input[0]!.measures).toEqual({ gross: 400_000 });
   });
 
   it("propagates missing and non-finite inputs to null", () => {
     const compiled = compileDiagnosticDefinition(definition);
-    expect(deriveDiagnosticClaimMeasures([
-      { measures: { gross: null } },
-      { measures: { gross: Number.NaN } },
-    ], compiled).map((row) => row.measures.primary)).toEqual([null, null]);
+    expect(
+      deriveDiagnosticClaimMeasures(
+        [{ measures: { gross: null } }, { measures: { gross: Number.NaN } }],
+        compiled,
+      ).map((row) => row.measures.primary),
+    ).toEqual([null, null]);
   });
 
   it("rejects the whole batch before producing output", () => {
     const compiled = compileDiagnosticDefinition(definition);
-    expect(() => deriveDiagnosticClaimMeasures([
-      { measures: { gross: 1 } },
-      { measures: { primary: 1 } },
-    ], compiled)).toThrow(DiagnosticValidationError);
+    expect(() =>
+      deriveDiagnosticClaimMeasures(
+        [{ measures: { gross: 1 } }, { measures: { primary: 1 } }],
+        compiled,
+      ),
+    ).toThrow(DiagnosticValidationError);
+  });
+
+  it("evaluates legal prototype-named measures by own-property membership", () => {
+    const prototypeDefinition: DiagnosticDefinition = {
+      ...definition,
+      measures: [
+        { ...definition.measures[0]!, id: "toString" },
+        { ...definition.measures[1]!, id: "__proto__" },
+      ],
+      derivedMeasures: [
+        {
+          id: "derive-prototype-name",
+          outputMeasureId: "__proto__",
+          expression: {
+            op: "claim-layer",
+            measureId: "toString",
+            attachment: 0,
+            limit: 250_000,
+          },
+        },
+      ],
+    };
+    const compiled = compileDiagnosticDefinition(prototypeDefinition);
+    const omitted = deriveDiagnosticClaimMeasures(
+      [{ measures: {} }],
+      compiled,
+    )[0]!.measures;
+    expect(Object.prototype.hasOwnProperty.call(omitted, "__proto__")).toBe(
+      true,
+    );
+    expect(omitted.__proto__).toBeNull();
+    const supplied = Object.fromEntries([["toString", 400_000]]) as Record<
+      string,
+      number
+    >;
+    expect(
+      deriveDiagnosticClaimMeasures([{ measures: supplied }], compiled)[0]!
+        .measures.__proto__,
+    ).toBe(250_000);
   });
 });

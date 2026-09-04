@@ -21,9 +21,34 @@ export const taylorAshe: Triangle = {
   origins: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
   ages: [12, 24, 36, 48, 60, 72, 84, 96, 108, 120],
   values: [
-    [357848, 1124788, 1735330, 2218270, 2745596, 3319994, 3466336, 3606286, 3833515, 3901463],
-    [352118, 1236139, 2170033, 3353322, 3799067, 4120063, 4647867, 4914039, 5339085, N],
-    [290507, 1292306, 2218525, 3235179, 3985995, 4132918, 4628910, 4909315, N, N],
+    [
+      357848, 1124788, 1735330, 2218270, 2745596, 3319994, 3466336, 3606286,
+      3833515, 3901463,
+    ],
+    [
+      352118,
+      1236139,
+      2170033,
+      3353322,
+      3799067,
+      4120063,
+      4647867,
+      4914039,
+      5339085,
+      N,
+    ],
+    [
+      290507,
+      1292306,
+      2218525,
+      3235179,
+      3985995,
+      4132918,
+      4628910,
+      4909315,
+      N,
+      N,
+    ],
     [310608, 1418858, 2195047, 3757447, 4029929, 4381982, 4588268, N, N, N],
     [443160, 1136350, 2128333, 2897821, 3402672, 3873311, N, N, N, N],
     [396132, 1333217, 2180715, 2985752, 3691712, N, N, N, N, N],
@@ -38,7 +63,9 @@ export const taylorAshe: Triangle = {
 export const taylorAshePublished = {
   // f_k as printed: 3.49, 1.75, 1.46, 1.174, 1.104, 1.086, 1.054, 1.077, 1.018
   factors: [3.49, 1.75, 1.46, 1.174, 1.104, 1.086, 1.054, 1.077, 1.018],
-  factorTolerance: [0.005, 0.005, 0.005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005],
+  factorTolerance: [
+    0.005, 0.005, 0.005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005,
+  ],
   // sigma^2_k / 1000 as printed (the last value is Mack's extrapolation).
   // The scan prints the final value as 0.477, but Mack's own formula
   // min(s^4_8/s^2_7, min(s^2_7, s^2_8)) = min(2.96, 0.447) = 0.447, and the
@@ -58,7 +85,10 @@ export const mortgage: Triangle = {
   origins: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
   ages: [12, 24, 36, 48, 60, 72, 84, 96, 108],
   values: [
-    [58046, 127970, 476599, 1027692, 1360489, 1647310, 1819179, 1906852, 1950105],
+    [
+      58046, 127970, 476599, 1027692, 1360489, 1647310, 1819179, 1906852,
+      1950105,
+    ],
     [24492, 141767, 984288, 2142656, 2961978, 3683940, 4048898, 4115760, N],
     [32848, 274682, 1522637, 3203427, 4445927, 5158781, 5342585, N, N],
     [21439, 529828, 2900301, 4999019, 6460112, 6853904, N, N, N],
@@ -74,7 +104,9 @@ export const mortgage: Triangle = {
 export const mortgagePublished = {
   // Mack 1999 Table 1 prints these to more digits than Mack 1993.
   factors: [11.1, 4.092, 1.708, 1.276, 1.139, 1.069, 1.026, 1.023],
-  factorTolerance: [0.05, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005],
+  factorTolerance: [
+    0.05, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005,
+  ],
   sigma2Over1000: [1787, 977, 194, 42.8, 27.0, 5.57, 1.26, 0.285],
   // Chain ladder reserves in 1000s (Table 5), origins 2..9 and overall.
   reservesIn1000s: [93, 265, 834, 1568, 3696, 3487, 2956, 1647],
@@ -82,9 +114,21 @@ export const mortgagePublished = {
   // Standard error as % of reserve (Table 6), origins 2..9 and overall.
   sePercent: [65, 53, 38, 38, 28, 37, 61, 133],
   totalSePercent: 26,
+  // Precise deterministic regression corresponding to Mack's Table 6 total.
+  // The table itself prints 26% of reserve; this value pins the implementation
+  // tightly enough that the printed-percentage tolerance cannot hide drift.
+  totalStandardError: 3_728_870.241257798,
   // Mack 1999: with a judgmental tail factor of 1.05, the estimated ultimate
   // total is 48,906 (in 1000s); per-origin ultimates as printed in Table 2.
   tailFactor: 1.05,
-  ultimatesWithTailIn1000s: [2048, 4420, 5888, 8073, 7577, 10041, 5714, 3403, 1743],
+  ultimatesWithTailIn1000s: [
+    2048, 4420, 5888, 8073, 7577, 10041, 5714, 3403, 1743,
+  ],
   totalUltimateWithTailIn1000s: 48906,
+  tailStandardError: 0.02,
+  tailSigma: 71,
+  standardErrorsWithTailIn1000s: [
+    107, 180, 250, 418, 670, 1128, 1377, 1902, 2293,
+  ],
+  totalStandardErrorWithTailIn1000s: 4054,
 };

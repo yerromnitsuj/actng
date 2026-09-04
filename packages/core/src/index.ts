@@ -3,6 +3,19 @@ export * from "./util.js";
 export * from "./canonical.js";
 export * from "./version.js";
 export {
+  MAX_DIAGNOSTIC_JSON_DEPTH,
+  MAX_DIAGNOSTIC_JSON_NODES,
+  diagnosticJsonPreflight,
+  diagnosticRecord,
+  hasDiagnosticOwn,
+  isDiagnosticPlainRecord,
+  isDiagnosticToken,
+  isRealIsoDate,
+  isWellFormedDiagnosticString,
+  normalizeDiagnosticNumber,
+  snapshotDiagnosticJson,
+} from "./diagnosticRuntime.js";
+export {
   MAX_DIAGNOSTIC_DEFINITION_EXPRESSION_NODES,
   MAX_DIAGNOSTIC_EXPRESSION_DEPTH,
   MAX_DIAGNOSTIC_EXPRESSION_NODES,
@@ -75,9 +88,7 @@ export type {
   DiagnosticQuantitySemantics,
   FinalizedDiagnosticMeasure,
 } from "./diagnosticFormulas.js";
-export {
-  classifyDiagnosticComparison,
-} from "./diagnosticRules.js";
+export { classifyDiagnosticComparison } from "./diagnosticRules.js";
 export { deriveDiagnosticClaimMeasures } from "./diagnosticDerivations.js";
 export type {
   DiagnosticMeasureValues,
@@ -89,6 +100,10 @@ export {
   normalizeDiagnosticPeriod,
 } from "./diagnosticPeriods.js";
 export type { DiagnosticNormalizedPeriod } from "./diagnosticPeriods.js";
+export {
+  compareDiagnosticSourceLocations,
+  normalizeDiagnosticSourceLocations,
+} from "./diagnosticSourceOrdering.js";
 export {
   auditedDiagnosticContribution,
   finalizeDiagnosticContributions,
@@ -131,9 +146,13 @@ export {
 } from "./diagnosticRunner.js";
 export { evaluateDiagnosticReviewRules } from "./diagnosticReview.js";
 export type {
+  DiagnosticCellReviewScope,
+  DiagnosticControlTotalReviewScope,
   DiagnosticReviewCoordinate,
   DiagnosticReviewEvaluationScope,
+  DiagnosticReviewExpressionOverflow,
   DiagnosticReviewRuleEvaluation,
+  DiagnosticValuationPairReviewScope,
 } from "./diagnosticReview.js";
 export type {
   CommonMaturityResult,

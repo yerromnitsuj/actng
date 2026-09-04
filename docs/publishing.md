@@ -66,13 +66,30 @@ Publishing requires an account with owner/admin rights on the
 
 ## Release (per version)
 
-For `0.6.0` and later, first run the stable local candidate gate:
+For `0.6.1` and later, publishing is mechanically bound to the stable local
+candidate gate:
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" npm run release:gate
 ```
 
-It includes clean tarball consumers. After publishing—but before tagging—run
+The command list is defined once in `tools/release/release-commands.json` and
+includes the full TypeScript/Python/R suites, all examples, both packed
+consumers, the source registry, every diagnostic reconciliation, and a
+byte-for-byte rebuild of the real-world source derivatives. A successful run
+from a clean commit writes ignored `.release/attestation.json` plus the five
+reviewed tarballs, bound to the Git SHA and manifest hashes.
+
+Publish only with:
+
+```bash
+PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" npm run release:publish
+```
+
+Every package's `prepublishOnly` recreates its packed bytes and refuses before
+contacting npm if the attestation is absent, the tree is dirty, the SHA or
+manifest changed, the versions disagree, or the tarball hash differs. After
+publishing—but before tagging—run
 the identical public fixture against the registry with
 `node tools/release/smoke-packed-diagnostics.mjs --source=registry --version=X.Y.Z`.
 Record the exact release-source SHA and require CI, Python conformance, and R
@@ -90,17 +107,7 @@ From the repo root, with the new version X.Y.Z:
    agents -> core, compliance, interchange (+ Mastra/zod peers).
 2. Update CHANGELOG.md.
 
-```bash
-npm run build            # fresh dist for every package
-npm test                 # full workspace suite must be green
-npm publish -w @actuarial-ts/core
-npm publish -w @actuarial-ts/interchange
-npm publish -w @actuarial-ts/data
-npm publish -w @actuarial-ts/compliance
-npm publish -w @actuarial-ts/agents
-```
-
-Order matters: dependencies before consumers. interchange publishes right
+The orchestrator publishes dependencies before consumers. Interchange publishes right
 after core (it depends on core only), and BEFORE compliance and agents
 (which depend on interchange) — publishing compliance first would leave a
 consumer's `npm install` resolving an unpublished dependency.

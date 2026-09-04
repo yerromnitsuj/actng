@@ -1,4 +1,9 @@
-import { ReservingError, canonicalJson, fnv1a64 } from "@actuarial-ts/core";
+import {
+  ReservingError,
+  canonicalJson,
+  fnv1a64,
+  isRealIsoDate,
+} from "@actuarial-ts/core";
 import { z } from "zod";
 
 /**
@@ -37,7 +42,7 @@ export const INTERCHANGE_SPEC_MAJOR = 1;
  * This package's version, stamped into `generator` by default. A sync test
  * asserts it matches package.json so it cannot silently drift.
  */
-export const INTERCHANGE_PACKAGE_VERSION = "0.6.0";
+export const INTERCHANGE_PACKAGE_VERSION = "0.6.1";
 
 export interface GeneratorStamp {
   name: string;
@@ -45,10 +50,10 @@ export interface GeneratorStamp {
 }
 
 /** Default `generator` stamp for documents authored by this package. */
-export const DEFAULT_GENERATOR: GeneratorStamp = {
+export const DEFAULT_GENERATOR: Readonly<GeneratorStamp> = Object.freeze({
   name: "@actuarial-ts/interchange",
   version: INTERCHANGE_PACKAGE_VERSION,
-};
+});
 
 export const DOCUMENT_KINDS = [
   "triangle",
@@ -97,7 +102,13 @@ export function envelopeShape<K extends DocumentKind>(kind: K) {
     interchangeVersion: z.string().regex(/^\d+\.\d+\.\d+$/),
     kind: z.literal(kind),
     generator: generatorSchema,
-    createdAt: z.string().datetime({ offset: true }),
+    createdAt: z
+      .string()
+      .datetime({ offset: true })
+      .refine(
+        (value) => isRealIsoDate(value.slice(0, 10)),
+        "expected a real Gregorian timestamp",
+      ),
     extensions: z.record(z.unknown()).optional(),
     integrity: integritySchema,
   };
@@ -162,7 +173,8 @@ export interface IntegrityCheck {
 /** Recomputes the tag from the semantic body and compares to the stated one. */
 export function verifyIntegrity(doc: DocumentLike): IntegrityCheck {
   const expected = computeIntegrity(doc);
-  const actual = typeof doc["integrity"] === "string" ? (doc["integrity"] as string) : null;
+  const actual =
+    typeof doc["integrity"] === "string" ? (doc["integrity"] as string) : null;
   return { ok: actual === expected, expected, actual };
 }
 
@@ -184,7 +196,11 @@ export function acceptVersion(version: unknown): ParsedVersion {
       `interchangeVersion must be a MAJOR.MINOR.PATCH string; got ${JSON.stringify(version)}`,
     );
   }
-  const [major, minor, patch] = version.split(".").map(Number) as [number, number, number];
+  const [major, minor, patch] = version.split(".").map(Number) as [
+    number,
+    number,
+    number,
+  ];
   if (major !== INTERCHANGE_SPEC_MAJOR) {
     throw new ReservingError(
       "UNSUPPORTED_VERSION",

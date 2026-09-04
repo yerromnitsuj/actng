@@ -1,4 +1,8 @@
-import type { ClaimSnapshot, Triangle } from "@actuarial-ts/core";
+import {
+  isRealIsoDate,
+  type ClaimSnapshot,
+  type Triangle,
+} from "@actuarial-ts/core";
 
 /**
  * ASOP No. 23 (Data Quality)-oriented data review.
@@ -65,7 +69,12 @@ export interface DataCheck {
 
 export interface DataReviewReport {
   checks: DataCheck[];
-  summary: { pass: number; warning: number; fail: number; notEvaluated: number };
+  summary: {
+    pass: number;
+    warning: number;
+    fail: number;
+    notEvaluated: number;
+  };
 }
 
 export interface ReviewClaimDataOptions {
@@ -78,7 +87,10 @@ const MAX_DETAILS = 20;
 
 function capDetails(items: string[]): string[] {
   if (items.length <= MAX_DETAILS) return items;
-  return [...items.slice(0, MAX_DETAILS), `+${items.length - MAX_DETAILS} more`];
+  return [
+    ...items.slice(0, MAX_DETAILS),
+    `+${items.length - MAX_DETAILS} more`,
+  ];
 }
 
 function makeCheck(
@@ -96,10 +108,20 @@ function makeCheck(
   };
 }
 
-function notEvaluated(id: string, description: string, reason: string): DataCheck {
+function notEvaluated(
+  id: string,
+  description: string,
+  reason: string,
+): DataCheck {
   // A check that could not run is REPORTED as such - counting it as "pass"
   // would overstate the review in the very disclosure this feeds.
-  return { id, description, status: "not-evaluated", details: [`not evaluated: ${reason}`], findings: [] };
+  return {
+    id,
+    description,
+    status: "not-evaluated",
+    details: [`not evaluated: ${reason}`],
+    findings: [],
+  };
 }
 
 function summarize(checks: DataCheck[]): DataReviewReport {
@@ -118,9 +140,13 @@ export function createStructuredDataCheck(
   statusWhenFound: "warning" | "fail",
   findings: readonly DataFinding[],
 ): DataCheck {
-  const capped = findings.length <= MAX_DETAILS ? [...findings] : [...findings.slice(0, MAX_DETAILS)];
+  const capped =
+    findings.length <= MAX_DETAILS
+      ? [...findings]
+      : [...findings.slice(0, MAX_DETAILS)];
   const details = capped.map((finding) => finding.message);
-  if (findings.length > MAX_DETAILS) details.push(`+${findings.length - MAX_DETAILS} more`);
+  if (findings.length > MAX_DETAILS)
+    details.push(`+${findings.length - MAX_DETAILS} more`);
   return {
     id,
     description,
@@ -145,13 +171,19 @@ export function createNotEvaluatedDataCheck(
 }
 
 const CLAIM_DESCRIPTIONS = {
-  "non-finite-value": "Every money field is a finite number (no NaN or Infinity)",
+  "non-finite-value":
+    "Every money field is a finite number (no NaN or Infinity)",
   "negative-paid": "Cumulative paid amounts are non-negative",
-  "negative-case": "Case reserves are non-negative (negative case is legitimate but rare)",
+  "negative-case":
+    "Case reserves are non-negative (negative case is legitimate but rare)",
   "paid-decreasing":
     "Cumulative paid never decreases across a claim's snapshots ordered by evaluation date",
-  "date-order": "accident_date <= report_date <= evaluation_date on every snapshot",
-  "duplicate-snapshot": "No claim has two snapshots at the same evaluation date",
+  "date-order":
+    "accident_date <= report_date <= evaluation_date on every snapshot",
+  "duplicate-snapshot":
+    "No claim has two snapshots at the same evaluation date",
+  "claim-identity":
+    "Every snapshot for one claim has the same accident and report identity",
   "future-dated": "No claim date exceeds the as-of date",
   "closed-with-case": "Closed claims carry no outstanding case reserve",
 } as const;
@@ -175,6 +207,16 @@ export function reviewClaimData(
     // pointed auditors at the wrong line; an identifier we cannot compute is
     // one we must not print.
     const where = `claim ${c.claimId} (eval ${c.evaluationDate})`;
+    for (const [name, value] of [
+      ["accident_date", c.accidentDate],
+      ["report_date", c.reportDate],
+      ["evaluation_date", c.evaluationDate],
+    ] as const) {
+      if (!isRealIsoDate(value))
+        dateOrder.push(
+          `${where}: ${name} is not a real yyyy-mm-dd calendar date`,
+        );
+    }
     if (c.paidToDate < 0) {
       negativePaid.push(`${where}: paid_to_date ${c.paidToDate}`);
     }
@@ -194,17 +236,25 @@ export function reviewClaimData(
     if (opts.asOfDate !== undefined) {
       const asOf = opts.asOfDate;
       if (c.accidentDate > asOf) {
-        futureDated.push(`${where}: accident_date ${c.accidentDate} exceeds as-of ${asOf}`);
+        futureDated.push(
+          `${where}: accident_date ${c.accidentDate} exceeds as-of ${asOf}`,
+        );
       }
       if (c.reportDate > asOf) {
-        futureDated.push(`${where}: report_date ${c.reportDate} exceeds as-of ${asOf}`);
+        futureDated.push(
+          `${where}: report_date ${c.reportDate} exceeds as-of ${asOf}`,
+        );
       }
       if (c.evaluationDate > asOf) {
-        futureDated.push(`${where}: evaluation_date ${c.evaluationDate} exceeds as-of ${asOf}`);
+        futureDated.push(
+          `${where}: evaluation_date ${c.evaluationDate} exceeds as-of ${asOf}`,
+        );
       }
     }
     if (c.status === "closed" && c.caseReserve > 0) {
-      closedWithCase.push(`${where}: case_reserve ${c.caseReserve} on a closed claim`);
+      closedWithCase.push(
+        `${where}: case_reserve ${c.caseReserve} on a closed claim`,
+      );
     }
   });
 
@@ -217,12 +267,24 @@ export function reviewClaimData(
   }
   const paidDecreasing: string[] = [];
   const duplicates: string[] = [];
+  const identityConflicts: string[] = [];
   for (const [claimId, snaps] of byClaim) {
-    const sorted = [...snaps].sort((a, b) => a.evaluationDate.localeCompare(b.evaluationDate));
+    const identities = new Set(
+      snaps.map((snap) => `${snap.accidentDate}|${snap.reportDate}`),
+    );
+    if (identities.size > 1)
+      identityConflicts.push(
+        `claim ${claimId}: snapshots contain conflicting accident_date or report_date values`,
+      );
+    const sorted = [...snaps].sort((a, b) =>
+      a.evaluationDate.localeCompare(b.evaluationDate),
+    );
     const seenEvals = new Set<string>();
     for (const s of sorted) {
       if (seenEvals.has(s.evaluationDate)) {
-        duplicates.push(`claim ${claimId}: duplicate snapshot at ${s.evaluationDate}`);
+        duplicates.push(
+          `claim ${claimId}: duplicate snapshot at ${s.evaluationDate}`,
+        );
       }
       seenEvals.add(s.evaluationDate);
     }
@@ -242,32 +304,87 @@ export function reviewClaimData(
   const nonFinite: string[] = [];
   for (const c of claims) {
     const where = `claim ${c.claimId}`;
-    if (!Number.isFinite(c.paidToDate)) nonFinite.push(`${where}: paid_to_date ${String(c.paidToDate)}`);
-    if (!Number.isFinite(c.caseReserve)) nonFinite.push(`${where}: case_reserve ${String(c.caseReserve)}`);
+    if (!Number.isFinite(c.paidToDate))
+      nonFinite.push(`${where}: paid_to_date ${String(c.paidToDate)}`);
+    if (!Number.isFinite(c.caseReserve))
+      nonFinite.push(`${where}: case_reserve ${String(c.caseReserve)}`);
   }
 
   const futureCheck =
     opts.asOfDate === undefined
-      ? notEvaluated("future-dated", CLAIM_DESCRIPTIONS["future-dated"], "no asOfDate provided")
-      : makeCheck("future-dated", CLAIM_DESCRIPTIONS["future-dated"], "fail", futureDated);
+      ? notEvaluated(
+          "future-dated",
+          CLAIM_DESCRIPTIONS["future-dated"],
+          "no asOfDate provided",
+        )
+      : makeCheck(
+          "future-dated",
+          CLAIM_DESCRIPTIONS["future-dated"],
+          "fail",
+          futureDated,
+        );
 
   return summarize([
     // First: if the numbers are not numbers, the other verdicts are noise.
-    makeCheck("non-finite-value", CLAIM_DESCRIPTIONS["non-finite-value"], "fail", nonFinite),
-    makeCheck("negative-paid", CLAIM_DESCRIPTIONS["negative-paid"], "fail", negativePaid),
-    makeCheck("negative-case", CLAIM_DESCRIPTIONS["negative-case"], "warning", negativeCase),
-    makeCheck("paid-decreasing", CLAIM_DESCRIPTIONS["paid-decreasing"], "fail", paidDecreasing),
-    makeCheck("date-order", CLAIM_DESCRIPTIONS["date-order"], "fail", dateOrder),
-    makeCheck("duplicate-snapshot", CLAIM_DESCRIPTIONS["duplicate-snapshot"], "fail", duplicates),
+    makeCheck(
+      "non-finite-value",
+      CLAIM_DESCRIPTIONS["non-finite-value"],
+      "fail",
+      nonFinite,
+    ),
+    makeCheck(
+      "negative-paid",
+      CLAIM_DESCRIPTIONS["negative-paid"],
+      "fail",
+      negativePaid,
+    ),
+    makeCheck(
+      "negative-case",
+      CLAIM_DESCRIPTIONS["negative-case"],
+      "warning",
+      negativeCase,
+    ),
+    makeCheck(
+      "paid-decreasing",
+      CLAIM_DESCRIPTIONS["paid-decreasing"],
+      "fail",
+      paidDecreasing,
+    ),
+    makeCheck(
+      "date-order",
+      CLAIM_DESCRIPTIONS["date-order"],
+      "fail",
+      dateOrder,
+    ),
+    makeCheck(
+      "duplicate-snapshot",
+      CLAIM_DESCRIPTIONS["duplicate-snapshot"],
+      "fail",
+      duplicates,
+    ),
+    makeCheck(
+      "claim-identity",
+      CLAIM_DESCRIPTIONS["claim-identity"],
+      "fail",
+      identityConflicts,
+    ),
     futureCheck,
-    makeCheck("closed-with-case", CLAIM_DESCRIPTIONS["closed-with-case"], "warning", closedWithCase),
+    makeCheck(
+      "closed-with-case",
+      CLAIM_DESCRIPTIONS["closed-with-case"],
+      "warning",
+      closedWithCase,
+    ),
   ]);
 }
 
 const TRIANGLE_DESCRIPTIONS = {
-  "non-finite-value": "Every observed cell is a finite number (no NaN or Infinity)",
-  "shape-mismatch": "Paid and incurred triangles share the same origins and ages",
-  "paid-exceeds-incurred": "Paid never exceeds incurred in any cell (1e-9 relative tolerance)",
+  "non-finite-value":
+    "Every observed cell is a finite number (no NaN or Infinity)",
+  "shape-mismatch":
+    "Paid and incurred triangles share the same origins and ages",
+  "paid-exceeds-incurred":
+    "Paid never exceeds incurred in any cell (1e-9 relative tolerance)",
   "negative-incremental-paid":
     "Cumulative paid is non-decreasing along each origin row (salvage/subrogation can legitimately violate this)",
   "negative-incremental-incurred":
@@ -290,7 +407,9 @@ function nonFiniteTriangleFindings(tri: Triangle): string[] {
       const v = row[j];
       if (v === null || v === undefined) continue;
       if (!Number.isFinite(v)) {
-        out.push(`${tri.kind} ${tri.origins[i]} age ${tri.ages[j]}: ${String(v)}`);
+        out.push(
+          `${tri.kind} ${tri.origins[i]} age ${tri.ages[j]}: ${String(v)}`,
+        );
       }
     }
   }
@@ -334,7 +453,9 @@ function interiorMissingFindings(tri: Triangle): string[] {
     if (first === -1) continue;
     for (let j = first + 1; j < last; j++) {
       if (!observed[j]) {
-        out.push(`${tri.kind} ${tri.origins[i]} age ${tri.ages[j]}: interior cell missing`);
+        out.push(
+          `${tri.kind} ${tri.origins[i]} age ${tri.ages[j]}: interior cell missing`,
+        );
       }
     }
   }
@@ -342,7 +463,10 @@ function interiorMissingFindings(tri: Triangle): string[] {
 }
 
 /** Reviews a paid/incurred triangle pair for cross-triangle consistency. */
-export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewReport {
+export function reviewTriangles(
+  paid: Triangle,
+  incurred: Triangle,
+): DataReviewReport {
   const shapeFindings: string[] = [];
   const sameOrigins =
     paid.origins.length === incurred.origins.length &&
@@ -364,7 +488,10 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
     "non-finite-value",
     TRIANGLE_DESCRIPTIONS["non-finite-value"],
     "fail",
-    [...nonFiniteTriangleFindings(paid), ...nonFiniteTriangleFindings(incurred)],
+    [
+      ...nonFiniteTriangleFindings(paid),
+      ...nonFiniteTriangleFindings(incurred),
+    ],
   );
   const shapeCheck = makeCheck(
     "shape-mismatch",
@@ -379,7 +506,11 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
     return summarize([
       nonFiniteCheck,
       shapeCheck,
-      notEvaluated("paid-exceeds-incurred", TRIANGLE_DESCRIPTIONS["paid-exceeds-incurred"], reason),
+      notEvaluated(
+        "paid-exceeds-incurred",
+        TRIANGLE_DESCRIPTIONS["paid-exceeds-incurred"],
+        reason,
+      ),
       notEvaluated(
         "negative-incremental-paid",
         TRIANGLE_DESCRIPTIONS["negative-incremental-paid"],
@@ -390,7 +521,11 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
         TRIANGLE_DESCRIPTIONS["negative-incremental-incurred"],
         reason,
       ),
-      notEvaluated("interior-missing", TRIANGLE_DESCRIPTIONS["interior-missing"], reason),
+      notEvaluated(
+        "interior-missing",
+        TRIANGLE_DESCRIPTIONS["interior-missing"],
+        reason,
+      ),
     ]);
   }
 
@@ -401,10 +536,13 @@ export function reviewTriangles(paid: Triangle, incurred: Triangle): DataReviewR
     for (let j = 0; j < paidRow.length; j++) {
       const p = paidRow[j];
       const inc = incRow[j];
-      if (p === null || p === undefined || inc === null || inc === undefined) continue;
+      if (p === null || p === undefined || inc === null || inc === undefined)
+        continue;
       const tolerance = 1e-9 * Math.max(1, Math.abs(p), Math.abs(inc));
       if (p - inc > tolerance) {
-        paidExceeds.push(`${paid.origins[i]} age ${paid.ages[j]}: paid ${p} > incurred ${inc}`);
+        paidExceeds.push(
+          `${paid.origins[i]} age ${paid.ages[j]}: paid ${p} > incurred ${inc}`,
+        );
       }
     }
   }

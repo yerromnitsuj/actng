@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { runRealWorldDiagnosticReview, runRealWorldLossRunReview } from "../src/main.js";
+import { createHash } from "node:crypto";
+import { canonicalJson } from "@actuarial-ts/core";
+import {
+  runRealWorldDiagnosticReview,
+  runRealWorldLossRunReview,
+} from "../src/main.js";
 
 const net = runRealWorldLossRunReview();
 const gross = runRealWorldLossRunReview({ basis: "gross" });
@@ -53,7 +58,9 @@ describe("the real-world loss-run and exposure example", () => {
   it("renders source interpretations, limitations, and selections into the disclosure", () => {
     expect(net.disclosure).toContain("source.expectChargeInterpretation");
     expect(net.disclosure).toContain("annual precision only");
-    expect(net.disclosure).toContain("Gross written premium is retained but is not used as earned premium");
+    expect(net.disclosure).toContain(
+      "Gross written premium is retained but is not used as earned premium",
+    );
     expect(net.disclosure).toContain("all-wtd");
   });
 });
@@ -62,37 +69,107 @@ describe("the generalized diagnostic vertical slice", () => {
   it("runs all 22 selections and seals the exact definition, review, result, and bundle", async () => {
     const outcome = await runRealWorldDiagnosticReview();
     expect(outcome.completed.result.emergence).toHaveLength(210);
-    expect(outcome.completed.prepared.definition.definition.formulas).toHaveLength(6);
-    expect(outcome.completed.prepared.definition.definition.instances).toHaveLength(22);
-    expect(outcome.provenance.definitionIdentities.definition).toBe(outcome.parsedDefinitionIntegrity);
-    expect(outcome.provenance.manifest.runPresetId).toBe("freclaimset2motor-all-annual-v1");
-    expect(outcome.provenance.manifest.artifacts.map((artifact) => artifact.id)).toEqual([
-      "diagnostic-snapshots",
-      "exposures",
-      "source-archive",
-      "source-manifest",
-      "transform-script",
-    ]);
-    expect(outcome.provenance.manifest.lineage).toEqual([
+    expect(
+      outcome.completed.prepared.definition.definition.formulas,
+    ).toHaveLength(6);
+    expect(
+      outcome.completed.prepared.definition.definition.instances,
+    ).toHaveLength(22);
+    expect(outcome.provenance.definition.identities.definition).toBe(
+      outcome.parsedDefinitionIntegrity,
+    );
+    expect(outcome.provenance.manifest.runPresetId).toBe(
+      "freclaimset2motor-all-annual-v1",
+    );
+    expect(
+      outcome.provenance.manifest.inputArtifacts.map((artifact) => artifact.id),
+    ).toEqual(["diagnostic-snapshots", "exposures", "source-archive"]);
+    expect(
+      outcome.provenance.manifest.preparationArtifacts.map(
+        (artifact) => artifact.id,
+      ),
+    ).toEqual(["source-manifest", "transform-script"]);
+    expect(outcome.provenance.manifest.preparationLineage).toEqual([
       {
-        artifactId: "diagnostic-snapshots",
-        inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
+        outputArtifactId: "diagnostic-snapshots",
+        inputArtifactIds: ["source-archive"],
+        transformationArtifactIds: ["source-manifest", "transform-script"],
       },
       {
-        artifactId: "exposures",
-        inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
+        outputArtifactId: "exposures",
+        inputArtifactIds: ["source-archive"],
+        transformationArtifactIds: ["source-manifest", "transform-script"],
       },
     ]);
-    expect(outcome.completed.gate).toMatchObject({ reviewGate: "passed", metricGate: "passed" });
+    expect(outcome.completed.gate).toMatchObject({
+      reviewGate: "passed",
+      metricGate: "passed",
+    });
+    const triggered = outcome.completed.review.evaluations.filter(
+      (evaluation) => evaluation.status === "triggered",
+    );
+    expect(
+      Object.fromEntries(
+        [...new Set(triggered.map((evaluation) => evaluation.ruleId))].map(
+          (id) => [
+            id,
+            triggered.filter((evaluation) => evaluation.ruleId === id).length,
+          ],
+        ),
+      ),
+    ).toEqual({
+      "casualty/review/closed-reopen-signal": 8,
+      "casualty/review/gross-incurred-monotonic": 38,
+      "casualty/review/net-incurred-monotonic": 27,
+    });
+    const exactFindingEvidence = triggered.map((evaluation) => ({
+      ruleId: evaluation.ruleId,
+      scope: evaluation.scope,
+      sources: evaluation.scope.sources,
+    }));
+    expect(
+      createHash("sha256")
+        .update(canonicalJson(exactFindingEvidence))
+        .digest("hex"),
+    ).toBe("efa7d1c262717c2ddbc61cfa9982f8fa2c807fc51d9b1908af804c3a1a489acc");
+    for (const id of [
+      "casualty/review/count-reconciliation",
+      "casualty/review/closed-no-pay-bound",
+      "casualty/review/positive-exposure",
+      "casualty/review/net-paid-not-above-gross",
+      "casualty/review/net-incurred-not-above-gross",
+      "casualty/review/gross-paid-latest-control",
+      "casualty/review/gross-incurred-latest-control",
+      "casualty/review/net-paid-latest-control",
+      "casualty/review/net-incurred-latest-control",
+      "casualty/review/exposure-control",
+    ]) {
+      const evaluations = outcome.completed.review.evaluations.filter(
+        (evaluation) => evaluation.ruleId === id,
+      );
+      expect(evaluations.length).toBeGreaterThan(0);
+      expect(
+        evaluations.every((evaluation) => evaluation.status === "pass"),
+      ).toBe(true);
+    }
     expect("wrapped" in outcome.bundle).toBe(true);
-    const gross = outcome.completed.prepared.definition.definition.instances.find((item) =>
-      item.id.includes("/gross/paid-to-incurred"))!;
-    const net = outcome.completed.prepared.definition.definition.instances.find((item) =>
-      item.id.includes("/net/paid-to-incurred"))!;
-    expect(outcome.completed.prepared.definition.formulaFingerprints[gross.formulaId]).toBe(
+    const gross =
+      outcome.completed.prepared.definition.definition.instances.find((item) =>
+        item.id.includes("/gross/paid-to-incurred"),
+      )!;
+    const net = outcome.completed.prepared.definition.definition.instances.find(
+      (item) => item.id.includes("/net/paid-to-incurred"),
+    )!;
+    expect(
+      outcome.completed.prepared.definition.formulaFingerprints[
+        gross.formulaId
+      ],
+    ).toBe(
       outcome.completed.prepared.definition.formulaFingerprints[net.formulaId],
     );
-    expect(outcome.completed.prepared.definition.calculationFingerprints[gross.id]).not.toBe(
+    expect(
+      outcome.completed.prepared.definition.calculationFingerprints[gross.id],
+    ).not.toBe(
       outcome.completed.prepared.definition.calculationFingerprints[net.id],
     );
   }, 30_000);

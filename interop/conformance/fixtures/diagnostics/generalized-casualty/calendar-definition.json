@@ -1,0 +1,1224 @@
+{
+  "interchangeVersion": "1.1.0",
+  "kind": "diagnostic-definition",
+  "generator": {
+    "name": "@actuarial-ts/interchange",
+    "version": "0.6.1"
+  },
+  "createdAt": "2026-09-03T12:00:00.000Z",
+  "integrity": "93f3f67b1c01801b",
+  "diagnosticDefinition": {
+    "definition": {
+      "diagnosticDefinitionVersion": "1.0.0",
+      "id": "freclaimset2motor-annual-diagnostics",
+      "version": "1.0.0",
+      "lossRowGrain": "aggregate",
+      "measures": [
+        {
+          "id": "closed-no-pay",
+          "displayName": "Closed no pay",
+          "description": "Closed no pay claims under the documented adapted source-state mapping",
+          "source": "loss",
+          "kind": "count",
+          "unit": "claim",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": null,
+          "countPopulationId": "adapted-source-claims",
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "closed-with-pay",
+          "displayName": "Closed with pay",
+          "description": "Closed with pay claims under the documented adapted source-state mapping",
+          "source": "loss",
+          "kind": "count",
+          "unit": "claim",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": null,
+          "countPopulationId": "adapted-source-claims",
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "gross-incurred",
+          "displayName": "gross-incurred",
+          "description": "Cumulative gross-incurred loss",
+          "source": "loss",
+          "kind": "amount",
+          "unit": "EUR",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": "gross-loss",
+          "countPopulationId": null,
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "gross-paid",
+          "displayName": "gross-paid",
+          "description": "Cumulative gross-paid loss",
+          "source": "loss",
+          "kind": "amount",
+          "unit": "EUR",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": "gross-loss",
+          "countPopulationId": null,
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "insurance-years",
+          "displayName": "Insurance years",
+          "description": "Origin-year exposure supplied by aggdata.Exposure; no earned/written/in-force interpretation is inferred",
+          "source": "exposure",
+          "kind": "exposure",
+          "unit": "insurance-year",
+          "developmentSemantics": "point-in-time",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": null,
+          "countPopulationId": null,
+          "exposureBasisId": "source-insurance-years",
+          "exposureTiming": "origin-static"
+        },
+        {
+          "id": "net-incurred",
+          "displayName": "net-incurred",
+          "description": "Cumulative net-incurred loss",
+          "source": "loss",
+          "kind": "amount",
+          "unit": "EUR",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": "net-loss",
+          "countPopulationId": null,
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "net-paid",
+          "displayName": "net-paid",
+          "description": "Cumulative net-paid loss",
+          "source": "loss",
+          "kind": "amount",
+          "unit": "EUR",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": "net-loss",
+          "countPopulationId": null,
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "open",
+          "displayName": "Open",
+          "description": "Open claims under the documented adapted source-state mapping",
+          "source": "loss",
+          "kind": "count",
+          "unit": "claim",
+          "developmentSemantics": "point-in-time",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": null,
+          "countPopulationId": "adapted-source-claims",
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
+        {
+          "id": "reported",
+          "displayName": "Reported",
+          "description": "Reported claims under the documented adapted source-state mapping",
+          "source": "loss",
+          "kind": "count",
+          "unit": "claim",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": null,
+          "countPopulationId": "adapted-source-claims",
+          "exposureBasisId": null,
+          "exposureTiming": null
+        }
+      ],
+      "countPopulations": [
+        {
+          "id": "adapted-source-claims",
+          "displayName": "Adapted source claims",
+          "subject": "claim",
+          "unit": "claim",
+          "description": "ClaimID state carried forward by management year; source identifier collisions remain disclosed",
+          "attributes": {}
+        }
+      ],
+      "exposureBases": [
+        {
+          "id": "source-insurance-years",
+          "displayName": "Source insurance years",
+          "basis": "other",
+          "unit": "insurance-year",
+          "description": "Source Exposure field by origin year",
+          "sourceDescription": "CASdatasets aggdata.Exposure; semantics are not relabeled as earned, written, or in-force",
+          "attributes": {}
+        }
+      ],
+      "amountBases": [
+        {
+          "id": "gross-loss",
+          "displayName": "Gross loss",
+          "currency": "EUR",
+          "perspective": "gross",
+          "components": [
+            {
+              "id": "indemnity",
+              "treatment": "included",
+              "limitation": {
+                "kind": "unlimited"
+              }
+            }
+          ],
+          "sourceDescription": null,
+          "attributes": {}
+        },
+        {
+          "id": "net-loss",
+          "displayName": "Net loss",
+          "currency": "EUR",
+          "perspective": "net",
+          "components": [
+            {
+              "id": "indemnity-net-of-recourse",
+              "treatment": "included",
+              "limitation": {
+                "kind": "unlimited"
+              }
+            }
+          ],
+          "sourceDescription": null,
+          "attributes": {}
+        }
+      ],
+      "derivedMeasures": [],
+      "formulas": [
+        {
+          "id": "amount-per-claim",
+          "version": "1.0.0",
+          "roles": {
+            "amount": {
+              "kind": "amount",
+              "compatibilityGroup": null,
+              "developmentSemantics": null
+            },
+            "claims": {
+              "kind": "count",
+              "compatibilityGroup": null,
+              "developmentSemantics": null
+            }
+          },
+          "numerator": {
+            "op": "role",
+            "role": "amount"
+          },
+          "denominator": {
+            "op": "role",
+            "role": "claims"
+          },
+          "denominatorPolicy": "positive-or-null"
+        },
+        {
+          "id": "amount-per-exposure",
+          "version": "1.0.0",
+          "roles": {
+            "amount": {
+              "kind": "amount",
+              "compatibilityGroup": null,
+              "developmentSemantics": null
+            },
+            "exposure": {
+              "kind": "exposure",
+              "compatibilityGroup": null,
+              "developmentSemantics": null
+            }
+          },
+          "numerator": {
+            "op": "role",
+            "role": "amount"
+          },
+          "denominator": {
+            "op": "role",
+            "role": "exposure"
+          },
+          "denominatorPolicy": "positive-or-null"
+        },
+        {
+          "id": "case-per-open",
+          "version": "1.0.0",
+          "roles": {
+            "incurred": {
+              "kind": "amount",
+              "compatibilityGroup": "amount-basis",
+              "developmentSemantics": "cumulative"
+            },
+            "open": {
+              "kind": "count",
+              "compatibilityGroup": null,
+              "developmentSemantics": "point-in-time"
+            },
+            "paid": {
+              "kind": "amount",
+              "compatibilityGroup": "amount-basis",
+              "developmentSemantics": "cumulative"
+            }
+          },
+          "numerator": {
+            "op": "subtract",
+            "left": {
+              "op": "role",
+              "role": "incurred"
+            },
+            "right": {
+              "op": "role",
+              "role": "paid"
+            }
+          },
+          "denominator": {
+            "op": "role",
+            "role": "open"
+          },
+          "denominatorPolicy": "positive-or-null"
+        },
+        {
+          "id": "frequency",
+          "version": "1.0.0",
+          "roles": {
+            "claims": {
+              "kind": "count",
+              "compatibilityGroup": null,
+              "developmentSemantics": null
+            },
+            "exposure": {
+              "kind": "exposure",
+              "compatibilityGroup": null,
+              "developmentSemantics": null
+            }
+          },
+          "numerator": {
+            "op": "role",
+            "role": "claims"
+          },
+          "denominator": {
+            "op": "role",
+            "role": "exposure"
+          },
+          "denominatorPolicy": "positive-or-null"
+        },
+        {
+          "id": "paid-to-incurred",
+          "version": "1.0.0",
+          "roles": {
+            "incurred": {
+              "kind": "amount",
+              "compatibilityGroup": "amount-basis",
+              "developmentSemantics": "cumulative"
+            },
+            "paid": {
+              "kind": "amount",
+              "compatibilityGroup": "amount-basis",
+              "developmentSemantics": "cumulative"
+            }
+          },
+          "numerator": {
+            "op": "role",
+            "role": "paid"
+          },
+          "denominator": {
+            "op": "role",
+            "role": "incurred"
+          },
+          "denominatorPolicy": "positive-or-null"
+        },
+        {
+          "id": "share",
+          "version": "1.0.0",
+          "roles": {
+            "part": {
+              "kind": "count",
+              "compatibilityGroup": "count-population",
+              "developmentSemantics": null
+            },
+            "whole": {
+              "kind": "count",
+              "compatibilityGroup": "count-population",
+              "developmentSemantics": null
+            }
+          },
+          "numerator": {
+            "op": "role",
+            "role": "part"
+          },
+          "denominator": {
+            "op": "role",
+            "role": "whole"
+          },
+          "denominatorPolicy": "positive-or-null"
+        }
+      ],
+      "instances": [
+        {
+          "id": "casualty/count/reported-frequency",
+          "version": "1.0.0",
+          "formulaId": "frequency",
+          "bindings": {
+            "claims": {
+              "op": "measure",
+              "measureId": "reported"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Reported frequency",
+            "description": "Reported count divided by exposure",
+            "displayUnit": "count per exposure",
+            "scale": 1,
+            "numeratorLabel": "reported",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/open-frequency",
+          "version": "1.0.0",
+          "formulaId": "frequency",
+          "bindings": {
+            "claims": {
+              "op": "measure",
+              "measureId": "open"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Open frequency",
+            "description": "Open count divided by exposure",
+            "displayUnit": "count per exposure",
+            "scale": 1,
+            "numeratorLabel": "open",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/closed-no-pay-frequency",
+          "version": "1.0.0",
+          "formulaId": "frequency",
+          "bindings": {
+            "claims": {
+              "op": "measure",
+              "measureId": "closed-no-pay"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Closed-no-pay frequency",
+            "description": "Closed-no-pay count divided by exposure",
+            "displayUnit": "count per exposure",
+            "scale": 1,
+            "numeratorLabel": "closed-no-pay",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/closed-with-pay-frequency",
+          "version": "1.0.0",
+          "formulaId": "frequency",
+          "bindings": {
+            "claims": {
+              "op": "measure",
+              "measureId": "closed-with-pay"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Closed-with-pay frequency",
+            "description": "Closed-with-pay count divided by exposure",
+            "displayUnit": "count per exposure",
+            "scale": 1,
+            "numeratorLabel": "closed-with-pay",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/non-closed-no-pay-frequency",
+          "version": "1.0.0",
+          "formulaId": "frequency",
+          "bindings": {
+            "claims": {
+              "op": "subtract",
+              "left": {
+                "op": "measure",
+                "measureId": "reported"
+              },
+              "right": {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              }
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Non-closed-no-pay frequency",
+            "description": "Reported less closed-no-pay count divided by exposure",
+            "displayUnit": "count per exposure",
+            "scale": 1,
+            "numeratorLabel": "reported less closed-no-pay",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/closed-no-pay-share",
+          "version": "1.0.0",
+          "formulaId": "share",
+          "bindings": {
+            "part": {
+              "op": "measure",
+              "measureId": "closed-no-pay"
+            },
+            "whole": {
+              "op": "measure",
+              "measureId": "reported"
+            }
+          },
+          "presentation": {
+            "displayName": "Closed-no-pay share",
+            "description": "Closed-no-pay count divided by reported count",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "closed-no-pay",
+            "denominatorLabel": "reported"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/closed-with-pay-share",
+          "version": "1.0.0",
+          "formulaId": "share",
+          "bindings": {
+            "part": {
+              "op": "measure",
+              "measureId": "closed-with-pay"
+            },
+            "whole": {
+              "op": "measure",
+              "measureId": "reported"
+            }
+          },
+          "presentation": {
+            "displayName": "Closed-with-pay share",
+            "description": "Closed-with-pay count divided by reported count",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "closed-with-pay",
+            "denominatorLabel": "reported"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/closed-with-pay-share-of-non-closed-no-pay",
+          "version": "1.0.0",
+          "formulaId": "share",
+          "bindings": {
+            "part": {
+              "op": "measure",
+              "measureId": "closed-with-pay"
+            },
+            "whole": {
+              "op": "subtract",
+              "left": {
+                "op": "measure",
+                "measureId": "reported"
+              },
+              "right": {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              }
+            }
+          },
+          "presentation": {
+            "displayName": "Closed-with-pay share of non-closed-no-pay",
+            "description": "Closed-with-pay count divided by reported less closed-no-pay count",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "closed-with-pay",
+            "denominatorLabel": "reported less closed-no-pay"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/open-share",
+          "version": "1.0.0",
+          "formulaId": "share",
+          "bindings": {
+            "part": {
+              "op": "measure",
+              "measureId": "open"
+            },
+            "whole": {
+              "op": "measure",
+              "measureId": "reported"
+            }
+          },
+          "presentation": {
+            "displayName": "Open share",
+            "description": "Open count divided by reported count",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "open",
+            "denominatorLabel": "reported"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/count/open-share-of-non-closed-no-pay",
+          "version": "1.0.0",
+          "formulaId": "share",
+          "bindings": {
+            "part": {
+              "op": "measure",
+              "measureId": "open"
+            },
+            "whole": {
+              "op": "subtract",
+              "left": {
+                "op": "measure",
+                "measureId": "reported"
+              },
+              "right": {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              }
+            }
+          },
+          "presentation": {
+            "displayName": "Open share of non-closed-no-pay",
+            "description": "Open count divided by reported less closed-no-pay count",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "open",
+            "denominatorLabel": "reported less closed-no-pay"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/gross/paid-to-incurred",
+          "version": "1.0.0",
+          "formulaId": "paid-to-incurred",
+          "bindings": {
+            "incurred": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            },
+            "paid": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            }
+          },
+          "presentation": {
+            "displayName": "Paid to incurred",
+            "description": "Paid divided by incurred on the bound amount basis",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "paid",
+            "denominatorLabel": "incurred"
+          },
+          "rules": [
+            {
+              "id": "casualty/amount/gross/paid-to-incurred/rule/paid-exceeds-incurred",
+              "code": "paid-exceeds-incurred",
+              "message": "Paid exceeds incurred on the bound amount basis",
+              "severity": "warning",
+              "when": {
+                "left": {
+                  "source": "calculation",
+                  "field": "numerator"
+                },
+                "operator": "gt",
+                "right": {
+                  "source": "calculation",
+                  "field": "denominator"
+                },
+                "tolerance": {
+                  "absolute": 0,
+                  "relative": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "casualty/amount/gross/incurred-per-exposure",
+          "version": "1.0.0",
+          "formulaId": "amount-per-exposure",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Incurred per exposure",
+            "description": "Incurred divided by exposure",
+            "displayUnit": "amount per exposure",
+            "scale": 1,
+            "numeratorLabel": "incurred",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/gross/incurred-per-non-closed-no-pay-claim",
+          "version": "1.0.0",
+          "formulaId": "amount-per-claim",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            },
+            "claims": {
+              "op": "subtract",
+              "left": {
+                "op": "measure",
+                "measureId": "reported"
+              },
+              "right": {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              }
+            }
+          },
+          "presentation": {
+            "displayName": "Incurred per non-closed-no-pay claim",
+            "description": "Incurred divided by reported less closed-no-pay count",
+            "displayUnit": "amount per claim",
+            "scale": 1,
+            "numeratorLabel": "incurred",
+            "denominatorLabel": "reported less closed-no-pay"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/gross/paid-per-exposure",
+          "version": "1.0.0",
+          "formulaId": "amount-per-exposure",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Paid per exposure",
+            "description": "Paid divided by exposure",
+            "displayUnit": "amount per exposure",
+            "scale": 1,
+            "numeratorLabel": "paid",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/gross/paid-per-closed-with-pay-claim",
+          "version": "1.0.0",
+          "formulaId": "amount-per-claim",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "claims": {
+              "op": "measure",
+              "measureId": "closed-with-pay"
+            }
+          },
+          "presentation": {
+            "displayName": "Paid per closed-with-pay claim",
+            "description": "Paid divided by closed-with-pay count",
+            "displayUnit": "amount per claim",
+            "scale": 1,
+            "numeratorLabel": "paid",
+            "denominatorLabel": "closed-with-pay"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/gross/case-per-open-claim",
+          "version": "1.0.0",
+          "formulaId": "case-per-open",
+          "bindings": {
+            "incurred": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            },
+            "open": {
+              "op": "measure",
+              "measureId": "open"
+            },
+            "paid": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            }
+          },
+          "presentation": {
+            "displayName": "Case reserve per open claim",
+            "description": "Incurred less paid divided by open count",
+            "displayUnit": "amount per claim",
+            "scale": 1,
+            "numeratorLabel": "incurred less paid",
+            "denominatorLabel": "open"
+          },
+          "rules": [
+            {
+              "id": "casualty/amount/gross/case-per-open-claim/rule/negative-case",
+              "code": "negative-case",
+              "message": "Incurred less paid is negative on the bound amount basis",
+              "severity": "warning",
+              "when": {
+                "left": {
+                  "source": "calculation",
+                  "field": "numerator"
+                },
+                "operator": "lt",
+                "right": {
+                  "source": "constant",
+                  "value": 0
+                },
+                "tolerance": {
+                  "absolute": 0,
+                  "relative": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "casualty/amount/net/paid-to-incurred",
+          "version": "1.0.0",
+          "formulaId": "paid-to-incurred",
+          "bindings": {
+            "incurred": {
+              "op": "measure",
+              "measureId": "net-incurred"
+            },
+            "paid": {
+              "op": "measure",
+              "measureId": "net-paid"
+            }
+          },
+          "presentation": {
+            "displayName": "Paid to incurred",
+            "description": "Paid divided by incurred on the bound amount basis",
+            "displayUnit": "ratio",
+            "scale": 1,
+            "numeratorLabel": "paid",
+            "denominatorLabel": "incurred"
+          },
+          "rules": [
+            {
+              "id": "casualty/amount/net/paid-to-incurred/rule/paid-exceeds-incurred",
+              "code": "paid-exceeds-incurred",
+              "message": "Paid exceeds incurred on the bound amount basis",
+              "severity": "warning",
+              "when": {
+                "left": {
+                  "source": "calculation",
+                  "field": "numerator"
+                },
+                "operator": "gt",
+                "right": {
+                  "source": "calculation",
+                  "field": "denominator"
+                },
+                "tolerance": {
+                  "absolute": 0,
+                  "relative": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "casualty/amount/net/incurred-per-exposure",
+          "version": "1.0.0",
+          "formulaId": "amount-per-exposure",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "net-incurred"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Incurred per exposure",
+            "description": "Incurred divided by exposure",
+            "displayUnit": "amount per exposure",
+            "scale": 1,
+            "numeratorLabel": "incurred",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/net/incurred-per-non-closed-no-pay-claim",
+          "version": "1.0.0",
+          "formulaId": "amount-per-claim",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "net-incurred"
+            },
+            "claims": {
+              "op": "subtract",
+              "left": {
+                "op": "measure",
+                "measureId": "reported"
+              },
+              "right": {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              }
+            }
+          },
+          "presentation": {
+            "displayName": "Incurred per non-closed-no-pay claim",
+            "description": "Incurred divided by reported less closed-no-pay count",
+            "displayUnit": "amount per claim",
+            "scale": 1,
+            "numeratorLabel": "incurred",
+            "denominatorLabel": "reported less closed-no-pay"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/net/paid-per-exposure",
+          "version": "1.0.0",
+          "formulaId": "amount-per-exposure",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "net-paid"
+            },
+            "exposure": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            }
+          },
+          "presentation": {
+            "displayName": "Paid per exposure",
+            "description": "Paid divided by exposure",
+            "displayUnit": "amount per exposure",
+            "scale": 1,
+            "numeratorLabel": "paid",
+            "denominatorLabel": "exposure"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/net/paid-per-closed-with-pay-claim",
+          "version": "1.0.0",
+          "formulaId": "amount-per-claim",
+          "bindings": {
+            "amount": {
+              "op": "measure",
+              "measureId": "net-paid"
+            },
+            "claims": {
+              "op": "measure",
+              "measureId": "closed-with-pay"
+            }
+          },
+          "presentation": {
+            "displayName": "Paid per closed-with-pay claim",
+            "description": "Paid divided by closed-with-pay count",
+            "displayUnit": "amount per claim",
+            "scale": 1,
+            "numeratorLabel": "paid",
+            "denominatorLabel": "closed-with-pay"
+          },
+          "rules": []
+        },
+        {
+          "id": "casualty/amount/net/case-per-open-claim",
+          "version": "1.0.0",
+          "formulaId": "case-per-open",
+          "bindings": {
+            "incurred": {
+              "op": "measure",
+              "measureId": "net-incurred"
+            },
+            "open": {
+              "op": "measure",
+              "measureId": "open"
+            },
+            "paid": {
+              "op": "measure",
+              "measureId": "net-paid"
+            }
+          },
+          "presentation": {
+            "displayName": "Case reserve per open claim",
+            "description": "Incurred less paid divided by open count",
+            "displayUnit": "amount per claim",
+            "scale": 1,
+            "numeratorLabel": "incurred less paid",
+            "denominatorLabel": "open"
+          },
+          "rules": [
+            {
+              "id": "casualty/amount/net/case-per-open-claim/rule/negative-case",
+              "code": "negative-case",
+              "message": "Incurred less paid is negative on the bound amount basis",
+              "severity": "warning",
+              "when": {
+                "left": {
+                  "source": "calculation",
+                  "field": "numerator"
+                },
+                "operator": "lt",
+                "right": {
+                  "source": "constant",
+                  "value": 0
+                },
+                "tolerance": {
+                  "absolute": 0,
+                  "relative": 0
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "reviewRules": [
+        {
+          "id": "casualty/review/count-reconciliation",
+          "code": "count-reconciliation",
+          "description": "Reported count must equal open plus closed-no-pay plus closed-with-pay count",
+          "severity": "fail",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "reconcile",
+          "actual": {
+            "op": "measure",
+            "measureId": "reported"
+          },
+          "expected": {
+            "op": "add",
+            "terms": [
+              {
+                "op": "measure",
+                "measureId": "open"
+              },
+              {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              },
+              {
+                "op": "measure",
+                "measureId": "closed-with-pay"
+              }
+            ]
+          }
+        },
+        {
+          "id": "casualty/review/closed-no-pay-bound",
+          "code": "closed-no-pay-bound",
+          "description": "Closed-no-pay count must not exceed reported count",
+          "severity": "fail",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "closed-no-pay"
+            },
+            "operator": "gt",
+            "right": {
+              "op": "measure",
+              "measureId": "reported"
+            }
+          }
+        },
+        {
+          "id": "casualty/review/positive-exposure",
+          "code": "positive-exposure",
+          "description": "Exposure must be strictly positive",
+          "severity": "fail",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "insurance-years"
+            },
+            "operator": "lte",
+            "right": {
+              "op": "constant",
+              "value": 0
+            }
+          }
+        },
+        {
+          "id": "casualty/review/closed-reopen-signal",
+          "code": "closed-reopen-signal",
+          "description": "Closed count must be nondecreasing across valuations",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "monotonic",
+          "expression": {
+            "op": "add",
+            "terms": [
+              {
+                "op": "measure",
+                "measureId": "closed-no-pay"
+              },
+              {
+                "op": "measure",
+                "measureId": "closed-with-pay"
+              }
+            ]
+          },
+          "direction": "nondecreasing"
+        },
+        {
+          "id": "casualty/review/gross-incurred-monotonic",
+          "code": "casualty/review/gross-incurred-monotonic",
+          "description": "Expression must be nondecreasing across valuations",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "monotonic",
+          "expression": {
+            "op": "measure",
+            "measureId": "gross-incurred"
+          },
+          "direction": "nondecreasing"
+        },
+        {
+          "id": "casualty/review/net-incurred-monotonic",
+          "code": "casualty/review/net-incurred-monotonic",
+          "description": "Expression must be nondecreasing across valuations",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "monotonic",
+          "expression": {
+            "op": "measure",
+            "measureId": "net-incurred"
+          },
+          "direction": "nondecreasing"
+        }
+      ],
+      "periodAxis": {
+        "kind": "calendar",
+        "originCadence": "year",
+        "valuationCadence": "year",
+        "originAnchor": "start",
+        "valuationAnchor": "end",
+        "ageUnit": "month",
+        "ageOffset": 0
+      }
+    },
+    "identities": {
+      "algorithm": "fnv1a64-jcs-v1",
+      "formulaById": {
+        "amount-per-claim": "fnv1a64-jcs-v1:f429a18df717cf71",
+        "amount-per-exposure": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+        "case-per-open": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+        "frequency": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+        "paid-to-incurred": "fnv1a64-jcs-v1:b2d0deef282f8234",
+        "share": "fnv1a64-jcs-v1:2612bfad35775886"
+      },
+      "calculationByInstanceId": {
+        "casualty/amount/gross/case-per-open-claim": "fnv1a64-jcs-v1:3df52445ccda15b8",
+        "casualty/amount/gross/incurred-per-exposure": "fnv1a64-jcs-v1:c3a6a6aa2eef4ceb",
+        "casualty/amount/gross/incurred-per-non-closed-no-pay-claim": "fnv1a64-jcs-v1:732b47001a2de8c6",
+        "casualty/amount/gross/paid-per-closed-with-pay-claim": "fnv1a64-jcs-v1:dcd2e4263735504a",
+        "casualty/amount/gross/paid-per-exposure": "fnv1a64-jcs-v1:102d90bfc963c347",
+        "casualty/amount/gross/paid-to-incurred": "fnv1a64-jcs-v1:2124ae30d6639745",
+        "casualty/amount/net/case-per-open-claim": "fnv1a64-jcs-v1:3b3b47e393e55a0c",
+        "casualty/amount/net/incurred-per-exposure": "fnv1a64-jcs-v1:4850ef8b38218c96",
+        "casualty/amount/net/incurred-per-non-closed-no-pay-claim": "fnv1a64-jcs-v1:d5c94ab6abb5415b",
+        "casualty/amount/net/paid-per-closed-with-pay-claim": "fnv1a64-jcs-v1:63dd92edb8d5dadf",
+        "casualty/amount/net/paid-per-exposure": "fnv1a64-jcs-v1:e9f66fd220c6fcea",
+        "casualty/amount/net/paid-to-incurred": "fnv1a64-jcs-v1:b00d07cc091edded",
+        "casualty/count/closed-no-pay-frequency": "fnv1a64-jcs-v1:0f795a2d55939f3e",
+        "casualty/count/closed-no-pay-share": "fnv1a64-jcs-v1:ea48f9373a208898",
+        "casualty/count/closed-with-pay-frequency": "fnv1a64-jcs-v1:43ce6381780b402d",
+        "casualty/count/closed-with-pay-share": "fnv1a64-jcs-v1:358cfddd581bee83",
+        "casualty/count/closed-with-pay-share-of-non-closed-no-pay": "fnv1a64-jcs-v1:debb23df4361be8c",
+        "casualty/count/non-closed-no-pay-frequency": "fnv1a64-jcs-v1:ab6095d876c2d3ad",
+        "casualty/count/open-frequency": "fnv1a64-jcs-v1:abad0f3512cb0c82",
+        "casualty/count/open-share": "fnv1a64-jcs-v1:4a53ea4e7bf33c2c",
+        "casualty/count/open-share-of-non-closed-no-pay": "fnv1a64-jcs-v1:010c6e65a324a44d",
+        "casualty/count/reported-frequency": "fnv1a64-jcs-v1:8ffb808c9b445596"
+      },
+      "definition": "fnv1a64-jcs-v1:1397b6a08d8329f9"
+    }
+  }
+}

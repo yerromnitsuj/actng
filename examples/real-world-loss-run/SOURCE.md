@@ -46,7 +46,7 @@ the source:
 8. Missing annual snapshots are carried forward as the latest known cumulative
    state. This matches the SDK's claim-timeline triangle convention.
 9. `ClaimStatus` values `on-going`, `partially closed`, and `reopened` are
-   treated as open; `closed without payment` and `closed with payment` are
+   treated as open; `fully closed` and `closed without further action` are
    treated as closed, and the transform rejects any unknown status. At each
    management year, an identifier is open if any combined source row has an
    open status. Reported, open, closed with pay, and closed without pay are then

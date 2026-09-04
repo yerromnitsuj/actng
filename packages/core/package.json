@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/core",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Pure, zero-dependency P&C actuarial math for TypeScript: reserving, generalized definition-driven diagnostics, trends, limits, discounting, and seeded stochastic methods with published-value validation.",
   "license": "Apache-2.0",
   "type": "module",
@@ -55,7 +55,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepack": "tsc -p tsconfig.build.json"
+    "prepack": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "node ../../tools/release/verify-release-attestation.mjs @actuarial-ts/core"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

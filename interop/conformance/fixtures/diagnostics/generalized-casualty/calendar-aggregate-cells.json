@@ -1,0 +1,32 @@
+{
+  "losses": [
+    {
+      "rowType": "aggregate",
+      "recordId": "cell-1",
+      "sourceGroup": "all",
+      "origin": "2025",
+      "valuation": "2025",
+      "complete": true,
+      "measures": {
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 800,
+        "gross-paid": 500,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    }
+  ],
+  "exposures": [
+    {
+      "key": "insurance-years-1",
+      "sourceGroup": "all",
+      "origin": "2025",
+      "measureId": "insurance-years",
+      "value": 100,
+      "complete": true
+    }
+  ]
+}

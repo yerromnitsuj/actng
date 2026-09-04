@@ -3,7 +3,7 @@
 Typed TypeScript implementation of actuarial-interchange: portable, integrity-stamped documents shared by actuarial-ts, chainladder-python, and R ChainLadder.
 
 ```bash
-npm install @actuarial-ts/interchange@0.6.0 @actuarial-ts/core@0.6.0
+npm install @actuarial-ts/interchange@0.6.1 @actuarial-ts/core@0.6.1
 ```
 
 Node 20+, ESM. Version 0.6 writes wire `1.1.0` and reads compatible major-version-1 documents.
@@ -38,7 +38,7 @@ The three shores share RFC 8785 vectors, frozen reserving fixtures, and the gene
 
 Integrity tags detect accidental drift and support deterministic linking. FNV-1a is unkeyed and is not tamper resistance, authentication, or a security boundary.
 
-The normative format is [actuarial-interchange rev 2.4](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/spec/actuarial-interchange.md). See the generated [diagnostic formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
+The normative format is [actuarial-interchange rev 2.4](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/spec/actuarial-interchange.md). See the generated [diagnostic formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 

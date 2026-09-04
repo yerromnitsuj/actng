@@ -3,6 +3,75 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
+## 0.6.1 — 2026-09-04
+
+### Diagnostics correctness
+
+- Structural preparation now audits invalid origin and valuation labels,
+  duplicate loss-record and cell identities, incomplete loss records,
+  loss/exposure measure-contract violations, exposure reconciliation failures,
+  missing exposure joins, and expected-cell gaps. These findings feed the
+  standard review checks, so the default validated-run policy blocks them
+  instead of completing against silently omitted or ambiguous data.
+- Complete-period cutoffs are now executable inclusive selections. They are
+  normalized through the compiled period axis and applied—before ordinary
+  filters and arithmetic—to losses, timing-applicable exposures, and expected
+  cells while preserving excluded records in the preparation audit and run
+  identity.
+- Mapped output groups now finalize their canonical leaf contributions and
+  distinct structural blockers rather than combining rounded source-group
+  totals. Control totals likewise finalize selected leaf contributions once,
+  treat empty projections as missing input, and distinguish source-cell from
+  selection-level overflow. Metric and review rules preserve missingness,
+  imputation, structural, and overflow readiness; expected-cell grids preserve
+  missing monotonic adjacencies; and expression failures carry RFC 6901 paths.
+- Claim derivations now preserve missing and non-finite quality instead of
+  collapsing it to an unaudited null. Direct core preparation validates its
+  complete boundary atomically, review configuration is period-normalized and
+  semantically checked, and maturity views reject blank or unknown groups.
+- The data boundary now safely audits raw non-finite loss/exposure values,
+  rejects explicit `undefined`, strictly validates optional review evidence,
+  validates grouping configuration before review, and reports structural-check
+  applicability explicitly. Generated results, review evidence, and
+  configuration snapshots remain deterministic and frozen.
+- Corrects quarterly documentation and fixtures to use supported period labels
+  with canonical identity text `2025-Q1`; compact `2025Q1` remains an accepted
+  input alias, while `2025-03-31` is a date rather than a quarterly-axis label.
+- The compiler now rejects unknown executable fields, invalid discriminants,
+  cross-quantity comparisons, unsafe JSON/Unicode, cycles, and resource-budget
+  overruns at exact paths. Runtime maps and registries are prototype-safe.
+- Legacy boundaries reject duplicate normalized CSV headers, impossible dates,
+  conflicting claim metadata, non-finite triangle content, and invalid cap or
+  index inputs. Exported agent output schemas now validate their full shapes.
+
+### Reproducibility and published validation
+
+- Diagnostic provenance now has separately scoped input/preparation evidence,
+  explicit acyclic lineage, SHA-256 SDK byte digests, a normalized manifest,
+  and semantic read-side bundle verification that rejects fully re-stamped but
+  internally inconsistent runs.
+- Mack (1999)'s tail-factor random error is implemented with explicit tail
+  standard error and tail sigma inputs, reproducing all nine Table 2 standard
+  errors and the published total of 4,054 (thousands). Exact Taylor/Ashe and
+  mortgage total-SE regressions prevent broad printed percentages hiding drift.
+- A machine-readable registry makes 12 literature/integrity anchors mandatory.
+  The frozen 0.5 quarterly 110-cell golden is replayed through the generalized
+  API, and every committed French motor derivative is hashed, schema-counted,
+  reconciled, and rebuilt byte-for-byte from the pinned source archive.
+- The diagnostic interchange corpus now exercises both calendar and ordered
+  axes and all 22 calculations through TypeScript, Python, and R. Semantic
+  readers reject re-stamped unknown behavior while generic same-major storage
+  continues to preserve opaque fields.
+
+### Release engineering
+
+- One machine-readable command manifest drives the complete release gate and
+  its self-test, including source/reconciliation lanes and source rebuild.
+  A clean successful gate creates per-tarball SHA-256 evidence bound to the Git
+  SHA and manifests. Every package's `prepublishOnly` rejects absent, stale,
+  dirty, or byte-mismatched evidence; `npm run release:publish` is the single
+  dependency-ordered publishing command.
+
 ## 0.6.0 — 2026-09-03
 
 The complete breaking-change guide is in

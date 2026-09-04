@@ -948,6 +948,144 @@ ats_diagnostic_identities <- function(definition) {
   )
 }
 
+ats_diag_exact <- function(value, allowed, path) {
+  if (!is.list(value) || is.null(names(value))) stop(sprintf("%s must be an object", path))
+  unknown <- setdiff(names(value), allowed)
+  if (length(unknown) > 0L) stop(sprintf("unsupported diagnostic behavior at %s.%s", path, ats_sort_utf16(unknown)[[1]]))
+}
+
+ats_validate_diag_expression <- function(root, reference, path) {
+  stack <- list(list(value = root, path = path, depth = 1L))
+  nodes <- 0L
+  while (length(stack) > 0L) {
+    entry <- stack[[length(stack)]]
+    stack <- stack[-length(stack)]
+    if (entry$depth > 64L) stop(sprintf("diagnostic expression depth exceeds 64 at %s", entry$path))
+    nodes <- nodes + 1L
+    if (nodes > 10000L) stop(sprintf("diagnostic expression node count exceeds 10000 at %s", path))
+    expression <- entry$value
+    op <- expression$op
+    if (identical(op, reference)) {
+      ats_diag_exact(expression, c("op", if (identical(reference, "measure")) "measureId" else "role"), entry$path)
+    } else if (identical(op, "add")) {
+      ats_diag_exact(expression, c("op", "terms"), entry$path)
+      if (length(expression$terms) == 0L) stop(sprintf("diagnostic add terms must be nonempty at %s", entry$path))
+      for (index in seq_along(expression$terms)) stack[[length(stack) + 1L]] <- list(value = expression$terms[[index]], path = sprintf("%s.terms[%d]", entry$path, index - 1L), depth = entry$depth + 1L)
+    } else if (identical(op, "subtract")) {
+      ats_diag_exact(expression, c("op", "left", "right"), entry$path)
+      stack[[length(stack) + 1L]] <- list(value = expression$left, path = paste0(entry$path, ".left"), depth = entry$depth + 1L)
+      stack[[length(stack) + 1L]] <- list(value = expression$right, path = paste0(entry$path, ".right"), depth = entry$depth + 1L)
+    } else stop(sprintf("unknown diagnostic expression operator '%s' at %s", op, entry$path))
+  }
+}
+
+ats_validate_diag_tolerance <- function(value, path) {
+  ats_diag_exact(value, c("absolute", "relative"), path)
+}
+
+ats_validate_review_operand <- function(value, path) {
+  if (identical(value$op, "constant")) ats_diag_exact(value, c("op", "value"), path)
+  else ats_validate_diag_expression(value, "measure", path)
+}
+
+ats_validate_metric_operand <- function(value, path) {
+  if (identical(value$source, "measure")) {
+    ats_diag_exact(value, c("source", "expression"), path)
+    ats_validate_diag_expression(value$expression, "measure", paste0(path, ".expression"))
+  } else if (identical(value$source, "calculation")) {
+    ats_diag_exact(value, c("source", "field"), path)
+  } else if (identical(value$source, "constant")) {
+    ats_diag_exact(value, c("source", "value"), path)
+  } else stop(sprintf("unknown diagnostic rule operand source '%s' at %s", value$source, path))
+}
+
+ats_validate_closed_diagnostic_definition <- function(definition) {
+  ats_diag_exact(definition, c("diagnosticDefinitionVersion", "id", "version", "lossRowGrain", "measures", "countPopulations", "exposureBases", "amountBases", "derivedMeasures", "formulas", "instances", "reviewRules", "periodAxis"), "$.definition")
+  for (index in seq_along(definition$measures)) ats_diag_exact(definition$measures[[index]], c("id", "displayName", "description", "source", "kind", "unit", "developmentSemantics", "aggregation", "missing", "basisId", "countPopulationId", "exposureBasisId", "exposureTiming"), sprintf("$.definition.measures[%d]", index - 1L))
+  for (index in seq_along(definition$countPopulations)) ats_diag_exact(definition$countPopulations[[index]], c("id", "displayName", "subject", "unit", "description", "attributes"), sprintf("$.definition.countPopulations[%d]", index - 1L))
+  for (index in seq_along(definition$exposureBases)) ats_diag_exact(definition$exposureBases[[index]], c("id", "displayName", "basis", "unit", "description", "sourceDescription", "attributes"), sprintf("$.definition.exposureBases[%d]", index - 1L))
+  for (index in seq_along(definition$amountBases)) {
+    basis <- definition$amountBases[[index]]
+    path <- sprintf("$.definition.amountBases[%d]", index - 1L)
+    ats_diag_exact(basis, c("id", "displayName", "currency", "perspective", "components", "sourceDescription", "attributes"), path)
+    for (component_index in seq_along(basis$components)) {
+      component <- basis$components[[component_index]]
+      component_path <- sprintf("%s.components[%d]", path, component_index - 1L)
+      ats_diag_exact(component, c("id", "treatment", "limitation"), component_path)
+      limitation <- component$limitation
+      if (identical(limitation$kind, "unlimited")) ats_diag_exact(limitation, "kind", paste0(component_path, ".limitation"))
+      else if (identical(limitation$kind, "unknown")) ats_diag_exact(limitation, c("kind", "description"), paste0(component_path, ".limitation"))
+      else if (limitation$kind %in% c("layer", "pre-limited")) {
+        ats_diag_exact(limitation, c("kind", "attachment", "limit", "application", "derivation"), paste0(component_path, ".limitation"))
+        derivation <- limitation$derivation
+        ats_diag_exact(derivation, if (identical(derivation$kind, "sdk")) "kind" else c("kind", "actor", "transformationRef"), paste0(component_path, ".limitation.derivation"))
+      } else stop(sprintf("unknown amount limitation kind '%s' at %s.limitation", limitation$kind, component_path))
+    }
+  }
+  for (index in seq_along(definition$derivedMeasures)) {
+    item <- definition$derivedMeasures[[index]]
+    ats_diag_exact(item, c("id", "outputMeasureId", "expression"), sprintf("$.definition.derivedMeasures[%d]", index - 1L))
+    ats_validate_diag_expression(item$expression, "measure", sprintf("$.definition.derivedMeasures[%d].expression", index - 1L))
+  }
+  for (index in seq_along(definition$formulas)) {
+    item <- definition$formulas[[index]]
+    path <- sprintf("$.definition.formulas[%d]", index - 1L)
+    ats_diag_exact(item, c("id", "version", "roles", "numerator", "denominator", "denominatorPolicy"), path)
+    for (role in names(item$roles)) ats_diag_exact(item$roles[[role]], c("kind", "compatibilityGroup", "developmentSemantics"), paste0(path, ".roles.", role))
+    ats_validate_diag_expression(item$numerator, "role", paste0(path, ".numerator"))
+    ats_validate_diag_expression(item$denominator, "role", paste0(path, ".denominator"))
+  }
+  for (index in seq_along(definition$instances)) {
+    item <- definition$instances[[index]]
+    path <- sprintf("$.definition.instances[%d]", index - 1L)
+    ats_diag_exact(item, c("id", "version", "formulaId", "bindings", "presentation", "rules"), path)
+    for (role in names(item$bindings)) ats_validate_diag_expression(item$bindings[[role]], "measure", paste0(path, ".bindings.", role))
+    ats_diag_exact(item$presentation, c("displayName", "description", "displayUnit", "scale", "numeratorLabel", "denominatorLabel"), paste0(path, ".presentation"))
+    for (rule_index in seq_along(item$rules)) {
+      rule <- item$rules[[rule_index]]
+      rule_path <- sprintf("%s.rules[%d]", path, rule_index - 1L)
+      ats_diag_exact(rule, c("id", "code", "message", "severity", "when"), rule_path)
+      ats_diag_exact(rule$when, c("left", "operator", "right", "tolerance"), paste0(rule_path, ".when"))
+      ats_validate_metric_operand(rule$when$left, paste0(rule_path, ".when.left"))
+      ats_validate_metric_operand(rule$when$right, paste0(rule_path, ".when.right"))
+      if (!is.null(rule$when$tolerance)) ats_validate_diag_tolerance(rule$when$tolerance, paste0(rule_path, ".when.tolerance"))
+    }
+  }
+  common_rule_fields <- c("kind", "id", "code", "description", "severity", "tolerance", "missingInput")
+  variant_fields <- list(compare = "when", reconcile = c("actual", "expected"), monotonic = c("expression", "direction"), `layer-order` = c("narrower", "broader", "comparability"), `control-total` = c("expression", "expected", "filter", "projection"))
+  for (index in seq_along(definition$reviewRules)) {
+    rule <- definition$reviewRules[[index]]
+    path <- sprintf("$.definition.reviewRules[%d]", index - 1L)
+    if (is.null(variant_fields[[rule$kind]])) stop(sprintf("unknown diagnostic review-rule kind '%s'", rule$kind))
+    ats_diag_exact(rule, c(common_rule_fields, variant_fields[[rule$kind]]), path)
+    if (!is.null(rule$tolerance)) ats_validate_diag_tolerance(rule$tolerance, paste0(path, ".tolerance"))
+    if (identical(rule$kind, "compare")) {
+      ats_diag_exact(rule$when, c("left", "operator", "right"), paste0(path, ".when"))
+      ats_validate_review_operand(rule$when$left, paste0(path, ".when.left"))
+      ats_validate_review_operand(rule$when$right, paste0(path, ".when.right"))
+    } else if (identical(rule$kind, "reconcile")) {
+      ats_validate_diag_expression(rule$actual, "measure", paste0(path, ".actual"))
+      ats_validate_review_operand(rule$expected, paste0(path, ".expected"))
+    } else if (identical(rule$kind, "monotonic")) ats_validate_diag_expression(rule$expression, "measure", paste0(path, ".expression"))
+    else if (identical(rule$kind, "layer-order")) {
+      ats_validate_diag_expression(rule$narrower, "measure", paste0(path, ".narrower"))
+      ats_validate_diag_expression(rule$broader, "measure", paste0(path, ".broader"))
+      ats_diag_exact(rule$comparability, if (identical(rule$comparability$kind, "compiler-proven")) "kind" else c("kind", "rationaleArtifactId"), paste0(path, ".comparability"))
+    } else {
+      ats_validate_diag_expression(rule$expression, "measure", paste0(path, ".expression"))
+      if (!is.null(rule$filter)) ats_diag_exact(rule$filter, c("sourceGroups", "origins", "originFrom", "originThrough", "valuations", "valuationFrom", "valuationThrough", "minDevelopmentAge", "maxDevelopmentAge"), paste0(path, ".filter"))
+      ats_diag_exact(rule$projection, if (identical(rule$projection$kind, "valuation")) c("kind", "valuation") else "kind", paste0(path, ".projection"))
+    }
+  }
+  axis <- definition$periodAxis
+  if (identical(axis$kind, "calendar")) ats_diag_exact(axis, c("kind", "originCadence", "valuationCadence", "originAnchor", "valuationAnchor", "ageUnit", "ageOffset"), "$.definition.periodAxis")
+  else if (identical(axis$kind, "ordered")) {
+    ats_diag_exact(axis, c("kind", "id", "version", "ageUnit", "ageOffset", "origins", "valuations"), "$.definition.periodAxis")
+    for (name in c("origins", "valuations")) for (index in seq_along(axis[[name]])) ats_diag_exact(axis[[name]][[index]], c("label", "aliases", "coordinate"), sprintf("$.definition.periodAxis.%s[%d]", name, index - 1L))
+  } else stop(sprintf("unknown diagnostic period-axis kind '%s'", axis$kind))
+  invisible(TRUE)
+}
+
 ats_parse_diagnostic_definition <- function(path) {
   doc <- ats_read_document(path)
   if (!identical(doc$kind, "diagnostic-definition")) stop("expected diagnostic-definition")
@@ -955,6 +1093,7 @@ ats_parse_diagnostic_definition <- function(path) {
   if (!identical(body$definition$diagnosticDefinitionVersion, "1.0.0")) {
     stop("unsupported diagnosticDefinitionVersion")
   }
+  ats_validate_closed_diagnostic_definition(body$definition)
   actual <- ats_diagnostic_identities(body$definition)
   if (!identical(ats_canonical_json(actual), ats_canonical_json(body$identities))) {
     stop("diagnostic definition identities do not match semantic definition")

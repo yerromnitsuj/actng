@@ -2,6 +2,10 @@ import type {
   DiagnosticValidationIssue,
   DiagnosticValidationIssueCode,
 } from "./types.js";
+import {
+  isDiagnosticPlainRecord,
+  isDiagnosticToken,
+} from "./diagnosticRuntime.js";
 
 export const MAX_DIAGNOSTIC_EXPRESSION_DEPTH = 64;
 export const MAX_DIAGNOSTIC_EXPRESSION_NODES = 10_000;
@@ -56,12 +60,6 @@ interface WalkFrame {
   readonly ancestors: readonly object[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
 function issue(
   issues: DiagnosticValidationIssue[],
   code: DiagnosticValidationIssueCode,
@@ -69,6 +67,30 @@ function issue(
   message: string,
 ): void {
   issues.push({ domain: "definition", code, path, message });
+}
+
+function propertyPath(parent: string, key: string): string {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key)
+    ? `${parent}.${key}`
+    : `${parent}[${JSON.stringify(key)}]`;
+}
+
+function rejectUnknownKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  path: string,
+  issues: DiagnosticValidationIssue[],
+): void {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) {
+      issue(
+        issues,
+        "unknown-key",
+        propertyPath(path, key),
+        `Unknown expression key ${key}`,
+      );
+    }
+  }
 }
 
 /**
@@ -108,8 +130,13 @@ export function walkDiagnosticExpression(
       );
       break;
     }
-    if (!isRecord(frame.value)) {
-      issue(issues, "invalid-type", frame.path, "Expression node must be a plain object");
+    if (!isDiagnosticPlainRecord(frame.value)) {
+      issue(
+        issues,
+        "invalid-type",
+        frame.path,
+        "Expression node must be a plain object",
+      );
       continue;
     }
     if (frame.ancestors.includes(frame.value)) {
@@ -119,23 +146,64 @@ export function walkDiagnosticExpression(
     const op = frame.value.op;
     const nextAncestors = [...frame.ancestors, frame.value];
     if (kind === "role" && op === "role") {
-      if (typeof frame.value.role === "string") dependencies.add(frame.value.role);
-      else issue(issues, "invalid-type", `${frame.path}.role`, "Role reference must be a string");
+      rejectUnknownKeys(frame.value, ["op", "role"], frame.path, issues);
+      if (isDiagnosticToken(frame.value.role))
+        dependencies.add(frame.value.role);
+      else
+        issue(
+          issues,
+          typeof frame.value.role === "string"
+            ? "invalid-string"
+            : "invalid-type",
+          `${frame.path}.role`,
+          "Role reference must be a nonempty token",
+        );
       continue;
     }
     if ((kind === "measure" || kind === "claim") && op === "measure") {
-      if (typeof frame.value.measureId === "string") dependencies.add(frame.value.measureId);
-      else issue(issues, "invalid-type", `${frame.path}.measureId`, "Measure reference must be a string");
+      rejectUnknownKeys(frame.value, ["op", "measureId"], frame.path, issues);
+      if (isDiagnosticToken(frame.value.measureId))
+        dependencies.add(frame.value.measureId);
+      else
+        issue(
+          issues,
+          typeof frame.value.measureId === "string"
+            ? "invalid-string"
+            : "invalid-type",
+          `${frame.path}.measureId`,
+          "Measure reference must be a nonempty token",
+        );
       continue;
     }
     if (kind === "claim" && op === "claim-layer") {
-      if (typeof frame.value.measureId === "string") dependencies.add(frame.value.measureId);
-      else issue(issues, "invalid-type", `${frame.path}.measureId`, "Measure reference must be a string");
+      rejectUnknownKeys(
+        frame.value,
+        ["op", "measureId", "attachment", "limit"],
+        frame.path,
+        issues,
+      );
+      if (isDiagnosticToken(frame.value.measureId))
+        dependencies.add(frame.value.measureId);
+      else
+        issue(
+          issues,
+          typeof frame.value.measureId === "string"
+            ? "invalid-string"
+            : "invalid-type",
+          `${frame.path}.measureId`,
+          "Measure reference must be a nonempty token",
+        );
       continue;
     }
     if (op === "add") {
+      rejectUnknownKeys(frame.value, ["op", "terms"], frame.path, issues);
       if (!Array.isArray(frame.value.terms) || frame.value.terms.length === 0) {
-        issue(issues, "invalid-type", `${frame.path}.terms`, "Add expression requires at least one term");
+        issue(
+          issues,
+          "invalid-type",
+          `${frame.path}.terms`,
+          "Add expression requires at least one term",
+        );
         continue;
       }
       for (let index = frame.value.terms.length - 1; index >= 0; index--) {
@@ -149,6 +217,12 @@ export function walkDiagnosticExpression(
       continue;
     }
     if (op === "subtract") {
+      rejectUnknownKeys(
+        frame.value,
+        ["op", "left", "right"],
+        frame.path,
+        issues,
+      );
       stack.push({
         value: frame.value.right,
         path: `${frame.path}.right`,
@@ -163,7 +237,12 @@ export function walkDiagnosticExpression(
       });
       continue;
     }
-    issue(issues, "invalid-type", `${frame.path}.op`, `Unknown ${kind} expression operator`);
+    issue(
+      issues,
+      "invalid-type",
+      `${frame.path}.op`,
+      `Unknown ${kind} expression operator`,
+    );
   }
   return {
     dependencies: [...dependencies].sort(),

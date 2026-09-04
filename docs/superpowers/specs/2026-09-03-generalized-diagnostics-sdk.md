@@ -1,6 +1,7 @@
 # Generalized actuarial diagnostics SDK design
 
-> **Status: SHIPPED IN 0.6.0 ON 2026-09-03 (`v0.6.0`).**
+> **Status: SHIPPED IN 0.6.0 ON 2026-09-03 (`v0.6.0`); PREPARATION/REVIEW
+> DEFECTS CORRECTED IN 0.6.1.**
 > This specification supersedes the 2026-08-27 quarterly-diagnostics design
 > as the current shipped diagnostics contract.
 > The `0.4.0` and `0.5.0` records remain historically correct and must not be

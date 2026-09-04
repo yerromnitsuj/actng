@@ -160,24 +160,44 @@ cat(if (all_agree) {
 })
 
 diagnostic_fixture <- file.path(FIXTURES, "diagnostics", "generalized-casualty")
-diagnostic_definition <- ats_parse_diagnostic_definition(file.path(diagnostic_fixture, "definition.json"))
-diagnostic_cell <- jsonlite::fromJSON(file.path(diagnostic_fixture, "cell.json"), simplifyVector = FALSE)
-if (length(diagnostic_definition$formulas) != 6L || length(diagnostic_definition$instances) != 22L) {
-  stop("diagnostic conformance fixture must contain six formulas and twenty-two instances")
-}
-for (expected in diagnostic_cell$expected) {
-  actual <- ats_replay_diagnostic_cell(diagnostic_definition, expected$instanceId, diagnostic_cell$values)
-  for (field in c("numerator", "denominator", "value")) {
-    if (is.null(expected[[field]])) {
-      if (!is.null(actual[[field]])) stop(sprintf("diagnostic %s %s expected null", expected$instanceId, field))
-    } else if (abs(as.numeric(actual[[field]]) - as.numeric(expected[[field]])) > 1e-12) {
-      stop(sprintf("diagnostic %s %s replay mismatch", expected$instanceId, field))
+for (prefix in c("calendar", "ordered-axis")) {
+  diagnostic_definition <- ats_parse_diagnostic_definition(file.path(diagnostic_fixture, paste0(prefix, "-definition.json")))
+  diagnostic_cells <- jsonlite::fromJSON(file.path(diagnostic_fixture, paste0(prefix, "-aggregate-cells.json")), simplifyVector = FALSE)
+  diagnostic_expected <- jsonlite::fromJSON(file.path(diagnostic_fixture, paste0(prefix, "-expected-output.json")), simplifyVector = FALSE)
+  if (length(diagnostic_definition$formulas) != 6L || length(diagnostic_definition$instances) != 22L) stop("diagnostic conformance fixture must contain six formulas and twenty-two instances")
+  values <- diagnostic_cells$losses[[1]]$measures
+  for (item in diagnostic_cells$exposures) values[[item$measureId]] <- item$value
+  metrics <- diagnostic_expected$result$emergence[[1]]$metrics
+  for (instance_id in names(metrics)) {
+    actual <- ats_replay_diagnostic_cell(diagnostic_definition, instance_id, values)
+    expected <- metrics[[instance_id]]$calculation
+    expected_fields <- list(numerator=expected$numerator$value,denominator=expected$denominator$value,value=expected$value)
+    for (field in c("numerator", "denominator", "value")) {
+      if (is.null(expected_fields[[field]])) {
+        if (!is.null(actual[[field]])) stop(sprintf("diagnostic %s %s expected null", instance_id, field))
+      } else if (abs(as.numeric(actual[[field]]) - as.numeric(expected_fields[[field]])) > 1e-12) {
+        stop(sprintf("diagnostic %s %s replay mismatch", instance_id, field))
+      }
     }
   }
 }
 if (!identical(ats_sort_utf16(c("\ue000", "\U00010000")), c("\U00010000", "\ue000"))) {
   stop("diagnostic identifier ordering is not ECMAScript UTF-16 order")
 }
+hostile_definition <- diagnostic_definition
+hostile_definition$measures[[1]]$futureBehavior <- TRUE
+hostile_rejected <- tryCatch({
+  ats_validate_closed_diagnostic_definition(hostile_definition)
+  FALSE
+}, error = function(error) grepl("unsupported diagnostic behavior", conditionMessage(error), fixed = TRUE))
+if (!hostile_rejected) stop("R shore accepted restamped unknown diagnostic behavior")
+nested_hostile <- diagnostic_definition
+nested_hostile$reviewRules[[1]]$actual$futureBehavior <- TRUE
+nested_rejected <- tryCatch({
+  ats_validate_closed_diagnostic_definition(nested_hostile)
+  FALSE
+}, error = function(error) grepl("unsupported diagnostic behavior", conditionMessage(error), fixed = TRUE))
+if (!nested_rejected) stop("R shore accepted nested restamped unknown diagnostic behavior")
 cat("diagnostic-definition: identities + 22 cell replays AGREE across the R shore.\n")
 
 if (!all_agree) quit(status = 1L, save = "no")

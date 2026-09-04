@@ -11,7 +11,9 @@
     "data:fetch": "tsx scripts/fetch-source.mts",
     "data:rebuild": "Rscript scripts/transform-source.R .cache/freclaimset2motor.rda data generated",
     "data:refresh": "npm run data:fetch && npm run data:rebuild",
-    "determinism": "tsx scripts/check-determinism.mts"
+    "determinism": "tsx scripts/check-determinism.mts",
+    "verify:derivatives": "tsx scripts/verify-derivatives.mts",
+    "rebuild:compare": "tsx scripts/rebuild-and-compare.mts"
   },
   "dependencies": {
     "@actuarial-ts/compliance": "*",

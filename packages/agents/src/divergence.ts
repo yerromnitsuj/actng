@@ -43,7 +43,7 @@
 
 import { Agent } from "@mastra/core/agent";
 import { RequestContext } from "@mastra/core/request-context";
-import { ReservingError } from "@actuarial-ts/core";
+import { ReservingError, hasDiagnosticOwn } from "@actuarial-ts/core";
 import {
   CONVENTION_PROFILES,
   crosscheckReportDocSchema,
@@ -107,7 +107,11 @@ export interface DeviationSignature {
   standardErrorExceedsTolerance: boolean;
   /** central | standard-error | mixed: which metric family breaches tolerance. */
   concentration: "central" | "standard-error" | "mixed" | "none";
-  totals: { ultimate: number | null; unpaid: number | null; standardError: number | null };
+  totals: {
+    ultimate: number | null;
+    unpaid: number | null;
+    standardError: number | null;
+  };
   /** The largest per-origin deviations, ranked descending (top 5). */
   worstOrigins: {
     origin: string;
@@ -155,7 +159,13 @@ function sameValue(x: unknown, y: unknown): boolean {
 function validateDoc<T>(
   label: string,
   doc: unknown,
-  schema: { safeParse(input: unknown): { success: boolean; data?: T; error?: z.ZodError } },
+  schema: {
+    safeParse(input: unknown): {
+      success: boolean;
+      data?: T;
+      error?: z.ZodError;
+    };
+  },
 ): T {
   const parsed = schema.safeParse(doc);
   if (!parsed.success) {
@@ -173,7 +183,10 @@ function engineMatches(
   doc: MethodResultDoc,
   stamp: { name: string; version: string },
 ): boolean {
-  return doc.result.engine.name === stamp.name && doc.result.engine.version === stamp.version;
+  return (
+    doc.result.engine.name === stamp.name &&
+    doc.result.engine.version === stamp.version
+  );
 }
 
 const STATUS_RANK: Record<AlignmentFinding["status"], number> = {
@@ -208,8 +221,13 @@ function alignmentFindingsFor(
       },
     ];
   }
-  const alignment =
-    (profile.alignment as Record<string, EngineAlignment | undefined>)[engineName] ?? null;
+  const alignments = profile.alignment as Record<
+    string,
+    EngineAlignment | undefined
+  >;
+  const alignment = hasDiagnosticOwn(alignments, engineName)
+    ? (alignments[engineName] ?? null)
+    : null;
   if (alignment === null) {
     return [
       {
@@ -293,7 +311,11 @@ function deviationSignatureOf(report: CrosscheckReportDoc): DeviationSignature {
     }
     if (row.standardError !== null) {
       maxSe = Math.max(maxSe ?? 0, row.standardError);
-      ranked.push({ origin: row.origin, metric: "standardError", deviation: row.standardError });
+      ranked.push({
+        origin: row.origin,
+        metric: "standardError",
+        deviation: row.standardError,
+      });
     }
   }
   const totals = body.deviations.totals;
@@ -301,11 +323,14 @@ function deviationSignatureOf(report: CrosscheckReportDoc): DeviationSignature {
     const deviation = totals[metric];
     if (deviation !== null) maxCentral = Math.max(maxCentral, deviation);
   }
-  if (totals.standardError !== null) maxSe = Math.max(maxSe ?? 0, totals.standardError);
+  if (totals.standardError !== null)
+    maxSe = Math.max(maxSe ?? 0, totals.standardError);
 
   const centralExceeds = maxCentral > tolerance.central;
   const seExceeds =
-    tolerance.standardError !== null && maxSe !== null && maxSe > tolerance.standardError;
+    tolerance.standardError !== null &&
+    maxSe !== null &&
+    maxSe > tolerance.standardError;
   const concentration: DeviationSignature["concentration"] =
     centralExceeds && seExceeds
       ? "mixed"
@@ -360,23 +385,30 @@ export function assembleDivergenceEvidence(
     );
   }
   if (!engineMatches(a, body.engines.a) || !engineMatches(b, body.engines.b)) {
-    const swapped = engineMatches(a, body.engines.b) && engineMatches(b, body.engines.a);
+    const swapped =
+      engineMatches(a, body.engines.b) && engineMatches(b, body.engines.a);
     throw new AgentsError(
       "DIVERGENCE_INPUT_MISMATCH",
       swapped
         ? "The supplied result docs are SWAPPED relative to the report: doc a matches the report's " +
-            "engine b and vice versa; pass them in the report's a/b order"
+          "engine b and vice versa; pass them in the report's a/b order"
         : `The supplied result docs do not match the report's engine stamps: report compared ` +
-            `a=${body.engines.a.name}@${body.engines.a.version} vs ` +
-            `b=${body.engines.b.name}@${body.engines.b.version}, got ` +
-            `a=${a.result.engine.name}@${a.result.engine.version} and ` +
-            `b=${b.result.engine.name}@${b.result.engine.version}`,
+          `a=${body.engines.a.name}@${body.engines.a.version} vs ` +
+          `b=${body.engines.b.name}@${body.engines.b.version}, got ` +
+          `a=${a.result.engine.name}@${a.result.engine.version} and ` +
+          `b=${b.result.engine.name}@${b.result.engine.version}`,
     );
   }
 
   const claimedProfileId =
-    a.result.engine.conventionProfile ?? b.result.engine.conventionProfile ?? null;
-  const profile = claimedProfileId !== null ? (CONVENTION_PROFILES[claimedProfileId] ?? null) : null;
+    a.result.engine.conventionProfile ??
+    b.result.engine.conventionProfile ??
+    null;
+  const profile =
+    claimedProfileId !== null &&
+    hasDiagnosticOwn(CONVENTION_PROFILES, claimedProfileId)
+      ? CONVENTION_PROFILES[claimedProfileId]!
+      : null;
 
   const engineEvidenceOf = (doc: MethodResultDoc): EngineParameterEvidence => ({
     name: doc.result.engine.name,
@@ -388,9 +420,11 @@ export function assembleDivergenceEvidence(
     profileAlignment:
       profile === null
         ? null
-        : ((profile.alignment as Record<string, EngineAlignment | undefined>)[
-            doc.result.engine.name
-          ] ?? null),
+        : hasDiagnosticOwn(profile.alignment, doc.result.engine.name)
+          ? ((profile.alignment as Record<string, EngineAlignment | undefined>)[
+              doc.result.engine.name
+            ] ?? null)
+          : null,
   });
 
   const findings = [
@@ -449,7 +483,7 @@ export const DIVERGENCE_EVIDENCE_CONTEXT_KEY = "divergenceEvidence";
  * backtick characters (house gotcha).
  */
 export const DIVERGENCE_EXPLAINER_INSTRUCTIONS = [
-  "You are a cross-engine divergence diagnostician inside an actuarial reserving toolchain. A deterministic referee compared the same computation run by two independent engines and returned the verdict \"disagree\". Your job is to produce a structured HYPOTHESIS about the root cause - you never re-litigate the verdict, and you never change any state.",
+  'You are a cross-engine divergence diagnostician inside an actuarial reserving toolchain. A deterministic referee compared the same computation run by two independent engines and returned the verdict "disagree". Your job is to produce a structured HYPOTHESIS about the root cause - you never re-litigate the verdict, and you never change any state.',
   "## Working rules",
   [
     "1. Every claim you make must come from the supplied divergence evidence (in the user message, and available again via the get_divergence_evidence tool). Never invent parameters, deviations, or profile requirements.",
@@ -521,7 +555,9 @@ export function createDivergenceEvidenceTool() {
     // evidence is scoped by the host before this tool can see it.
     tenant: "none",
     execute: async (_input, _tenant, context) => {
-      const evidence = context.requestContext?.get(DIVERGENCE_EVIDENCE_CONTEXT_KEY);
+      const evidence = context.requestContext?.get(
+        DIVERGENCE_EVIDENCE_CONTEXT_KEY,
+      );
       if (evidence === undefined) {
         throw new AgentsError(
           "NO_DIVERGENCE_EVIDENCE",
@@ -529,7 +565,10 @@ export function createDivergenceEvidenceTool() {
             "drive this agent through explainDivergence, which assembles and injects it",
         );
       }
-      return { success: true as const, evidence: evidence as DivergenceEvidence };
+      return {
+        success: true as const,
+        evidence: evidence as DivergenceEvidence,
+      };
     },
   });
 }
@@ -556,7 +595,9 @@ export interface CreateDivergenceExplainerOptions {
  * which assembles the evidence, injects it into the request context, and
  * runs the one structured-output generate call.
  */
-export function createDivergenceExplainer(options: CreateDivergenceExplainerOptions): Agent {
+export function createDivergenceExplainer(
+  options: CreateDivergenceExplainerOptions,
+): Agent {
   return new Agent({
     id: options.id ?? "divergence-explainer",
     name: options.name ?? "Divergence Explainer",
@@ -632,11 +673,14 @@ export async function explainDivergence(
   const requestContext = options.requestContext ?? new RequestContext();
   requestContext.set(DIVERGENCE_EVIDENCE_CONTEXT_KEY, evidence);
   const prompt = assembleDivergencePrompt(evidence);
-  const result = await options.explainer.generate([{ role: "user", content: prompt }], {
-    structuredOutput: { schema: divergenceHypothesisSchema },
-    requestContext,
-    maxSteps: options.maxSteps ?? 4,
-  });
+  const result = await options.explainer.generate(
+    [{ role: "user", content: prompt }],
+    {
+      structuredOutput: { schema: divergenceHypothesisSchema },
+      requestContext,
+      maxSteps: options.maxSteps ?? 4,
+    },
+  );
   const hypothesis = divergenceHypothesisSchema.parse(result.object);
   return { hypothesis, evidence, prompt };
 }

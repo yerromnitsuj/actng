@@ -6,7 +6,11 @@ import { fitTail } from "../src/tail.js";
 import { berquistCaseAdequacy, berquistSettlement } from "../src/berquist.js";
 import { buildTriangles, triangleFromGrid } from "../src/triangle.js";
 import { calendarYearTest, runDiagnostics } from "../src/diagnostics.js";
-import { ReservingError, type ClaimSnapshot, type Triangle } from "../src/types.js";
+import {
+  ReservingError,
+  type ClaimSnapshot,
+  type Triangle,
+} from "../src/types.js";
 
 const N = null;
 
@@ -27,8 +31,10 @@ describe("age-to-age factors", () => {
       [500, N],
     ]);
     const dev = computeDevelopmentFactors(t);
-    const straight = dev.averages.find((a) => a.spec.key === "all-str")!.values[0];
-    const weighted = dev.averages.find((a) => a.spec.key === "all-wtd")!.values[0];
+    const straight = dev.averages.find((a) => a.spec.key === "all-str")!
+      .values[0];
+    const weighted = dev.averages.find((a) => a.spec.key === "all-wtd")!
+      .values[0];
     expect(straight).toBeCloseTo((2.0 + 1.1) / 2, 10);
     expect(weighted).toBeCloseTo(530 / 400, 10); // NOT 1.55
   });
@@ -46,7 +52,8 @@ describe("age-to-age factors", () => {
     expect(dev.individual[2]![0]).toBeNull();
     expect(dev.individual[3]![0]).toBeCloseTo(1.5, 10);
     // Averages only use the single valid row.
-    const weighted = dev.averages.find((a) => a.spec.key === "all-wtd")!.values[0];
+    const weighted = dev.averages.find((a) => a.spec.key === "all-wtd")!
+      .values[0];
     expect(weighted).toBeCloseTo(1.5, 10);
   });
 
@@ -60,7 +67,8 @@ describe("age-to-age factors", () => {
       [100, N],
     ]);
     const dev = computeDevelopmentFactors(t);
-    const medial = dev.averages.find((a) => a.spec.key === "med-5x1")!.values[0];
+    const medial = dev.averages.find((a) => a.spec.key === "med-5x1")!
+      .values[0];
     expect(medial).toBeCloseTo((1.2 + 1.3 + 1.4) / 3, 10);
   });
 
@@ -85,7 +93,8 @@ describe("age-to-age factors", () => {
       [100, N],
     ]);
     const dev = computeDevelopmentFactors(t);
-    const threeStraight = dev.averages.find((a) => a.spec.key === "3-str")!.values[0];
+    const threeStraight = dev.averages.find((a) => a.spec.key === "3-str")!
+      .values[0];
     expect(threeStraight).toBeCloseTo((1.1 + 1.2 + 1.3) / 3, 10);
   });
 
@@ -101,10 +110,68 @@ describe("age-to-age factors", () => {
       [100, N],
     ]);
     const dev = computeDevelopmentFactors(t);
-    const threeStraight = dev.averages.find((a) => a.spec.key === "3-str")!.values[0];
+    const threeStraight = dev.averages.find((a) => a.spec.key === "3-str")!
+      .values[0];
     // Latest 3 origin periods with observable development: rows 2,3,4 -> only
     // rows 3 and 4 carry factors (1.5, 1.4).
     expect(threeStraight).toBeCloseTo((1.5 + 1.4) / 2, 10);
+  });
+});
+
+describe("triangle public boundary hardening", () => {
+  const baseClaim: ClaimSnapshot = {
+    claimId: "CONFLICT",
+    accidentDate: "2022-01-01",
+    reportDate: "2022-01-02",
+    evaluationDate: "2022-12-31",
+    paidToDate: 100,
+    caseReserve: 0,
+    status: "closed",
+  };
+
+  it("rejects conflicting claim identity independent of input order", () => {
+    const conflicting = [
+      baseClaim,
+      {
+        ...baseClaim,
+        accidentDate: "2023-01-01",
+        reportDate: "2023-01-02",
+        evaluationDate: "2023-12-31",
+      },
+    ];
+    expect(() =>
+      buildTriangles(conflicting, {
+        cadence: "annual",
+        asOfDate: "2023-12-31",
+      }),
+    ).toThrow(/conflicting accident or report dates/);
+    expect(() =>
+      buildTriangles([...conflicting].reverse(), {
+        cadence: "annual",
+        asOfDate: "2023-12-31",
+      }),
+    ).toThrow(/conflicting accident or report dates/);
+  });
+
+  it("rejects impossible/suffixed dates and non-finite triangle coordinates", () => {
+    expect(() =>
+      buildTriangles([{ ...baseClaim, accidentDate: "2023-02-29" }], {
+        cadence: "annual",
+        asOfDate: "2023-12-31",
+      }),
+    ).toThrow(/Invalid ISO date/);
+    expect(() =>
+      buildTriangles([baseClaim], {
+        cadence: "annual",
+        asOfDate: "2023-12-31suffix",
+      }),
+    ).toThrow(/Invalid ISO date/);
+    expect(() =>
+      triangleFromGrid("paid", ["2024"], [Number.POSITIVE_INFINITY], [[1]]),
+    ).toThrow(/Development ages/);
+    expect(() =>
+      triangleFromGrid("paid", ["2024"], [12], [[Number.NaN]]),
+    ).toThrow(/finite/);
   });
 });
 
@@ -116,7 +183,10 @@ describe("chain ladder", () => {
   ]);
 
   it("builds CDFs right to left and applies them to the latest diagonal", () => {
-    const result = runChainLadder(t, { selected: [1.5, 1.1], tailFactor: 1.02 });
+    const result = runChainLadder(t, {
+      selected: [1.5, 1.1],
+      tailFactor: 1.02,
+    });
     expect(result.cdfs).toEqual([1.5 * 1.1 * 1.02, 1.1 * 1.02, 1.02]);
     expect(result.rows[2]!.ultimate).toBeCloseTo(110 * 1.5 * 1.1 * 1.02, 8);
     expect(result.rows[1]!.ultimate).toBeCloseTo(180 * 1.1 * 1.02, 8);
@@ -133,15 +203,15 @@ describe("chain ladder", () => {
   });
 
   it("refuses to run when every selection is missing", () => {
-    expect(() => runChainLadder(t, { selected: [N, N], tailFactor: 1 })).toThrowError(
-      ReservingError,
-    );
+    expect(() =>
+      runChainLadder(t, { selected: [N, N], tailFactor: 1 }),
+    ).toThrowError(ReservingError);
   });
 
   it("rejects a selection vector of the wrong length", () => {
-    expect(() => runChainLadder(t, { selected: [1.5], tailFactor: 1 })).toThrowError(
-      /Expected 2 LDF selections/,
-    );
+    expect(() =>
+      runChainLadder(t, { selected: [1.5], tailFactor: 1 }),
+    ).toThrowError(/Expected 2 LDF selections/);
   });
 });
 
@@ -206,7 +276,10 @@ describe("tail fitting", () => {
   });
 
   it("requires at least three usable points", () => {
-    const fit = fitTail({ method: "exponentialDecay", selectedLdfs: [1.5, 1.2, 1.0, N] });
+    const fit = fitTail({
+      method: "exponentialDecay",
+      selectedLdfs: [1.5, 1.2, 1.0, N],
+    });
     expect(fit.valid).toBe(false);
     expect(fit.warnings.join(" ")).toMatch(/at least 3/);
   });
@@ -246,14 +319,19 @@ describe("Berquist-Sherman case-reserve adequacy", () => {
       [5, 2],
       [7, N],
     ]);
-    const result = berquistCaseAdequacy(paid, incurred, open, { severityTrend: 0.1 });
+    const result = berquistCaseAdequacy(paid, incurred, open, {
+      severityTrend: 0.1,
+    });
     expect(result.trendSource).toBe("user");
     // Diagonal average case: col 0 -> row 1 = (130-60)/7 = 10; col 1 -> row 0 = 20.
     expect(result.restatedAverageCaseReserves[1]![0]).toBeCloseTo(10, 10);
     expect(result.restatedAverageCaseReserves[0]![0]).toBeCloseTo(10 / 1.1, 10);
     expect(result.restatedAverageCaseReserves[0]![1]).toBeCloseTo(20, 10);
     // Adjusted incurred = paid + restated avg case x open counts.
-    expect(result.adjustedIncurred.values[0]![0]).toBeCloseTo(50 + (10 / 1.1) * 5, 8);
+    expect(result.adjustedIncurred.values[0]![0]).toBeCloseTo(
+      50 + (10 / 1.1) * 5,
+      8,
+    );
     expect(result.adjustedIncurred.values[0]![1]).toBeCloseTo(80 + 20 * 2, 8);
     expect(result.adjustedIncurred.values[1]![0]).toBeCloseTo(60 + 10 * 7, 8);
     expect(result.adjustedIncurred.values[1]![1]).toBeNull();
@@ -274,14 +352,20 @@ describe("Berquist-Sherman settlement-rate adjustment", () => {
   const ultimateCounts = [40, 40, 30];
 
   it("selects the latest-diagonal disposal rates and restates closed counts", () => {
-    const result = berquistSettlement(paid, closed, { ultimateCounts, interpolation: "linear" });
+    const result = berquistSettlement(paid, closed, {
+      ultimateCounts,
+      interpolation: "linear",
+    });
     expect(result.selectedDisposalRates).toEqual([9 / 30, 22 / 40, 30 / 40]);
     expect(result.adjustedClosedCounts[0]).toEqual([12, 22, 30]);
     expect(result.adjustedClosedCounts[2]![0]).toBeCloseTo(9, 10);
   });
 
   it("interpolates adjusted paid at the restated closed counts (linear)", () => {
-    const result = berquistSettlement(paid, closed, { ultimateCounts, interpolation: "linear" });
+    const result = berquistSettlement(paid, closed, {
+      ultimateCounts,
+      interpolation: "linear",
+    });
     // Row 0 targets 12 and 22 closed: between (10,100)-(20,200) and (20,200)-(30,300).
     expect(result.adjustedPaid.values[0]![0]).toBeCloseTo(120, 8);
     expect(result.adjustedPaid.values[0]![1]).toBeCloseTo(220, 8);
@@ -298,14 +382,20 @@ describe("Berquist-Sherman settlement-rate adjustment", () => {
       interpolation: "exponential",
     });
     // y = a e^{bx} through (10,100) and (20,200): y(12) = 100 * 2^{0.2}.
-    expect(result.adjustedPaid.values[0]![0]).toBeCloseTo(100 * Math.pow(2, 0.2), 6);
-    expect(result.adjustedPaid.values[0]![1]).toBeCloseTo(200 * Math.pow(1.5, 0.2), 6);
+    expect(result.adjustedPaid.values[0]![0]).toBeCloseTo(
+      100 * Math.pow(2, 0.2),
+      6,
+    );
+    expect(result.adjustedPaid.values[0]![1]).toBeCloseTo(
+      200 * Math.pow(1.5, 0.2),
+      6,
+    );
   });
 
   it("rejects a wrong-length ultimate count vector", () => {
-    expect(() => berquistSettlement(paid, closed, { ultimateCounts: [40, 40] })).toThrowError(
-      ReservingError,
-    );
+    expect(() =>
+      berquistSettlement(paid, closed, { ultimateCounts: [40, 40] }),
+    ).toThrowError(ReservingError);
   });
 
   it("keeps the latest evaluation's paid at a duplicate closed count", () => {
@@ -361,7 +451,10 @@ describe("triangle builder", () => {
   ];
 
   it("builds all triangles with correct cells and null unobservables", () => {
-    const set = buildTriangles(claims, { cadence: "annual", asOfDate: "2023-12-31" });
+    const set = buildTriangles(claims, {
+      cadence: "annual",
+      asOfDate: "2023-12-31",
+    });
     expect(set.paid.origins).toEqual(["2022", "2023"]);
     expect(set.paid.ages).toEqual([12, 24]);
     expect(set.paid.values).toEqual([
@@ -391,7 +484,10 @@ describe("triangle builder", () => {
   });
 
   it("supports quarterly cadence", () => {
-    const set = buildTriangles(claims, { cadence: "quarterly", asOfDate: "2023-12-31" });
+    const set = buildTriangles(claims, {
+      cadence: "quarterly",
+      asOfDate: "2023-12-31",
+    });
     expect(set.paid.origins[0]).toBe("2022Q1");
     expect(set.paid.ages[0]).toBe(3);
     // Claim A sits in 2022Q1. Its age-3 evaluation (2022-03-31) precedes the
@@ -403,9 +499,9 @@ describe("triangle builder", () => {
   });
 
   it("throws on an empty loss run", () => {
-    expect(() => buildTriangles([], { cadence: "annual", asOfDate: "2023-12-31" })).toThrowError(
-      ReservingError,
-    );
+    expect(() =>
+      buildTriangles([], { cadence: "annual", asOfDate: "2023-12-31" }),
+    ).toThrowError(ReservingError);
   });
 });
 

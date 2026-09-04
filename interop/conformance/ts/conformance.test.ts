@@ -12,7 +12,13 @@ import {
   parseDocument,
   stampIntegrity,
   triangleToDoc,
+  docToDiagnosticDefinition,
 } from "../../../packages/interchange/src/index.js";
+import {
+  evaluateDiagnosticReviewRules,
+  prepareDiagnosticData,
+  runMetricDiagnostics,
+} from "@actuarial-ts/core";
 import { verifyBundle } from "../../../packages/compliance/src/index.js";
 import type { BundleDoc } from "../../../packages/interchange/src/index.js";
 import {
@@ -53,10 +59,16 @@ import {
  * The Python shore (../py/test_conformance.py) parses the SAME files.
  */
 
-const FIXTURES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
+const FIXTURES_DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "fixtures",
+);
 
 function readJson(fixtureName: string, file: string): unknown {
-  return JSON.parse(readFileSync(path.join(FIXTURES_DIR, fixtureName, file), "utf8"));
+  return JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, fixtureName, file), "utf8"),
+  );
 }
 
 function readText(fixtureName: string, file: string): string {
@@ -75,7 +87,8 @@ function asFrozenV1<T>(value: T): T {
     if (Array.isArray(item)) stack.push(...item);
     else {
       const record = item as Record<string, unknown>;
-      if (typeof record["interchangeVersion"] === "string") record["interchangeVersion"] = "1.0.0";
+      if (typeof record["interchangeVersion"] === "string")
+        record["interchangeVersion"] = "1.0.0";
       stack.push(...Object.values(record));
     }
   }
@@ -93,12 +106,20 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       published: {
         citation: string | null;
         totalReserve?: { value: number; tolerance: number };
-        totalStandardErrorPercentOfReserve?: { value: number; tolerancePercentagePoints: number };
+        totalStandardErrorPercentOfReserve?: {
+          value: number;
+          tolerancePercentagePoints: number;
+        };
       } | null;
     };
 
     it("parses every committed document with an intact integrity tag and no warnings", () => {
-      for (const raw of [triangleRaw, selectionRaw, clResultRaw, mackResultRaw]) {
+      for (const raw of [
+        triangleRaw,
+        selectionRaw,
+        clResultRaw,
+        mackResultRaw,
+      ]) {
         // default strictness "refuse": a stale tag throws BAD_INTERCHANGE.
         const { warnings } = parseDocument(raw);
         expect(warnings).toEqual([]);
@@ -111,16 +132,30 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       // run. Regeneration requires a documented convention change.
       const authored = authorFixture(fixture);
       const asFile = (v: unknown): string => `${JSON.stringify(v, null, 2)}\n`;
-      expect(readText(fixture.name, "triangle.json")).toBe(asFile(asFrozenV1(authored.triangleDoc)));
-      expect(readText(fixture.name, "selection.json")).toBe(asFile(asFrozenV1(authored.selectionDoc)));
-      expect(readText(fixture.name, "deterministic-cl.json")).toBe(asFile(asFrozenV1(authored.clResultDoc)));
-      expect(readText(fixture.name, "mack1993-vw.json")).toBe(asFile(asFrozenV1(authored.mackResultDoc)));
-      expect(readText(fixture.name, "expectations.json")).toBe(asFile(authored.expectations));
+      expect(readText(fixture.name, "triangle.json")).toBe(
+        asFile(asFrozenV1(authored.triangleDoc)),
+      );
+      expect(readText(fixture.name, "selection.json")).toBe(
+        asFile(asFrozenV1(authored.selectionDoc)),
+      );
+      expect(readText(fixture.name, "deterministic-cl.json")).toBe(
+        asFile(asFrozenV1(authored.clResultDoc)),
+      );
+      expect(readText(fixture.name, "mack1993-vw.json")).toBe(
+        asFile(asFrozenV1(authored.mackResultDoc)),
+      );
+      expect(readText(fixture.name, "expectations.json")).toBe(
+        asFile(authored.expectations),
+      );
     });
 
     it("expectations.json records the committed documents' integrity tags", () => {
-      expect(expectations.integrity["triangle"]).toBe((triangleRaw as TriangleDoc).integrity);
-      expect(expectations.integrity["selection"]).toBe((selectionRaw as SelectionDoc).integrity);
+      expect(expectations.integrity["triangle"]).toBe(
+        (triangleRaw as TriangleDoc).integrity,
+      );
+      expect(expectations.integrity["selection"]).toBe(
+        (selectionRaw as SelectionDoc).integrity,
+      );
       expect(expectations.integrity["deterministic-cl"]).toBe(
         (clResultRaw as MethodResultDoc).integrity,
       );
@@ -147,13 +182,16 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       const mack = mackResultRaw as MethodResultDoc;
 
       const reserve = published.totalReserve!;
-      expect(Math.abs(cl.result.totals.unpaid - reserve.value) / reserve.value).toBeLessThanOrEqual(
-        reserve.tolerance,
-      );
+      expect(
+        Math.abs(cl.result.totals.unpaid - reserve.value) / reserve.value,
+      ).toBeLessThanOrEqual(reserve.tolerance);
 
       const sePct = published.totalStandardErrorPercentOfReserve!;
-      const actualPct = (mack.result.totals.standardError! / mack.result.totals.unpaid) * 100;
-      expect(Math.abs(actualPct - sePct.value)).toBeLessThanOrEqual(sePct.tolerancePercentagePoints);
+      const actualPct =
+        (mack.result.totals.standardError! / mack.result.totals.unpaid) * 100;
+      expect(Math.abs(actualPct - sePct.value)).toBeLessThanOrEqual(
+        sePct.tolerancePercentagePoints,
+      );
     });
 
     it("docToTriangle round-trips null-for-null against the core fixture", () => {
@@ -179,13 +217,20 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       const triangleDoc = parseDocument(triangleRaw).doc as TriangleDoc;
       const selectionDoc = parseDocument(selectionRaw).doc as SelectionDoc;
 
-      const replay = docToSelections(selectionDoc, { triangleDoc, strictness: "refuse" });
+      const replay = docToSelections(selectionDoc, {
+        triangleDoc,
+        strictness: "refuse",
+      });
       expect(replay.coherence.coherent).toBe(true);
       expect(replay.warnings).toEqual([]);
       // Every column replays EXACTLY on this shore as the all-wtd menu key.
-      expect(replay.averageKeys).toEqual(replay.averageKeys.map(() => "all-wtd"));
+      expect(replay.averageKeys).toEqual(
+        replay.averageKeys.map(() => "all-wtd"),
+      );
       expect(replay.selections.tailFactor).toBe(1);
-      expect(replay.selections.selected).toEqual(allWtdSelections(fixture.triangle).selected);
+      expect(replay.selections.selected).toEqual(
+        allWtdSelections(fixture.triangle).selected,
+      );
 
       // Chain ladder recomputed from the REPLAYED selections reproduces the
       // committed result document — same semantic body, same tag.
@@ -197,12 +242,15 @@ for (const fixture of CONFORMANCE_FIXTURES) {
       );
       expect(asFrozenV1(recomputed)).toEqual(clResultRaw);
     });
-
   });
 }
 
 describe("conformance: deliberately misaligned run (spec 13 Phase A acceptance 3)", () => {
-  const misalignedPath = path.join(FIXTURES_DIR, "taylor-ashe", "misaligned-mack-loglinear.json");
+  const misalignedPath = path.join(
+    FIXTURES_DIR,
+    "taylor-ashe",
+    "misaligned-mack-loglinear.json",
+  );
 
   it("referees the Python log-linear-sigma Mack run to verdict disagree", () => {
     // The committed misaligned document is authored by the Python runner
@@ -221,12 +269,21 @@ describe("conformance: deliberately misaligned run (spec 13 Phase A acceptance 3
     const misaligned = parseDocument(misalignedRaw).doc as MethodResultDoc;
     expect(misaligned.result.engine.name).toBe("chainladder-python");
     expect(misaligned.result.engine.conventionProfile).toBe("mack1993-vw");
-    expect(misaligned.result.parameters["sigma_interpolation"]).toBe("log-linear");
+    expect(misaligned.result.parameters["sigma_interpolation"]).toBe(
+      "log-linear",
+    );
 
     const tsMack = JSON.parse(
-      readFileSync(path.join(FIXTURES_DIR, "taylor-ashe", "mack1993-vw.json"), "utf8"),
+      readFileSync(
+        path.join(FIXTURES_DIR, "taylor-ashe", "mack1993-vw.json"),
+        "utf8",
+      ),
     ) as MethodResultDoc;
-    const report = crosscheck({ a: tsMack, b: misaligned, createdAt: CREATED_AT });
+    const report = crosscheck({
+      a: tsMack,
+      b: misaligned,
+      createdAt: CREATED_AT,
+    });
 
     expect(report.report.verdict).toBe("disagree");
     // The misalignment is the SIGMA, not the projection: central estimates
@@ -248,8 +305,16 @@ describe("conformance: cross-engine ALIGNED runs referee to agree (both directio
   // profile requirements satisfied (sigma_interpolation="mack" for the
   // Mack profile). The TS referee must call the agreement.
   const cases = [
-    { profile: "deterministic-cl", clpyFile: "clpy-deterministic-cl.json", tsFile: "deterministic-cl.json" },
-    { profile: "mack1993-vw", clpyFile: "clpy-mack1993-vw.json", tsFile: "mack1993-vw.json" },
+    {
+      profile: "deterministic-cl",
+      clpyFile: "clpy-deterministic-cl.json",
+      tsFile: "deterministic-cl.json",
+    },
+    {
+      profile: "mack1993-vw",
+      clpyFile: "clpy-mack1993-vw.json",
+      tsFile: "mack1993-vw.json",
+    },
   ] as const;
 
   for (const c of cases) {
@@ -259,12 +324,22 @@ describe("conformance: cross-engine ALIGNED runs referee to agree (both directio
         existsSync(clpyPath),
         `${c.clpyFile} is missing - run the Python conformance suite once (npm run test:py) to author it`,
       ).toBe(true);
-      const clpy = parseDocument(JSON.parse(readFileSync(clpyPath, "utf8"))).doc as MethodResultDoc;
+      const clpy = parseDocument(JSON.parse(readFileSync(clpyPath, "utf8")))
+        .doc as MethodResultDoc;
       const ts = parseDocument(
-        JSON.parse(readFileSync(path.join(FIXTURES_DIR, "taylor-ashe", c.tsFile), "utf8")),
+        JSON.parse(
+          readFileSync(
+            path.join(FIXTURES_DIR, "taylor-ashe", c.tsFile),
+            "utf8",
+          ),
+        ),
       ).doc as MethodResultDoc;
       expect(clpy.result.engine.name).toBe("chainladder-python");
-      const report = crosscheck({ a: ts, b: clpy, createdAt: "2026-07-17T00:00:00Z" });
+      const report = crosscheck({
+        a: ts,
+        b: clpy,
+        createdAt: "2026-07-17T00:00:00Z",
+      });
       expect(report.report.verdict).toBe("agree");
       expect(report.report.warnings.join("\n")).not.toContain("effective");
     });
@@ -280,7 +355,9 @@ describe("conformance: wrapped reproducibility bundle (Phase B, spec 3.2)", () =
 
   it("wrapped-bundle.json is byte-frozen: a fresh authoring run reproduces the file exactly", () => {
     const authored = authorWrappedBundleDoc(fixture, authorFixture(fixture));
-    expect(readText("taylor-ashe", "wrapped-bundle.json")).toBe(`${JSON.stringify(stampIntegrity(asFrozenV1(authored)), null, 2)}\n`);
+    expect(readText("taylor-ashe", "wrapped-bundle.json")).toBe(
+      `${JSON.stringify(stampIntegrity(asFrozenV1(authored)), null, 2)}\n`,
+    );
   });
 
   it("parses with an intact outer tag and wrapped verify reproduces inner AND outer", () => {
@@ -291,7 +368,9 @@ describe("conformance: wrapped reproducibility bundle (Phase B, spec 3.2)", () =
 
     // Wrapped verify: the inner results segment re-verifies exactly as an
     // unwrapped bundle, and the outer tag over { bundle, interchange } holds.
-    const innerBody = JSON.parse((wrapped.bundle as { payload: string }).payload) as { results: unknown };
+    const innerBody = JSON.parse(
+      (wrapped.bundle as { payload: string }).payload,
+    ) as { results: unknown };
     const verdict = verifyBundle(wrapped, innerBody.results);
     expect(verdict.reproduced).toBe(true);
     expect(verdict.outerIntegrity?.ok).toBe(true);
@@ -301,11 +380,49 @@ describe("conformance: wrapped reproducibility bundle (Phase B, spec 3.2)", () =
   it("mirrors the committed fixture documents byte-for-byte (results INCLUDED, spec 3.2)", () => {
     const wrapped = readJson("taylor-ashe", "wrapped-bundle.json") as BundleDoc;
     expect(wrapped.createdAt).toBe(CREATED_AT);
-    expect(wrapped.interchange.triangles).toEqual([readJson("taylor-ashe", "triangle.json")]);
-    expect(wrapped.interchange.selections).toEqual([readJson("taylor-ashe", "selection.json")]);
+    expect(wrapped.interchange.triangles).toEqual([
+      readJson("taylor-ashe", "triangle.json"),
+    ]);
+    expect(wrapped.interchange.selections).toEqual([
+      readJson("taylor-ashe", "selection.json"),
+    ]);
     expect(wrapped.interchange.results).toEqual([
       readJson("taylor-ashe", "deterministic-cl.json"),
       readJson("taylor-ashe", "mack1993-vw.json"),
     ]);
   });
+});
+
+describe("diagnostic three-shore corpus", () => {
+  for (const prefix of ["calendar", "ordered-axis"]) {
+    it(`${prefix} consumes the frozen definition, cells, and expected output through core`, () => {
+      const dir = path.join(
+        FIXTURES_DIR,
+        "diagnostics",
+        "generalized-casualty",
+      );
+      const definition = docToDiagnosticDefinition(
+        JSON.parse(
+          readFileSync(path.join(dir, `${prefix}-definition.json`), "utf8"),
+        ),
+      ).definition;
+      const cells = JSON.parse(
+        readFileSync(path.join(dir, `${prefix}-aggregate-cells.json`), "utf8"),
+      );
+      const expected = JSON.parse(
+        readFileSync(path.join(dir, `${prefix}-expected-output.json`), "utf8"),
+      );
+      const prepared = prepareDiagnosticData({ definition, ...cells });
+      const result = runMetricDiagnostics({ prepared });
+      const reviews = evaluateDiagnosticReviewRules(prepared);
+      expect({
+        definitionIntegrity: definition.definitionIntegrity,
+        preparationFingerprint: prepared.preparationFingerprint,
+        result,
+        reviews,
+      }).toEqual(expected);
+      expect(definition.definition.formulas).toHaveLength(6);
+      expect(definition.definition.instances).toHaveLength(22);
+    });
+  }
 });

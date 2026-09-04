@@ -42,7 +42,7 @@
       "heading": "Quick taste",
       "language": "ts",
       "ordinal": 1,
-      "sha256": "55ff0d40f763d4bb6922cdfc42be0e956a3b938182d87289bcad7577f4e27965",
+      "sha256": "3b6f5ce3d142c7e75bb5905c3ea3cd99d0f0826fe94b297f7c9a4d0575d56c92",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -159,7 +159,7 @@
       "heading": "Migrating diagnostics from 0.5 to 0.6",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "08b5ad08fee4fa201b2c0e4a061f574f9c78c987a5d1f07223e2473045b7da73",
+      "sha256": "1fb09713684bf2b20a362555bcdfa13f88001c621b96bb8cd95bb8e749bc7a8f",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -177,7 +177,7 @@
       "heading": "Input and execution changes",
       "language": "ts",
       "ordinal": 3,
-      "sha256": "42a08d8b0d0ed825ce6733d9b0fdc72cecc95b88e5ad0d5d5f3b4cbbe05d90fc",
+      "sha256": "17ab156a7f88c3de42b73bcffc96b240e03ab286edb866dd410cff2e5777a7df",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -186,7 +186,7 @@
       "heading": "Provenance and interchange",
       "language": "ts",
       "ordinal": 4,
-      "sha256": "bc1b1630e74cc55f418d7ea06a8c308bd6c0706090c67b8a52e52818e0108192",
+      "sha256": "2f368a2d3f8244fd2057a64439622e17bfed81e32a69226aa0648e6b818f63d8",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -195,7 +195,7 @@
       "heading": "Verification",
       "language": "bash",
       "ordinal": 5,
-      "sha256": "23f163179be04d5657ed06d4b6556cbc788f7341b876be45f2f459453b273e46",
+      "sha256": "db598519cdd02adb88cf3208f4d48b21232e83c0ee52124d2c210feffd64ac52",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -213,7 +213,7 @@
       "heading": "Release (per version)",
       "language": "bash",
       "ordinal": 2,
-      "sha256": "d046c86c32bf4a173ce93a3b4d2aa36d5dd3e38ca15d5aa53e4f3db55be87d65",
+      "sha256": "0b0106fb2e324bdbc5bacc3b6e2099a3e06e90354c772e415ab07ff0d7cda43e",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -573,7 +573,7 @@
       "heading": "Layout",
       "language": "text",
       "ordinal": 1,
-      "sha256": "0d20a942c1168857c1dd056ca22b8112fc130cbd92ca82449bf51805b68fb9d7",
+      "sha256": "858c3b35cb2dc8342314ae94618eefc11786b8295354f84d6167c7952840ba9a",
       "classification": "reviewed-illustrative",
       "reason": "Non-executable output, diagram, or prose example."
     },
@@ -645,7 +645,7 @@
       "heading": "@actuarial-ts/agents",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "18a1bee3caba6227195db2b61157d18fe4ff6265c4c2fc3b12631c3a04073732",
+      "sha256": "19b3ee8c3bb768dd09d0b10c39972aa56df3f46d789a2ae8f2d1a752b3eeab88",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -672,7 +672,7 @@
       "heading": "@actuarial-ts/compliance",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "6153b3786b1803d335b39c34ca17e6c41bbb9577ec3d0a5ce29fb31a53c59384",
+      "sha256": "dc57db3b9e1d93e38923eaca6a7721f7edb2520794df9fa14de354fb0b2cef35",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -681,7 +681,7 @@
       "heading": "Diagnostic provenance",
       "language": "ts",
       "ordinal": 2,
-      "sha256": "9ed800fbcabd584fa1705f22a10c3611500149628d6e673c6f7ffd902ef56c8d",
+      "sha256": "9ed19cacf526472c5cd57805e6f43587821215a6d1e43f70380682237dac356f",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -690,7 +690,7 @@
       "heading": "Install",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "efdbaaef14d9f15d3b084aeb36a7141e103695291da92e60bc667e63b8d9e544",
+      "sha256": "8ae3abe1916014a00ac650c890ad629e0752e5fa8934722389813ce604267d15",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -717,7 +717,7 @@
       "heading": "@actuarial-ts/data",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "33546b3e12f0894d8e4188b1d56396bdf186669881d0aeabbd5bad9763e1ad6e",
+      "sha256": "98b65171fff6ce2fcd090b4b478a75ce032dadddac698cd941d84296e66f5607",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -726,7 +726,7 @@
       "heading": "Diagnostic run boundary",
       "language": "ts",
       "ordinal": 2,
-      "sha256": "3d1c51b6c5702b851daf6ed7de92ed8dbe73ce5256d89130bc9a6776c96a04c8",
+      "sha256": "4b4bbe2224626771414560fed71ccab7bea3fc234f80e0b8aa01770e7e8893ea",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },
@@ -735,7 +735,7 @@
       "heading": "@actuarial-ts/interchange",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "9bd3a008db7efc3a98646dbb24f14e906c0d5526424c5c037f768c9efb8ee111",
+      "sha256": "86b307995589f206740e017fad585dc3e497fc387448259c8f0e9abc0d1cd24f",
       "classification": "reviewed-public",
       "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
     },

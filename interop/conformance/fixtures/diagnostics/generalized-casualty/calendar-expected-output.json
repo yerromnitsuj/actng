@@ -1,0 +1,5169 @@
+{
+  "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+  "preparationFingerprint": "fnv1a64-jcs-v1:4dc19b336bb95022",
+  "result": {
+    "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+    "preparationFingerprint": "fnv1a64-jcs-v1:4dc19b336bb95022",
+    "ageUnit": "month",
+    "emergence": [
+      {
+        "group": "all",
+        "sourceGroups": ["all"],
+        "origin": "2025",
+        "valuation": "2025",
+        "developmentAge": 12,
+        "ageUnit": "month",
+        "components": {
+          "closed-no-pay": {
+            "value": 2,
+            "sum": 2,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "closed-with-pay": {
+            "value": 4,
+            "sum": 4,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "gross-incurred": {
+            "value": 800,
+            "sum": 800,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "gross-paid": {
+            "value": 500,
+            "sum": 500,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "insurance-years": {
+            "value": 100,
+            "sum": 100,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "net-incurred": {
+            "value": 600,
+            "sum": 600,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "net-paid": {
+            "value": 400,
+            "sum": 400,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "open": {
+            "value": 4,
+            "sum": 4,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "reported": {
+            "value": 10,
+            "sum": 10,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          }
+        },
+        "metrics": {
+          "casualty/count/reported-frequency": {
+            "instanceId": "casualty/count/reported-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:8ffb808c9b445596",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.1
+            },
+            "presentation": {
+              "displayName": "Reported frequency",
+              "description": "Reported count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "reported",
+              "denominatorLabel": "exposure",
+              "value": 0.1
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/open-frequency": {
+            "instanceId": "casualty/count/open-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:abad0f3512cb0c82",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.04
+            },
+            "presentation": {
+              "displayName": "Open frequency",
+              "description": "Open count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "open",
+              "denominatorLabel": "exposure",
+              "value": 0.04
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-no-pay-frequency": {
+            "instanceId": "casualty/count/closed-no-pay-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:0f795a2d55939f3e",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 2
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.02
+            },
+            "presentation": {
+              "displayName": "Closed-no-pay frequency",
+              "description": "Closed-no-pay count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "closed-no-pay",
+              "denominatorLabel": "exposure",
+              "value": 0.02
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-with-pay-frequency": {
+            "instanceId": "casualty/count/closed-with-pay-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:43ce6381780b402d",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.04
+            },
+            "presentation": {
+              "displayName": "Closed-with-pay frequency",
+              "description": "Closed-with-pay count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "closed-with-pay",
+              "denominatorLabel": "exposure",
+              "value": 0.04
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/non-closed-no-pay-frequency": {
+            "instanceId": "casualty/count/non-closed-no-pay-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:ab6095d876c2d3ad",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.08
+            },
+            "presentation": {
+              "displayName": "Non-closed-no-pay frequency",
+              "description": "Reported less closed-no-pay count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "reported less closed-no-pay",
+              "denominatorLabel": "exposure",
+              "value": 0.08
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-no-pay-share": {
+            "instanceId": "casualty/count/closed-no-pay-share",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:ea48f9373a208898",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 2
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "value": 0.2
+            },
+            "presentation": {
+              "displayName": "Closed-no-pay share",
+              "description": "Closed-no-pay count divided by reported count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "closed-no-pay",
+              "denominatorLabel": "reported",
+              "value": 0.2
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-with-pay-share": {
+            "instanceId": "casualty/count/closed-with-pay-share",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:358cfddd581bee83",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "value": 0.4
+            },
+            "presentation": {
+              "displayName": "Closed-with-pay share",
+              "description": "Closed-with-pay count divided by reported count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "closed-with-pay",
+              "denominatorLabel": "reported",
+              "value": 0.4
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-with-pay-share-of-non-closed-no-pay": {
+            "instanceId": "casualty/count/closed-with-pay-share-of-non-closed-no-pay",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:debb23df4361be8c",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 0.5
+            },
+            "presentation": {
+              "displayName": "Closed-with-pay share of non-closed-no-pay",
+              "description": "Closed-with-pay count divided by reported less closed-no-pay count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "closed-with-pay",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 0.5
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/open-share": {
+            "instanceId": "casualty/count/open-share",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:4a53ea4e7bf33c2c",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "value": 0.4
+            },
+            "presentation": {
+              "displayName": "Open share",
+              "description": "Open count divided by reported count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "open",
+              "denominatorLabel": "reported",
+              "value": 0.4
+            },
+            "components": {
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/open-share-of-non-closed-no-pay": {
+            "instanceId": "casualty/count/open-share-of-non-closed-no-pay",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:010c6e65a324a44d",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 0.5
+            },
+            "presentation": {
+              "displayName": "Open share of non-closed-no-pay",
+              "description": "Open count divided by reported less closed-no-pay count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "open",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 0.5
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/paid-to-incurred": {
+            "instanceId": "casualty/amount/gross/paid-to-incurred",
+            "instanceVersion": "1.0.0",
+            "formulaId": "paid-to-incurred",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:b2d0deef282f8234",
+            "calculationFingerprint": "fnv1a64-jcs-v1:2124ae30d6639745",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 500
+              },
+              "denominator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 800
+              },
+              "value": 0.625
+            },
+            "presentation": {
+              "displayName": "Paid to incurred",
+              "description": "Paid divided by incurred on the bound amount basis",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "incurred",
+              "value": 0.625
+            },
+            "components": {
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/gross/paid-to-incurred/rule/paid-exceeds-incurred",
+                "status": "pass",
+                "severity": "warning",
+                "left": 500,
+                "right": 800,
+                "relation": "less",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          },
+          "casualty/amount/gross/incurred-per-exposure": {
+            "instanceId": "casualty/amount/gross/incurred-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:c3a6a6aa2eef4ceb",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 800
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 8
+            },
+            "presentation": {
+              "displayName": "Incurred per exposure",
+              "description": "Incurred divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "exposure",
+              "value": 8
+            },
+            "components": {
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/incurred-per-non-closed-no-pay-claim": {
+            "instanceId": "casualty/amount/gross/incurred-per-non-closed-no-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:732b47001a2de8c6",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 800
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 100
+            },
+            "presentation": {
+              "displayName": "Incurred per non-closed-no-pay claim",
+              "description": "Incurred divided by reported less closed-no-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 100
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/paid-per-exposure": {
+            "instanceId": "casualty/amount/gross/paid-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:102d90bfc963c347",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 500
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 5
+            },
+            "presentation": {
+              "displayName": "Paid per exposure",
+              "description": "Paid divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "exposure",
+              "value": 5
+            },
+            "components": {
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/paid-per-closed-with-pay-claim": {
+            "instanceId": "casualty/amount/gross/paid-per-closed-with-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:dcd2e4263735504a",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 500
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 125
+            },
+            "presentation": {
+              "displayName": "Paid per closed-with-pay claim",
+              "description": "Paid divided by closed-with-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "closed-with-pay",
+              "value": 125
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/case-per-open-claim": {
+            "instanceId": "casualty/amount/gross/case-per-open-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "case-per-open",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+            "calculationFingerprint": "fnv1a64-jcs-v1:3df52445ccda15b8",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 300
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 75
+            },
+            "presentation": {
+              "displayName": "Case reserve per open claim",
+              "description": "Incurred less paid divided by open count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred less paid",
+              "denominatorLabel": "open",
+              "value": 75
+            },
+            "components": {
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/gross/case-per-open-claim/rule/negative-case",
+                "status": "pass",
+                "severity": "warning",
+                "left": 300,
+                "right": 0,
+                "relation": "greater",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          },
+          "casualty/amount/net/paid-to-incurred": {
+            "instanceId": "casualty/amount/net/paid-to-incurred",
+            "instanceVersion": "1.0.0",
+            "formulaId": "paid-to-incurred",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:b2d0deef282f8234",
+            "calculationFingerprint": "fnv1a64-jcs-v1:b00d07cc091edded",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 400
+              },
+              "denominator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 600
+              },
+              "value": 0.6666666666666666
+            },
+            "presentation": {
+              "displayName": "Paid to incurred",
+              "description": "Paid divided by incurred on the bound amount basis",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "incurred",
+              "value": 0.6666666666666666
+            },
+            "components": {
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/net/paid-to-incurred/rule/paid-exceeds-incurred",
+                "status": "pass",
+                "severity": "warning",
+                "left": 400,
+                "right": 600,
+                "relation": "less",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          },
+          "casualty/amount/net/incurred-per-exposure": {
+            "instanceId": "casualty/amount/net/incurred-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:4850ef8b38218c96",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 600
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 6
+            },
+            "presentation": {
+              "displayName": "Incurred per exposure",
+              "description": "Incurred divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "exposure",
+              "value": 6
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/incurred-per-non-closed-no-pay-claim": {
+            "instanceId": "casualty/amount/net/incurred-per-non-closed-no-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:d5c94ab6abb5415b",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 600
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 75
+            },
+            "presentation": {
+              "displayName": "Incurred per non-closed-no-pay claim",
+              "description": "Incurred divided by reported less closed-no-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 75
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/paid-per-exposure": {
+            "instanceId": "casualty/amount/net/paid-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:e9f66fd220c6fcea",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 400
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 4
+            },
+            "presentation": {
+              "displayName": "Paid per exposure",
+              "description": "Paid divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "exposure",
+              "value": 4
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/paid-per-closed-with-pay-claim": {
+            "instanceId": "casualty/amount/net/paid-per-closed-with-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:63dd92edb8d5dadf",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 400
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 100
+            },
+            "presentation": {
+              "displayName": "Paid per closed-with-pay claim",
+              "description": "Paid divided by closed-with-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "closed-with-pay",
+              "value": 100
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/case-per-open-claim": {
+            "instanceId": "casualty/amount/net/case-per-open-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "case-per-open",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+            "calculationFingerprint": "fnv1a64-jcs-v1:3b3b47e393e55a0c",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 200
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 50
+            },
+            "presentation": {
+              "displayName": "Case reserve per open claim",
+              "description": "Incurred less paid divided by open count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred less paid",
+              "denominatorLabel": "open",
+              "value": 50
+            },
+            "components": {
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/net/case-per-open-claim/rule/negative-case",
+                "status": "pass",
+                "severity": "warning",
+                "left": 200,
+                "right": 0,
+                "relation": "greater",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          }
+        },
+        "findings": []
+      }
+    ],
+    "triangles": [
+      {
+        "group": "all",
+        "instanceId": "casualty/count/reported-frequency",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.1]],
+        "presentationValues": [[0.1]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/reported-frequency",
+                "instanceVersion": "1.0.0",
+                "formulaId": "frequency",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+                "calculationFingerprint": "fnv1a64-jcs-v1:8ffb808c9b445596",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 10
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 0.1
+                },
+                "presentation": {
+                  "displayName": "Reported frequency",
+                  "description": "Reported count divided by exposure",
+                  "displayUnit": "count per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "reported",
+                  "denominatorLabel": "exposure",
+                  "value": 0.1
+                },
+                "components": {
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/open-frequency",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.04]],
+        "presentationValues": [[0.04]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/open-frequency",
+                "instanceVersion": "1.0.0",
+                "formulaId": "frequency",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+                "calculationFingerprint": "fnv1a64-jcs-v1:abad0f3512cb0c82",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 0.04
+                },
+                "presentation": {
+                  "displayName": "Open frequency",
+                  "description": "Open count divided by exposure",
+                  "displayUnit": "count per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "open",
+                  "denominatorLabel": "exposure",
+                  "value": 0.04
+                },
+                "components": {
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "open": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/closed-no-pay-frequency",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.02]],
+        "presentationValues": [[0.02]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/closed-no-pay-frequency",
+                "instanceVersion": "1.0.0",
+                "formulaId": "frequency",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+                "calculationFingerprint": "fnv1a64-jcs-v1:0f795a2d55939f3e",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 2
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 0.02
+                },
+                "presentation": {
+                  "displayName": "Closed-no-pay frequency",
+                  "description": "Closed-no-pay count divided by exposure",
+                  "displayUnit": "count per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "closed-no-pay",
+                  "denominatorLabel": "exposure",
+                  "value": 0.02
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/closed-with-pay-frequency",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.04]],
+        "presentationValues": [[0.04]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/closed-with-pay-frequency",
+                "instanceVersion": "1.0.0",
+                "formulaId": "frequency",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+                "calculationFingerprint": "fnv1a64-jcs-v1:43ce6381780b402d",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 0.04
+                },
+                "presentation": {
+                  "displayName": "Closed-with-pay frequency",
+                  "description": "Closed-with-pay count divided by exposure",
+                  "displayUnit": "count per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "closed-with-pay",
+                  "denominatorLabel": "exposure",
+                  "value": 0.04
+                },
+                "components": {
+                  "closed-with-pay": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/non-closed-no-pay-frequency",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.08]],
+        "presentationValues": [[0.08]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/non-closed-no-pay-frequency",
+                "instanceVersion": "1.0.0",
+                "formulaId": "frequency",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+                "calculationFingerprint": "fnv1a64-jcs-v1:ab6095d876c2d3ad",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 8
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 0.08
+                },
+                "presentation": {
+                  "displayName": "Non-closed-no-pay frequency",
+                  "description": "Reported less closed-no-pay count divided by exposure",
+                  "displayUnit": "count per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "reported less closed-no-pay",
+                  "denominatorLabel": "exposure",
+                  "value": 0.08
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/closed-no-pay-share",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.2]],
+        "presentationValues": [[0.2]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/closed-no-pay-share",
+                "instanceVersion": "1.0.0",
+                "formulaId": "share",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+                "calculationFingerprint": "fnv1a64-jcs-v1:ea48f9373a208898",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 2
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 10
+                  },
+                  "value": 0.2
+                },
+                "presentation": {
+                  "displayName": "Closed-no-pay share",
+                  "description": "Closed-no-pay count divided by reported count",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "closed-no-pay",
+                  "denominatorLabel": "reported",
+                  "value": 0.2
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/closed-with-pay-share",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.4]],
+        "presentationValues": [[0.4]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/closed-with-pay-share",
+                "instanceVersion": "1.0.0",
+                "formulaId": "share",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+                "calculationFingerprint": "fnv1a64-jcs-v1:358cfddd581bee83",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 10
+                  },
+                  "value": 0.4
+                },
+                "presentation": {
+                  "displayName": "Closed-with-pay share",
+                  "description": "Closed-with-pay count divided by reported count",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "closed-with-pay",
+                  "denominatorLabel": "reported",
+                  "value": 0.4
+                },
+                "components": {
+                  "closed-with-pay": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/closed-with-pay-share-of-non-closed-no-pay",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.5]],
+        "presentationValues": [[0.5]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/closed-with-pay-share-of-non-closed-no-pay",
+                "instanceVersion": "1.0.0",
+                "formulaId": "share",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+                "calculationFingerprint": "fnv1a64-jcs-v1:debb23df4361be8c",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 8
+                  },
+                  "value": 0.5
+                },
+                "presentation": {
+                  "displayName": "Closed-with-pay share of non-closed-no-pay",
+                  "description": "Closed-with-pay count divided by reported less closed-no-pay count",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "closed-with-pay",
+                  "denominatorLabel": "reported less closed-no-pay",
+                  "value": 0.5
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "closed-with-pay": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/open-share",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.4]],
+        "presentationValues": [[0.4]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/open-share",
+                "instanceVersion": "1.0.0",
+                "formulaId": "share",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+                "calculationFingerprint": "fnv1a64-jcs-v1:4a53ea4e7bf33c2c",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 10
+                  },
+                  "value": 0.4
+                },
+                "presentation": {
+                  "displayName": "Open share",
+                  "description": "Open count divided by reported count",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "open",
+                  "denominatorLabel": "reported",
+                  "value": 0.4
+                },
+                "components": {
+                  "open": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/count/open-share-of-non-closed-no-pay",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.5]],
+        "presentationValues": [[0.5]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/count/open-share-of-non-closed-no-pay",
+                "instanceVersion": "1.0.0",
+                "formulaId": "share",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": [],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+                "calculationFingerprint": "fnv1a64-jcs-v1:010c6e65a324a44d",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 8
+                  },
+                  "value": 0.5
+                },
+                "presentation": {
+                  "displayName": "Open share of non-closed-no-pay",
+                  "description": "Open count divided by reported less closed-no-pay count",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "open",
+                  "denominatorLabel": "reported less closed-no-pay",
+                  "value": 0.5
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "open": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/gross/paid-to-incurred",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.625]],
+        "presentationValues": [[0.625]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/gross/paid-to-incurred",
+                "instanceVersion": "1.0.0",
+                "formulaId": "paid-to-incurred",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["gross-loss"],
+                  "countPopulationIds": [],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:b2d0deef282f8234",
+                "calculationFingerprint": "fnv1a64-jcs-v1:2124ae30d6639745",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 500
+                  },
+                  "denominator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 800
+                  },
+                  "value": 0.625
+                },
+                "presentation": {
+                  "displayName": "Paid to incurred",
+                  "description": "Paid divided by incurred on the bound amount basis",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "paid",
+                  "denominatorLabel": "incurred",
+                  "value": 0.625
+                },
+                "components": {
+                  "gross-incurred": {
+                    "value": 800,
+                    "sum": 800,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "gross-paid": {
+                    "value": 500,
+                    "sum": 500,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [
+                  {
+                    "ruleId": "casualty/amount/gross/paid-to-incurred/rule/paid-exceeds-incurred",
+                    "status": "pass",
+                    "severity": "warning",
+                    "left": 500,
+                    "right": 800,
+                    "relation": "less",
+                    "notEvaluatedReasons": [],
+                    "expressionOverflows": [],
+                    "code": null,
+                    "message": null
+                  }
+                ],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/gross/incurred-per-exposure",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[8]],
+        "presentationValues": [[8]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/gross/incurred-per-exposure",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-exposure",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["gross-loss"],
+                  "countPopulationIds": [],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+                "calculationFingerprint": "fnv1a64-jcs-v1:c3a6a6aa2eef4ceb",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 800
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 8
+                },
+                "presentation": {
+                  "displayName": "Incurred per exposure",
+                  "description": "Incurred divided by exposure",
+                  "displayUnit": "amount per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "incurred",
+                  "denominatorLabel": "exposure",
+                  "value": 8
+                },
+                "components": {
+                  "gross-incurred": {
+                    "value": 800,
+                    "sum": 800,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/gross/incurred-per-non-closed-no-pay-claim",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[100]],
+        "presentationValues": [[100]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/gross/incurred-per-non-closed-no-pay-claim",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-claim",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["gross-loss"],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+                "calculationFingerprint": "fnv1a64-jcs-v1:732b47001a2de8c6",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 800
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 8
+                  },
+                  "value": 100
+                },
+                "presentation": {
+                  "displayName": "Incurred per non-closed-no-pay claim",
+                  "description": "Incurred divided by reported less closed-no-pay count",
+                  "displayUnit": "amount per claim",
+                  "scale": 1,
+                  "numeratorLabel": "incurred",
+                  "denominatorLabel": "reported less closed-no-pay",
+                  "value": 100
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "gross-incurred": {
+                    "value": 800,
+                    "sum": 800,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/gross/paid-per-exposure",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[5]],
+        "presentationValues": [[5]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/gross/paid-per-exposure",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-exposure",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["gross-loss"],
+                  "countPopulationIds": [],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+                "calculationFingerprint": "fnv1a64-jcs-v1:102d90bfc963c347",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 500
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 5
+                },
+                "presentation": {
+                  "displayName": "Paid per exposure",
+                  "description": "Paid divided by exposure",
+                  "displayUnit": "amount per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "paid",
+                  "denominatorLabel": "exposure",
+                  "value": 5
+                },
+                "components": {
+                  "gross-paid": {
+                    "value": 500,
+                    "sum": 500,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/gross/paid-per-closed-with-pay-claim",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[125]],
+        "presentationValues": [[125]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/gross/paid-per-closed-with-pay-claim",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-claim",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["gross-loss"],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+                "calculationFingerprint": "fnv1a64-jcs-v1:dcd2e4263735504a",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 500
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "value": 125
+                },
+                "presentation": {
+                  "displayName": "Paid per closed-with-pay claim",
+                  "description": "Paid divided by closed-with-pay count",
+                  "displayUnit": "amount per claim",
+                  "scale": 1,
+                  "numeratorLabel": "paid",
+                  "denominatorLabel": "closed-with-pay",
+                  "value": 125
+                },
+                "components": {
+                  "closed-with-pay": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "gross-paid": {
+                    "value": 500,
+                    "sum": 500,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/gross/case-per-open-claim",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[75]],
+        "presentationValues": [[75]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/gross/case-per-open-claim",
+                "instanceVersion": "1.0.0",
+                "formulaId": "case-per-open",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["gross-loss"],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+                "calculationFingerprint": "fnv1a64-jcs-v1:3df52445ccda15b8",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "gross-loss",
+                    "value": 300
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "value": 75
+                },
+                "presentation": {
+                  "displayName": "Case reserve per open claim",
+                  "description": "Incurred less paid divided by open count",
+                  "displayUnit": "amount per claim",
+                  "scale": 1,
+                  "numeratorLabel": "incurred less paid",
+                  "denominatorLabel": "open",
+                  "value": 75
+                },
+                "components": {
+                  "gross-incurred": {
+                    "value": 800,
+                    "sum": 800,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "gross-paid": {
+                    "value": 500,
+                    "sum": 500,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "open": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [
+                  {
+                    "ruleId": "casualty/amount/gross/case-per-open-claim/rule/negative-case",
+                    "status": "pass",
+                    "severity": "warning",
+                    "left": 300,
+                    "right": 0,
+                    "relation": "greater",
+                    "notEvaluatedReasons": [],
+                    "expressionOverflows": [],
+                    "code": null,
+                    "message": null
+                  }
+                ],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/net/paid-to-incurred",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[0.6666666666666666]],
+        "presentationValues": [[0.6666666666666666]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/net/paid-to-incurred",
+                "instanceVersion": "1.0.0",
+                "formulaId": "paid-to-incurred",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["net-loss"],
+                  "countPopulationIds": [],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:b2d0deef282f8234",
+                "calculationFingerprint": "fnv1a64-jcs-v1:b00d07cc091edded",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 400
+                  },
+                  "denominator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 600
+                  },
+                  "value": 0.6666666666666666
+                },
+                "presentation": {
+                  "displayName": "Paid to incurred",
+                  "description": "Paid divided by incurred on the bound amount basis",
+                  "displayUnit": "ratio",
+                  "scale": 1,
+                  "numeratorLabel": "paid",
+                  "denominatorLabel": "incurred",
+                  "value": 0.6666666666666666
+                },
+                "components": {
+                  "net-incurred": {
+                    "value": 600,
+                    "sum": 600,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "net-paid": {
+                    "value": 400,
+                    "sum": 400,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [
+                  {
+                    "ruleId": "casualty/amount/net/paid-to-incurred/rule/paid-exceeds-incurred",
+                    "status": "pass",
+                    "severity": "warning",
+                    "left": 400,
+                    "right": 600,
+                    "relation": "less",
+                    "notEvaluatedReasons": [],
+                    "expressionOverflows": [],
+                    "code": null,
+                    "message": null
+                  }
+                ],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/net/incurred-per-exposure",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[6]],
+        "presentationValues": [[6]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/net/incurred-per-exposure",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-exposure",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["net-loss"],
+                  "countPopulationIds": [],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+                "calculationFingerprint": "fnv1a64-jcs-v1:4850ef8b38218c96",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 600
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 6
+                },
+                "presentation": {
+                  "displayName": "Incurred per exposure",
+                  "description": "Incurred divided by exposure",
+                  "displayUnit": "amount per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "incurred",
+                  "denominatorLabel": "exposure",
+                  "value": 6
+                },
+                "components": {
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "net-incurred": {
+                    "value": 600,
+                    "sum": 600,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/net/incurred-per-non-closed-no-pay-claim",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[75]],
+        "presentationValues": [[75]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/net/incurred-per-non-closed-no-pay-claim",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-claim",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["net-loss"],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+                "calculationFingerprint": "fnv1a64-jcs-v1:d5c94ab6abb5415b",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 600
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 8
+                  },
+                  "value": 75
+                },
+                "presentation": {
+                  "displayName": "Incurred per non-closed-no-pay claim",
+                  "description": "Incurred divided by reported less closed-no-pay count",
+                  "displayUnit": "amount per claim",
+                  "scale": 1,
+                  "numeratorLabel": "incurred",
+                  "denominatorLabel": "reported less closed-no-pay",
+                  "value": 75
+                },
+                "components": {
+                  "closed-no-pay": {
+                    "value": 2,
+                    "sum": 2,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "net-incurred": {
+                    "value": 600,
+                    "sum": 600,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "reported": {
+                    "value": 10,
+                    "sum": 10,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/net/paid-per-exposure",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[4]],
+        "presentationValues": [[4]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/net/paid-per-exposure",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-exposure",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["net-loss"],
+                  "countPopulationIds": [],
+                  "exposureBasisIds": ["source-insurance-years"]
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+                "calculationFingerprint": "fnv1a64-jcs-v1:e9f66fd220c6fcea",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 400
+                  },
+                  "denominator": {
+                    "kind": "exposure",
+                    "unit": "insurance-year",
+                    "exposureBasisId": "source-insurance-years",
+                    "value": 100
+                  },
+                  "value": 4
+                },
+                "presentation": {
+                  "displayName": "Paid per exposure",
+                  "description": "Paid divided by exposure",
+                  "displayUnit": "amount per exposure",
+                  "scale": 1,
+                  "numeratorLabel": "paid",
+                  "denominatorLabel": "exposure",
+                  "value": 4
+                },
+                "components": {
+                  "insurance-years": {
+                    "value": 100,
+                    "sum": 100,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "net-paid": {
+                    "value": 400,
+                    "sum": 400,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/net/paid-per-closed-with-pay-claim",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[100]],
+        "presentationValues": [[100]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/net/paid-per-closed-with-pay-claim",
+                "instanceVersion": "1.0.0",
+                "formulaId": "amount-per-claim",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["net-loss"],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+                "calculationFingerprint": "fnv1a64-jcs-v1:63dd92edb8d5dadf",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 400
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "value": 100
+                },
+                "presentation": {
+                  "displayName": "Paid per closed-with-pay claim",
+                  "description": "Paid divided by closed-with-pay count",
+                  "displayUnit": "amount per claim",
+                  "scale": 1,
+                  "numeratorLabel": "paid",
+                  "denominatorLabel": "closed-with-pay",
+                  "value": 100
+                },
+                "components": {
+                  "closed-with-pay": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "net-paid": {
+                    "value": 400,
+                    "sum": 400,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      },
+      {
+        "group": "all",
+        "instanceId": "casualty/amount/net/case-per-open-claim",
+        "origins": ["2025"],
+        "developmentAges": [12],
+        "ageUnit": "month",
+        "calculationValues": [[50]],
+        "presentationValues": [[50]],
+        "cells": [
+          [
+            {
+              "origin": "2025",
+              "valuation": "2025",
+              "developmentAge": 12,
+              "ageUnit": "month",
+              "evaluation": {
+                "instanceId": "casualty/amount/net/case-per-open-claim",
+                "instanceVersion": "1.0.0",
+                "formulaId": "case-per-open",
+                "formulaVersion": "1.0.0",
+                "semanticReferences": {
+                  "amountBasisIds": ["net-loss"],
+                  "countPopulationIds": ["adapted-source-claims"],
+                  "exposureBasisIds": []
+                },
+                "formulaFingerprint": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+                "calculationFingerprint": "fnv1a64-jcs-v1:3b3b47e393e55a0c",
+                "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+                "calculation": {
+                  "numerator": {
+                    "kind": "amount",
+                    "unit": "EUR",
+                    "basisId": "net-loss",
+                    "value": 200
+                  },
+                  "denominator": {
+                    "kind": "count",
+                    "unit": "claim",
+                    "countPopulationId": "adapted-source-claims",
+                    "value": 4
+                  },
+                  "value": 50
+                },
+                "presentation": {
+                  "displayName": "Case reserve per open claim",
+                  "description": "Incurred less paid divided by open count",
+                  "displayUnit": "amount per claim",
+                  "scale": 1,
+                  "numeratorLabel": "incurred less paid",
+                  "denominatorLabel": "open",
+                  "value": 50
+                },
+                "components": {
+                  "net-incurred": {
+                    "value": 600,
+                    "sum": 600,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "net-paid": {
+                    "value": 400,
+                    "sum": 400,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  },
+                  "open": {
+                    "value": 4,
+                    "sum": 4,
+                    "observed": 1,
+                    "missing": 0,
+                    "nonFinite": 0,
+                    "imputedZero": 0,
+                    "deduplicated": 0,
+                    "structural": 0
+                  }
+                },
+                "rules": [
+                  {
+                    "ruleId": "casualty/amount/net/case-per-open-claim/rule/negative-case",
+                    "status": "pass",
+                    "severity": "warning",
+                    "left": 200,
+                    "right": 0,
+                    "relation": "greater",
+                    "notEvaluatedReasons": [],
+                    "expressionOverflows": [],
+                    "code": null,
+                    "message": null
+                  }
+                ],
+                "findings": []
+              }
+            }
+          ]
+        ]
+      }
+    ],
+    "latestDiagonal": [
+      {
+        "group": "all",
+        "sourceGroups": ["all"],
+        "origin": "2025",
+        "valuation": "2025",
+        "developmentAge": 12,
+        "ageUnit": "month",
+        "components": {
+          "closed-no-pay": {
+            "value": 2,
+            "sum": 2,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "closed-with-pay": {
+            "value": 4,
+            "sum": 4,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "gross-incurred": {
+            "value": 800,
+            "sum": 800,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "gross-paid": {
+            "value": 500,
+            "sum": 500,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "insurance-years": {
+            "value": 100,
+            "sum": 100,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "net-incurred": {
+            "value": 600,
+            "sum": 600,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "net-paid": {
+            "value": 400,
+            "sum": 400,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "open": {
+            "value": 4,
+            "sum": 4,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          },
+          "reported": {
+            "value": 10,
+            "sum": 10,
+            "observed": 1,
+            "missing": 0,
+            "nonFinite": 0,
+            "imputedZero": 0,
+            "deduplicated": 0,
+            "structural": 0
+          }
+        },
+        "metrics": {
+          "casualty/count/reported-frequency": {
+            "instanceId": "casualty/count/reported-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:8ffb808c9b445596",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.1
+            },
+            "presentation": {
+              "displayName": "Reported frequency",
+              "description": "Reported count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "reported",
+              "denominatorLabel": "exposure",
+              "value": 0.1
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/open-frequency": {
+            "instanceId": "casualty/count/open-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:abad0f3512cb0c82",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.04
+            },
+            "presentation": {
+              "displayName": "Open frequency",
+              "description": "Open count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "open",
+              "denominatorLabel": "exposure",
+              "value": 0.04
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-no-pay-frequency": {
+            "instanceId": "casualty/count/closed-no-pay-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:0f795a2d55939f3e",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 2
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.02
+            },
+            "presentation": {
+              "displayName": "Closed-no-pay frequency",
+              "description": "Closed-no-pay count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "closed-no-pay",
+              "denominatorLabel": "exposure",
+              "value": 0.02
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-with-pay-frequency": {
+            "instanceId": "casualty/count/closed-with-pay-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:43ce6381780b402d",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.04
+            },
+            "presentation": {
+              "displayName": "Closed-with-pay frequency",
+              "description": "Closed-with-pay count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "closed-with-pay",
+              "denominatorLabel": "exposure",
+              "value": 0.04
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/non-closed-no-pay-frequency": {
+            "instanceId": "casualty/count/non-closed-no-pay-frequency",
+            "instanceVersion": "1.0.0",
+            "formulaId": "frequency",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+            "calculationFingerprint": "fnv1a64-jcs-v1:ab6095d876c2d3ad",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 0.08
+            },
+            "presentation": {
+              "displayName": "Non-closed-no-pay frequency",
+              "description": "Reported less closed-no-pay count divided by exposure",
+              "displayUnit": "count per exposure",
+              "scale": 1,
+              "numeratorLabel": "reported less closed-no-pay",
+              "denominatorLabel": "exposure",
+              "value": 0.08
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-no-pay-share": {
+            "instanceId": "casualty/count/closed-no-pay-share",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:ea48f9373a208898",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 2
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "value": 0.2
+            },
+            "presentation": {
+              "displayName": "Closed-no-pay share",
+              "description": "Closed-no-pay count divided by reported count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "closed-no-pay",
+              "denominatorLabel": "reported",
+              "value": 0.2
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-with-pay-share": {
+            "instanceId": "casualty/count/closed-with-pay-share",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:358cfddd581bee83",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "value": 0.4
+            },
+            "presentation": {
+              "displayName": "Closed-with-pay share",
+              "description": "Closed-with-pay count divided by reported count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "closed-with-pay",
+              "denominatorLabel": "reported",
+              "value": 0.4
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/closed-with-pay-share-of-non-closed-no-pay": {
+            "instanceId": "casualty/count/closed-with-pay-share-of-non-closed-no-pay",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:debb23df4361be8c",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 0.5
+            },
+            "presentation": {
+              "displayName": "Closed-with-pay share of non-closed-no-pay",
+              "description": "Closed-with-pay count divided by reported less closed-no-pay count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "closed-with-pay",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 0.5
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/open-share": {
+            "instanceId": "casualty/count/open-share",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:4a53ea4e7bf33c2c",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 10
+              },
+              "value": 0.4
+            },
+            "presentation": {
+              "displayName": "Open share",
+              "description": "Open count divided by reported count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "open",
+              "denominatorLabel": "reported",
+              "value": 0.4
+            },
+            "components": {
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/count/open-share-of-non-closed-no-pay": {
+            "instanceId": "casualty/count/open-share-of-non-closed-no-pay",
+            "instanceVersion": "1.0.0",
+            "formulaId": "share",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": [],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2612bfad35775886",
+            "calculationFingerprint": "fnv1a64-jcs-v1:010c6e65a324a44d",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 0.5
+            },
+            "presentation": {
+              "displayName": "Open share of non-closed-no-pay",
+              "description": "Open count divided by reported less closed-no-pay count",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "open",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 0.5
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/paid-to-incurred": {
+            "instanceId": "casualty/amount/gross/paid-to-incurred",
+            "instanceVersion": "1.0.0",
+            "formulaId": "paid-to-incurred",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:b2d0deef282f8234",
+            "calculationFingerprint": "fnv1a64-jcs-v1:2124ae30d6639745",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 500
+              },
+              "denominator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 800
+              },
+              "value": 0.625
+            },
+            "presentation": {
+              "displayName": "Paid to incurred",
+              "description": "Paid divided by incurred on the bound amount basis",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "incurred",
+              "value": 0.625
+            },
+            "components": {
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/gross/paid-to-incurred/rule/paid-exceeds-incurred",
+                "status": "pass",
+                "severity": "warning",
+                "left": 500,
+                "right": 800,
+                "relation": "less",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          },
+          "casualty/amount/gross/incurred-per-exposure": {
+            "instanceId": "casualty/amount/gross/incurred-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:c3a6a6aa2eef4ceb",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 800
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 8
+            },
+            "presentation": {
+              "displayName": "Incurred per exposure",
+              "description": "Incurred divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "exposure",
+              "value": 8
+            },
+            "components": {
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/incurred-per-non-closed-no-pay-claim": {
+            "instanceId": "casualty/amount/gross/incurred-per-non-closed-no-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:732b47001a2de8c6",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 800
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 100
+            },
+            "presentation": {
+              "displayName": "Incurred per non-closed-no-pay claim",
+              "description": "Incurred divided by reported less closed-no-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 100
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/paid-per-exposure": {
+            "instanceId": "casualty/amount/gross/paid-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:102d90bfc963c347",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 500
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 5
+            },
+            "presentation": {
+              "displayName": "Paid per exposure",
+              "description": "Paid divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "exposure",
+              "value": 5
+            },
+            "components": {
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/paid-per-closed-with-pay-claim": {
+            "instanceId": "casualty/amount/gross/paid-per-closed-with-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:dcd2e4263735504a",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 500
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 125
+            },
+            "presentation": {
+              "displayName": "Paid per closed-with-pay claim",
+              "description": "Paid divided by closed-with-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "closed-with-pay",
+              "value": 125
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/gross/case-per-open-claim": {
+            "instanceId": "casualty/amount/gross/case-per-open-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "case-per-open",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["gross-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+            "calculationFingerprint": "fnv1a64-jcs-v1:3df52445ccda15b8",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "gross-loss",
+                "value": 300
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 75
+            },
+            "presentation": {
+              "displayName": "Case reserve per open claim",
+              "description": "Incurred less paid divided by open count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred less paid",
+              "denominatorLabel": "open",
+              "value": 75
+            },
+            "components": {
+              "gross-incurred": {
+                "value": 800,
+                "sum": 800,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "gross-paid": {
+                "value": 500,
+                "sum": 500,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/gross/case-per-open-claim/rule/negative-case",
+                "status": "pass",
+                "severity": "warning",
+                "left": 300,
+                "right": 0,
+                "relation": "greater",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          },
+          "casualty/amount/net/paid-to-incurred": {
+            "instanceId": "casualty/amount/net/paid-to-incurred",
+            "instanceVersion": "1.0.0",
+            "formulaId": "paid-to-incurred",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:b2d0deef282f8234",
+            "calculationFingerprint": "fnv1a64-jcs-v1:b00d07cc091edded",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 400
+              },
+              "denominator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 600
+              },
+              "value": 0.6666666666666666
+            },
+            "presentation": {
+              "displayName": "Paid to incurred",
+              "description": "Paid divided by incurred on the bound amount basis",
+              "displayUnit": "ratio",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "incurred",
+              "value": 0.6666666666666666
+            },
+            "components": {
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/net/paid-to-incurred/rule/paid-exceeds-incurred",
+                "status": "pass",
+                "severity": "warning",
+                "left": 400,
+                "right": 600,
+                "relation": "less",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          },
+          "casualty/amount/net/incurred-per-exposure": {
+            "instanceId": "casualty/amount/net/incurred-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:4850ef8b38218c96",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 600
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 6
+            },
+            "presentation": {
+              "displayName": "Incurred per exposure",
+              "description": "Incurred divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "exposure",
+              "value": 6
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/incurred-per-non-closed-no-pay-claim": {
+            "instanceId": "casualty/amount/net/incurred-per-non-closed-no-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:d5c94ab6abb5415b",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 600
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 8
+              },
+              "value": 75
+            },
+            "presentation": {
+              "displayName": "Incurred per non-closed-no-pay claim",
+              "description": "Incurred divided by reported less closed-no-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred",
+              "denominatorLabel": "reported less closed-no-pay",
+              "value": 75
+            },
+            "components": {
+              "closed-no-pay": {
+                "value": 2,
+                "sum": 2,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "reported": {
+                "value": 10,
+                "sum": 10,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/paid-per-exposure": {
+            "instanceId": "casualty/amount/net/paid-per-exposure",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-exposure",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": [],
+              "exposureBasisIds": ["source-insurance-years"]
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:2ffb08dc57ad7744",
+            "calculationFingerprint": "fnv1a64-jcs-v1:e9f66fd220c6fcea",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 400
+              },
+              "denominator": {
+                "kind": "exposure",
+                "unit": "insurance-year",
+                "exposureBasisId": "source-insurance-years",
+                "value": 100
+              },
+              "value": 4
+            },
+            "presentation": {
+              "displayName": "Paid per exposure",
+              "description": "Paid divided by exposure",
+              "displayUnit": "amount per exposure",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "exposure",
+              "value": 4
+            },
+            "components": {
+              "insurance-years": {
+                "value": 100,
+                "sum": 100,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/paid-per-closed-with-pay-claim": {
+            "instanceId": "casualty/amount/net/paid-per-closed-with-pay-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "amount-per-claim",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:f429a18df717cf71",
+            "calculationFingerprint": "fnv1a64-jcs-v1:63dd92edb8d5dadf",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 400
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 100
+            },
+            "presentation": {
+              "displayName": "Paid per closed-with-pay claim",
+              "description": "Paid divided by closed-with-pay count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "paid",
+              "denominatorLabel": "closed-with-pay",
+              "value": 100
+            },
+            "components": {
+              "closed-with-pay": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [],
+            "findings": []
+          },
+          "casualty/amount/net/case-per-open-claim": {
+            "instanceId": "casualty/amount/net/case-per-open-claim",
+            "instanceVersion": "1.0.0",
+            "formulaId": "case-per-open",
+            "formulaVersion": "1.0.0",
+            "semanticReferences": {
+              "amountBasisIds": ["net-loss"],
+              "countPopulationIds": ["adapted-source-claims"],
+              "exposureBasisIds": []
+            },
+            "formulaFingerprint": "fnv1a64-jcs-v1:d7614ce500ba87a6",
+            "calculationFingerprint": "fnv1a64-jcs-v1:3b3b47e393e55a0c",
+            "definitionIntegrity": "fnv1a64-jcs-v1:1397b6a08d8329f9",
+            "calculation": {
+              "numerator": {
+                "kind": "amount",
+                "unit": "EUR",
+                "basisId": "net-loss",
+                "value": 200
+              },
+              "denominator": {
+                "kind": "count",
+                "unit": "claim",
+                "countPopulationId": "adapted-source-claims",
+                "value": 4
+              },
+              "value": 50
+            },
+            "presentation": {
+              "displayName": "Case reserve per open claim",
+              "description": "Incurred less paid divided by open count",
+              "displayUnit": "amount per claim",
+              "scale": 1,
+              "numeratorLabel": "incurred less paid",
+              "denominatorLabel": "open",
+              "value": 50
+            },
+            "components": {
+              "net-incurred": {
+                "value": 600,
+                "sum": 600,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "net-paid": {
+                "value": 400,
+                "sum": 400,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              },
+              "open": {
+                "value": 4,
+                "sum": 4,
+                "observed": 1,
+                "missing": 0,
+                "nonFinite": 0,
+                "imputedZero": 0,
+                "deduplicated": 0,
+                "structural": 0
+              }
+            },
+            "rules": [
+              {
+                "ruleId": "casualty/amount/net/case-per-open-claim/rule/negative-case",
+                "status": "pass",
+                "severity": "warning",
+                "left": 200,
+                "right": 0,
+                "relation": "greater",
+                "notEvaluatedReasons": [],
+                "expressionOverflows": [],
+                "code": null,
+                "message": null
+              }
+            ],
+            "findings": []
+          }
+        },
+        "findings": []
+      }
+    ],
+    "findings": []
+  },
+  "reviews": [
+    {
+      "ruleId": "casualty/review/count-reconciliation",
+      "ruleKind": "reconcile",
+      "severity": "fail",
+      "scope": {
+        "kind": "cell",
+        "cell": {
+          "sourceGroup": "all",
+          "origin": "2025",
+          "valuation": "2025",
+          "developmentAge": 12,
+          "ageUnit": "month"
+        },
+        "sources": []
+      },
+      "status": "pass",
+      "triggerReason": null,
+      "left": 10,
+      "right": 10,
+      "relation": "equal",
+      "notEvaluatedReasons": [],
+      "expressionOverflows": []
+    },
+    {
+      "ruleId": "casualty/review/closed-no-pay-bound",
+      "ruleKind": "compare",
+      "severity": "fail",
+      "scope": {
+        "kind": "cell",
+        "cell": {
+          "sourceGroup": "all",
+          "origin": "2025",
+          "valuation": "2025",
+          "developmentAge": 12,
+          "ageUnit": "month"
+        },
+        "sources": []
+      },
+      "status": "pass",
+      "triggerReason": null,
+      "left": 2,
+      "right": 10,
+      "relation": "less",
+      "notEvaluatedReasons": [],
+      "expressionOverflows": []
+    },
+    {
+      "ruleId": "casualty/review/positive-exposure",
+      "ruleKind": "compare",
+      "severity": "fail",
+      "scope": {
+        "kind": "cell",
+        "cell": {
+          "sourceGroup": "all",
+          "origin": "2025",
+          "valuation": "2025",
+          "developmentAge": 12,
+          "ageUnit": "month"
+        },
+        "sources": []
+      },
+      "status": "pass",
+      "triggerReason": null,
+      "left": 100,
+      "right": 0,
+      "relation": "greater",
+      "notEvaluatedReasons": [],
+      "expressionOverflows": []
+    }
+  ]
+}

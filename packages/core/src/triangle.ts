@@ -5,6 +5,7 @@ import type {
   TriangleKind,
 } from "./types.js";
 import { ReservingError } from "./types.js";
+import { isDiagnosticToken, isRealIsoDate } from "./diagnosticRuntime.js";
 
 /**
  * Builds development triangles from claim-level evaluation snapshots.
@@ -27,16 +28,12 @@ interface ParsedDate {
 }
 
 function parseISO(date: string): ParsedDate {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
-  if (!match) {
+  if (!isRealIsoDate(date))
     throw new ReservingError("BAD_DATE", `Invalid ISO date: "${date}"`);
-  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)!;
   const y = Number(match[1]);
   const m = Number(match[2]);
   const d = Number(match[3]);
-  if (m < 1 || m > 12 || d < 1 || d > 31) {
-    throw new ReservingError("BAD_DATE", `Invalid ISO date: "${date}"`);
-  }
   return { y, m, d };
 }
 
@@ -90,6 +87,7 @@ export interface TriangleSet {
 
 interface ClaimTimeline {
   originIdx: number;
+  accidentISO: string;
   reportISO: string;
   /** Snapshots sorted ascending by evaluation date. */
   snapshots: ClaimSnapshot[];
@@ -101,9 +99,17 @@ export function buildTriangles(
 ): TriangleSet {
   const { cadence, asOfDate } = options;
   if (claims.length === 0) {
-    throw new ReservingError("NO_CLAIMS", "Cannot build triangles from an empty loss run");
+    throw new ReservingError(
+      "NO_CLAIMS",
+      "Cannot build triangles from an empty loss run",
+    );
   }
   const asOf = parseISO(asOfDate);
+  if (cadence !== "annual" && cadence !== "quarterly")
+    throw new ReservingError(
+      "BAD_ORIGIN",
+      "Cadence must be annual or quarterly",
+    );
   const asOfMonth = monthIndex(asOf);
   const asOfIsMonthEnd = asOf.d === daysInMonth(asOf.y, asOf.m);
   // The latest complete evaluation month.
@@ -115,15 +121,53 @@ export function buildTriangles(
   let minPeriod = Infinity;
   let maxPeriod = -Infinity;
   for (const snap of claims) {
+    if (!isDiagnosticToken(snap.claimId))
+      throw new ReservingError(
+        "BAD_ORIGIN",
+        "Claim id must be a nonempty token",
+      );
     const accident = parseISO(snap.accidentDate);
+    parseISO(snap.reportDate);
+    parseISO(snap.evaluationDate);
+    if (
+      snap.reportDate < snap.accidentDate ||
+      snap.evaluationDate < snap.reportDate
+    )
+      throw new ReservingError(
+        "BAD_DATE",
+        `Claim ${snap.claimId} dates must satisfy accident <= report <= evaluation`,
+      );
+    if (!Number.isFinite(snap.paidToDate) || !Number.isFinite(snap.caseReserve))
+      throw new ReservingError(
+        "BAD_LOSSES",
+        `Claim ${snap.claimId} contains a non-finite amount`,
+      );
+    if (snap.status !== "open" && snap.status !== "closed")
+      throw new ReservingError(
+        "BAD_LOSSES",
+        `Claim ${snap.claimId} has an invalid status`,
+      );
     if (snap.evaluationDate > asOfDate) continue; // beyond the analysis date
     const period = periodIndexOf(accident, cadence);
     minPeriod = Math.min(minPeriod, period);
     maxPeriod = Math.max(maxPeriod, period);
     let timeline = byClaim.get(snap.claimId);
     if (!timeline) {
-      timeline = { originIdx: period, reportISO: snap.reportDate, snapshots: [] };
+      timeline = {
+        originIdx: period,
+        accidentISO: snap.accidentDate,
+        reportISO: snap.reportDate,
+        snapshots: [],
+      };
       byClaim.set(snap.claimId, timeline);
+    } else if (
+      timeline.accidentISO !== snap.accidentDate ||
+      timeline.reportISO !== snap.reportDate
+    ) {
+      throw new ReservingError(
+        "BAD_ORIGIN",
+        `Claim ${snap.claimId} has conflicting accident or report dates across snapshots`,
+      );
     }
     timeline.snapshots.push(snap);
   }
@@ -135,13 +179,18 @@ export function buildTriangles(
   }
   for (const timeline of byClaim.values()) {
     timeline.snapshots.sort((a, b) =>
-      a.evaluationDate < b.evaluationDate ? -1 : a.evaluationDate > b.evaluationDate ? 1 : 0,
+      a.evaluationDate < b.evaluationDate
+        ? -1
+        : a.evaluationDate > b.evaluationDate
+          ? 1
+          : 0,
     );
   }
 
   const nOrigins = maxPeriod - minPeriod + 1;
   const origins: string[] = [];
-  for (let p = minPeriod; p <= maxPeriod; p++) origins.push(periodLabel(p, cadence));
+  for (let p = minPeriod; p <= maxPeriod; p++)
+    origins.push(periodLabel(p, cadence));
 
   // Ages available to the oldest origin period determine the column count.
   const oldestStart = periodStartMonth(minPeriod, cadence);
@@ -198,7 +247,8 @@ export function buildTriangles(
         else break;
       }
       const paid = state?.paidToDate ?? 0;
-      const caseReserve = state?.status === "open" ? (state?.caseReserve ?? 0) : 0;
+      const caseReserve =
+        state?.status === "open" ? (state?.caseReserve ?? 0) : 0;
       const isClosed = state?.status === "closed";
       add(set.reportedCount, i, j, 1);
       add(set.paid, i, j, paid);
@@ -223,13 +273,53 @@ export function triangleFromGrid(
   ages: number[],
   values: (number | null)[][],
 ): Triangle {
+  const kinds: readonly TriangleKind[] = [
+    "paid",
+    "incurred",
+    "caseReserve",
+    "reportedCount",
+    "openCount",
+    "closedCount",
+    "closedWithPayCount",
+  ];
+  if (!kinds.includes(kind))
+    throw new ReservingError("SHAPE", "Unknown triangle kind");
+  if (
+    origins.some((origin) => !isDiagnosticToken(origin)) ||
+    new Set(origins).size !== origins.length
+  ) {
+    throw new ReservingError("SHAPE", "Origins must be unique nonempty tokens");
+  }
+  if (
+    ages.some((age) => !Number.isSafeInteger(age) || age <= 0) ||
+    ages.some((age, index) => index > 0 && age <= ages[index - 1]!)
+  ) {
+    throw new ReservingError(
+      "SHAPE",
+      "Development ages must be finite positive safe integers in strictly ascending order",
+    );
+  }
   if (values.length !== origins.length) {
     throw new ReservingError("SHAPE", "Row count does not match origin count");
   }
   for (const row of values) {
     if (row.length !== ages.length) {
-      throw new ReservingError("SHAPE", "Column count does not match age count");
+      throw new ReservingError(
+        "SHAPE",
+        "Column count does not match age count",
+      );
+    }
+    if (row.some((value) => value !== null && !Number.isFinite(value))) {
+      throw new ReservingError(
+        "SHAPE",
+        "Observed triangle cells must be finite numbers",
+      );
     }
   }
-  return { kind, origins: [...origins], ages: [...ages], values: values.map((r) => [...r]) };
+  return {
+    kind,
+    origins: [...origins],
+    ages: [...ages],
+    values: values.map((r) => [...r]),
+  };
 }

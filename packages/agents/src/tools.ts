@@ -18,7 +18,10 @@
  */
 
 import { createTool, type Tool } from "@mastra/core/tools";
-import { toStandardSchema, type StandardSchemaWithJSON } from "@mastra/core/schema";
+import {
+  toStandardSchema,
+  type StandardSchemaWithJSON,
+} from "@mastra/core/schema";
 import type { z } from "zod";
 import { AgentsError } from "./errors.js";
 
@@ -33,21 +36,32 @@ export type ToolEnvelopeFailure = {
 
 const TOOL_INPUT_INVALID: ToolEnvelopeFailure = Object.freeze({
   success: false,
-  error: Object.freeze({ code: "TOOL_INPUT_INVALID", message: "Tool input failed schema validation" }),
+  error: Object.freeze({
+    code: "TOOL_INPUT_INVALID",
+    message: "Tool input failed schema validation",
+  }),
 });
 const TOOL_OUTPUT_INVALID: ToolEnvelopeFailure = Object.freeze({
   success: false,
-  error: Object.freeze({ code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" }),
+  error: Object.freeze({
+    code: "TOOL_OUTPUT_INVALID",
+    message: "Tool output failed schema validation",
+  }),
 });
 
 function readonlyFailure(code: string, message: string): ToolEnvelopeFailure {
-  return Object.freeze({ success: false, error: Object.freeze({ code, message }) });
+  return Object.freeze({
+    success: false,
+    error: Object.freeze({ code, message }),
+  });
 }
 
 function deepFreezeResult<T>(value: T, seen = new WeakSet<object>()): T {
-  if (value === null || typeof value !== "object" || seen.has(value)) return value;
+  if (value === null || typeof value !== "object" || seen.has(value))
+    return value;
   seen.add(value);
-  for (const child of Object.values(value as Record<string, unknown>)) deepFreezeResult(child, seen);
+  for (const child of Object.values(value as Record<string, unknown>))
+    deepFreezeResult(child, seen);
   return Object.freeze(value);
 }
 
@@ -57,7 +71,10 @@ function deepFreezeResult<T>(value: T, seen = new WeakSet<object>()): T {
  * AgentsError, ComplianceError) keep their code; everything else gets
  * fallbackCode.
  */
-export function envelopeFailure(err: unknown, fallbackCode = "TOOL_ERROR"): ToolEnvelopeFailure {
+export function envelopeFailure(
+  err: unknown,
+  fallbackCode = "TOOL_ERROR",
+): ToolEnvelopeFailure {
   let code = fallbackCode;
   let message = "Unknown error";
   try {
@@ -102,7 +119,10 @@ export interface TenantToolContext {
  * a defineActuarialTool execute the wrapper converts that throw into the
  * failure envelope, so the model sees a recoverable error, never a crash.
  */
-export function tenantOf(context: TenantToolContext | undefined, key = "projectId"): string {
+export function tenantOf(
+  context: TenantToolContext | undefined,
+  key = "projectId",
+): string {
   return resolveTenant(context, { source: "request-context", key });
 }
 
@@ -121,7 +141,9 @@ export interface McpContextLike {
  * the transport-by-transport story). Returns undefined when no auth info is
  * present — the caller decides that is fatal.
  */
-export function resolveMcpAuthInfo(context: McpContextLike | undefined): McpAuthInfoLike | undefined {
+export function resolveMcpAuthInfo(
+  context: McpContextLike | undefined,
+): McpAuthInfoLike | undefined {
   if (!context) return undefined;
 
   // Primary: the streamable-HTTP call path passes the transport extra at
@@ -139,7 +161,9 @@ export function resolveMcpAuthInfo(context: McpContextLike | undefined): McpAuth
 
     // Lock-tested @mastra/mcp 1.17.3: createProxiedRequestContext copies each
     // extra key onto the RequestContext verbatim, so authInfo is top-level.
-    const topLevelAuthInfo = requestContext.get("authInfo") as McpAuthInfoLike | undefined;
+    const topLevelAuthInfo = requestContext.get("authInfo") as
+      | McpAuthInfoLike
+      | undefined;
     if (topLevelAuthInfo) return topLevelAuthInfo;
   }
   return undefined;
@@ -196,7 +220,9 @@ export function resolveTenant(
 const TENANT_KEY_PATTERN = /^(project|tenant)[_-]?id$/i;
 
 /** Top-level shape keys of a zod object schema, or null when not an object schema. */
-export function zodObjectShape(schema: unknown): Record<string, unknown> | null {
+export function zodObjectShape(
+  schema: unknown,
+): Record<string, unknown> | null {
   if (typeof schema !== "object" || schema === null) return null;
   const def = (schema as { _def?: { typeName?: unknown } })._def;
   if (def?.typeName !== "ZodObject") return null;
@@ -302,7 +328,15 @@ function assertNoTenantKeys(
   }
   stack.add(schema);
   try {
-    lintSchemaNode(schema, toolId, path, allowUninspected, usedAllowances, stack, depth);
+    lintSchemaNode(
+      schema,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth,
+    );
   } finally {
     stack.delete(schema);
   }
@@ -343,7 +377,15 @@ function lintSchemaNode(
           `Tool "${toolId}" declares input key "${path}.${key}": tenant ids travel only via the server-set RequestContext (read them with tenantOf), never through the model-facing input schema`,
         );
       }
-      assertNoTenantKeys(value, toolId, `${path}.${key}`, allowUninspected, usedAllowances, stack, depth + 1);
+      assertNoTenantKeys(
+        value,
+        toolId,
+        `${path}.${key}`,
+        allowUninspected,
+        usedAllowances,
+        stack,
+        depth + 1,
+      );
     }
     return;
   }
@@ -369,13 +411,21 @@ function lintSchemaNode(
     throw new AgentsError(
       "BAD_INPUT_SCHEMA",
       `Tool "${toolId}": the ${typeName} at "${path}" admits values the tenant lint cannot ` +
-        'inspect. Either declare the shape with typed keys, or — if this input is validated ' +
-        'downstream (parseDocument etc.) — name the exact path in `allowUninspected` so the ' +
+        "inspect. Either declare the shape with typed keys, or — if this input is validated " +
+        "downstream (parseDocument etc.) — name the exact path in `allowUninspected` so the " +
         "exception is deliberate and greppable",
     );
   }
   if (typeName === "ZodArray") {
-    assertNoTenantKeys(def.type, toolId, `${path}[]`, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.type,
+      toolId,
+      `${path}[]`,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (
@@ -385,49 +435,146 @@ function lintSchemaNode(
     typeName === "ZodCatch" ||
     typeName === "ZodReadonly"
   ) {
-    assertNoTenantKeys(def.innerType, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.innerType,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (typeName === "ZodPromise" || typeName === "ZodBranded") {
-    assertNoTenantKeys(def.type, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.type,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (typeName === "ZodEffects") {
-    assertNoTenantKeys(def.schema, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.schema,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (typeName === "ZodUnion" || typeName === "ZodDiscriminatedUnion") {
-    for (const opt of def.options ?? []) assertNoTenantKeys(opt, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    for (const opt of def.options ?? [])
+      assertNoTenantKeys(
+        opt,
+        toolId,
+        path,
+        allowUninspected,
+        usedAllowances,
+        stack,
+        depth + 1,
+      );
     return;
   }
   if (typeName === "ZodTuple") {
     for (const [index, item] of (def.items ?? []).entries()) {
-      assertNoTenantKeys(item, toolId, `${path}[${index}]`, allowUninspected, usedAllowances, stack, depth + 1);
+      assertNoTenantKeys(
+        item,
+        toolId,
+        `${path}[${index}]`,
+        allowUninspected,
+        usedAllowances,
+        stack,
+        depth + 1,
+      );
     }
     if (def.rest !== undefined && def.rest !== null) {
-      assertNoTenantKeys(def.rest, toolId, `${path}[rest]`, allowUninspected, usedAllowances, stack, depth + 1);
+      assertNoTenantKeys(
+        def.rest,
+        toolId,
+        `${path}[rest]`,
+        allowUninspected,
+        usedAllowances,
+        stack,
+        depth + 1,
+      );
     }
     return;
   }
   if (typeName === "ZodIntersection") {
-    assertNoTenantKeys(def.left, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
-    assertNoTenantKeys(def.right, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.left,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
+    assertNoTenantKeys(
+      def.right,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (typeName === "ZodPipeline") {
-    assertNoTenantKeys(def.in, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
-    assertNoTenantKeys(def.out, toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.in,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
+    assertNoTenantKeys(
+      def.out,
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (typeName === "ZodSet") {
-    assertNoTenantKeys(def.valueType, toolId, `${path}[]`, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.valueType,
+      toolId,
+      `${path}[]`,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
   if (typeName === "ZodLazy") {
     // Resolve once. A self-referential lazy resolves to a node already on the
     // recursion stack and is caught by the cycle guard in assertNoTenantKeys;
     // a generative lazy (fresh node per resolution) hits the frame budget.
-    assertNoTenantKeys(def.getter?.(), toolId, path, allowUninspected, usedAllowances, stack, depth + 1);
+    assertNoTenantKeys(
+      def.getter?.(),
+      toolId,
+      path,
+      allowUninspected,
+      usedAllowances,
+      stack,
+      depth + 1,
+    );
     return;
   }
 
@@ -481,7 +628,11 @@ interface DefineActuarialToolCommon<TShape extends z.ZodRawShape, TResult> {
    * Optional observable-result schema. It must admit the complete success /
    * failure union because validation errors are ordinary tool results.
    */
-  outputSchema?: z.ZodType<TResult | ToolEnvelopeFailure, z.ZodTypeDef, unknown>;
+  outputSchema?: z.ZodType<
+    TResult | ToolEnvelopeFailure,
+    z.ZodTypeDef,
+    unknown
+  >;
 }
 
 /**
@@ -541,7 +692,9 @@ export type DefinedActuarialTool<TInput, TOutput> = Omit<
   execute: (input: TInput, context: ActuarialToolContext) => Promise<TOutput>;
 };
 
-function metadataBridge(schema: z.ZodTypeAny): StandardSchemaWithJSON<unknown, unknown> {
+function metadataBridge(
+  schema: z.ZodTypeAny,
+): StandardSchemaWithJSON<unknown, unknown> {
   const real = toStandardSchema(schema);
   return {
     "~standard": {
@@ -559,7 +712,12 @@ function metadataBridge(schema: z.ZodTypeAny): StandardSchemaWithJSON<unknown, u
 function isFailure(value: unknown): value is ToolEnvelopeFailure {
   if (value === null || typeof value !== "object") return false;
   const candidate = value as { success?: unknown; error?: unknown };
-  if (candidate.success !== false || candidate.error === null || typeof candidate.error !== "object") return false;
+  if (
+    candidate.success !== false ||
+    candidate.error === null ||
+    typeof candidate.error !== "object"
+  )
+    return false;
   const error = candidate.error as { code?: unknown; message?: unknown };
   return typeof error.code === "string" && typeof error.message === "string";
 }
@@ -578,7 +736,10 @@ function sameJson(left: unknown, right: unknown): boolean {
  */
 export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
   options: DefineActuarialToolOptions<TShape, TResult>,
-): DefinedActuarialTool<z.input<z.ZodObject<TShape>>, TResult | ToolEnvelopeFailure> {
+): DefinedActuarialTool<
+  z.input<z.ZodObject<TShape>>,
+  TResult | ToolEnvelopeFailure
+> {
   // FAIL CLOSED: a schema the seam cannot inspect is not definable, and the
   // tenant-key lint recurses through every container the model could reach.
   const shape = zodObjectShape(options.inputSchema);
@@ -590,7 +751,13 @@ export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
   }
   const allowUninspected = new Set(options.allowUninspected ?? []);
   const usedAllowances = new Set<string>();
-  assertNoTenantKeys(options.inputSchema, options.id, "input", allowUninspected, usedAllowances);
+  assertNoTenantKeys(
+    options.inputSchema,
+    options.id,
+    "input",
+    allowUninspected,
+    usedAllowances,
+  );
   for (const declared of allowUninspected) {
     if (!usedAllowances.has(declared)) {
       throw new AgentsError(
@@ -632,7 +799,9 @@ export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
     id: options.id,
     description: options.description,
     inputSchema: metadataBridge(options.inputSchema),
-    ...(options.outputSchema === undefined ? {} : { outputSchema: metadataBridge(options.outputSchema) }),
+    ...(options.outputSchema === undefined
+      ? {}
+      : { outputSchema: metadataBridge(options.outputSchema) }),
   });
 
   const execute = async (
@@ -672,14 +841,18 @@ export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
       return TOOL_OUTPUT_INVALID;
     }
     if (!parsedOutput.success) return TOOL_OUTPUT_INVALID;
-    if (isFailure(rawOutput) && !sameJson(parsedOutput.data, rawOutput)) return TOOL_OUTPUT_INVALID;
+    if (isFailure(rawOutput) && !sameJson(parsedOutput.data, rawOutput))
+      return TOOL_OUTPUT_INVALID;
     return deepFreezeResult(parsedOutput.data);
   };
 
   // The metadata bridges deliberately erase domain inference on the inherited
   // Mastra surface. This is the single convergence assertion: the adapter
   // above is the only executor and has the exact public input/output contract.
-  const defined = Object.assign(tool, { execute, kind: options.kind }) as DefinedActuarialTool<
+  const defined = Object.assign(tool, {
+    execute,
+    kind: options.kind,
+  }) as DefinedActuarialTool<
     z.input<z.ZodObject<TShape>>,
     TResult | ToolEnvelopeFailure
   >;
@@ -710,10 +883,10 @@ export interface ActuarialToolRegistry<T extends RegistrableActuarialTool> {
 export function toolRegistry<T extends RegistrableActuarialTool>(
   tools: readonly T[],
 ): ActuarialToolRegistry<T> {
-  const record: Record<string, T> = {};
+  const record = Object.create(null) as Record<string, T>;
   const actionToolIds = new Set<string>();
   for (const tool of tools) {
-    if (record[tool.id]) {
+    if (Object.prototype.hasOwnProperty.call(record, tool.id)) {
       throw new AgentsError(
         "DUPLICATE_TOOL_ID",
         `Two tools share the id "${tool.id}"; tool ids must be unique within a registry`,

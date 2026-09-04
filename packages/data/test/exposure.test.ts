@@ -24,19 +24,28 @@ describe("parseExposureCsv", () => {
       "origin,exposure_units,gross_written_premium,source_claim_count\n1995,148600,25700000,26775\n",
     );
     expect(result).toEqual({
-      exposures: [{ origin: "1995", earnedPremium: null, exposureUnits: 148600 }],
+      exposures: [
+        { origin: "1995", earnedPremium: null, exposureUnits: 148600 },
+      ],
       errors: [],
     });
   });
 
   it("reports malformed rows without partially interpreting their amounts", () => {
     const result = parseExposureCsv(
-      "origin,earned_premium,exposure_units\n2022,\"1,000\",10\n2023,,\n,100,10\n",
+      'origin,earned_premium,exposure_units\n2022,"1,000",10\n2023,,\n,100,10\n',
     );
     expect(result.exposures).toEqual([]);
     expect(result.errors).toEqual([
-      { row: 2, message: 'earned_premium must be blank or an unformatted finite decimal (got "1,000")' },
-      { row: 3, message: "earned_premium and exposure_units cannot both be blank" },
+      {
+        row: 2,
+        message:
+          'earned_premium must be blank or an unformatted finite decimal (got "1,000")',
+      },
+      {
+        row: 3,
+        message: "earned_premium and exposure_units cannot both be blank",
+      },
       { row: 4, message: "origin is required" },
     ]);
   });
@@ -55,9 +64,17 @@ describe("parseExposureCsv", () => {
   });
 
   it("requires origin and at least one supported exposure measure", () => {
-    expect(() => parseExposureCsv("exposure_units\n100\n")).toThrow(ReservingError);
-    expect(() => parseExposureCsv("origin,gross_written_premium\n2022,100\n")).toThrow(
-      /earned_premium, exposure_units, or both/,
+    expect(() => parseExposureCsv("exposure_units\n100\n")).toThrow(
+      ReservingError,
     );
+    expect(() =>
+      parseExposureCsv("origin,gross_written_premium\n2022,100\n"),
+    ).toThrow(/earned_premium, exposure_units, or both/);
+  });
+
+  it("rejects duplicate normalized headers", () => {
+    expect(() =>
+      parseExposureCsv("origin,exposure_units,Exposure Units\n2022,100,999\n"),
+    ).toThrow(/Duplicate normalized column\(s\): exposure_units/);
   });
 });

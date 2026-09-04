@@ -41,13 +41,19 @@ import {
   createBundle,
   createDiagnosticRunIdentity,
 } from "@actuarial-ts/compliance";
-import { docToDiagnosticDefinition, parseDocument } from "@actuarial-ts/interchange";
+import {
+  docToDiagnosticDefinition,
+  parseDocument,
+} from "@actuarial-ts/interchange";
 import { SOURCE } from "./sourceManifest.js";
 
 export { SOURCE } from "./sourceManifest.js";
 
 const GENERATED_AT = "2026-07-23T00:00:00Z";
-const decimalString = z.string().regex(/^-?\d+(\.\d+)?$/).transform(Number);
+const decimalString = z
+  .string()
+  .regex(/^-?\d+(\.\d+)?$/)
+  .transform(Number);
 const longRowSchema = z
   .object({
     origin: z.string().regex(/^\d{4}$/),
@@ -87,10 +93,15 @@ function exampleFile(name: string): string {
   return readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
 }
 
-function recordsFromCsv(text: string, expectedHeaders: readonly string[]): Record<string, string>[] {
+function recordsFromCsv(
+  text: string,
+  expectedHeaders: readonly string[],
+): Record<string, string>[] {
   const parsed = parseCsv(text);
   if (parsed.warnings.length > 0) {
-    throw new Error(`Generated CSV is structurally invalid: ${parsed.warnings.join("; ")}`);
+    throw new Error(
+      `Generated CSV is structurally invalid: ${parsed.warnings.join("; ")}`,
+    );
   }
   const headers = parsed.rows[0] ?? [];
   if (
@@ -101,20 +112,29 @@ function recordsFromCsv(text: string, expectedHeaders: readonly string[]): Recor
       `Generated CSV headers must be ${expectedHeaders.join(",")} (got ${headers.join(",")})`,
     );
   }
-  return parsed.rows.slice(1).map((cells) =>
-    Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""])),
-  );
+  return parsed.rows
+    .slice(1)
+    .map((cells) =>
+      Object.fromEntries(
+        headers.map((header, index) => [header, cells[index] ?? ""]),
+      ),
+    );
 }
 
 function loadTriangle(filename: string, kind: TriangleKind): Triangle {
-  const rows: LongFormatRow[] = recordsFromCsv(dataFile(filename), ["origin", "age", "value"]).map(
-    (record) => longRowSchema.parse(record),
-  );
+  const rows: LongFormatRow[] = recordsFromCsv(dataFile(filename), [
+    "origin",
+    "age",
+    "value",
+  ]).map((record) => longRowSchema.parse(record));
   return triangleFromLongFormat(rows, { kind });
 }
 
 function loadQuality(): SourceQuality {
-  const entries = recordsFromCsv(dataFile("quality-summary.csv"), ["metric", "value"]).map(
+  const entries = recordsFromCsv(dataFile("quality-summary.csv"), [
+    "metric",
+    "value",
+  ]).map(
     (record) => [record.metric, decimalString.parse(record.value)] as const,
   );
   return qualitySchema.parse(Object.fromEntries(entries));
@@ -125,7 +145,9 @@ function allWeightedSelections(triangle: Triangle): LdfSelections {
     (candidate) => candidate.spec.key === "all-wtd",
   );
   if (average === undefined || average.values.some((value) => value === null)) {
-    throw new Error(`A complete all-year volume-weighted selection is unavailable for ${triangle.kind}`);
+    throw new Error(
+      `A complete all-year volume-weighted selection is unavailable for ${triangle.kind}`,
+    );
   }
   return { selected: [...average.values], tailFactor: 1 };
 }
@@ -139,9 +161,14 @@ function summarize(checks: DataCheck[]): DataReviewReport["summary"] {
   return summary;
 }
 
-function sourceQualityChecks(quality: SourceQuality, basis: LossBasis): DataCheck[] {
+function sourceQualityChecks(
+  quality: SourceQuality,
+  basis: LossBasis,
+): DataCheck[] {
   const negativeCase =
-    basis === "net" ? quality.negative_net_case_records : quality.negative_gross_case_records;
+    basis === "net"
+      ? quality.negative_net_case_records
+      : quality.negative_gross_case_records;
   const checks: Omit<DataCheck, "findings">[] = [
     {
       id: "source-integrity",
@@ -180,7 +207,8 @@ function sourceQualityChecks(quality: SourceQuality, basis: LossBasis): DataChec
     },
     {
       id: "source-paid-decreasing",
-      description: "Combined cumulative paid does not decrease between annual evaluations",
+      description:
+        "Combined cumulative paid does not decrease between annual evaluations",
       status: quality.paid_decrease_transitions > 0 ? "warning" : "pass",
       details:
         quality.paid_decrease_transitions > 0
@@ -204,16 +232,24 @@ function sourceQualityChecks(quality: SourceQuality, basis: LossBasis): DataChec
     },
     {
       id: "exposure-semantics",
-      description: "Insurance-year exposure is kept distinct from gross written premium",
+      description:
+        "Insurance-year exposure is kept distinct from gross written premium",
       status: "pass",
-      details: ["GWP is retained in the source CSV and is not loaded as earned premium"],
+      details: [
+        "GWP is retained in the source CSV and is not loaded as earned premium",
+      ],
     },
   ];
   return checks.map((check) => ({
     ...check,
-    findings: check.status === "pass" || check.status === "not-evaluated"
-      ? []
-      : check.details.map((message) => ({ code: check.id, message, context: {} })),
+    findings:
+      check.status === "pass" || check.status === "not-evaluated"
+        ? []
+        : check.details.map((message) => ({
+            code: check.id,
+            message,
+            context: {},
+          })),
   }));
 }
 
@@ -224,7 +260,10 @@ function combinedReview(
   basis: LossBasis,
 ): DataReviewReport {
   const triangleReview = reviewTriangles(paid, incurred);
-  const checks = [...sourceQualityChecks(quality, basis), ...triangleReview.checks];
+  const checks = [
+    ...sourceQualityChecks(quality, basis),
+    ...triangleReview.checks,
+  ];
   return { checks, summary: summarize(checks) };
 }
 
@@ -248,13 +287,16 @@ function buildLedger(basis: LossBasis): AssumptionLedger {
     },
     {
       field: "source.dateConvention",
-      value: "annual precision; calendar-year-end when ClaimSnapshot dates are required",
+      value:
+        "annual precision; calendar-year-end when ClaimSnapshot dates are required",
       source: "OccurYear and ManagYear",
-      rationale: "The source supplies years only, so no false day-level precision is asserted.",
+      rationale:
+        "The source supplies years only, so no false day-level precision is asserted.",
     },
     {
       field: "source.duplicatePolicy",
-      value: "combine same-ID/same-year dollar streams; retain source ClaimNb for frequency",
+      value:
+        "combine same-ID/same-year dollar streams; retain source ClaimNb for frequency",
       source: "quality-summary.csv",
       rationale:
         "The source identifier cannot distinguish the colliding records; summing preserves aggregate dollars while source ClaimNb preserves frequency.",
@@ -292,7 +334,9 @@ function buildLedger(basis: LossBasis): AssumptionLedger {
   );
 }
 
-const optionsSchema = z.object({ basis: z.enum(["gross", "net"]).default("net") }).strict();
+const optionsSchema = z
+  .object({ basis: z.enum(["gross", "net"]).default("net") })
+  .strict();
 
 export interface RealWorldReviewOptions {
   basis?: LossBasis;
@@ -336,7 +380,9 @@ const diagnosticCounts = {
   closedWithPay: "closed-with-pay",
 } as const;
 
-function amountMeasure(id: "gross-paid" | "gross-incurred" | "net-paid" | "net-incurred") {
+function amountMeasure(
+  id: "gross-paid" | "gross-incurred" | "net-paid" | "net-incurred",
+) {
   return {
     id,
     displayName: id,
@@ -358,21 +404,23 @@ export function buildRealWorldDiagnosticDefinition(): DiagnosticDefinition {
     ["closed-no-pay", "Closed no pay", "cumulative"],
     ["closed-with-pay", "Closed with pay", "cumulative"],
   ] as const;
-  const countMeasures: DiagnosticDefinition["measures"] = countMeasureInputs.map(
-    ([id, displayName, developmentSemantics]) => ({
-    id,
-    displayName,
-    description: `${displayName} claims under the documented adapted source-state mapping`,
-    source: "loss",
-    kind: "count",
-    unit: "claim",
-    developmentSemantics,
-    aggregation: "sum",
-    missing: "unknown",
-    countPopulationId: "adapted-source-claims",
-    }),
-  );
-  const measure = (measureId: string) => ({ op: "measure" as const, measureId });
+  const countMeasures: DiagnosticDefinition["measures"] =
+    countMeasureInputs.map(([id, displayName, developmentSemantics]) => ({
+      id,
+      displayName,
+      description: `${displayName} claims under the documented adapted source-state mapping`,
+      source: "loss",
+      kind: "count",
+      unit: "claim",
+      developmentSemantics,
+      aggregation: "sum",
+      missing: "unknown",
+      countPopulationId: "adapted-source-claims",
+    }));
+  const measure = (measureId: string) => ({
+    op: "measure" as const,
+    measureId,
+  });
   const instances = createCasualtyMetricInstances({
     counts: diagnosticCounts,
     exposure: "insurance-years",
@@ -436,7 +484,11 @@ export function buildRealWorldDiagnosticDefinition(): DiagnosticDefinition {
         currency: "EUR",
         perspective: "gross",
         components: [
-          { id: "indemnity", treatment: "included", limitation: { kind: "unlimited" } },
+          {
+            id: "indemnity",
+            treatment: "included",
+            limitation: { kind: "unlimited" },
+          },
         ],
       },
       {
@@ -471,8 +523,58 @@ export function buildRealWorldDiagnosticDefinition(): DiagnosticDefinition {
           direction: "nondecreasing",
         },
       ],
-      layerOrders: [],
-      controlTotals: [],
+      layerOrders: [
+        {
+          id: "casualty/review/net-paid-not-above-gross",
+          narrower: measure("net-paid"),
+          broader: measure("gross-paid"),
+          comparability: {
+            kind: "caller-asserted",
+            rationaleArtifactId: "source-manifest",
+          },
+        },
+        {
+          id: "casualty/review/net-incurred-not-above-gross",
+          narrower: measure("net-incurred"),
+          broader: measure("gross-incurred"),
+          comparability: {
+            kind: "caller-asserted",
+            rationaleArtifactId: "source-manifest",
+          },
+        },
+      ],
+      controlTotals: [
+        {
+          id: "casualty/review/gross-paid-latest-control",
+          expression: measure("gross-paid"),
+          expected: 1_270_226_285,
+          projection: { kind: "latest-valuation-per-origin" },
+        },
+        {
+          id: "casualty/review/gross-incurred-latest-control",
+          expression: measure("gross-incurred"),
+          expected: 1_275_704_235,
+          projection: { kind: "latest-valuation-per-origin" },
+        },
+        {
+          id: "casualty/review/net-paid-latest-control",
+          expression: measure("net-paid"),
+          expected: 858_912_975,
+          projection: { kind: "latest-valuation-per-origin" },
+        },
+        {
+          id: "casualty/review/net-incurred-latest-control",
+          expression: measure("net-incurred"),
+          expected: 860_950_725,
+          projection: { kind: "latest-valuation-per-origin" },
+        },
+        {
+          id: "casualty/review/exposure-control",
+          expression: measure("insurance-years"),
+          expected: 4_642_000,
+          projection: { kind: "latest-valuation-per-origin" },
+        },
+      ],
     }),
     periodAxis: {
       kind: "calendar",
@@ -513,7 +615,8 @@ export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosti
   ]).map((row) => diagnosticRowSchema.parse(row));
   const exposureText = dataFile("exposures.csv");
   const exposureRows = parseExposureCsv(exposureText);
-  if (exposureRows.errors.length > 0) throw new Error("Exposure derivative is invalid");
+  if (exposureRows.errors.length > 0)
+    throw new Error("Exposure derivative is invalid");
 
   const definition = buildRealWorldDiagnosticDefinition();
   const outcome = runValidatedMetricDiagnostics(
@@ -555,9 +658,15 @@ export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosti
           sourceRow: index + 2,
         },
       })),
-      filter: { instanceIds: definition.instances.map((instance) => instance.id) },
+      filter: {
+        instanceIds: definition.instances.map((instance) => instance.id),
+      },
       completePeriodCutoffs: [
-        { sourceGroup: "motor", originThrough: "2014", valuationThrough: "2014" },
+        {
+          sourceGroup: "motor",
+          originThrough: "2014",
+          valuationThrough: "2014",
+        },
       ],
       runPresetId: "freclaimset2motor-all-annual-v1",
       datasetArtifactId: "diagnostic-snapshots",
@@ -571,48 +680,46 @@ export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosti
   const encoder = new TextEncoder();
   const provenance = await createDiagnosticRunIdentity({
     completedRun: outcome,
-    artifacts: [
+    inputArtifacts: [
       {
         id: "source-archive",
-        scope: "input",
         assurance: "caller-declared",
         algorithm: "sha-256",
         value: SOURCE.sourceSha256,
-        byteLength: SOURCE.sourceByteLength,
-      },
-      {
-        id: "source-manifest",
-        scope: "preparation",
-        assurance: "sdk-computed",
-        bytes: encoder.encode(exampleFile("source-manifest.json")),
-      },
-      {
-        id: "transform-script",
-        scope: "preparation",
-        assurance: "sdk-computed",
-        bytes: encoder.encode(exampleFile("scripts/transform-source.R")),
       },
       {
         id: "diagnostic-snapshots",
-        scope: "input",
         assurance: "sdk-computed",
         bytes: encoder.encode(snapshotText),
       },
       {
         id: "exposures",
-        scope: "input",
         assurance: "sdk-computed",
         bytes: encoder.encode(exposureText),
       },
     ],
-    lineage: [
+    preparationArtifacts: [
       {
-        artifactId: "diagnostic-snapshots",
-        inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
+        id: "source-manifest",
+        assurance: "sdk-computed",
+        bytes: encoder.encode(exampleFile("source-manifest.json")),
       },
       {
-        artifactId: "exposures",
-        inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
+        id: "transform-script",
+        assurance: "sdk-computed",
+        bytes: encoder.encode(exampleFile("scripts/transform-source.R")),
+      },
+    ],
+    preparationLineage: [
+      {
+        outputArtifactId: "diagnostic-snapshots",
+        inputArtifactIds: ["source-archive"],
+        transformationArtifactIds: ["source-manifest", "transform-script"],
+      },
+      {
+        outputArtifactId: "exposures",
+        inputArtifactIds: ["source-archive"],
+        transformationArtifactIds: ["source-manifest", "transform-script"],
       },
     ],
   });
@@ -620,7 +727,12 @@ export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosti
     inputs: { source: SOURCE },
     parameters: { preset: outcome.runPresetId },
     results: outcome.result,
-    sdkVersions: { ...provenance.manifest.packageVersions },
+    sdkVersions: {
+      "@actuarial-ts/core": provenance.manifest.engine.packages.core,
+      "@actuarial-ts/data": provenance.manifest.engine.packages.data,
+      "@actuarial-ts/compliance":
+        provenance.manifest.engine.packages.compliance,
+    },
     createdAt: GENERATED_AT,
     diagnosticRuns: [provenance],
     wrap: { triangles: [], selections: [], results: [] },
@@ -656,7 +768,9 @@ export function runRealWorldLossRunReview(
     );
   }
   const exposures = exposureResult.exposures;
-  const exposureByOrigin = new Map(exposures.map((record) => [record.origin, record]));
+  const exposureByOrigin = new Map(
+    exposures.map((record) => [record.origin, record]),
+  );
 
   const paidSelections = allWeightedSelections(paid);
   const incurredSelections = allWeightedSelections(incurred);
@@ -668,7 +782,12 @@ export function runRealWorldLossRunReview(
       if (exposure === null || exposure === undefined) {
         throw new Error(`No insurance-year exposure for origin ${row.origin}`);
       }
-      return { origin: row.origin, reported: row.latestValue, cdf: row.cdf, premium: exposure };
+      return {
+        origin: row.origin,
+        reported: row.latestValue,
+        cdf: row.cdf,
+        premium: exposure,
+      };
     }),
     { baseIsPurePremium: true },
   );
@@ -707,7 +826,11 @@ export function runRealWorldLossRunReview(
       {
         methodId: "capeCod",
         basisLabel: `${basis} incurred per insurance-year exposure`,
-        parameters: { base: "insurance-years", baseIsPurePremium: true, decay: 1 },
+        parameters: {
+          base: "insurance-years",
+          baseIsPurePremium: true,
+          decay: 1,
+        },
         resultSummary: {
           ultimate: capeCod.totals.ultimate,
           ibnr: capeCod.totals.ultimate - capeCod.totals.reported,
@@ -737,10 +860,17 @@ export function runRealWorldLossRunReview(
     source: SOURCE,
     quality,
     exposureYears: exposures.length,
-    totalExposureUnits: exposures.reduce((sum, record) => sum + (record.exposureUnits ?? 0), 0),
-    earnedPremiumRows: exposures.filter((record) => record.earnedPremium !== null).length,
-    triangleCellsPerBasis: paid.values.flat().filter((value) => value !== null).length,
-    selectedLdfs: paidSelections.selected.length + incurredSelections.selected.length,
+    totalExposureUnits: exposures.reduce(
+      (sum, record) => sum + (record.exposureUnits ?? 0),
+      0,
+    ),
+    earnedPremiumRows: exposures.filter(
+      (record) => record.earnedPremium !== null,
+    ).length,
+    triangleCellsPerBasis: paid.values.flat().filter((value) => value !== null)
+      .length,
+    selectedLdfs:
+      paidSelections.selected.length + incurredSelections.selected.length,
     paid: paidResult.totals,
     incurred: incurredResult.totals,
     capeCod: {
@@ -767,7 +897,10 @@ export async function realWorldCanonicalOutcome(): Promise<string> {
 }
 
 /* c8 ignore start -- CLI entry; the tested function above owns the behavior. */
-if (process.argv[1]?.endsWith("main.ts") || process.argv[1]?.endsWith("main.js")) {
+if (
+  process.argv[1]?.endsWith("main.ts") ||
+  process.argv[1]?.endsWith("main.js")
+) {
   if (process.argv.includes("--format=canonical-json")) {
     process.stdout.write(`${await realWorldCanonicalOutcome()}\n`);
   } else {
@@ -778,9 +911,15 @@ if (process.argv[1]?.endsWith("main.ts") || process.argv[1]?.endsWith("main.js")
         currency: "EUR",
         maximumFractionDigits: 0,
       });
-    console.log("CASdatasets freclaimset2motor — real-world net motor development\n");
-    console.log(`  source rows          ${outcome.quality.source_claim_rows.toLocaleString("en-US")}`);
-    console.log(`  insurance-years      ${outcome.totalExposureUnits.toLocaleString("en-US")}`);
+    console.log(
+      "CASdatasets freclaimset2motor — real-world net motor development\n",
+    );
+    console.log(
+      `  source rows          ${outcome.quality.source_claim_rows.toLocaleString("en-US")}`,
+    );
+    console.log(
+      `  insurance-years      ${outcome.totalExposureUnits.toLocaleString("en-US")}`,
+    );
     console.log(`  paid CL unpaid       ${money(outcome.paid.unpaid)}`);
     console.log(`  incurred CL IBNR     ${money(outcome.incurred.unpaid)}`);
     console.log(`  Cape Cod IBNR        ${money(outcome.capeCod.ibnr)}`);

@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "mack-1993-taylor-ashe",
+      "citation": "Mack (1993), ASTIN Bulletin 23(2), Tables 1-3",
+      "location": "Tables 1-3, pp. 216-219",
+      "url": "https://www.casact.org/sites/default/files/database/astin_vol23no2_213.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/mack1993.ts",
+        "sha256": "77bced94383da00823464e4f657de73beb0798b66f38438abbd5f111d1bfe8a0"
+      },
+      "method": "Mack chain ladder, alpha=1",
+      "outputs": "factors, reserves, sigma-squared, origin/total standard errors",
+      "toleranceRationale": "Paper printing precision; exact engine total SE is separately pinned.",
+      "test": {
+        "path": "packages/core/test/validation.test.ts",
+        "implementationId": "Mack (1993) Tables 1-3: Taylor/Ashe standard errors"
+      },
+      "shores": ["typescript", "python", "r"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "mack-1993-mortgage",
+      "citation": "Mack (1993), ASTIN Bulletin 23(2), Tables 4-6",
+      "location": "Tables 4-6, pp. 220-222",
+      "url": "https://www.casact.org/sites/default/files/database/astin_vol23no2_213.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/mack1993.ts",
+        "sha256": "77bced94383da00823464e4f657de73beb0798b66f38438abbd5f111d1bfe8a0"
+      },
+      "method": "Mack chain ladder, alpha=1",
+      "outputs": "factors, reserves, sigma-squared, origin/total standard errors",
+      "toleranceRationale": "Paper printing precision; mortgage total-SE regression is mandatory.",
+      "test": {
+        "path": "packages/core/test/validation.test.ts",
+        "implementationId": "Mack (1993) Tables 4-6: mortgage guarantee data"
+      },
+      "shores": ["typescript", "python", "r"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "mack-1999-tail",
+      "citation": "Mack (1999), ASTIN Bulletin 29(2), Tables 1-2",
+      "location": "Tables 1-2, pp. 365-366",
+      "url": "https://www.casact.org/sites/default/files/database/astin_vol29no2_361.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/mack1993.ts",
+        "sha256": "77bced94383da00823464e4f657de73beb0798b66f38438abbd5f111d1bfe8a0"
+      },
+      "method": "Mack recursive standard error with tail factor 1.05, tail estimation SE 0.02, tail sigma 71",
+      "outputs": "nine ultimates, nine tail standard errors, total ultimate 48,906 and total SE 4,054 (thousands)",
+      "toleranceRationale": "All printed amounts are in thousands; tolerance is one printed unit.",
+      "test": {
+        "path": "packages/core/test/validation.test.ts",
+        "implementationId": "reproduces every Mack (1999) Table 2 tail standard error and the total"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "mack-1994-raa-diagnostics",
+      "citation": "Mack (1994), CAS Forum Spring 1994",
+      "location": "Appendices G-H, pp. 160-173",
+      "url": "https://www.casact.org/sites/default/files/database/forum_94sforum_94sf101.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/mack1994raa.ts",
+        "sha256": "b9db90483a7b4cca8dce74d6d629467f30c5d142c87b8e93eeaf5301965d9cae"
+      },
+      "method": "Mack correlation and calendar-year tests",
+      "outputs": "rank statistics, aggregate statistic/variance/bounds, calendar Z moments",
+      "toleranceRationale": "Exact rational results or source printing precision.",
+      "test": {
+        "path": "packages/core/test/diagnostics.test.ts",
+        "implementationId": "calendarYearTest pinned to Mack 1994 Appendix H"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "mack-2000-benktander",
+      "citation": "Mack (2000), ASTIN Colloquium worked example",
+      "location": "Section 4 numerical example",
+      "url": "https://www.actuaries.org/ASTIN/Colloquia/Porto_Cervo/Mack.pdf",
+      "fixture": {
+        "path": "packages/core/test/benktander.test.ts",
+        "sha256": "4b2e6aab3d37ac7fad20c4597e03ceaa734bd417309500c108b82159f1bb7779"
+      },
+      "method": "Benktander-Hovinen",
+      "outputs": "worked-example row and total ultimates",
+      "toleranceRationale": "Source printing precision.",
+      "test": {
+        "path": "packages/core/test/benktander.test.ts",
+        "implementationId": "reproduces Mack (2000) Section 4's published numerical example"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "clark-2003",
+      "citation": "Clark (2003), CAS Forum Fall 2003",
+      "location": "Section 4, pp. 59-69",
+      "url": "https://www.casact.org/sites/default/files/database/forum_03fforum_03ff041.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/clark2003.ts",
+        "sha256": "bdc80c4b4753936d23e4286d6ce162fd3bac21ac1b02779a3de4e12edbed3978"
+      },
+      "method": "Clark LDF and Cape Cod MLE",
+      "outputs": "parameters, rows, totals, dispersion and variance tables",
+      "toleranceRationale": "Published table precision.",
+      "test": {
+        "path": "packages/core/test/clark.test.ts",
+        "implementationId": "Clark (2003) Cape Cod method, loglogistic truncated at 240"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "gluck-1997",
+      "citation": "Gluck (1997), PCAS LXXXIV",
+      "location": "Tables 1-4",
+      "url": "https://www.casact.org/sites/default/files/database/proceed_proceed97_97482.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/gluck1997.ts",
+        "sha256": "1bde6f299dac5d090cfa07e906828ce499c94938c10af5122eed270865a7b57d"
+      },
+      "method": "Generalized Cape Cod",
+      "outputs": "pure premiums and ultimate totals",
+      "toleranceRationale": "Published decimal and whole-thousand precision.",
+      "test": {
+        "path": "packages/core/test/elrMethods.test.ts",
+        "implementationId": "Generalized Cape Cod (Gluck 1997 decay)"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "england-verrall-2002",
+      "citation": "England (2002), IME 31:461-466",
+      "location": "Tables 2-3",
+      "url": "https://doi.org/10.1016/S0167-6687(02)00161-0",
+      "fixture": {
+        "path": "packages/core/test/fixtures/englandVerrall2002.ts",
+        "sha256": "e35feb0c6dc1ba3e6646776dc21c067ae09263fa6c31bf9dcc2506d52a8b7b45"
+      },
+      "method": "ODP bootstrap with process simulation",
+      "outputs": "mean, per-origin prediction errors and distribution bands",
+      "toleranceRationale": "Tolerances reflect stochastic sampling error documented in the fixture.",
+      "test": {
+        "path": "packages/core/test/odpBootstrap.test.ts",
+        "implementationId": "reproduces the England (2002) Table 3 predictive distribution"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "quarg-mack-2004",
+      "citation": "Quarg and Mack (2004), Munich Chain Ladder",
+      "location": "Section 3.3",
+      "url": "https://www.casact.org/sites/default/files/2021-07/Munich-Chain-Ladder-Quarg-Mack.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/quargMack2004.ts",
+        "sha256": "282bfc6ee0a1aaf3e92fde84d228975119ca760f4dec2f4729cfee11b5ce931c"
+      },
+      "method": "Munich Chain Ladder",
+      "outputs": "parameters and every projected paid/incurred cell",
+      "toleranceRationale": "Paper states calculations used more precision than printed; absolute tolerance follows rounding.",
+      "test": {
+        "path": "packages/core/test/munichChainLadder.test.ts",
+        "implementationId": "reproduces every printed projected cell"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "merz-wuthrich-2008",
+      "citation": "Merz and Wuthrich (2008), CAS E-Forum",
+      "location": "Tables 2 and 4",
+      "url": "https://www.casact.org/sites/default/files/database/forum_08fforum_08f543.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/merzWuthrich2008.ts",
+        "sha256": "345c1b54061c42f9fb1ea4f33bf8ec93c9338c35a05218e551e59181bff4091d"
+      },
+      "method": "one-year CDR and full-runoff MSEP",
+      "outputs": "reserves, origin/total one-year and full-runoff roots",
+      "toleranceRationale": "Relative tolerances follow printed whole-thousand precision.",
+      "test": {
+        "path": "packages/core/test/merzWuthrich.test.ts",
+        "implementationId": "Merz-Wuthrich (2008) published values"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "conger-nolibos-2003",
+      "citation": "Conger and Nolibos (2003), CAS Forum Fall 2003",
+      "location": "Exhibits B-F",
+      "url": "https://www.casact.org/sites/default/files/old/forum_03fforum_03ff093v2.pdf",
+      "fixture": {
+        "path": "packages/core/test/fixtures/congerNolibos2003.ts",
+        "sha256": "2b9af153fd9d3ae36f39d7e29ebdddef53647f676d432c7771ab6d1fdc3edca3"
+      },
+      "method": "ULAE Kittel extensions",
+      "outputs": "input tie-outs, ratios and reserves for Exhibits B-F",
+      "toleranceRationale": "Ratios are printed to three decimals and reserves to whole thousands.",
+      "test": {
+        "path": "packages/core/test/ulae.test.ts",
+        "implementationId": "the exhibits' inputs tie out"
+      },
+      "shores": ["typescript"],
+      "lanes": ["npm test", "validation:source", "release:gate"]
+    },
+    {
+      "id": "jcs-fnv-vectors",
+      "citation": "RFC 8785 JCS plus published FNV-1a vectors",
+      "location": "shared algorithm vector corpus",
+      "url": "https://www.rfc-editor.org/rfc/rfc8785",
+      "fixture": {
+        "path": "schema/interchange/1.0/jcs-vectors.json",
+        "sha256": "fa86e32a769af308e41ea0bf939664a4d468c2138e533f6cb326d54d52d0b558"
+      },
+      "method": "JCS canonicalization and FNV-1a 64",
+      "outputs": "exact canonical bytes and tags",
+      "toleranceRationale": "Exact bytes; no tolerance.",
+      "test": {
+        "path": "packages/core/test/canonical.test.ts",
+        "implementationId": "canonicalJson vs the committed JCS vector suite"
+      },
+      "shores": ["typescript", "python", "r"],
+      "lanes": [
+        "npm test",
+        "test:py",
+        "R interop",
+        "validation:source",
+        "release:gate"
+      ]
+    }
+  ]
+}

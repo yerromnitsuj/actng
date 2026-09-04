@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { RequestContext } from "@mastra/core/request-context";
-import { standardSchemaToJSONSchema, toStandardSchema, type StandardSchemaWithJSON } from "@mastra/core/schema";
+import {
+  standardSchemaToJSONSchema,
+  toStandardSchema,
+  type StandardSchemaWithJSON,
+} from "@mastra/core/schema";
 import { makeCoreTool } from "@mastra/core/utils";
 import { AgentsError } from "../src/errors.js";
 import {
@@ -38,7 +42,9 @@ function expectAgentsError(fn: () => unknown, code: string): AgentsError {
 
 describe("envelopeFailure", () => {
   it("keeps a string code from HttpError-like coded errors", () => {
-    const err = Object.assign(new Error("triangle not found"), { code: "NOT_FOUND" });
+    const err = Object.assign(new Error("triangle not found"), {
+      code: "NOT_FOUND",
+    });
     expect(envelopeFailure(err)).toEqual({
       success: false,
       error: { code: "NOT_FOUND", message: "triangle not found" },
@@ -50,7 +56,9 @@ describe("envelopeFailure", () => {
       success: false,
       error: { code: "TOOL_ERROR", message: "boom" },
     });
-    expect(envelopeFailure(new Error("boom"), "IMPORT_FAILED").error.code).toBe("IMPORT_FAILED");
+    expect(envelopeFailure(new Error("boom"), "IMPORT_FAILED").error.code).toBe(
+      "IMPORT_FAILED",
+    );
   });
 
   it("never throws, even for non-Error values", () => {
@@ -62,7 +70,9 @@ describe("envelopeFailure", () => {
       success: false,
       error: { code: "TOOL_ERROR", message: "Unknown error" },
     });
-    expect(envelopeFailure({ code: "CUSTOM", message: "plain object" })).toEqual({
+    expect(
+      envelopeFailure({ code: "CUSTOM", message: "plain object" }),
+    ).toEqual({
       success: false,
       error: { code: "CUSTOM", message: "plain object" },
     });
@@ -72,9 +82,12 @@ describe("envelopeFailure", () => {
 describe("tenantOf", () => {
   it("reads the tenant id from the request context (default and custom key)", () => {
     expect(tenantOf({ requestContext: contextWithTenant("p-1") })).toBe("p-1");
-    expect(tenantOf({ requestContext: contextWithTenant("acct-9", "accountId") }, "accountId")).toBe(
-      "acct-9",
-    );
+    expect(
+      tenantOf(
+        { requestContext: contextWithTenant("acct-9", "accountId") },
+        "accountId",
+      ),
+    ).toBe("acct-9");
   });
 
   it("throws NO_TENANT_CONTEXT for missing, non-string, or empty ids", () => {
@@ -82,73 +95,238 @@ describe("tenantOf", () => {
     expectAgentsError(() => tenantOf({}), "NO_TENANT_CONTEXT");
     const numeric = new RequestContext();
     numeric.set("projectId", 42);
-    expectAgentsError(() => tenantOf({ requestContext: numeric }), "NO_TENANT_CONTEXT");
+    expectAgentsError(
+      () => tenantOf({ requestContext: numeric }),
+      "NO_TENANT_CONTEXT",
+    );
     const empty = new RequestContext();
     empty.set("projectId", "");
-    expectAgentsError(() => tenantOf({ requestContext: empty }), "NO_TENANT_CONTEXT");
+    expectAgentsError(
+      () => tenantOf({ requestContext: empty }),
+      "NO_TENANT_CONTEXT",
+    );
   });
 });
 
 describe("defineActuarialTool", () => {
   it("parses type-changing input exactly once and exposes identity-validation metadata", async () => {
     let transforms = 0;
-    const inputSchema = z.object({ nested: z.object({ value: z.string().transform((value) => { transforms += 1; return Number(value); }) }) });
+    const inputSchema = z.object({
+      nested: z.object({
+        value: z.string().transform((value) => {
+          transforms += 1;
+          return Number(value);
+        }),
+      }),
+    });
     const tool = defineActuarialTool({
       id: "transformed-input",
       tenant: "none",
       description: "checks once-only parsing",
       kind: "read",
       inputSchema,
-      execute: async (input) => ({ success: true as const, doubled: input.nested.value * 2 }),
+      execute: async (input) => ({
+        success: true as const,
+        doubled: input.nested.value * 2,
+      }),
     });
-    await expect(tool.execute({ nested: { value: "3" } }, toolContext())).resolves.toEqual({ success: true, doubled: 6 });
+    await expect(
+      tool.execute({ nested: { value: "3" } }, toolContext()),
+    ).resolves.toEqual({ success: true, doubled: 6 });
     expect(transforms).toBe(1);
 
     const bridge = tool.inputSchema as StandardSchemaWithJSON<unknown, unknown>;
-    expect(await bridge["~standard"].validate({ nested: { value: "not parsed" } })).toEqual({ value: { nested: { value: "not parsed" } } });
-    expect(standardSchemaToJSONSchema(bridge, { io: "input" })).toEqual(standardSchemaToJSONSchema(toStandardSchema(inputSchema), { io: "input" }));
+    expect(
+      await bridge["~standard"].validate({ nested: { value: "not parsed" } }),
+    ).toEqual({ value: { nested: { value: "not parsed" } } });
+    expect(standardSchemaToJSONSchema(bridge, { io: "input" })).toEqual(
+      standardSchemaToJSONSchema(toStandardSchema(inputSchema), {
+        io: "input",
+      }),
+    );
   });
 
   it("normalizes bad input through both direct execute and public makeCoreTool", async () => {
     let calls = 0;
-    const tool = defineActuarialTool({ id: "core-path", tenant: "none", description: "core conversion", kind: "read", inputSchema: z.object({ n: z.number() }), execute: async () => { calls += 1; return { success: true as const }; } });
-    await expect(tool.execute({ n: "bad" } as never, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_INPUT_INVALID", message: "Tool input failed schema validation" } });
+    const tool = defineActuarialTool({
+      id: "core-path",
+      tenant: "none",
+      description: "core conversion",
+      kind: "read",
+      inputSchema: z.object({ n: z.number() }),
+      execute: async () => {
+        calls += 1;
+        return { success: true as const };
+      },
+    });
+    await expect(
+      tool.execute({ n: "bad" } as never, toolContext()),
+    ).resolves.toEqual({
+      success: false,
+      error: {
+        code: "TOOL_INPUT_INVALID",
+        message: "Tool input failed schema validation",
+      },
+    });
     const requestContext = new RequestContext();
     const core = makeCoreTool(tool, { name: tool.id, requestContext });
-    await expect(core.execute!({ n: "bad" }, { requestContext } as never)).resolves.toEqual({ success: false, error: { code: "TOOL_INPUT_INVALID", message: "Tool input failed schema validation" } });
+    await expect(
+      core.execute!({ n: "bad" }, { requestContext } as never),
+    ).resolves.toEqual({
+      success: false,
+      error: {
+        code: "TOOL_INPUT_INVALID",
+        message: "Tool input failed schema validation",
+      },
+    });
     expect(calls).toBe(0);
   });
 
   it("validates observable output exactly once and rejects success-only schemas", async () => {
-    const failure = z.object({ success: z.literal(false), error: z.object({ code: z.string(), message: z.string() }).strict() }).strict();
-    const success = z.object({ success: z.literal(true), value: z.number() }).strict();
+    const failure = z
+      .object({
+        success: z.literal(false),
+        error: z.object({ code: z.string(), message: z.string() }).strict(),
+      })
+      .strict();
+    const success = z
+      .object({ success: z.literal(true), value: z.number() })
+      .strict();
     let transforms = 0;
-    const output = z.union([success, failure]).transform((value) => { transforms += 1; return value; });
-    const tool = defineActuarialTool({ id: "validated-output", tenant: "none", description: "validates output", kind: "read", inputSchema: z.object({}), outputSchema: output, execute: async () => ({ success: true as const, value: 4 }) });
+    const output = z.union([success, failure]).transform((value) => {
+      transforms += 1;
+      return value;
+    });
+    const tool = defineActuarialTool({
+      id: "validated-output",
+      tenant: "none",
+      description: "validates output",
+      kind: "read",
+      inputSchema: z.object({}),
+      outputSchema: output,
+      execute: async () => ({ success: true as const, value: 4 }),
+    });
     expect(transforms).toBe(1); // the documented construction probe
-    await expect(tool.execute({}, toolContext())).resolves.toEqual({ success: true, value: 4 });
+    await expect(tool.execute({}, toolContext())).resolves.toEqual({
+      success: true,
+      value: 4,
+    });
     expect(transforms).toBe(2);
-    expect(() => defineActuarialTool({ id: "bad-output", tenant: "none", description: "omits failure", kind: "read", inputSchema: z.object({}), outputSchema: success, execute: async () => ({ success: true as const, value: 1 }) })).toThrowError(AgentsError);
+    expect(() =>
+      defineActuarialTool({
+        id: "bad-output",
+        tenant: "none",
+        description: "omits failure",
+        kind: "read",
+        inputSchema: z.object({}),
+        outputSchema: success,
+        execute: async () => ({ success: true as const, value: 1 }),
+      }),
+    ).toThrowError(AgentsError);
   });
 
   it("normalizes malformed, undefined, throwing, and rewritten outputs", async () => {
-    const failure = z.object({ success: z.literal(false), error: z.object({ code: z.string(), message: z.string() }).strict() }).strict();
-    const success = z.object({ success: z.literal(true), value: z.number() }).strict();
+    const failure = z
+      .object({
+        success: z.literal(false),
+        error: z.object({ code: z.string(), message: z.string() }).strict(),
+      })
+      .strict();
+    const success = z
+      .object({ success: z.literal(true), value: z.number() })
+      .strict();
     const output = z.union([success, failure]);
-    const malformed = defineActuarialTool({ id: "malformed-output", tenant: "none", description: "bad body", kind: "read", inputSchema: z.object({}), outputSchema: output, execute: async () => ({ success: true as const, value: "bad" } as never) });
-    await expect(malformed.execute({}, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" } });
+    const malformed = defineActuarialTool({
+      id: "malformed-output",
+      tenant: "none",
+      description: "bad body",
+      kind: "read",
+      inputSchema: z.object({}),
+      outputSchema: output,
+      execute: async () => ({ success: true as const, value: "bad" }) as never,
+    });
+    await expect(malformed.execute({}, toolContext())).resolves.toEqual({
+      success: false,
+      error: {
+        code: "TOOL_OUTPUT_INVALID",
+        message: "Tool output failed schema validation",
+      },
+    });
 
-    const missing = defineActuarialTool({ id: "missing-output", tenant: "none", description: "undefined body", kind: "read", inputSchema: z.object({}), execute: async () => undefined });
-    await expect(missing.execute({}, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" } });
+    const missing = defineActuarialTool({
+      id: "missing-output",
+      tenant: "none",
+      description: "undefined body",
+      kind: "read",
+      inputSchema: z.object({}),
+      execute: async () => undefined,
+    });
+    await expect(missing.execute({}, toolContext())).resolves.toEqual({
+      success: false,
+      error: {
+        code: "TOOL_OUTPUT_INVALID",
+        message: "Tool output failed schema validation",
+      },
+    });
 
-    const throwingInput = defineActuarialTool({ id: "throwing-input", tenant: "none", description: "throwing transform", kind: "read", inputSchema: z.object({ value: z.string().transform(() => { throw new Error("bad transform"); }) }), execute: async () => ({ success: true as const }) });
-    await expect(throwingInput.execute({ value: "x" }, toolContext())).resolves.toMatchObject({ success: false, error: { code: "TOOL_INPUT_INVALID" } });
+    const throwingInput = defineActuarialTool({
+      id: "throwing-input",
+      tenant: "none",
+      description: "throwing transform",
+      kind: "read",
+      inputSchema: z.object({
+        value: z.string().transform(() => {
+          throw new Error("bad transform");
+        }),
+      }),
+      execute: async () => ({ success: true as const }),
+    });
+    await expect(
+      throwingInput.execute({ value: "x" }, toolContext()),
+    ).resolves.toMatchObject({
+      success: false,
+      error: { code: "TOOL_INPUT_INVALID" },
+    });
 
-    const conditional = z.union([success, failure]).transform((value) => value.success === false && value.error.code !== "TOOL_OUTPUT_INVALID" ? { ...value, error: { ...value.error, message: "rewritten" } } : value);
-    const protectedFailure = defineActuarialTool({ id: "protected-failure", tenant: "none", description: "protects envelopes", kind: "read", inputSchema: z.object({}), outputSchema: conditional, execute: async () => { throw new Error("body failed"); } });
-    await expect(protectedFailure.execute({}, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" } });
+    const conditional = z
+      .union([success, failure])
+      .transform((value) =>
+        value.success === false && value.error.code !== "TOOL_OUTPUT_INVALID"
+          ? { ...value, error: { ...value.error, message: "rewritten" } }
+          : value,
+      );
+    const protectedFailure = defineActuarialTool({
+      id: "protected-failure",
+      tenant: "none",
+      description: "protects envelopes",
+      kind: "read",
+      inputSchema: z.object({}),
+      outputSchema: conditional,
+      execute: async () => {
+        throw new Error("body failed");
+      },
+    });
+    await expect(protectedFailure.execute({}, toolContext())).resolves.toEqual({
+      success: false,
+      error: {
+        code: "TOOL_OUTPUT_INVALID",
+        message: "Tool output failed schema validation",
+      },
+    });
 
-    expect(() => defineActuarialTool({ id: "throwing-probe", tenant: "none", description: "throws in output probe", kind: "read", inputSchema: z.object({}), outputSchema: z.any().transform(() => { throw new Error("probe"); }), execute: async () => ({ success: true as const }) })).toThrowError(AgentsError);
+    expect(() =>
+      defineActuarialTool({
+        id: "throwing-probe",
+        tenant: "none",
+        description: "throws in output probe",
+        kind: "read",
+        inputSchema: z.object({}),
+        outputSchema: z.any().transform(() => {
+          throw new Error("probe");
+        }),
+        execute: async () => ({ success: true as const }),
+      }),
+    ).toThrowError(AgentsError);
   });
 
   it("returns the execute result untouched on success", async () => {
@@ -179,10 +357,15 @@ describe("defineActuarialTool", () => {
       kind: "read",
       inputSchema: z.object({}),
       execute: async (_input, _tenant) => {
-        throw Object.assign(new Error("no analysis yet"), { code: "NOT_FOUND" });
+        throw Object.assign(new Error("no analysis yet"), {
+          code: "NOT_FOUND",
+        });
       },
     });
-    const result = (await tool.execute!({}, toolContext())) as ToolEnvelopeFailure;
+    const result = (await tool.execute!(
+      {},
+      toolContext(),
+    )) as ToolEnvelopeFailure;
     expect(result).toEqual({
       success: false,
       error: { code: "NOT_FOUND", message: "no analysis yet" },
@@ -223,7 +406,10 @@ describe("defineActuarialTool", () => {
       },
     });
 
-    const result = (await tool.execute!({}, toolContext())) as ToolEnvelopeFailure;
+    const result = (await tool.execute!(
+      {},
+      toolContext(),
+    )) as ToolEnvelopeFailure;
     expect(result.success).toBe(false);
     expect(result.error.code).toBe("NO_TENANT_CONTEXT");
     expect(result.error.message).toContain("projectId");
@@ -240,13 +426,19 @@ describe("defineActuarialTool", () => {
   });
 
   it("rejects tenant-id keys in the input schema at definition time", () => {
-    for (const key of ["projectId", "tenantId", "project_id", "tenant_id", "ProjectID"]) {
+    for (const key of [
+      "projectId",
+      "tenantId",
+      "project_id",
+      "tenant_id",
+      "ProjectID",
+    ]) {
       const err = expectAgentsError(
         () =>
           defineActuarialTool({
             id: "leaky",
-          tenant: "none",
-      description: "declares a tenant id",
+            tenant: "none",
+            description: "declares a tenant id",
             kind: "read",
             inputSchema: z.object({ [key]: z.string() }),
             execute: async (_input, _tenant) => ({ success: true }),
@@ -320,7 +512,7 @@ describe("defineActuarialTool", () => {
       defineActuarialTool({
         id: "kitchen-sink",
         tenant: "none",
-      description: "every legitimate shape at once",
+        description: "every legitimate shape at once",
         kind: "read",
         inputSchema: z.object({
           name: z.string(),
@@ -344,7 +536,7 @@ describe("defineActuarialTool", () => {
       defineActuarialTool({
         id: "declared-slot",
         tenant: "none",
-      description: "one declared document slot",
+        description: "one declared document slot",
         kind: "read",
         inputSchema: z.object({ doc: z.unknown(), other: z.string() }),
         allowUninspected: ["input.doc"],
@@ -357,7 +549,7 @@ describe("defineActuarialTool", () => {
         defineActuarialTool({
           id: "undeclared-sibling",
           tenant: "none",
-      description: "second opaque slot not declared",
+          description: "second opaque slot not declared",
           kind: "read",
           inputSchema: z.object({ doc: z.unknown(), also: z.unknown() }),
           allowUninspected: ["input.doc"],
@@ -373,7 +565,7 @@ describe("defineActuarialTool", () => {
         defineActuarialTool({
           id: "stale-allowance",
           tenant: "none",
-      description: "declares a path that is not opaque",
+          description: "declares a path that is not opaque",
           kind: "read",
           inputSchema: z.object({ name: z.string() }),
           allowUninspected: ["input.name"],
@@ -389,9 +581,12 @@ describe("defineActuarialTool", () => {
       defineActuarialTool({
         id: "fine",
         tenant: "none",
-      description: "ordinary ids are fine",
+        description: "ordinary ids are fine",
         kind: "read",
-        inputSchema: z.object({ analysisId: z.string(), projection: z.number() }),
+        inputSchema: z.object({
+          analysisId: z.string(),
+          projection: z.number(),
+        }),
         execute: async (_input, _tenant) => ({ success: true }),
       }),
     ).not.toThrow();
@@ -418,13 +613,27 @@ describe("toolRegistry", () => {
 
   it("keys tools by id and classifies action tools", () => {
     const registry = toolRegistry([read, action]);
-    expect(Object.keys(registry.tools).sort()).toEqual(["apply_selections", "get_overview"]);
+    expect(Object.keys(registry.tools).sort()).toEqual([
+      "apply_selections",
+      "get_overview",
+    ]);
     expect(registry.tools["get_overview"]).toBe(read);
     expect(registry.actionToolIds).toEqual(new Set(["apply_selections"]));
   });
 
   it("rejects duplicate tool ids", () => {
     expectAgentsError(() => toolRegistry([read, read]), "DUPLICATE_TOOL_ID");
+  });
+
+  it("treats prototype-named tool ids as ordinary registry entries", () => {
+    const prototypeTool = { ...read, id: "__proto__" };
+    const registry = toolRegistry([prototypeTool]);
+    expect(Object.keys(registry.tools)).toEqual(["__proto__"]);
+    expect(registry.tools.__proto__).toBe(prototypeTool);
+    expectAgentsError(
+      () => toolRegistry([prototypeTool, prototypeTool]),
+      "DUPLICATE_TOOL_ID",
+    );
   });
 });
 
@@ -454,23 +663,31 @@ describe("tenant-key lint: fail-closed and recursive (adversarial-review hardeni
   });
 
   it("finds tenant keys nested inside objects, arrays, and wrappers", () => {
-    expect(() => define(z.object({ filter: z.object({ projectId: z.string() }) }))).toThrowError(
-      /filter\.projectId/,
-    );
+    expect(() =>
+      define(z.object({ filter: z.object({ projectId: z.string() }) })),
+    ).toThrowError(/filter\.projectId/);
     expect(() =>
       define(z.object({ items: z.array(z.object({ tenant_id: z.string() })) })),
     ).toThrowError(/items\[\]\.tenant_id/);
     expect(() =>
-      define(z.object({ maybe: z.object({ TenantId: z.string() }).nullable().optional() })),
+      define(
+        z.object({
+          maybe: z.object({ TenantId: z.string() }).nullable().optional(),
+        }),
+      ),
     ).toThrowError(/maybe\.TenantId/);
   });
 
   it("rejects passthrough, catchall, and record escape hatches", () => {
-    expect(() => define(z.object({ q: z.string() }).passthrough())).toThrowError(/passthrough/);
-    expect(() => define(z.object({ q: z.string() }).catchall(z.string()))).toThrowError(
-      /catchall/,
+    expect(() =>
+      define(z.object({ q: z.string() }).passthrough()),
+    ).toThrowError(/passthrough/);
+    expect(() =>
+      define(z.object({ q: z.string() }).catchall(z.string())),
+    ).toThrowError(/catchall/);
+    expect(() => define(z.object({ bag: z.record(z.string()) }))).toThrowError(
+      /arbitrary string keys/,
     );
-    expect(() => define(z.object({ bag: z.record(z.string()) }))).toThrowError(/arbitrary string keys/);
   });
 
   it("still accepts the plain schemas real tools use", () => {
@@ -488,24 +705,41 @@ describe("tenant-key lint: fail-closed and recursive (adversarial-review hardeni
   it("reports a schema cycle that never passes through an object key as a typed error, not a RangeError", () => {
     // Each cycle is routed purely through dotless containers; the old guard
     // counted dots and blew the call stack at definition time.
-    const viaArray: z.ZodTypeAny = z.lazy(() => z.union([z.string(), z.array(viaArray)]));
-    const viaSet: z.ZodTypeAny = z.lazy(() => z.union([z.string(), z.set(viaSet)]));
-    const viaTuple: z.ZodTypeAny = z.lazy(() => z.union([z.string(), z.tuple([viaTuple])]));
+    const viaArray: z.ZodTypeAny = z.lazy(() =>
+      z.union([z.string(), z.array(viaArray)]),
+    );
+    const viaSet: z.ZodTypeAny = z.lazy(() =>
+      z.union([z.string(), z.set(viaSet)]),
+    );
+    const viaTuple: z.ZodTypeAny = z.lazy(() =>
+      z.union([z.string(), z.tuple([viaTuple])]),
+    );
     const direct: z.ZodTypeAny = z.lazy(() => direct); // the case the code comment promises to catch
     for (const schema of [viaArray, viaSet, viaTuple, direct]) {
-      const err = expectAgentsError(() => define(z.object({ tree: schema })), "BAD_INPUT_SCHEMA");
+      const err = expectAgentsError(
+        () => define(z.object({ tree: schema })),
+        "BAD_INPUT_SCHEMA",
+      );
       expect(err.message).toMatch(/self-referential/);
     }
   });
 
   it("still reports an object-keyed cycle as BAD_INPUT_SCHEMA (regression pin)", () => {
-    const node: z.ZodTypeAny = z.lazy(() => z.object({ children: z.array(node) }));
-    expectAgentsError(() => define(z.object({ tree: node })), "BAD_INPUT_SCHEMA");
+    const node: z.ZodTypeAny = z.lazy(() =>
+      z.object({ children: z.array(node) }),
+    );
+    expectAgentsError(
+      () => define(z.object({ tree: node })),
+      "BAD_INPUT_SCHEMA",
+    );
   });
 
   it("terminates a generative lazy (fresh node every resolution) with the frame budget", () => {
     const make = (): z.ZodTypeAny => z.lazy(make);
-    const err = expectAgentsError(() => define(z.object({ deep: make() })), "BAD_INPUT_SCHEMA");
+    const err = expectAgentsError(
+      () => define(z.object({ deep: make() })),
+      "BAD_INPUT_SCHEMA",
+    );
     expect(err.message).toMatch(/frame budget|nests deeper/);
   });
 

@@ -34,12 +34,17 @@ describe("Mack (1993) Table 1: Taylor/Ashe chain ladder", () => {
     expect(selections).toHaveLength(factors.length);
     factors.forEach((published, k) => {
       expect(selections[k]).not.toBeNull();
-      expect(Math.abs(selections[k]! - published)).toBeLessThanOrEqual(factorTolerance[k]!);
+      expect(Math.abs(selections[k]! - published)).toBeLessThanOrEqual(
+        factorTolerance[k]!,
+      );
     });
   });
 
   it("reproduces the published chain ladder reserves by origin and in total", () => {
-    const result = runChainLadder(taylorAshe, { selected: selections, tailFactor: 1 });
+    const result = runChainLadder(taylorAshe, {
+      selected: selections,
+      tailFactor: 1,
+    });
     expect(result.warnings).toHaveLength(0);
     const { reservesIn1000s, totalReserveIn1000s } = taylorAshePublished;
     // Origins 2..10 (origin 1 is fully developed, reserve 0).
@@ -47,7 +52,9 @@ describe("Mack (1993) Table 1: Taylor/Ashe chain ladder", () => {
       const row = result.rows[idx + 1]!;
       expect(Math.abs(row.unpaid / 1000 - published)).toBeLessThanOrEqual(1);
     });
-    expect(Math.abs(result.totals.unpaid / 1000 - totalReserveIn1000s)).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs(result.totals.unpaid / 1000 - totalReserveIn1000s),
+    ).toBeLessThanOrEqual(2);
   });
 });
 
@@ -72,7 +79,8 @@ describe("Mack (1993) Tables 1-3: Taylor/Ashe standard errors", () => {
       const pct = (row.standardError / row.reserve) * 100;
       expect(Math.abs(pct - published)).toBeLessThanOrEqual(1);
     });
-    const totalPct = (result.totals.standardError / result.totals.reserve) * 100;
+    const totalPct =
+      (result.totals.standardError / result.totals.reserve) * 100;
     expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(1);
   });
 
@@ -93,7 +101,9 @@ describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {
     const { factors, factorTolerance } = mortgagePublished;
     factors.forEach((published, k) => {
       expect(selections[k]).not.toBeNull();
-      expect(Math.abs(selections[k]! - published)).toBeLessThanOrEqual(factorTolerance[k]!);
+      expect(Math.abs(selections[k]! - published)).toBeLessThanOrEqual(
+        factorTolerance[k]!,
+      );
     });
   });
 
@@ -108,13 +118,18 @@ describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {
   });
 
   it("reproduces the published chain ladder reserves", () => {
-    const cl = runChainLadder(mortgage, { selected: selections, tailFactor: 1 });
+    const cl = runChainLadder(mortgage, {
+      selected: selections,
+      tailFactor: 1,
+    });
     const { reservesIn1000s, totalReserveIn1000s } = mortgagePublished;
     reservesIn1000s.forEach((published, idx) => {
       const row = cl.rows[idx + 1]!;
       expect(Math.abs(row.unpaid / 1000 - published)).toBeLessThanOrEqual(1);
     });
-    expect(Math.abs(cl.totals.unpaid / 1000 - totalReserveIn1000s)).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs(cl.totals.unpaid / 1000 - totalReserveIn1000s),
+    ).toBeLessThanOrEqual(2);
   });
 
   it("reproduces the published standard errors as % of reserve", () => {
@@ -124,8 +139,13 @@ describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {
       const pct = (row.standardError / row.reserve) * 100;
       expect(Math.abs(pct - published)).toBeLessThanOrEqual(1);
     });
-    const totalPct = (result.totals.standardError / result.totals.reserve) * 100;
+    const totalPct =
+      (result.totals.standardError / result.totals.reserve) * 100;
     expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(1);
+    expect(result.totals.standardError).toBeCloseTo(
+      mortgagePublished.totalStandardError,
+      6,
+    );
   });
 });
 
@@ -136,7 +156,8 @@ describe("Mack (1999) Tables 1-2: mortgage data with a 1.05 tail", () => {
       selected: selections,
       tailFactor: mortgagePublished.tailFactor,
     });
-    const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } = mortgagePublished;
+    const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } =
+      mortgagePublished;
     ultimatesWithTailIn1000s.forEach((published, idx) => {
       const row = cl.rows[idx]!;
       // Mack 1999 prints ultimates rounded to 1000s; allow rounding + factor
@@ -160,38 +181,87 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
       expect(selected.rows[i]!.ultimate).toBeCloseTo(row.ultimate, 6);
       expect(selected.rows[i]!.standardError).toBeCloseTo(row.standardError, 6);
     });
-    expect(selected.totals.standardError).toBeCloseTo(base.totals.standardError, 6);
+    expect(selected.totals.standardError).toBeCloseTo(
+      base.totals.standardError,
+      6,
+    );
   });
 
   it("warns when a non-positive selected factor is coerced to 1.000 (parity with chain ladder)", () => {
     const base = runMack(taylorAshe);
     const bad = base.developmentFactors.map((v, k) => (k === 2 ? -1 : v));
     const result = runMack(taylorAshe, { selected: bad, tailFactor: 1 });
-    expect(result.warnings.some((w) => w.includes("not positive; treated as 1.000"))).toBe(true);
+    expect(
+      result.warnings.some((w) => w.includes("not positive; treated as 1.000")),
+    ).toBe(true);
     // Deliberately null (unselected) intervals stay silent here: the paired
     // chain ladder run already warns for missing selections.
-    const withNull = base.developmentFactors.map((v, k) => (k === 2 ? null : v));
-    const nullResult = runMack(taylorAshe, { selected: withNull, tailFactor: 1 });
-    expect(nullResult.warnings.some((w) => w.includes("not positive"))).toBe(false);
+    const withNull = base.developmentFactors.map((v, k) =>
+      k === 2 ? null : v,
+    );
+    const nullResult = runMack(taylorAshe, {
+      selected: withNull,
+      tailFactor: 1,
+    });
+    expect(nullResult.warnings.some((w) => w.includes("not positive"))).toBe(
+      false,
+    );
   });
 
   it("reproduces the Mack (1999) published ultimates through runMack with the 1.05 tail", () => {
-    const mack = runMack(mortgage, { tailFactor: mortgagePublished.tailFactor });
-    const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } = mortgagePublished;
+    const mack = runMack(mortgage, {
+      tailFactor: mortgagePublished.tailFactor,
+      tailStandardError: mortgagePublished.tailStandardError,
+      tailSigma: mortgagePublished.tailSigma,
+    });
+    const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } =
+      mortgagePublished;
     ultimatesWithTailIn1000s.forEach((published, idx) => {
-      expect(Math.abs(mack.rows[idx]!.ultimate / 1000 - published)).toBeLessThanOrEqual(2);
+      expect(
+        Math.abs(mack.rows[idx]!.ultimate / 1000 - published),
+      ).toBeLessThanOrEqual(2);
     });
     expect(
       Math.abs(mack.totals.ultimate / 1000 - totalUltimateWithTailIn1000s),
     ).toBeLessThanOrEqual(5);
   });
 
+  it("reproduces every Mack (1999) Table 2 tail standard error and the total", () => {
+    const mack = runMack(mortgage, {
+      tailFactor: mortgagePublished.tailFactor,
+      tailStandardError: mortgagePublished.tailStandardError,
+      tailSigma: mortgagePublished.tailSigma,
+    });
+    mortgagePublished.standardErrorsWithTailIn1000s.forEach(
+      (published, index) => {
+        expect(
+          Math.abs(mack.rows[index]!.standardError / 1000 - published),
+        ).toBeLessThanOrEqual(1);
+      },
+    );
+    expect(
+      Math.abs(
+        mack.totals.standardError / 1000 -
+          mortgagePublished.totalStandardErrorWithTailIn1000s,
+      ),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      mack.warnings.some((warning) => warning.includes("approximate")),
+    ).toBe(false);
+  });
+
   it("agrees with the chain ladder's ultimates row for row on the same selections and tail", () => {
     const selections = volumeWeightedSelections(taylorAshe).map((v) =>
       v === null ? null : v * 1.01,
     );
-    const cl = runChainLadder(taylorAshe, { selected: selections, tailFactor: 1.03 });
-    const mack = runMack(taylorAshe, { selected: selections, tailFactor: 1.03 });
+    const cl = runChainLadder(taylorAshe, {
+      selected: selections,
+      tailFactor: 1.03,
+    });
+    const mack = runMack(taylorAshe, {
+      selected: selections,
+      tailFactor: 1.03,
+    });
     cl.rows.forEach((row, i) => {
       expect(mack.rows[i]!.ultimate).toBeCloseTo(row.ultimate, 6);
       expect(mack.rows[i]!.reserve).toBeCloseTo(row.unpaid, 6);
@@ -202,7 +272,9 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
   it("a tail strictly increases the total standard error and flags the approximation", () => {
     const noTail = runMack(taylorAshe);
     const withTail = runMack(taylorAshe, { tailFactor: 1.05 });
-    expect(withTail.totals.standardError).toBeGreaterThan(noTail.totals.standardError);
+    expect(withTail.totals.standardError).toBeGreaterThan(
+      noTail.totals.standardError,
+    );
     expect(withTail.totals.reserve).toBeGreaterThan(noTail.totals.reserve);
     expect(withTail.tailFactor).toBe(1.05);
     expect(withTail.sigmaSquaredTail).toBeGreaterThan(0);

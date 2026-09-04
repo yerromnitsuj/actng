@@ -150,9 +150,14 @@ export interface JudgmentGateSpec<TDecision = unknown> {
   /** Gathers the evidence and recommendation the gate suspends with. */
   gatherEvidence: (
     ctx: JudgmentGateContext,
-  ) => Promise<{ recommendation: string; evidence: unknown }> | { recommendation: string; evidence: unknown };
+  ) =>
+    | Promise<{ recommendation: string; evidence: unknown }>
+    | { recommendation: string; evidence: unknown };
   /** Applies the human decision through the host's service layer. */
-  applyDecision: (ctx: JudgmentGateContext, decision: TDecision) => Promise<JudgmentApplication>;
+  applyDecision: (
+    ctx: JudgmentGateContext,
+    decision: TDecision,
+  ) => Promise<JudgmentApplication>;
 }
 
 /** The completed chain's output: the audit trail and the fused compliance ledger. */
@@ -224,12 +229,10 @@ const suspendSchema = z.object({
 const chainInputSchema = z.object({});
 const chainResultSchema = z.object({
   trail: z.array(trailEntrySchema),
-  ledger: z.custom<AssumptionLedger>(
-    (value) =>
-      typeof value === "object" &&
-      value !== null &&
-      Array.isArray((value as { entries?: unknown }).entries),
-  ),
+  ledger: z
+    .object({ entries: z.array(ledgerEntrySchema) })
+    .strict()
+    .transform((value) => value as AssumptionLedger),
 });
 
 interface ChainState {
@@ -249,7 +252,9 @@ function normalizeState(input: unknown): ChainState {
     trail: Array.isArray(raw.trail) ? raw.trail : [],
     ledgerEntries: Array.isArray(raw.ledgerEntries) ? raw.ledgerEntries : [],
     decisions:
-      typeof raw.decisions === "object" && raw.decisions !== null ? raw.decisions : {},
+      typeof raw.decisions === "object" && raw.decisions !== null
+        ? raw.decisions
+        : {},
   };
 }
 
@@ -258,7 +263,11 @@ function describeDecision(decision: unknown): string {
   if (typeof decision === "object" && decision !== null) {
     const named = (decision as { decision?: unknown }).decision;
     if (typeof named === "string" && named.length > 0) return named;
-    const { rationale: _rationale, actor: _actor, ...rest } = decision as Record<string, unknown>;
+    const {
+      rationale: _rationale,
+      actor: _actor,
+      ...rest
+    } = decision as Record<string, unknown>;
     if (Object.keys(rest).length > 0) return JSON.stringify(rest);
   }
   return "decided";
@@ -266,7 +275,9 @@ function describeDecision(decision: unknown): string {
 
 function actorOf(decision: unknown): AssumptionActor {
   const actor = (decision as { actor?: unknown } | null | undefined)?.actor;
-  return actor === "agent" || actor === "default" || actor === "actuary" ? actor : "actuary";
+  return actor === "agent" || actor === "default" || actor === "actuary"
+    ? actor
+    : "actuary";
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +294,11 @@ const COMPLETE_STEP_ID = "complete";
  * at the bottom of createJudgmentChain.)
  */
 export type JudgmentChainWorkflow = ReturnType<
-  typeof createWorkflow<string, typeof chainInputSchema, typeof chainResultSchema>
+  typeof createWorkflow<
+    string,
+    typeof chainInputSchema,
+    typeof chainResultSchema
+  >
 >;
 
 /**
@@ -301,11 +316,16 @@ export type JudgmentChainWorkflow = ReturnType<
  * promise never settles. Assign it synchronously and register it on your
  * Mastra instance.
  */
-export function createJudgmentChain(options: CreateJudgmentChainOptions): JudgmentChainWorkflow {
+export function createJudgmentChain(
+  options: CreateJudgmentChainOptions,
+): JudgmentChainWorkflow {
   const { id, gates, now, onComplete, requestContextSchema } = options;
 
   if (gates.length === 0) {
-    throw new AgentsError("BAD_GATE", `Judgment chain "${id}" needs at least one gate`);
+    throw new AgentsError(
+      "BAD_GATE",
+      `Judgment chain "${id}" needs at least one gate`,
+    );
   }
   const seen = new Set<string>();
   for (const gate of gates) {
@@ -316,7 +336,10 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
       );
     }
     if (seen.has(gate.id)) {
-      throw new AgentsError("BAD_GATE", `Duplicate gate id "${gate.id}" in chain "${id}"`);
+      throw new AgentsError(
+        "BAD_GATE",
+        `Duplicate gate id "${gate.id}" in chain "${id}"`,
+      );
     }
     seen.add(gate.id);
     const shape = zodObjectShape(gate.resumeSchema);
@@ -346,11 +369,19 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
 
         const skipReason = gate.skipWhen?.(ctx) ?? null;
         if (skipReason !== null) {
-          const skip: JudgmentSkipRecord = { skipped: true, reason: skipReason };
+          const skip: JudgmentSkipRecord = {
+            skipped: true,
+            reason: skipReason,
+          };
           return {
             trail: [
               ...state.trail,
-              { stage: gate.stage, decision: "skipped", rationale: skipReason, skipped: true },
+              {
+                stage: gate.stage,
+                decision: "skipped",
+                rationale: skipReason,
+                skipped: true,
+              },
             ],
             ledgerEntries: state.ledgerEntries,
             decisions: { ...state.decisions, [gate.id]: skip },
@@ -364,7 +395,8 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
         }
 
         const decision = resumeData;
-        const rationale = (decision as { rationale?: unknown } | null)?.rationale;
+        const rationale = (decision as { rationale?: unknown } | null)
+          ?.rationale;
         if (typeof rationale !== "string" || rationale.trim() === "") {
           throw new AgentsError(
             "MISSING_RATIONALE",
@@ -376,7 +408,9 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
         // the payload's job is the decision and its coarse classification.
         const rawIdentity = requestContext?.get(ACTOR_IDENTITY_CONTEXT_KEY);
         const actorIdentity =
-          typeof rawIdentity === "string" && rawIdentity.length > 0 ? rawIdentity : undefined;
+          typeof rawIdentity === "string" && rawIdentity.length > 0
+            ? rawIdentity
+            : undefined;
 
         const applied = await gate.applyDecision(ctx, decision);
 
@@ -388,7 +422,9 @@ export function createJudgmentChain(options: CreateJudgmentChainOptions): Judgme
           ledger = recordAssumption(ledger, {
             field: entry.field,
             value: entry.value,
-            ...(entry.previousValue !== undefined ? { previousValue: entry.previousValue } : {}),
+            ...(entry.previousValue !== undefined
+              ? { previousValue: entry.previousValue }
+              : {}),
             ...(entry.source !== undefined ? { source: entry.source } : {}),
             timestamp: entry.timestamp ?? now(),
             actor: entry.actor ?? actor,

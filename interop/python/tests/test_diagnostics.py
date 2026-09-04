@@ -10,28 +10,54 @@ from actuarial_interchange.errors import BadInterchangeError
 FIXTURE = Path(__file__).parents[2] / "conformance" / "fixtures" / "diagnostics" / "generalized-casualty"
 
 
-def test_generalized_casualty_definition_identities_and_all_formula_replays():
-    document, definition = parse_diagnostic_definition((FIXTURE / "definition.json").read_text())
-    cell = json.loads((FIXTURE / "cell.json").read_text())
+@pytest.mark.parametrize("prefix", ["calendar", "ordered-axis"])
+def test_generalized_casualty_definition_identities_and_all_formula_replays(prefix):
+    document, definition = parse_diagnostic_definition((FIXTURE / f"{prefix}-definition.json").read_text())
+    cells = json.loads((FIXTURE / f"{prefix}-aggregate-cells.json").read_text())
+    expected = json.loads((FIXTURE / f"{prefix}-expected-output.json").read_text())
+    values = dict(cells["losses"][0]["measures"])
+    values.update({item["measureId"]: item["value"] for item in cells["exposures"]})
     assert document.interchange_version == "1.1.0"
     assert len(definition["formulas"]) == 6
     assert len(definition["instances"]) == 22
-    for expected in cell["expected"]:
-        assert replay_diagnostic_cell(definition, expected["instanceId"], cell["values"]) == {
-            "numerator": expected["numerator"],
-            "denominator": expected["denominator"],
-            "value": pytest.approx(expected["value"]) if expected["value"] is not None else None,
-        }
+    metrics = expected["result"]["emergence"][0]["metrics"]
+    for instance_id, metric in metrics.items():
+        actual = replay_diagnostic_cell(definition, instance_id, values)
+        assert actual["numerator"] == metric["calculation"]["numerator"]["value"]
+        assert actual["denominator"] == metric["calculation"]["denominator"]["value"]
+        assert actual["value"] == pytest.approx(metric["calculation"]["value"])
 
 
 def test_diagnostic_definition_rejects_identity_tampering():
-    candidate = json.loads((FIXTURE / "definition.json").read_text())
+    candidate = json.loads((FIXTURE / "calendar-definition.json").read_text())
     candidate["diagnosticDefinition"]["identities"]["definition"] = "fnv1a64-jcs-v1:0000000000000000"
     # Restamp the outer envelope so this reaches semantic identity validation.
     from actuarial_interchange.documents import parse_document
     candidate = parse_document(candidate, verify_integrity=False).to_dict()
     with pytest.raises(BadInterchangeError, match="identities do not match"):
         parse_diagnostic_definition(candidate)
+
+
+def test_diagnostic_definition_rejects_restamped_unknown_behavior():
+    candidate = json.loads((FIXTURE / "calendar-definition.json").read_text())
+    candidate["diagnosticDefinition"]["definition"]["measures"][0]["futureBehavior"] = True
+    from actuarial_interchange.diagnostics import diagnostic_identities
+    from actuarial_interchange.documents import parse_document
+    candidate["diagnosticDefinition"]["identities"] = diagnostic_identities(
+        candidate["diagnosticDefinition"]["definition"]
+    )
+    candidate = parse_document(candidate, verify_integrity=False).to_dict()
+    with pytest.raises(BadInterchangeError, match="unsupported diagnostic behavior"):
+        parse_diagnostic_definition(candidate)
+
+    nested = json.loads((FIXTURE / "calendar-definition.json").read_text())
+    nested["diagnosticDefinition"]["definition"]["reviewRules"][0]["actual"]["futureBehavior"] = True
+    nested["diagnosticDefinition"]["identities"] = diagnostic_identities(
+        nested["diagnosticDefinition"]["definition"]
+    )
+    nested = parse_document(nested, verify_integrity=False).to_dict()
+    with pytest.raises(BadInterchangeError, match="unsupported diagnostic behavior"):
+        parse_diagnostic_definition(nested)
 
 
 def test_utf16_identifier_order_matches_ecmascript_code_units():

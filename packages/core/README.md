@@ -7,7 +7,7 @@ The package is designed to support an actuary’s work under applicable ASOPs; i
 ## Install
 
 ```bash
-npm install @actuarial-ts/core@0.6.0
+npm install @actuarial-ts/core@0.6.1
 ```
 
 ESM, TypeScript-first, zero runtime dependencies, Node 20+.
@@ -79,7 +79,7 @@ All metrics are ratio-of-sums: measures are aggregated at source-group/origin/va
 
 Compilation validates the whole graph atomically: IDs, sources, role types, compatibility groups, development semantics, derivation acyclicity, expression limits, rule operands, basis/population references, and period coordinates. Authentic compiled/prepared objects are owner-branded and frozen. Formula, calculation, definition, preparation, and result identities are deterministic FNV-1a/JCS integrity aids—not cryptographic signatures.
 
-See the generated [formula and instance catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
+See the generated [formula and instance catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## Main method families
 

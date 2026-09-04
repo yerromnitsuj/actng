@@ -63,7 +63,20 @@ function isValidIsoDate(value: string): boolean {
   // preserve leapness for every year except 0000, so this is a correctness-of-
   // form consolidation rather than a live-bug fix.
   const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
-  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]!;
+  const daysInMonth = [
+    31,
+    leap ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ][m - 1]!;
   return d <= daysInMonth;
 }
 
@@ -71,6 +84,19 @@ function isValidIsoDate(value: string): boolean {
 export function parseLossRunCsv(text: string): LossRunParseResult {
   const { rows: grid, rowLines, warnings: csvWarnings } = parseCsv(text);
   const headers = (grid[0] ?? []).map(normalizeHeader);
+  const duplicateHeaders = [
+    ...new Set(
+      headers.filter(
+        (header, index) => header !== "" && headers.indexOf(header) !== index,
+      ),
+    ),
+  ].sort();
+  if (duplicateHeaders.length > 0) {
+    throw new ReservingError(
+      "SHAPE",
+      `Duplicate normalized column(s): ${duplicateHeaders.join(", ")}`,
+    );
+  }
   const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
   if (missing.length > 0) {
     throw new ReservingError(
@@ -81,9 +107,7 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
     );
   }
   const columnIndex = new Map<string, number>();
-  headers.forEach((h, idx) => {
-    if (!columnIndex.has(h)) columnIndex.set(h, idx);
-  });
+  headers.forEach((h, idx) => columnIndex.set(h, idx));
 
   const claims: ClaimSnapshot[] = [];
   const errors: LossRunRowError[] = [];
@@ -91,7 +115,10 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
     // Structural CSV problems surface through the same channel as row errors:
     // partial loading is intended behavior here, silent partial loading is not.
     const lineMatch = warning.match(/line (\d+)/);
-    errors.push({ row: lineMatch ? Number(lineMatch[1]) : 1, message: `CSV structure: ${warning}` });
+    errors.push({
+      row: lineMatch ? Number(lineMatch[1]) : 1,
+      message: `CSV structure: ${warning}`,
+    });
   }
 
   for (let r = 1; r < grid.length; r++) {
@@ -101,7 +128,8 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
     // lines. One errors array, one numbering scheme.
     const rowNumber = rowLines[r]!;
     const cells = grid[r]!;
-    const cell = (name: string): string => (cells[columnIndex.get(name)!] ?? "").trim();
+    const cell = (name: string): string =>
+      (cells[columnIndex.get(name)!] ?? "").trim();
     const rowErrors: string[] = [];
 
     const claimId = cell("claim_id");
@@ -110,7 +138,9 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
     const date = (name: string): string | null => {
       const value = cell(name);
       if (!isValidIsoDate(value)) {
-        rowErrors.push(`${name} must be a real calendar date in yyyy-mm-dd form (got "${value}")`);
+        rowErrors.push(
+          `${name} must be a real calendar date in yyyy-mm-dd form (got "${value}")`,
+        );
         return null;
       }
       return value;
@@ -134,9 +164,13 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
         );
         return null;
       }
-      const n = /^-?\d+(\.\d+)?$/.test(value.trim()) ? Number(value.trim()) : NaN;
+      const n = /^-?\d+(\.\d+)?$/.test(value.trim())
+        ? Number(value.trim())
+        : NaN;
       if (!Number.isFinite(n)) {
-        rowErrors.push(`${name} must be a finite decimal number (got "${value}")`);
+        rowErrors.push(
+          `${name} must be a finite decimal number (got "${value}")`,
+        );
         return null;
       }
       return n;
@@ -148,13 +182,21 @@ export function parseLossRunCsv(text: string): LossRunParseResult {
     const status: "open" | "closed" | null =
       statusRaw === "open" || statusRaw === "closed" ? statusRaw : null;
     if (status === null) {
-      rowErrors.push(`status must be "open" or "closed" (got "${cell("status")}")`);
+      rowErrors.push(
+        `status must be "open" or "closed" (got "${cell("status")}")`,
+      );
     }
 
     // Cross-field checks need all three dates to be individually valid.
-    if (accidentDate !== null && reportDate !== null && evaluationDate !== null) {
-      if (reportDate < accidentDate) rowErrors.push("report_date precedes accident_date");
-      if (evaluationDate < reportDate) rowErrors.push("evaluation_date precedes report_date");
+    if (
+      accidentDate !== null &&
+      reportDate !== null &&
+      evaluationDate !== null
+    ) {
+      if (reportDate < accidentDate)
+        rowErrors.push("report_date precedes accident_date");
+      if (evaluationDate < reportDate)
+        rowErrors.push("evaluation_date precedes report_date");
     }
 
     if (rowErrors.length > 0) {

@@ -10,7 +10,8 @@ function csv(...dataRows: string[]): string {
 }
 
 describe("strict numeric and date forms (findings data.2, data.1)", () => {
-  const header = "claim_id,accident_date,report_date,evaluation_date,status,paid_to_date,case_reserve\n";
+  const header =
+    "claim_id,accident_date,report_date,evaluation_date,status,paid_to_date,case_reserve\n";
   const row = (paid: string, accident = "2024-01-15"): string =>
     `C1,${accident},2024-03-01,2024-06-30,open,${paid},0\n`;
 
@@ -37,13 +38,19 @@ describe("strict numeric and date forms (findings data.2, data.1)", () => {
   it("rejects formatted amounts with a message naming the formatting", () => {
     const { claims, errors } = parseLossRunCsv(header + row('"1,234"'));
     expect(claims).toHaveLength(0);
-    expect(errors.map((e) => e.message).join(" ")).toMatch(/thousands|formatting/i);
+    expect(errors.map((e) => e.message).join(" ")).toMatch(
+      /thousands|formatting/i,
+    );
   });
 
   it("validates leap days with the arithmetic rule, any century", () => {
     // 2023-02-29 does not exist; 2024-02-29 does.
-    expect(parseLossRunCsv(header + row("100", "2023-02-29")).errors).toHaveLength(1);
-    expect(parseLossRunCsv(header + row("100", "2024-02-29")).errors).toHaveLength(0);
+    expect(
+      parseLossRunCsv(header + row("100", "2023-02-29")).errors,
+    ).toHaveLength(1);
+    expect(
+      parseLossRunCsv(header + row("100", "2024-02-29")).errors,
+    ).toHaveLength(0);
   });
 });
 
@@ -292,5 +299,14 @@ describe("row numbers are physical file lines (finding: blank-line desync)", () 
     expect(errors).toEqual([
       { row: 4, message: expect.stringContaining("paid_to_date") },
     ]);
+  });
+});
+
+describe("normalized loss-run headers", () => {
+  it("rejects duplicate normalized headers instead of selecting the first", () => {
+    const duplicate = `${HEADER},Paid To Date\nC1,2021-01-01,2021-01-02,2021-12-31,100,0,open,999`;
+    expect(() => parseLossRunCsv(duplicate)).toThrow(
+      /Duplicate normalized column\(s\): paid_to_date/,
+    );
   });
 });

@@ -30,7 +30,13 @@ import { canonicalJson, ComplianceError } from "./bundle.js";
 export type AssumptionActor = "default" | "actuary" | "agent";
 
 /** JSON-representable assumption value (the ledger stores data, not behavior). */
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 export interface AssumptionEntry {
   /** 1-based position in the ledger; assigned by recordAssumption, never by the caller. */
@@ -58,7 +64,31 @@ export interface AssumptionLedger {
 
 /** An empty, frozen ledger. */
 export function createLedger(): AssumptionLedger {
-  return Object.freeze({ entries: Object.freeze([]) as readonly AssumptionEntry[] });
+  return Object.freeze({
+    entries: Object.freeze([]) as readonly AssumptionEntry[],
+  });
+}
+
+function snapshotJson(value: JsonValue): JsonValue {
+  let cloned: JsonValue;
+  try {
+    cloned = JSON.parse(canonicalJson(value)) as JsonValue;
+  } catch {
+    throw new ComplianceError(
+      "BAD_BUNDLE",
+      "Assumption values must be finite, acyclic JSON data",
+    );
+  }
+  const freeze = (item: JsonValue): JsonValue => {
+    if (item === null || typeof item !== "object") return item;
+    if (Array.isArray(item)) {
+      for (const child of item) freeze(child);
+    } else {
+      for (const child of Object.values(item)) freeze(child);
+    }
+    return Object.freeze(item) as JsonValue;
+  };
+  return freeze(cloned);
 }
 
 /**
@@ -67,15 +97,30 @@ export function createLedger(): AssumptionLedger {
  * ComplianceError("MISSING_RATIONALE") when actor !== "default" and rationale
  * is missing or blank.
  */
-export function recordAssumption(ledger: AssumptionLedger, entry: NewAssumptionEntry): AssumptionLedger {
-  if (entry.actor !== "default" && (entry.rationale === undefined || entry.rationale.trim() === "")) {
+export function recordAssumption(
+  ledger: AssumptionLedger,
+  entry: NewAssumptionEntry,
+): AssumptionLedger {
+  if (
+    entry.actor !== "default" &&
+    (entry.rationale === undefined || entry.rationale.trim() === "")
+  ) {
     throw new ComplianceError(
       "MISSING_RATIONALE",
       `assumption "${entry.field}" set by actor "${entry.actor}" requires a rationale; only actor "default" may omit one`,
     );
   }
-  const recorded: AssumptionEntry = Object.freeze({ ...entry, seq: ledger.entries.length + 1 });
-  return Object.freeze({ entries: Object.freeze([...ledger.entries, recorded]) });
+  const recorded: AssumptionEntry = Object.freeze({
+    ...entry,
+    value: snapshotJson(entry.value),
+    ...(entry.previousValue === undefined
+      ? {}
+      : { previousValue: snapshotJson(entry.previousValue) }),
+    seq: ledger.entries.length + 1,
+  });
+  return Object.freeze({
+    entries: Object.freeze([...ledger.entries, recorded]),
+  });
 }
 
 /** Entries that represent judgment (actor !== "default"), in ledger order. */
@@ -120,7 +165,9 @@ export function changedAssumptions(
   const added: string[] = [];
   const removed: string[] = [];
   const changed: AssumptionValueChange[] = [];
-  const fields = [...new Set([...priorLatest.keys(), ...currentLatest.keys()])].sort();
+  const fields = [
+    ...new Set([...priorLatest.keys(), ...currentLatest.keys()]),
+  ].sort();
   for (const field of fields) {
     const before = priorLatest.get(field);
     const after = currentLatest.get(field);
@@ -133,7 +180,11 @@ export function changedAssumptions(
       continue;
     }
     if (canonicalJson(before.value) !== canonicalJson(after.value)) {
-      changed.push({ field, priorValue: before.value, currentValue: after.value });
+      changed.push({
+        field,
+        priorValue: before.value,
+        currentValue: after.value,
+      });
     }
   }
   return { added, removed, changed };

@@ -190,6 +190,10 @@ export interface MackResult {
   tailFactor?: number;
   /** Extrapolated sigma^2 for the tail step; present only when a tail was applied. */
   sigmaSquaredTail?: number;
+  /** Explicit tail-factor estimation error when supplied under Mack (1999). */
+  tailStandardError?: number;
+  /** Explicit tail random-error scale when supplied under Mack (1999). */
+  tailSigma?: number;
   rows: MackRow[];
   totals: {
     latest: number;
@@ -363,13 +367,20 @@ type DiagnosticPathSegment =
   | { readonly kind: "property"; readonly value: string }
   | { readonly kind: "index"; readonly value: number };
 
-function diagnosticPathSegments(path: string): readonly DiagnosticPathSegment[] {
+function diagnosticPathSegments(
+  path: string,
+): readonly DiagnosticPathSegment[] {
   const segments: DiagnosticPathSegment[] = [];
   let cursor = 1;
   while (cursor < path.length) {
     if (path[cursor] === ".") {
       const start = ++cursor;
-      while (cursor < path.length && path[cursor] !== "." && path[cursor] !== "[") cursor++;
+      while (
+        cursor < path.length &&
+        path[cursor] !== "." &&
+        path[cursor] !== "["
+      )
+        cursor++;
       segments.push({ kind: "property", value: path.slice(start, cursor) });
       continue;
     }
@@ -377,10 +388,14 @@ function diagnosticPathSegments(path: string): readonly DiagnosticPathSegment[] 
       const close = path.indexOf("]", cursor);
       if (close < 0) return [{ kind: "property", value: path }];
       const token = path.slice(cursor + 1, close);
-      if (/^\d+$/.test(token)) segments.push({ kind: "index", value: Number(token) });
+      if (/^\d+$/.test(token))
+        segments.push({ kind: "index", value: Number(token) });
       else {
         try {
-          segments.push({ kind: "property", value: JSON.parse(token) as string });
+          segments.push({
+            kind: "property",
+            value: JSON.parse(token) as string,
+          });
         } catch {
           return [{ kind: "property", value: path }];
         }
@@ -402,12 +417,14 @@ function compareDiagnosticPaths(left: string, right: string): number {
     const x = a[index]!;
     const y = b[index]!;
     if (x.kind !== y.kind) return x.kind === "property" ? -1 : 1;
-    const compared = x.kind === "index"
-      ? x.value - (y as Extract<DiagnosticPathSegment, { kind: "index" }>).value
-      : compareCodeUnits(
-          x.value,
-          (y as Extract<DiagnosticPathSegment, { kind: "property" }>).value,
-        );
+    const compared =
+      x.kind === "index"
+        ? x.value -
+          (y as Extract<DiagnosticPathSegment, { kind: "index" }>).value
+        : compareCodeUnits(
+            x.value,
+            (y as Extract<DiagnosticPathSegment, { kind: "property" }>).value,
+          );
     if (compared !== 0) return compared;
   }
   return a.length - b.length;
@@ -419,19 +436,37 @@ function normalizeDiagnosticIssues(
   if (issues.length === 0) {
     throw new Error("DiagnosticValidationError requires at least one issue");
   }
-  const unique = new Map<string, DiagnosticValidationIssue>();
+  const unique = new Map<
+    string,
+    Map<string, Map<string, Map<string, DiagnosticValidationIssue>>>
+  >();
   for (const issue of issues) {
     const normalized = Object.freeze({ ...issue });
-    const key = `${issue.domain}\u0000${issue.code}\u0000${issue.path}\u0000${issue.message}`;
-    if (!unique.has(key)) unique.set(key, normalized);
+    const byCode = unique.get(issue.domain) ?? new Map();
+    unique.set(issue.domain, byCode);
+    const byPath = byCode.get(issue.code) ?? new Map();
+    byCode.set(issue.code, byPath);
+    const byMessage = byPath.get(issue.path) ?? new Map();
+    byPath.set(issue.path, byMessage);
+    if (!byMessage.has(issue.message)) byMessage.set(issue.message, normalized);
   }
-  return Object.freeze([...unique.values()].sort((left, right) =>
-    DIAGNOSTIC_DOMAIN_ORDER.indexOf(left.domain) - DIAGNOSTIC_DOMAIN_ORDER.indexOf(right.domain) ||
-    DIAGNOSTIC_ISSUE_ORDER.indexOf(left.code) - DIAGNOSTIC_ISSUE_ORDER.indexOf(right.code) ||
-    compareDiagnosticPaths(left.path, right.path) ||
-    compareCodeUnits(left.code, right.code) ||
-    compareCodeUnits(left.message, right.message),
-  ));
+  const flattened = [...unique.values()].flatMap((byCode) =>
+    [...byCode.values()].flatMap((byPath) =>
+      [...byPath.values()].flatMap((byMessage) => [...byMessage.values()]),
+    ),
+  );
+  return Object.freeze(
+    flattened.sort(
+      (left, right) =>
+        DIAGNOSTIC_DOMAIN_ORDER.indexOf(left.domain) -
+          DIAGNOSTIC_DOMAIN_ORDER.indexOf(right.domain) ||
+        DIAGNOSTIC_ISSUE_ORDER.indexOf(left.code) -
+          DIAGNOSTIC_ISSUE_ORDER.indexOf(right.code) ||
+        compareDiagnosticPaths(left.path, right.path) ||
+        compareCodeUnits(left.code, right.code) ||
+        compareCodeUnits(left.message, right.message),
+    ),
+  );
 }
 
 /** Public, deterministic validation failure for every generalized diagnostic boundary. */

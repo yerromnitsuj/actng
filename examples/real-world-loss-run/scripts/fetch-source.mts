@@ -13,7 +13,11 @@ function sha256(bytes: Uint8Array): string {
 
 async function existingSourceIsValid(): Promise<boolean> {
   try {
-    return sha256(await readFile(destination)) === SOURCE.sourceSha256;
+    const bytes = await readFile(destination);
+    return (
+      bytes.byteLength === SOURCE.sourceByteLength &&
+      sha256(bytes) === SOURCE.sourceSha256
+    );
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") return false;
@@ -26,16 +30,23 @@ if (await existingSourceIsValid()) {
 } else {
   const response = await fetch(SOURCE.pinnedUrl, { redirect: "follow" });
   if (!response.ok) {
-    throw new Error(`Source download failed: HTTP ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Source download failed: HTTP ${response.status} ${response.statusText}`,
+    );
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
   const actualHash = sha256(bytes);
-  if (actualHash !== SOURCE.sourceSha256) {
+  if (
+    bytes.byteLength !== SOURCE.sourceByteLength ||
+    actualHash !== SOURCE.sourceSha256
+  ) {
     throw new Error(
-      `Source integrity mismatch: expected ${SOURCE.sourceSha256}, received ${actualHash}; nothing was written`,
+      `Source integrity mismatch: expected ${SOURCE.sourceByteLength} bytes / ${SOURCE.sourceSha256}, received ${bytes.byteLength} bytes / ${actualHash}; nothing was written`,
     );
   }
   await mkdir(dirname(destination), { recursive: true });
   await writeFile(destination, bytes);
-  console.log(`Downloaded and verified ${bytes.length.toLocaleString("en-US")} bytes: ${destination}`);
+  console.log(
+    `Downloaded and verified ${bytes.length.toLocaleString("en-US")} bytes: ${destination}`,
+  );
 }

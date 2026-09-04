@@ -4,17 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-COMMANDS=(
-  "npm run version:check" "npm ci" "npm run version:check" "npm run release:gate:test"
-  "npm run build" "npm run typecheck" "npm test" "pytest:all"
-  "R:conformance" "R:read-document" "npm run crosscheck:ci"
-  "npm run diagnostics:legacy:test" "npm run diagnostics:legacy:check -- --scope=source,declarations"
-  "npm run docs:check" "npm run docs:check:py" "npm run docs:check:r"
-  "npm run advisories:test" "npm run advisories:check" "npm run smoke:packed:test"
-  "npm run example" "npm run example:real-world" "npm run example:determinism"
-  "npm run example:cl-ts" "npm run example:cl-py" "npm run example:cl-r"
-  "npm run example:cl-crosscheck" "npm run smoke:packed" "npm run smoke:packed:runtime-four"
-)
+COMMANDS=()
+while IFS= read -r command; do COMMANDS+=("$command"); done < <(node -e 'const value=require("./tools/release/release-commands.json"); for(const command of value.commands) console.log(command)')
 if [[ "${1:-}" == "--dry-run" ]]; then printf '%s\n' "${COMMANDS[@]}"; exit 0; fi
 
 GATE_TMP=""
@@ -125,31 +116,15 @@ kill -0 "$SIDECAR_PID" 2>/dev/null
 ENGINE_JSON="$(curl -sf --connect-timeout 1 --max-time 2 -H "Authorization: Bearer $SIDECAR_TOKEN" "$SIDECAR_URL/v1/engine")"
 printf '%s' "$ENGINE_JSON" | PYTHONPATH="$PWD/interop" "$GATE_PYTHON" tools/release/check-sidecar-engine.py
 
-npm run version:check
-npm ci
-npm run version:check
-npm run release:gate:test
-npm run build
-npm run typecheck
-npm test
-"$GATE_PYTHON" -m pytest interop/python/tests interop/conformance/py interop/sidecar/tests -q
-"$RSCRIPT_BIN" tools/interop/conformance.R
-"$RSCRIPT_BIN" tools/interop/test-read-document.R
-npm run crosscheck:ci
-npm run diagnostics:legacy:test
-npm run diagnostics:legacy:check -- --scope=source,declarations
-npm run docs:check
-ACTUARIAL_TS_PYTHON="$GATE_PYTHON" npm run docs:check:py
-npm run docs:check:r
-npm run advisories:test
-npm run advisories:check
-npm run smoke:packed:test
-npm run example
-npm run example:real-world
-npm run example:determinism
-npm run example:cl-ts
-npm run example:cl-py
-npm run example:cl-r
-npm run example:cl-crosscheck
-npm run smoke:packed
-npm run smoke:packed:runtime-four
+for command in "${COMMANDS[@]}"; do
+  echo ">>> $command"
+  case "$command" in
+    "pytest:all") "$GATE_PYTHON" -m pytest interop/python/tests interop/conformance/py interop/sidecar/tests -q ;;
+    "R:conformance") "$RSCRIPT_BIN" tools/interop/conformance.R ;;
+    "R:read-document") "$RSCRIPT_BIN" tools/interop/test-read-document.R ;;
+    "npm run docs:check:py") ACTUARIAL_TS_PYTHON="$GATE_PYTHON" npm run docs:check:py ;;
+    "npm run data:fetch -w @actuarial-ts/example-real-world-loss-run") npm run data:fetch -w @actuarial-ts/example-real-world-loss-run ;;
+    "npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run") npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run ;;
+    *) bash -c "$command" ;;
+  esac
+done

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ClaimSnapshot } from "@actuarial-ts/core";
+import type { ClaimSnapshot, Triangle } from "@actuarial-ts/core";
 import { triangleFromGrid } from "@actuarial-ts/core";
 import { reviewClaimData, reviewTriangles } from "../src/review.js";
 import type { DataCheck, DataReviewReport } from "../src/review.js";
@@ -11,6 +11,7 @@ const CLAIM_CHECK_IDS = [
   "paid-decreasing",
   "date-order",
   "duplicate-snapshot",
+  "claim-identity",
   "future-dated",
   "closed-with-case",
 ];
@@ -64,7 +65,8 @@ describe("finding identifiers and gap coherence (findings data.5, data.6)", () =
       ],
       {},
     );
-    const finding = report.checks.find((c) => c.id === "negative-paid")!.details[0]!;
+    const finding = report.checks.find((c) => c.id === "negative-paid")!
+      .details[0]!;
     expect(finding).toContain("CLM-7");
     expect(finding).toContain("2024-06-30");
     expect(finding).not.toMatch(/\brow \d+/);
@@ -74,10 +76,18 @@ describe("finding identifiers and gap coherence (findings data.5, data.6)", () =
     // interior-missing used (v !== null) while negative-incremental used
     // (null || undefined): the same absent cell was "observed" to one check
     // and a gap to the other. undefined and null are both absences here.
-    const withUndefined = triangleFromGrid("paid", ["2021"], [12, 24, 36], [[100, 180, 220]]);
+    const withUndefined = triangleFromGrid(
+      "paid",
+      ["2021"],
+      [12, 24, 36],
+      [[100, 180, 220]],
+    );
     // Simulate a JSON round-trip artifact: an interior cell becomes undefined.
     (withUndefined.values[0] as (number | null | undefined)[])[1] = undefined;
-    const report = reviewTriangles(withUndefined, { ...withUndefined, kind: "incurred" });
+    const report = reviewTriangles(withUndefined, {
+      ...withUndefined,
+      kind: "incurred",
+    });
     const interior = report.checks.find((c) => c.id === "interior-missing")!;
     expect(interior.status).toBe("warning");
     expect(interior.details.join(" ")).toContain("age 24");
@@ -90,10 +100,17 @@ describe("non-finite values fail the review instead of sailing through it (findi
     // false for NaN — so a triangle of NaN cells passed 5/5 checks and
     // rendered into disclosure Section 3 as clean data. NaN is not clean
     // data; it is the absence of a number wearing a number's type.
-    const nan = triangleFromGrid("paid", ["2021", "2022"], [12, 24], [
-      [Number.NaN, Number.NaN],
-      [Number.NaN, null],
-    ]);
+    // The core constructor now rejects this at its public boundary. Forge the
+    // runtime value here to retain defense-in-depth coverage in the reviewer.
+    const nan = {
+      kind: "paid",
+      origins: ["2021", "2022"],
+      ages: [12, 24],
+      values: [
+        [Number.NaN, Number.NaN],
+        [Number.NaN, null],
+      ],
+    } satisfies Triangle;
     const report = reviewTriangles(nan, { ...nan, kind: "incurred" });
     const check = report.checks.find((c) => c.id === "non-finite-value");
     expect(check).toBeDefined();
@@ -124,12 +141,19 @@ describe("non-finite values fail the review instead of sailing through it (findi
   });
 
   it("passes clean data through the new check untouched", () => {
-    const clean = triangleFromGrid("paid", ["2021", "2022"], [12, 24], [
-      [100, 180],
-      [120, null],
-    ]);
+    const clean = triangleFromGrid(
+      "paid",
+      ["2021", "2022"],
+      [12, 24],
+      [
+        [100, 180],
+        [120, null],
+      ],
+    );
     const report = reviewTriangles(clean, { ...clean, kind: "incurred" });
-    expect(report.checks.find((c) => c.id === "non-finite-value")!.status).toBe("pass");
+    expect(report.checks.find((c) => c.id === "non-finite-value")!.status).toBe(
+      "pass",
+    );
   });
 });
 
@@ -137,7 +161,13 @@ describe("reviewClaimData", () => {
   it("reports every check id, all passing, on clean data", () => {
     const clean = [
       snap(),
-      snap({ claimId: "CL-1", evaluationDate: "2022-12-31", paidToDate: 1500, caseReserve: 0, status: "closed" }),
+      snap({
+        claimId: "CL-1",
+        evaluationDate: "2022-12-31",
+        paidToDate: 1500,
+        caseReserve: 0,
+        status: "closed",
+      }),
       snap({ claimId: "CL-2", paidToDate: 0 }),
     ];
     const report = reviewClaimData(clean, { asOfDate: "2023-12-31" });
@@ -147,7 +177,12 @@ describe("reviewClaimData", () => {
       expect(c.details).toEqual([]);
       expect(c.description.length).toBeGreaterThan(0);
     }
-    expect(report.summary).toEqual({ pass: 8, warning: 0, fail: 0, notEvaluated: 0 });
+    expect(report.summary).toEqual({
+      pass: 9,
+      warning: 0,
+      fail: 0,
+      notEvaluated: 0,
+    });
   });
 
   it("fails negative-paid", () => {
@@ -190,8 +225,16 @@ describe("reviewClaimData", () => {
 
   it("fails date-order when report precedes accident or evaluation precedes report", () => {
     const report = reviewClaimData([
-      snap({ claimId: "A", accidentDate: "2021-06-01", reportDate: "2021-05-01" }),
-      snap({ claimId: "B", reportDate: "2022-06-01", evaluationDate: "2022-05-01" }),
+      snap({
+        claimId: "A",
+        accidentDate: "2021-06-01",
+        reportDate: "2021-05-01",
+      }),
+      snap({
+        claimId: "B",
+        reportDate: "2022-06-01",
+        evaluationDate: "2022-05-01",
+      }),
     ]);
     const c = check(report, "date-order");
     expect(c.status).toBe("fail");
@@ -205,6 +248,14 @@ describe("reviewClaimData", () => {
     expect(c.details).toHaveLength(1);
     expect(c.details[0]).toContain("CL-1");
     expect(c.details[0]).toContain("2021-12-31");
+  });
+
+  it("fails conflicting claim identity fields across snapshots", () => {
+    const report = reviewClaimData([
+      snap(),
+      snap({ evaluationDate: "2022-12-31", accidentDate: "2020-03-15" }),
+    ]);
+    expect(check(report, "claim-identity")).toMatchObject({ status: "fail" });
   });
 
   it("fails future-dated when any date exceeds asOfDate", () => {
@@ -225,7 +276,9 @@ describe("reviewClaimData", () => {
   });
 
   it("warns on closed-with-case", () => {
-    const report = reviewClaimData([snap({ status: "closed", caseReserve: 100 })]);
+    const report = reviewClaimData([
+      snap({ status: "closed", caseReserve: 100 }),
+    ]);
     const c = check(report, "closed-with-case");
     expect(c.status).toBe("warning");
     expect(c.details[0]).toContain("CL-1");
@@ -241,13 +294,11 @@ describe("reviewClaimData", () => {
   });
 
   it("summary counts checks by status", () => {
-    const report = reviewClaimData([
-      snap({ paidToDate: -1, caseReserve: -1 }),
-    ]);
+    const report = reviewClaimData([snap({ paidToDate: -1, caseReserve: -1 })]);
     expect(report.summary.fail).toBe(1); // negative-paid
     expect(report.summary.warning).toBe(1); // negative-case
     // future-dated has no asOfDate here, so it is explicitly not evaluated.
-    expect(report.summary.pass).toBe(5);
+    expect(report.summary.pass).toBe(6);
     expect(report.summary.notEvaluated).toBe(1);
   });
 });
@@ -281,11 +332,21 @@ describe("reviewTriangles", () => {
       expect(c.status).toBe("pass");
       expect(c.details).toEqual([]);
     }
-    expect(report.summary).toEqual({ pass: 6, warning: 0, fail: 0, notEvaluated: 0 });
+    expect(report.summary).toEqual({
+      pass: 6,
+      warning: 0,
+      fail: 0,
+      notEvaluated: 0,
+    });
   });
 
   it("fails shape-mismatch and skips the remaining checks (still listed)", () => {
-    const incurred = triangleFromGrid("incurred", ["2020"], [12, 24], [[150, 200]]);
+    const incurred = triangleFromGrid(
+      "incurred",
+      ["2020"],
+      [12, 24],
+      [[150, 200]],
+    );
     const report = reviewTriangles(cleanPaid(), incurred);
     expect(report.checks.map((c) => c.id)).toEqual(TRIANGLE_CHECK_IDS);
     const shape = check(report, "shape-mismatch");
@@ -299,7 +360,12 @@ describe("reviewTriangles", () => {
       expect(c.status).toBe("not-evaluated");
       expect(c.details[0]).toContain("not evaluated");
     }
-    expect(report.summary).toEqual({ pass: 1, warning: 0, fail: 1, notEvaluated: 4 });
+    expect(report.summary).toEqual({
+      pass: 1,
+      warning: 0,
+      fail: 1,
+      notEvaluated: 4,
+    });
   });
 
   it("fails shape-mismatch on differing ages too", () => {
@@ -312,7 +378,9 @@ describe("reviewTriangles", () => {
         [160, null],
       ],
     );
-    expect(check(reviewTriangles(cleanPaid(), incurred), "shape-mismatch").status).toBe("fail");
+    expect(
+      check(reviewTriangles(cleanPaid(), incurred), "shape-mismatch").status,
+    ).toBe("fail");
   });
 
   it("fails paid-exceeds-incurred per offending cell", () => {
@@ -325,7 +393,10 @@ describe("reviewTriangles", () => {
         [110, null],
       ],
     );
-    const c = check(reviewTriangles(paid, cleanIncurred()), "paid-exceeds-incurred");
+    const c = check(
+      reviewTriangles(paid, cleanIncurred()),
+      "paid-exceeds-incurred",
+    );
     expect(c.status).toBe("fail");
     expect(c.details).toHaveLength(1);
     expect(c.details[0]).toContain("2020");
@@ -342,9 +413,10 @@ describe("reviewTriangles", () => {
         [110, null],
       ],
     );
-    expect(check(reviewTriangles(paid, cleanIncurred()), "paid-exceeds-incurred").status).toBe(
-      "pass",
-    );
+    expect(
+      check(reviewTriangles(paid, cleanIncurred()), "paid-exceeds-incurred")
+        .status,
+    ).toBe("pass");
   });
 
   it("warns on negative incremental paid (salvage is legal but reportable)", () => {
@@ -357,7 +429,10 @@ describe("reviewTriangles", () => {
         [110, null],
       ],
     );
-    const c = check(reviewTriangles(paid, cleanIncurred()), "negative-incremental-paid");
+    const c = check(
+      reviewTriangles(paid, cleanIncurred()),
+      "negative-incremental-paid",
+    );
     expect(c.status).toBe("warning");
     expect(c.details).toHaveLength(1);
     expect(c.details[0]).toContain("2020");
@@ -373,7 +448,10 @@ describe("reviewTriangles", () => {
         [160, null],
       ],
     );
-    const c = check(reviewTriangles(cleanPaid(), incurred), "negative-incremental-incurred");
+    const c = check(
+      reviewTriangles(cleanPaid(), incurred),
+      "negative-incremental-incurred",
+    );
     expect(c.status).toBe("warning");
     expect(c.details).toHaveLength(1);
   });
