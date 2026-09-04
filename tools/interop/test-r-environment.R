@@ -2,7 +2,7 @@ contract_path <- "tools/interop/r-environment.json"
 .libPaths(c(path.expand("~/.R-interop-lib"), .libPaths()))
 contract <- jsonlite::fromJSON(contract_path, simplifyVector = FALSE)
 stopifnot(identical(contract$rVersion, "4.4.3"))
-stopifnot(identical(contract$transitivePackages$Deriv, "4.3.0"))
+stopifnot(identical(contract$transitivePackages$Deriv, "4.2.0"))
 stopifnot(identical(contract$packages$ChainLadder, "0.2.21"))
 stopifnot(identical(contract$packages$jsonlite, "2.0.0"))
 rscript <- file.path(R.home("bin"), "Rscript")

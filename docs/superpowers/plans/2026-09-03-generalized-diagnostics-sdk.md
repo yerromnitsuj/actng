@@ -4045,7 +4045,7 @@ release candidate.
 - [ ] Ensure R conformance runs the new definition replay.
 - [ ] Replace the mutable R-environment assumption with one machine-readable
   contract: R `4.4.3`, `ChainLadder==0.2.21`, `jsonlite==2.0.0`, and the
-  R-4.4-compatible transitive pin `Deriv==4.3.0` in
+  R-4.4-compatible transitive pin `Deriv==4.2.0` in
   `tools/interop/r-environment.json`. Make
   both `tools/interop/install-r-environment.R` and
   `tools/interop/check-r-environment.R` read that file. The installer must

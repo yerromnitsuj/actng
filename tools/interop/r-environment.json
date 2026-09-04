@@ -4,7 +4,7 @@
   "library": "~/.R-interop-lib",
   "repository": "https://cloud.r-project.org",
   "transitivePackages": {
-    "Deriv": "4.3.0"
+    "Deriv": "4.2.0"
   },
   "packages": {
     "ChainLadder": "0.2.21",
