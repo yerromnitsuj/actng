@@ -64,7 +64,8 @@ npm run test:py
 
 ### The R shore (optional, needed for interop work)
 
-The release contract is R 4.4.3 with the exact direct-package pins in
+The release contract is R 4.4.3 with exact direct-package and transitive
+compatibility pins in
 [`tools/interop/r-environment.json`](tools/interop/r-environment.json). Install
 R 4.4.3 using the official CRAN installer or `rig`, locate that installation's
 absolute `Rscript`, then run:

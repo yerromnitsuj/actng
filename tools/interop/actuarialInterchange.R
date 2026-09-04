@@ -18,7 +18,8 @@
 # Dependencies used from jsonlite: fromJSON (STRUCTURE only) + toJSON is NOT
 # used for canonical output. All canonical bytes come from ats_canonical_json.
 
-# Local interop library (ChainLadder 0.2.21 + jsonlite 2.0.0 live here) — make
+# Local interop library (ChainLadder 0.2.21, jsonlite 2.0.0, and its pinned
+# compatible Deriv dependency live here) — make
 # the file self-contained so `Rscript tools/interop/actuarialInterchange.R`
 # sources cleanly on its own, not only when a caller pre-sets the path.
 local({

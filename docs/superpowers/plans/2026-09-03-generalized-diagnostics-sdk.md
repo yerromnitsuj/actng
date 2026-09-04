@@ -4044,13 +4044,15 @@ release candidate.
 - [ ] Ensure Python paths include the new diagnostics corpus/module.
 - [ ] Ensure R conformance runs the new definition replay.
 - [ ] Replace the mutable R-environment assumption with one machine-readable
-  contract: R `4.4.3`, `ChainLadder==0.2.21`, and `jsonlite==2.0.0` in
+  contract: R `4.4.3`, `ChainLadder==0.2.21`, `jsonlite==2.0.0`, and the
+  R-4.4-compatible transitive pin `Deriv==4.3.0` in
   `tools/interop/r-environment.json`. Make
   both `tools/interop/install-r-environment.R` and
   `tools/interop/check-r-environment.R` read that file. The installer must
-  install the two exact declared direct-package versions without duplicating
-  version literals; the checker compares exact runtime/direct-package versions
-  and fails with actionable guidance. Give both scripts an explicit
+  install the compatibility pin before its dependants and install the two exact
+  declared direct-package versions without duplicating version literals; the
+  checker compares the exact runtime and all pinned package versions and fails
+  with actionable guidance. Give both scripts an explicit
   `--contract <path>` seam and the installer a non-mutating `--dry-run` plan
   mode. Have `test-r-environment.R` use only temporary mutated contracts to
   prove pin derivation, mismatch failure, and zero installation or canonical-

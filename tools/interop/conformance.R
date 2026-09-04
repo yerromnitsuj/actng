@@ -9,7 +9,8 @@
 # relative). Prints a verdict table.
 #
 # Run:  Rscript tools/interop/conformance.R
-# (uses the local library at ~/.R-interop-lib; ChainLadder 0.2.21 + jsonlite).
+# (uses the local library at ~/.R-interop-lib; exact pins are declared in
+# tools/interop/r-environment.json).
 
 local({
   lib <- path.expand("~/.R-interop-lib")

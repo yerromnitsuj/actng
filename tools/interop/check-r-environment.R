@@ -11,8 +11,9 @@ if (!identical(actual_r, contract$rVersion)) stop(
   "R runtime mismatch: expected ", contract$rVersion, ", got ", actual_r,
   ". Point ACTUARIAL_TS_RSCRIPT at the exact required Rscript executable."
 )
-for (name in names(contract$packages)) {
-  expected <- contract$packages[[name]]
+expected_packages <- c(contract$transitivePackages, contract$packages)
+for (name in names(expected_packages)) {
+  expected <- expected_packages[[name]]
   actual <- tryCatch(as.character(packageVersion(name)), error = function(error) NA_character_)
   if (!identical(actual, expected)) stop(
     name, " mismatch: expected ", expected, ", got ", actual,

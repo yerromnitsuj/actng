@@ -3,6 +3,9 @@
   "rVersion": "4.4.3",
   "library": "~/.R-interop-lib",
   "repository": "https://cloud.r-project.org",
+  "transitivePackages": {
+    "Deriv": "4.3.0"
+  },
   "packages": {
     "ChainLadder": "0.2.21",
     "jsonlite": "2.0.0"
