@@ -2256,6 +2256,7 @@ export interface DiagnosticMetricFinding {
   readonly measureId?: string;
   readonly instanceId?: string;
   readonly expressionPath?: string;
+  readonly offendingKey?: string;
   readonly sourceGroup?: string;
   readonly group?: string;
   readonly origin?: string;
@@ -2417,6 +2418,8 @@ export interface DiagnosticStructuralBlocker {
   readonly message: string;
   readonly sourceIds: readonly string[];
   readonly sources: readonly DiagnosticSourceLocation[];
+  /** Exact preparation finding whose dependency this blocker represents. */
+  readonly finding?: DiagnosticMetricFinding;
 }
 
 export interface DiagnosticMeasureContributionBase {
@@ -4009,11 +4012,13 @@ export interface DiagnosticDefinitionDoc {
   /** Current writers emit 1.1.0; generic readers accept supported same-major. */
   interchangeVersion: string;
   kind: "diagnostic-definition";
-  generator: GeneratorStamp;
+  generator: GeneratorStamp & { [key: string]: unknown };
   createdAt: string;
   extensions?: Readonly<Record<string, unknown>>;
   integrity: string;
   diagnosticDefinition: DiagnosticDefinitionBody;
+  /** Generic same-major readers preserve unknown envelope fields. */
+  [key: string]: unknown;
 }
 
 export interface DiagnosticDefinitionToDocOptions {

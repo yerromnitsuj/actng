@@ -38,6 +38,10 @@ be independently recreated) and allow caller-owned mutable arrays as inputs to
 readonly public arrays. No operational or model-visible examples receive a
 blanket syntax-only exception.
 
+Every compared named type also requires an exact root key set, distributed
+across union variants and excluding only symbol brands. This rejects extra
+optional properties that bidirectional assignability alone would allow.
+
 After intentional documentation edits, regenerate inventory and fence hashes
 with `npm run docs:manifests`, then run the checks. Regenerating the manifest
 does not bypass typechecks, runtime checks, or the mutation tests.

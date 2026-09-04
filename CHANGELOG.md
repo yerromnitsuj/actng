@@ -47,6 +47,8 @@ together; this file covers them all.
   executor `tenantId`, and successful `{ success: true, data }` envelopes.
   Display projections use `points` or `triangles`; point views omit raw
   aggregation components. The migration guide documents the corrected names.
+- Removes the unused `DataFindingContext.ageMonths` property and rejects it
+  in diagnostic agent results; use `developmentAge` with `ageUnit`.
 
 ### Reproducibility and published validation
 

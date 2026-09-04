@@ -43,7 +43,6 @@ export interface DataFindingContext {
   recordId?: string;
   claimId?: string;
   exposureKey?: string;
-  ageMonths?: number;
   group?: string;
   sourceFile?: string;
   sourceRow?: number;

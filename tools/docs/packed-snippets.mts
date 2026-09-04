@@ -394,7 +394,7 @@ function specModules(
   const checks = comparable
     .map(
       (name) =>
-        `declare const documented_${name}: Shape<Doc.${name}>; declare const public_${name}: Shape<import("@actuarial-ts/${exports.get(name)}").${name}>;\nconst forward_${name}: typeof public_${name} = documented_${name}; const backward_${name}: typeof documented_${name} = public_${name};`,
+        `declare const documented_${name}: Shape<Doc.${name}>; declare const public_${name}: Shape<import("@actuarial-ts/${exports.get(name)}").${name}>;\ntype keys_${name} = AssertNoKeys<DifferentRootKeys<typeof documented_${name}, typeof public_${name}>>;\nconst forward_${name}: typeof public_${name} = documented_${name}; const backward_${name}: typeof documented_${name} = public_${name};`,
     )
     .join("\n");
   const functionChecks = [...comparableFunctions]
@@ -422,6 +422,10 @@ type Shape<T> = T extends (...args: infer A) => infer R ? (...args: { [K in keyo
   T extends readonly (infer V)[] ? readonly Shape<V>[] :
   T extends object ? { [K in keyof T as K extends symbol ? never : K]: Shape<T[K]> } : T;
 type Equivalent<A, B> = [A] extends [B] ? [B] extends [A] ? true : false : false;
+// Distribute over unions so an optional field on only one variant is included.
+type RootKeys<T> = T extends unknown ? Exclude<keyof T, symbol> : never;
+type DifferentRootKeys<A, B> = Exclude<RootKeys<A>, RootKeys<B>> | Exclude<RootKeys<B>, RootKeys<A>>;
+type AssertNoKeys<T extends never> = T;
 type Assert<T extends true> = T;
 `;
 
@@ -452,7 +456,7 @@ export function verifyPackedSnippets(
     else
       modules.set(
         name,
-        `${snippet.source}\n${typeComparison}\ntype Check = Assert<Equivalent<Shape<DiagnosticAgentToolInput>, Shape<import("@actuarial-ts/agents").DiagnosticAgentToolInput>>>;\nexport {};`,
+        `${snippet.source}\n${typeComparison}\ntype Check = Assert<Equivalent<Shape<DiagnosticAgentToolInput>, Shape<import("@actuarial-ts/agents").DiagnosticAgentToolInput>>>;\ntype KeysCheck = AssertNoKeys<DifferentRootKeys<Shape<DiagnosticAgentToolInput>, Shape<import("@actuarial-ts/agents").DiagnosticAgentToolInput>>>;\nexport {};`,
       );
   }
   const files: string[] = [join(environment.directory, "setup.mts")];

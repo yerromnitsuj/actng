@@ -356,7 +356,6 @@ const dataFindingContextSchema = z
     recordId: tokenSchema.optional(),
     claimId: tokenSchema.optional(),
     exposureKey: tokenSchema.optional(),
-    ageMonths: z.number().int().nonnegative().safe().optional(),
     group: tokenSchema.optional(),
     sourceFile: tokenSchema.optional(),
     sourceRow: z.number().int().nonnegative().safe().optional(),

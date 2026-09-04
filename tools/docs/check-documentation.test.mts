@@ -162,6 +162,45 @@ describe("actual documentation source against isolated packed packages", () => {
       /forward_createCasualtyMetricInstances|backward_createCasualtyMetricInstances/,
     );
   }, 30_000);
+  it("rejects an extra optional field that bidirectional assignability would allow", () => {
+    const contract = snippets.filter(
+      (snippet) =>
+        snippet.path ===
+        "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+    );
+    const source = contract.find((snippet) =>
+      snippet.source.includes("export interface DataFindingContext {"),
+    )!;
+    expect(source).toBeDefined();
+    const mutated = contract.map((snippet) =>
+      snippet === source
+        ? {
+            ...snippet,
+            source: snippet.source.replace(
+              "export interface DataFindingContext {",
+              "export interface DataFindingContext {\n  undocumentedOptional?: number;",
+            ),
+          }
+        : snippet,
+    );
+    expect(() => verifyPackedSnippets(environment, mutated)).toThrow(
+      /keys_DataFindingContext/,
+    );
+  }, 30_000);
+  it("rejects an extra optional field in the standalone agent input declaration", () => {
+    const source = snippets.find(
+      (snippet) =>
+        snippet.path === "packages/agents/README.md" && snippet.ordinal === 3,
+    )!;
+    const mutated = source.source.replace(
+      "type DiagnosticAgentToolInput = {",
+      "type DiagnosticAgentToolInput = {\n  undocumentedOptional?: number;",
+    );
+    expect(mutated).not.toBe(source.source);
+    expect(() =>
+      verifyPackedSnippets(environment, [{ ...source, source: mutated }]),
+    ).toThrow(/KeysCheck/);
+  }, 30_000);
   it("rejects a runtime exception in otherwise well-typed actual source", () => {
     const source = snippets.find(
       (snippet) =>

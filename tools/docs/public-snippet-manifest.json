@@ -465,7 +465,7 @@
       "heading": "14. Results and projections",
       "language": "ts",
       "ordinal": 21,
-      "sha256": "04f8a56c671dada5073b8e4911dc73df3ad27fd9a9c9a646d2149150365d6f5d",
+      "sha256": "9793dcbcea6d4437852da5aa88f38525bbb6d51c4f00ef1f686a07e306189f01",
       "classification": "packed-declaration-contract",
       "reason": "Exact declaration nodes compile with explicit public dependencies and structural public-type checks; executable nodes additionally run against installed tarballs. Type declarations are not claimed as runtime execution."
     },
@@ -474,7 +474,7 @@
       "heading": "14. Results and projections",
       "language": "ts",
       "ordinal": 22,
-      "sha256": "150c5174f26fbc8beeaf588ea202cef0bc709020dc9cb502ae8f4a7be253f40c",
+      "sha256": "1994bdce63084d1ac018d73c906e94bbbb8fdc1aeb9d4a01e42a5a8c57f9c3bb",
       "classification": "packed-declaration-contract",
       "reason": "Exact declaration nodes compile with explicit public dependencies and structural public-type checks; executable nodes additionally run against installed tarballs. Type declarations are not claimed as runtime execution."
     },
@@ -528,7 +528,7 @@
       "heading": "17. Typed interchange contract",
       "language": "ts",
       "ordinal": 28,
-      "sha256": "f1cf41b9c4d32a1b11e54d3b68b36471f0e44dd7e6a53e0c73c4c0dff9e60f09",
+      "sha256": "7692ceb72873d6a45b24dd17553978590a81818605d44fc6bdc28d06641531bf",
       "classification": "packed-declaration-contract",
       "reason": "Exact declaration nodes compile with explicit public dependencies and structural public-type checks; executable nodes additionally run against installed tarballs. Type declarations are not claimed as runtime execution."
     },

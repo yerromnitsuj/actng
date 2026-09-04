@@ -500,6 +500,33 @@ describe("diagnostic trusted-catalog tool", () => {
     }
   });
 
+  it("refuses removed ageMonths in a diagnostic review context", async () => {
+    const tool = createDiagnosticSelectionTool({
+      definition: compiled,
+      runPresets: [preset()],
+    });
+    const result = await tool.execute(
+      { runPresetId: "approved", instanceIds: [ids[0]], view: "emergence" },
+      context(),
+    );
+    if (!result.success) throw new Error("Valid fixture failed");
+    const candidate = structuredClone(result) as any;
+    const contextValue: Record<string, unknown> = {
+      developmentAge: 12,
+      ageUnit: "month",
+    };
+    candidate.data.review.report.checks[0].findings = [
+      { code: "context", message: "Context", context: contextValue },
+    ];
+    expect(diagnosticAgentToolResultSchema.safeParse(candidate).success).toBe(
+      true,
+    );
+    contextValue.ageMonths = 12;
+    expect(diagnosticAgentToolResultSchema.safeParse(candidate).success).toBe(
+      false,
+    );
+  });
+
   it("runs an exact, sorted selection and returns only selected identity keys", async () => {
     let received: readonly string[] = [];
     const tool = createDiagnosticSelectionTool({
