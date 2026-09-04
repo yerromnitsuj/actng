@@ -29,6 +29,20 @@ stopifnot(identical(plan[[3L]]$version, contract$packages$jsonlite))
 stopifnot(!dir.exists(temporary_library))
 stopifnot(identical(canonical_before, readBin(contract_path, "raw", file.info(contract_path)$size)))
 
+duplicate_classification <- mutated
+duplicate_classification$transitivePackages$jsonlite <- duplicate_classification$packages$jsonlite
+jsonlite::write_json(duplicate_classification, temporary_contract, auto_unbox = TRUE, pretty = TRUE)
+duplicate_output <- suppressWarnings(system2(
+  rscript,
+  c("tools/interop/install-r-environment.R", "--contract", shQuote(temporary_contract), "--dry-run"),
+  stdout = TRUE,
+  stderr = TRUE,
+  env = paste0("R_LIBS_USER=", shQuote(path.expand("~/.R-interop-lib")))
+))
+stopifnot(identical(attr(duplicate_output, "status"), 1L))
+stopifnot(any(grepl("both direct and transitive", duplicate_output, fixed = TRUE)))
+stopifnot(!dir.exists(temporary_library))
+
 wrong_runtime <- mutated
 wrong_runtime$rVersion <- "0.0.0"
 jsonlite::write_json(wrong_runtime, temporary_contract, auto_unbox = TRUE, pretty = TRUE)
@@ -42,4 +56,11 @@ for (script in c("tools/interop/install-r-environment.R", "tools/interop/check-r
   versions <- c(contract$rVersion, unlist(contract$transitivePackages), unlist(contract$packages))
   stopifnot(!any(vapply(versions, function(version) grepl(version, text, fixed = TRUE), logical(1))))
 }
+
+installer_text <- paste(readLines("tools/interop/install-r-environment.R", warn = FALSE), collapse = "\n")
+stopifnot(grepl("read.dcf", installer_text, fixed = TRUE))
+stopifnot(grepl("db = exact_available", installer_text, fixed = TRUE))
+stopifnot(grepl("requireNamespace(package, quietly = TRUE)", installer_text, fixed = TRUE))
+stopifnot(grepl("installed.packages(lib.loc = library_path", installer_text, fixed = TRUE))
+stopifnot(grepl("install_dependencies(transitive_names)\ninstall_exact(transitive_plan)", installer_text, fixed = TRUE))
 cat("R environment contract tests passed\n")

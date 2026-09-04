@@ -26,6 +26,11 @@ if (!requireNamespace("jsonlite", quietly = TRUE)) {
 contract <- jsonlite::fromJSON(contract_path, simplifyVector = FALSE)
 direct_names <- names(contract$packages)
 transitive_names <- names(contract$transitivePackages)
+duplicate_names <- intersect(direct_names, transitive_names)
+if (length(duplicate_names) > 0L) stop(
+  "R environment contract classifies packages as both direct and transitive: ",
+  paste(duplicate_names, collapse = ", ")
+)
 make_plan <- function(packages, classification) Map(function(name, version) list(
   package = name,
   version = version,
@@ -45,24 +50,73 @@ dir.create(library_path, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(library_path, .libPaths()))
 available <- available.packages(repos = repository, type = "source")
 all_pinned_names <- c(transitive_names, direct_names)
-install_dependencies <- function(roots) {
-  if (length(roots) == 0L) return(invisible(NULL))
-  dependency_map <- tools::package_dependencies(roots, db = available, recursive = TRUE)
-  dependencies <- sort(unique(setdiff(unlist(dependency_map, use.names = FALSE), all_pinned_names)))
-  dependencies <- intersect(dependencies, rownames(available))
-  missing <- setdiff(dependencies, rownames(installed.packages()))
-  if (length(missing) > 0L) install.packages(missing, lib = library_path, repos = repository, dependencies = NA)
-}
 
-install_exact <- function(items) for (item in items) {
+download_exact <- function(item) {
   archive <- tempfile(fileext = ".tar.gz")
   downloaded <- tryCatch({
     isTRUE(suppressWarnings(download.file(item$currentUrl, archive, mode = "wb", quiet = TRUE)) == 0L)
   }, error = function(error) FALSE)
   if (!downloaded) download.file(item$archiveUrl, archive, mode = "wb", quiet = TRUE)
-  tryCatch(
-    install.packages(archive, lib = library_path, repos = NULL, type = "source"),
-    finally = unlink(archive)
+  archive
+}
+
+# Dependency metadata must come from the exact archives, not from CRAN's moving
+# current-package index. This matters when the current release changes either
+# its R floor or its dependency graph after the compatible version is archived.
+archives <- setNames(lapply(plan, download_exact), vapply(plan, `[[`, character(1), "package"))
+on.exit(unlink(unlist(archives, use.names = FALSE)), add = TRUE)
+exact_available <- available
+for (item in plan) {
+  extraction <- tempfile("r-package-description-")
+  dir.create(extraction)
+  description_path <- file.path(item$package, "DESCRIPTION")
+  description <- tryCatch({
+    untar(archives[[item$package]], files = description_path, exdir = extraction)
+    read.dcf(file.path(extraction, description_path))
+  }, finally = unlink(extraction, recursive = TRUE, force = TRUE))
+  if (!identical(description[1L, "Package"], item$package) ||
+      !identical(description[1L, "Version"], item$version)) stop(
+    "Downloaded archive identity does not match the contract for ", item$package
+  )
+
+  record <- rep(NA_character_, ncol(exact_available))
+  names(record) <- colnames(exact_available)
+  shared_fields <- intersect(colnames(description), names(record))
+  record[shared_fields] <- description[1L, shared_fields]
+  if (item$package %in% rownames(exact_available)) {
+    exact_available[item$package, ] <- record
+  } else {
+    exact_available <- rbind(exact_available, record)
+    rownames(exact_available)[nrow(exact_available)] <- item$package
+  }
+}
+
+dependency_is_available <- function(package) {
+  isTRUE(requireNamespace(package, quietly = TRUE))
+}
+
+install_dependencies <- function(roots) {
+  if (length(roots) == 0L) return(invisible(NULL))
+  dependency_map <- tools::package_dependencies(roots, db = exact_available, recursive = TRUE)
+  dependencies <- sort(unique(setdiff(unlist(dependency_map, use.names = FALSE), all_pinned_names)))
+  dependencies <- intersect(dependencies, rownames(exact_available))
+  missing <- dependencies[!vapply(dependencies, dependency_is_available, logical(1))]
+  if (length(missing) > 0L) install.packages(missing, lib = library_path, repos = repository, dependencies = NA)
+
+  unresolved <- dependencies[!vapply(dependencies, dependency_is_available, logical(1))]
+  if (length(unresolved) > 0L) stop(
+    "Failed to install dependencies into the contract library: ",
+    paste(unresolved, collapse = ", ")
+  )
+}
+
+install_exact <- function(items) for (item in items) {
+  install.packages(archives[[item$package]], lib = library_path, repos = NULL, type = "source")
+  installed <- installed.packages(lib.loc = library_path, noCache = TRUE)
+  actual <- if (item$package %in% rownames(installed)) installed[item$package, "Version"] else NA_character_
+  if (!identical(actual, item$version)) stop(
+    "Failed to install exact ", item$package, " version ", item$version,
+    " into the contract library; got ", actual
   )
 }
 

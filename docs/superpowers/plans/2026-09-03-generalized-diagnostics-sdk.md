@@ -4049,8 +4049,12 @@ release candidate.
   `tools/interop/r-environment.json`. Make
   both `tools/interop/install-r-environment.R` and
   `tools/interop/check-r-environment.R` read that file. The installer must
-  install the compatibility pin before its dependants and install the two exact
-  declared direct-package versions without duplicating version literals; the
+  resolve dependencies from each exact package archive rather than moving CRAN
+  metadata, require each dependency to be loadable rather than trusting a stale
+  installed-package listing, install the compatibility pin before its
+  dependants, fail immediately when an exact install is not achieved, and
+  install the two exact declared direct-package versions without duplicating
+  version literals; the
   checker compares the exact runtime and all pinned package versions and fails
   with actionable guidance. Give both scripts an explicit
   `--contract <path>` seam and the installer a non-mutating `--dry-run` plan

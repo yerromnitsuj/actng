@@ -4,8 +4,10 @@ Source-able R functions implementing actuarial-interchange wire 1.1 on the R
 ChainLadder shore, plus a conformance runner. The release environment is
 machine-readable in `r-environment.json`: R 4.4.3, ChainLadder 0.2.21,
 jsonlite 2.0.0, and the compatible Deriv 4.3.0 transitive pin. The Deriv pin
-prevents current CRAN metadata from silently raising the contract's minimum R
-version.
+prevents a later CRAN release from silently raising the contract's minimum R
+version. The installer resolves dependency metadata from each exact source
+archive and accepts a dependency only when it can actually be loaded, avoiding
+false cache hits from stale or incompatible library entries.
 
 ## Setup (once)
 
