@@ -84,23 +84,8 @@ echo "release gate temp: $GATE_TMP"
 "$GATE_PYTHON" -m pip install -e "interop/python[chainladder]" pytest
 "$GATE_PYTHON" -m pip install -r interop/sidecar/requirements-dev.txt
 "$GATE_PYTHON" -m pip check
-"$GATE_PYTHON" - <<'PY'
-from importlib.metadata import version
-expected = {
-    "chainladder": "0.9.2", "pandas": "2.3.3", "numpy": "2.4.6",
-    "fastapi": "0.139.2", "uvicorn": "0.51.0", "httpx": "0.28.1",
-}
-for name, wanted in expected.items():
-    actual = version(name)
-    if actual != wanted:
-        raise SystemExit(f"sidecar dependency mismatch: {name} expected {wanted}, got {actual}")
-for path in ("interop/sidecar/requirements.txt", "interop/sidecar/requirements-dev.txt"):
-    text = open(path, encoding="utf-8").read()
-    for name, wanted in expected.items():
-        if name in text and f"{name}=={wanted}" not in text:
-            raise SystemExit(f"requirement pin drift: {name}=={wanted} absent from {path}")
-PY
-PYTHONPATH="$PWD/interop:$PWD/tools/release" "$GATE_PYTHON" -m pytest -p reject_skips interop/sidecar/tests tools/release/test-check-sidecar-engine.py tools/release/test-reject-skips.py -q
+"$GATE_PYTHON" tools/release/check-python-environment.py
+PYTHONPATH="$PWD/interop:$PWD/tools/release" "$GATE_PYTHON" -m pytest -p reject_skips interop/sidecar/tests tools/release/test-check-sidecar-engine.py tools/release/test-check-python-environment.py tools/release/test-reject-skips.py -q
 
 SIDECAR_PORT="$("$GATE_PYTHON" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 "$GATE_PYTHON" -c 'import socket,sys; s=socket.socket(); s.bind(("127.0.0.1",int(sys.argv[1]))); s.close()' "$SIDECAR_PORT"
