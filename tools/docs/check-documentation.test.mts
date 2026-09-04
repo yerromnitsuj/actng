@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { setImmediate as nextEventLoopTurn } from "node:timers/promises";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { parseDocument } from "yaml";
 import {
@@ -185,8 +186,15 @@ describe("documentation governance artifacts", () => {
 describe("actual documentation source against isolated packed packages", () => {
   let environment: PackedSnippetEnvironment;
   let snippets: PublicSnippet[];
-  beforeAll(() => {
-    environment = createPackedSnippetEnvironment();
+  let setupYieldedToReporter = false;
+  beforeAll(async () => {
+    let heartbeatObserved = false;
+    const heartbeat = nextEventLoopTurn().then(() => {
+      heartbeatObserved = true;
+    });
+    environment = await createPackedSnippetEnvironment();
+    setupYieldedToReporter = heartbeatObserved;
+    await heartbeat;
     const inventory = JSON.parse(
       readFileSync("tools/docs/documentation-inventory.json", "utf8"),
     );
@@ -198,18 +206,43 @@ describe("actual documentation source against isolated packed packages", () => {
       .flatMap(([path]) => extractSnippets(path, readFileSync(path, "utf8")));
   }, 240_000);
   afterAll(() => environment?.cleanup());
-  it("typechecks and executes every runnable public fence and checks declaration contracts", () => {
-    expect(verifyPackedSnippets(environment, snippets)).toEqual({
+  it("keeps the reporter event loop responsive during packed setup", () => {
+    expect(setupYieldedToReporter).toBe(true);
+  });
+  it("keeps the reporter event loop responsive during compiler-only rejection", async () => {
+    const source = snippets.find(
+      (snippet) => snippet.path === "README.md" && snippet.ordinal === 1,
+    )!;
+    const mutated = {
+      ...source,
+      source: source.source.replace(
+        "runMack(paid,",
+        'runMack("not a triangle",',
+      ),
+    };
+    let heartbeatObserved = false;
+    const heartbeat = nextEventLoopTurn().then(() => {
+      heartbeatObserved = true;
+    });
+    await expect(verifyPackedSnippets(environment, [mutated])).rejects.toThrow(
+      /not assignable|TS2345/,
+    );
+    const yieldedDuringVerification = heartbeatObserved;
+    await heartbeat;
+    expect(yieldedDuringVerification).toBe(true);
+  }, 30_000);
+  it("typechecks and executes every runnable public fence and checks declaration contracts", async () => {
+    expect(await verifyPackedSnippets(environment, snippets)).toEqual({
       executable: 13,
       declarations: 25,
     });
   }, 120_000);
-  it("rejects a changed public call that syntax-only transpilation would accept", () => {
+  it("rejects a changed public call that syntax-only transpilation would accept", async () => {
     const source = snippets.find(
       (snippet) => snippet.path === "README.md" && snippet.ordinal === 1,
     )!;
     expect(source.source).toContain("runMack(paid,");
-    expect(() =>
+    await expect(
       verifyPackedSnippets(environment, [
         {
           ...source,
@@ -219,15 +252,15 @@ describe("actual documentation source against isolated packed packages", () => {
           ),
         },
       ]),
-    ).toThrow(/not assignable|TS2345/);
+    ).rejects.toThrow(/not assignable|TS2345/);
   }, 30_000);
-  it("rejects a changed declared public input shape", () => {
+  it("rejects a changed declared public input shape", async () => {
     const source = snippets.find(
       (snippet) =>
         snippet.path === "packages/agents/README.md" && snippet.ordinal === 3,
     )!;
     expect(source.source).toContain("runPresetId: string");
-    expect(() =>
+    await expect(
       verifyPackedSnippets(environment, [
         {
           ...source,
@@ -237,9 +270,9 @@ describe("actual documentation source against isolated packed packages", () => {
           ),
         },
       ]),
-    ).toThrow(/false|TS2344/);
+    ).rejects.toThrow(/false|TS2344/);
   }, 30_000);
-  it("rejects a changed normative function signature even when the runtime import still works", () => {
+  it("rejects a changed normative function signature even when the runtime import still works", async () => {
     const contract = snippets.filter(
       (snippet) =>
         snippet.path ===
@@ -260,11 +293,11 @@ describe("actual documentation source against isolated packed packages", () => {
           }
         : snippet,
     );
-    expect(() => verifyPackedSnippets(environment, mutated)).toThrow(
+    await expect(verifyPackedSnippets(environment, mutated)).rejects.toThrow(
       /forward_createCasualtyMetricInstances|backward_createCasualtyMetricInstances/,
     );
   }, 30_000);
-  it("rejects an extra optional field that bidirectional assignability would allow", () => {
+  it("rejects an extra optional field that bidirectional assignability would allow", async () => {
     const contract = snippets.filter(
       (snippet) =>
         snippet.path ===
@@ -285,11 +318,11 @@ describe("actual documentation source against isolated packed packages", () => {
           }
         : snippet,
     );
-    expect(() => verifyPackedSnippets(environment, mutated)).toThrow(
+    await expect(verifyPackedSnippets(environment, mutated)).rejects.toThrow(
       /keys_DataFindingContext/,
     );
   }, 30_000);
-  it("rejects an extra optional field in the standalone agent input declaration", () => {
+  it("rejects an extra optional field in the standalone agent input declaration", async () => {
     const source = snippets.find(
       (snippet) =>
         snippet.path === "packages/agents/README.md" && snippet.ordinal === 3,
@@ -299,23 +332,23 @@ describe("actual documentation source against isolated packed packages", () => {
       "type DiagnosticAgentToolInput = {\n  undocumentedOptional?: number;",
     );
     expect(mutated).not.toBe(source.source);
-    expect(() =>
+    await expect(
       verifyPackedSnippets(environment, [{ ...source, source: mutated }]),
-    ).toThrow(/KeysCheck/);
+    ).rejects.toThrow(/KeysCheck/);
   }, 30_000);
-  it("rejects a runtime exception in otherwise well-typed actual source", () => {
+  it("rejects a runtime exception in otherwise well-typed actual source", async () => {
     const source = snippets.find(
       (snippet) =>
         snippet.path === "packages/core/README.md" && snippet.ordinal === 2,
     )!;
-    expect(() =>
+    await expect(
       verifyPackedSnippets(environment, [
         {
           ...source,
           source: `${source.source}\nthrow new Error("documentation-runtime-mutation");`,
         },
       ]),
-    ).toThrow(/documentation-runtime-mutation/);
+    ).rejects.toThrow(/documentation-runtime-mutation/);
   }, 30_000);
   it("requires a deliberate recipe for every new executable fence and keeps shell operations non-executing", () => {
     expect(() =>
@@ -332,7 +365,7 @@ describe("actual documentation source against isolated packed packages", () => {
       snippetPolicy({ path: "new-readme.md", ordinal: 1, language: "js" }),
     ).toThrow(/explicit execution recipe/);
   });
-  it("rejects a missing packed export even for a generic normative declaration", () => {
+  it("rejects a missing packed export even for a generic normative declaration", async () => {
     const contract = snippets.filter(
       (snippet) =>
         snippet.path ===
@@ -351,7 +384,7 @@ describe("actual documentation source against isolated packed packages", () => {
           }
         : snippet,
     );
-    expect(() => verifyPackedSnippets(environment, mutated)).toThrow(
+    await expect(verifyPackedSnippets(environment, mutated)).rejects.toThrow(
       /Normative exported declaration MissingPackedPublicType has no packed public export/,
     );
   }, 30_000);

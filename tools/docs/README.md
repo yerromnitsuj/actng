@@ -23,6 +23,12 @@ external dependencies. SDK imports must resolve to physical installations in
 that consumer, never workspace source or symlinks. The enclosing release gate
 builds the packages first. The consumer is removed after checking.
 
+Packing, installation, and example subprocesses are awaited asynchronously.
+Each verification also yields an event-loop turn before compilation, including
+negative cases that reject before any subprocess runs. This lets the test
+worker receive reporter acknowledgements without extending RPC timeouts.
+Queued-immediate regression tests verify responsiveness without timing thresholds.
+
 Fragments that refer to host-owned data use explicit imports from
 `fixtures/public-snippet-setup.mts`. That setup is itself copied into the
 consumer, typechecked, and executed against the packed APIs; it supplies data,

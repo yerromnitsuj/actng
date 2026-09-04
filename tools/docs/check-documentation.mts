@@ -502,9 +502,9 @@ if (mode === "base") {
       fence,
       parsedByPath.get(fence.path)!.sources.get(fence.ordinal)!,
     );
-  const consumer = createPackedSnippetEnvironment();
+  const consumer = await createPackedSnippetEnvironment();
   try {
-    const checked = verifyPackedSnippets(
+    const checked = await verifyPackedSnippets(
       consumer,
       activeFences.map((fence) => ({
         ...fence,

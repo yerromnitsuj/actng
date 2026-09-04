@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import {
   copyFileSync,
   mkdtempSync,
@@ -10,10 +10,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { setImmediate as nextEventLoopTurn } from "node:timers/promises";
 import ts from "typescript";
 import { fromMarkdown } from "mdast-util-from-markdown";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
+const runFile = promisify(execFile);
 const packages = [
   "core",
   "interchange",
@@ -192,28 +195,29 @@ export interface PackedSnippetEnvironment {
   directory: string;
   cleanup(): void;
 }
-export function createPackedSnippetEnvironment(): PackedSnippetEnvironment {
+export async function createPackedSnippetEnvironment(): Promise<
+  PackedSnippetEnvironment
+> {
   const directory = realpathSync(
     mkdtempSync(join(tmpdir(), "actuarial-doc-snippets-")),
   );
   try {
     const tarballs: string[] = [];
     for (const name of packages) {
-      const result = JSON.parse(
-        execFileSync(
-          "npm",
-          [
-            "pack",
-            "-w",
-            `@actuarial-ts/${name}`,
-            "--ignore-scripts",
-            "--json",
-            "--pack-destination",
-            directory,
-          ],
-          { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
-        ),
+      const packed = await runFile(
+        "npm",
+        [
+          "pack",
+          "-w",
+          `@actuarial-ts/${name}`,
+          "--ignore-scripts",
+          "--json",
+          "--pack-destination",
+          directory,
+        ],
+        { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
       );
+      const result = JSON.parse(packed.stdout);
       if (result.length !== 1)
         throw new Error(`Expected one packed ${name} package`);
       tarballs.push(join(directory, result[0].filename));
@@ -232,7 +236,7 @@ export function createPackedSnippetEnvironment(): PackedSnippetEnvironment {
         type: "module",
       }),
     );
-    execFileSync(
+    await runFile(
       "npm",
       [
         "install",
@@ -246,7 +250,6 @@ export function createPackedSnippetEnvironment(): PackedSnippetEnvironment {
       {
         cwd: directory,
         encoding: "utf8",
-        stdio: "pipe",
         maxBuffer: 16 * 1024 * 1024,
         timeout: 180_000,
       },
@@ -429,10 +432,13 @@ type AssertNoKeys<T extends never> = T;
 type Assert<T extends true> = T;
 `;
 
-export function verifyPackedSnippets(
+export async function verifyPackedSnippets(
   environment: PackedSnippetEnvironment,
   snippets: readonly PublicSnippet[],
-): { executable: number; declarations: number } {
+): Promise<{ executable: number; declarations: number }> {
+  // Compiler-only failures otherwise chain through promise microtasks without
+  // giving the test worker a turn to receive reporter RPC acknowledgements.
+  await nextEventLoopTurn();
   const selected = snippets.filter((snippet) =>
     ["ts", "typescript"].includes(snippet.language),
   );
@@ -499,13 +505,12 @@ export function verifyPackedSnippets(
       name === "packages-agents-README-md-3.mts"
     )
       continue;
-    execFileSync(
+    await runFile(
       process.execPath,
       [join(environment.directory, "output", name.replace(/\.mts$/, ".mjs"))],
       {
         cwd: environment.directory,
         encoding: "utf8",
-        stdio: "pipe",
         timeout: 60_000,
         maxBuffer: 8 * 1024 * 1024,
       },
