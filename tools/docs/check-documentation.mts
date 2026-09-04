@@ -17,6 +17,8 @@ const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const slug = (heading: string) => heading.trim().toLowerCase().replace(/[`*_~]/g, "").replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/\s+/g, "-").replace(/-+/g, "-");
 const PUBLIC_LANGUAGES = new Set(["ts", "typescript", "js", "javascript", "json", "jsonc", "bash", "sh", "python", "py", "r", "yaml", "yml"]);
 const SDK_PACKAGES = ["core", "data", "interchange", "compliance", "agents"];
+const SHIPPED_DIAGNOSTICS_DESIGN = "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md";
+const COMPLETED_DIAGNOSTICS_PLAN = "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md";
 
 type MdNode = { type: string; value?: string; depth?: number; lang?: string | null; url?: string; identifier?: string; children?: MdNode[] };
 function nodeText(node: MdNode): string { return node.value ?? (node.children ?? []).map(nodeText).join(""); }
@@ -29,6 +31,7 @@ function ownership(path: string): string[] {
   return SDK_PACKAGES;
 }
 function classification(path: string) {
+  if (path === SHIPPED_DIAGNOSTICS_DESIGN) return { classification: "active", reason: "Current shipped 0.6.0 diagnostics contract.", packages: SDK_PACKAGES };
   if (path.startsWith("docs/superpowers/") || path.startsWith("docs/research/") || path.includes("/test/fixtures/")) return { classification: "historical-snapshot", reason: "Dated design, research, or immutable fixture record.", packages: [] as string[] };
   return { classification: "active", reason: "Current repository, package, example, or operator documentation.", packages: ownership(path) };
 }
@@ -63,7 +66,7 @@ function caseSensitiveExists(path: string): boolean {
 
 if (process.argv.includes("--write-manifests")) {
   const inventory = Object.fromEntries(docs.map((path) => [path, classification(path)]));
-  const fences = docs.flatMap((path) => parsed(path, readFileSync(resolve(root, path), "utf8")).fences);
+  const fences = docs.flatMap((path) => inventory[path]!.classification === "active" ? parsed(path, readFileSync(resolve(root, path), "utf8")).fences : []);
   writeFileSync(inventoryPath, `${JSON.stringify({ schemaVersion: 1, documents: inventory }, null, 2)}\n`);
   writeFileSync(snippetsPath, `${JSON.stringify({ schemaVersion: 1, fences }, null, 2)}\n`);
   console.log(`documentation: wrote ${docs.length} documents and ${fences.length} fence records`);
@@ -79,11 +82,16 @@ for (const [path, entry] of Object.entries(inventory.documents)) {
   if (!entry.reason?.trim() || !["active", "historical-snapshot", "unrelated"].includes(entry.classification)) failures.push(`${path}: invalid inventory classification`);
   if (!Array.isArray(entry.packages) || entry.packages.some((name) => !SDK_PACKAGES.includes(name))) failures.push(`${path}: invalid package ownership`);
   if (entry.classification === "active" && entry.packages.length === 0) failures.push(`${path}: active document has no declared package owner`);
+  if (classification(path).classification === "active" && entry.classification !== "active") failures.push(`${path}: current documentation cannot use a blanket historical exception`);
   if (spawnSync("git", ["check-ignore", "-q", "--", path], { cwd: root }).status === 0) failures.push(`${path}: inventory path is ignored by Git`);
 }
+if (inventory.documents[SHIPPED_DIAGNOSTICS_DESIGN]?.classification !== "active") failures.push(`${SHIPPED_DIAGNOSTICS_DESIGN}: shipped design must remain the active current contract`);
+if (inventory.documents[COMPLETED_DIAGNOSTICS_PLAN]?.classification !== "historical-snapshot") failures.push(`${COMPLETED_DIAGNOSTICS_PLAN}: completed plan must be historical`);
 const parsedByPath = new Map(docs.map((path) => [path, parsed(path, readFileSync(resolve(root, path), "utf8"))]));
 const actualFences = docs.flatMap((path) => parsedByPath.get(path)!.fences);
-if (JSON.stringify(manifest.fences) !== JSON.stringify(actualFences)) failures.push("public snippet manifest is stale; run npm run docs:manifests");
+const activeFences = actualFences.filter((entry) => inventory.documents[entry.path]?.classification === "active");
+if (manifest.fences.some((entry) => inventory.documents[entry.path]?.classification !== "active")) failures.push("public snippet manifest contains an orphaned or historical fence");
+if (JSON.stringify(manifest.fences) !== JSON.stringify(activeFences)) failures.push("public snippet manifest is stale; run npm run docs:manifests");
 
 for (const path of docs) {
   if (inventory.documents[path]?.classification !== "active") continue;
@@ -152,20 +160,20 @@ function checkBaseFence(fence: Fence, source: string) {
 if (mode === "base") {
   const generated = spawnSync(process.execPath, [resolve(root, "node_modules/tsx/dist/cli.mjs"), "tools/docs/render-diagnostic-reference.mts", "--check"], { cwd: root, encoding: "utf8" });
   if (generated.status !== 0) failures.push(generated.stderr || generated.stdout || "generated formula reference is stale");
-  for (const fence of actualFences.filter((entry) => inventory.documents[entry.path]?.classification === "active")) checkBaseFence(fence, parsedByPath.get(fence.path)!.sources.get(fence.ordinal)!);
+  for (const fence of activeFences) checkBaseFence(fence, parsedByPath.get(fence.path)!.sources.get(fence.ordinal)!);
 } else if (mode === "python") {
   const python = process.env.ACTUARIAL_TS_PYTHON ?? "python3";
-  for (const fence of actualFences.filter((entry) => inventory.documents[entry.path]?.classification === "active" && ["python", "py"].includes(entry.language))) {
+  for (const fence of activeFences.filter((entry) => ["python", "py"].includes(entry.language))) {
     const checked = spawnSync(python, ["-c", `compile(${JSON.stringify(parsedByPath.get(fence.path)!.sources.get(fence.ordinal))}, ${JSON.stringify(fence.path)}, 'exec')`], { cwd: root, encoding: "utf8" });
     if (checked.status !== 0) failures.push(`${fence.path} fence ${fence.ordinal}: Python syntax failed`);
   }
 } else if (mode === "r") {
   const rscript = process.env.ACTUARIAL_TS_RSCRIPT ?? "Rscript";
-  for (const fence of actualFences.filter((entry) => inventory.documents[entry.path]?.classification === "active" && entry.language === "r")) {
+  for (const fence of activeFences.filter((entry) => entry.language === "r")) {
     const checked = spawnSync(rscript, ["-e", `parse(text=${JSON.stringify(parsedByPath.get(fence.path)!.sources.get(fence.ordinal))})`], { cwd: root, encoding: "utf8" });
     if (checked.status !== 0) failures.push(`${fence.path} fence ${fence.ordinal}: R syntax failed`);
   }
 } else failures.push(`unknown documentation mode ${mode}`);
 
 if (failures.length) { failures.forEach((failure) => console.error(`documentation: ${failure}`)); process.exitCode = 1; }
-else console.log(`documentation: ${mode} checks passed (${docs.length} documents, ${actualFences.length} fences)`);
+else console.log(`documentation: ${mode} checks passed (${docs.length} documents, ${activeFences.length} active fences; ${actualFences.length} total)`);

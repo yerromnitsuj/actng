@@ -1,5 +1,29 @@
 # Publishing @actuarial-ts to npm
 
+**Release record:** v0.6.0 shipped 2026-09-03 — all five packages published
+to npm in dependency order from release-source commit
+`a7f1916697f99dbfa30ffbccadec0cc37099e769`, immutable tag `v0.6.0`
+pushed, and [GitHub Release](https://github.com/yerromnitsuj/actng/releases/tag/v0.6.0)
+created. CI, Python conformance, and R conformance passed on that exact commit,
+and the clean all-five registry consumer passed against exact `0.6.0`
+packages. Registry metadata was verified at `2026-09-04T05:54:54Z`:
+
+| Package | `latest` | Integrity | Internal dependency ranges | Runtime / peer contract |
+|---|---:|---|---|---|
+| `@actuarial-ts/core` | `0.6.0` | `sha512-X8frEIsg72cBGFYZTGaU9je6y4B7GkrgJZFg8/mc01sc/IW2fDyTmYAG+Ri5Iz4Dtt64CXUtmusQKtFZwDWGjQ==` | none | Node `>=20` |
+| `@actuarial-ts/interchange` | `0.6.0` | `sha512-HJGXoNLlCIEYqUit1FTLOWIx0k4Dnl9X6ViV54myxfV0oFjnuqpqTA+0B3eRQTrGK5ZNZZY7yrjS/V5rZ2oK9A==` | `core ^0.6.0` | Node `>=20`; Zod `^3.25.76` dependency |
+| `@actuarial-ts/data` | `0.6.0` | `sha512-t1vdtMUxOjiu7aQ811r6RwH3/YCJEKpf23SNb+xlMxSyzCQHbLsRaJFkdtoaiA7aqLirOpBwBROw+fotJZcM/Q==` | `core ^0.6.0` | Node `>=20`; Zod `^3.25.76` dependency |
+| `@actuarial-ts/compliance` | `0.6.0` | `sha512-quggKNtDzE8jfzbSEdulLfTN0NrdUaJbvT7azDSEWu5Wr+7ah9AvVnJCcItj65UoC43AOerU9Ke2yM2DbjaxgA==` | `core ^0.6.0`; `data ^0.6.0`; `interchange ^0.6.0` | Node `>=20` |
+| `@actuarial-ts/agents` | `0.6.0` | `sha512-HWJ44jeXojbjPANl7GfbTriac2Wx1xTxaebzrPBSuJH3pbizLaxqzhfv6x8CBFvxBi8WfWlU0c3z8+6GfT9Ubg==` | `core ^0.6.0`; `data ^0.6.0`; `interchange ^0.6.0`; `compliance ^0.6.0` | Node `>=22.13.0`; Mastra core `>=1.51.0 <2`, Mastra MCP `>=1.14.0 <2`, and Zod `^3.25.76` peers |
+
+The version-pinned [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md)
+and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md)
+both returned HTTP 200 after the tag became visible. The release-source
+[CI](https://github.com/yerromnitsuj/actng/actions/runs/33839779100),
+[Python](https://github.com/yerromnitsuj/actng/actions/runs/33839779090), and
+[R](https://github.com/yerromnitsuj/actng/actions/runs/33839779082) workflows
+are the authoritative hosted verification records.
+
 **Release record:** v0.5.0 shipped 2026-08-31 — all five packages published
 to npm in dependency order, tag `v0.5.0` pushed, and GitHub Release created.
 The release adds closed-with-pay and open shares of non-CNP claims to the

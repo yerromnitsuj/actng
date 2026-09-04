@@ -2,8 +2,8 @@
 
 | Where | What |
 |---|---|
-| [`superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md) | **Implemented and verified, but not yet published, `0.6.0` release-candidate design**: formula templates, bound instances, structured populations/bases, claim derivations, mixed-cadence periods, declarative rules, definition/run/result identities, and typed interchange. |
-| [`superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md) | **Executed through Task 19; publication requires separate authorization.** The plan records delivery across all five packages, three interchange shores, the real-world example, documentation, packaging, and release gates. |
+| [`superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md) | **Shipped in `0.6.0` on 2026-09-03 (`v0.6.0`) and retained as the active diagnostics contract**: formula templates, bound instances, structured populations/bases, claim derivations, mixed-cadence periods, declarative rules, definition/run/result identities, and typed interchange. |
+| [`superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md) | **Completed through Task 20 and retained as a historical implementation record.** The plan records delivery and publication across all five packages, three interchange shores, the real-world example, documentation, packaging, and release gates. |
 | [`reference/diagnostic-formulas.md`](reference/diagnostic-formulas.md) | Generated six-template and casualty-instance reference; drift-checked against the public core API. |
 | [`migrations/0.6-generalized-diagnostics.md`](migrations/0.6-generalized-diagnostics.md) | Breaking 0.5 → 0.6 diagnostics migration, runtime floors, provenance, interchange, and agent boundary. |
 | [`spec/actuarial-interchange.md`](spec/actuarial-interchange.md) | **The normative interchange specification** (rev 2.4): document kinds, wire 1.1 diagnostics, integrity, convention profiles, and referees. |

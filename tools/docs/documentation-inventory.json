@@ -368,9 +368,15 @@
       "packages": []
     },
     "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md": {
-      "classification": "historical-snapshot",
-      "reason": "Dated design, research, or immutable fixture record.",
-      "packages": []
+      "classification": "active",
+      "reason": "Current shipped 0.6.0 diagnostics contract.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
     },
     "examples/real-world-loss-run/DATA-NOTICE.md": {
       "classification": "active",

@@ -1,8 +1,8 @@
 # Generalized actuarial diagnostics SDK design
 
-> **Status: IMPLEMENTED AND VERIFIED AS A 0.6.0 RELEASE CANDIDATE — NOT YET PUBLISHED.**
+> **Status: SHIPPED IN 0.6.0 ON 2026-09-03 (`v0.6.0`).**
 > This specification supersedes the 2026-08-27 quarterly-diagnostics design
-> for the unpublished `0.6.0` release candidate.
+> as the current shipped diagnostics contract.
 > The `0.4.0` and `0.5.0` records remain historically correct and must not be
 > rewritten. The implementation plan is
 > [`../plans/2026-09-03-generalized-diagnostics-sdk.md`](../plans/2026-09-03-generalized-diagnostics-sdk.md).
@@ -4589,6 +4589,7 @@ release and wire-version changes are independent: npm packages move from
 `0.5.0` to `0.6.0`, while the interchange writer moves from `1.0.0` to
 `1.1.0`.
 
-Implementation ends with release-ready tarballs and a clean-install proof.
-Actual npm publication, tag creation, GitHub release creation, and mutation of
-the historical publishing record remain a separately authorized release step.
+The five lockstep packages were published from release-source commit
+`a7f1916697f99dbfa30ffbccadec0cc37099e769`, and the immutable `v0.6.0` tag
+points to that commit. The public-registry clean-install proof passed before
+the post-publication record was committed.

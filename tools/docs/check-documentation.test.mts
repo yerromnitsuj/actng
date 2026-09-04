@@ -21,4 +21,16 @@ describe("documentation governance artifacts", () => {
     expect(parseDocument("value: [1, 2]").errors).toHaveLength(0);
     expect(parseDocument("value: [1, 2").errors.length).toBeGreaterThan(0);
   });
+  it("keeps the shipped diagnostics contract active and its completed plan historical", () => {
+    const inventory = JSON.parse(readFileSync("tools/docs/documentation-inventory.json", "utf8"));
+    const snippets = JSON.parse(readFileSync("tools/docs/public-snippet-manifest.json", "utf8"));
+    const design = "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md";
+    const plan = "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md";
+    expect(inventory.documents[design].classification).toBe("active");
+    expect(inventory.documents[design].packages).toEqual(["core", "data", "interchange", "compliance", "agents"]);
+    expect(inventory.documents[plan].classification).toBe("historical-snapshot");
+    expect(snippets.fences.some((entry: any) => entry.path === design)).toBe(true);
+    expect(snippets.fences.some((entry: any) => entry.path === plan)).toBe(false);
+    for (const entry of snippets.fences) expect(inventory.documents[entry.path].classification).toBe("active");
+  });
 });

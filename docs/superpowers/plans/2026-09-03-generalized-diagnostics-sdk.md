@@ -1,6 +1,6 @@
 # Generalized diagnostics SDK (`0.6.0`) — implementation plan
 
-> **Status: EXECUTED THROUGH TASK 19; PUBLICATION REQUIRES SEPARATE AUTHORIZATION.**
+> **Status: COMPLETED THROUGH TASK 20 — SHIPPED 2026-09-03 (`v0.6.0`).**
 >
 > **Execution contract:** implement this plan test-first, task by task. Keep
 > commits narrowly scoped, preserve unrelated work, and do not publish, tag, or
