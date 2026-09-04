@@ -1,27 +1,26 @@
 # R ChainLadder interchange recipes
 
-Source-able R functions implementing the actuarial-interchange spec v1 on
-the R ChainLadder shore, plus a conformance runner. Verified against
-R 4.6.1 + ChainLadder 0.2.21 + jsonlite 2.0.0.
+Source-able R functions implementing actuarial-interchange wire 1.1 on the R
+ChainLadder shore, plus a conformance runner. The release environment is
+machine-readable in `r-environment.json`: R 4.4.3, ChainLadder 0.2.21, and
+jsonlite 2.0.0.
 
 ## Setup (once)
 
-```r
-# a local library keeps this off the system R install
-dir.create("~/.R-interop-lib", showWarnings = FALSE)
-install.packages(c("ChainLadder", "jsonlite"),
-                 lib = "~/.R-interop-lib",
-                 repos = "https://cloud.r-project.org")
+```bash
+"${ACTUARIAL_TS_RSCRIPT:-Rscript}" tools/interop/test-r-environment.R
+"${ACTUARIAL_TS_RSCRIPT:-Rscript}" tools/interop/install-r-environment.R
+"${ACTUARIAL_TS_RSCRIPT:-Rscript}" tools/interop/check-r-environment.R
 ```
 
 ## Run
 
 ```bash
 # the adapter self-tests its JCS serializer against the shared vector suite
-Rscript tools/interop/actuarialInterchange.R    # sources clean; ats_test_jcs() = 27/27
+"${ACTUARIAL_TS_RSCRIPT:-Rscript}" tools/interop/actuarialInterchange.R
 
 # the cross-engine conformance runner (verdict table)
-Rscript tools/interop/conformance.R
+"${ACTUARIAL_TS_RSCRIPT:-Rscript}" tools/interop/conformance.R
 
 # the CLI entrypoint: triangle document in, Mack fit, method-result document out
 Rscript tools/interop/run-mack.R \

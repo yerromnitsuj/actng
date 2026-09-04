@@ -8,6 +8,7 @@ const sourceManifestSchema = z
     sourceCommit: z.string().regex(/^[0-9a-f]{40}$/),
     pinnedUrl: z.string().url(),
     sourceSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    sourceByteLength: z.number().int().positive(),
     sourceUpdatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     license: z.literal("Etalab-2.0"),
   })

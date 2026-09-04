@@ -27,13 +27,22 @@
  */
 
 import { canonicalJson, fnv1a64 } from "@actuarial-ts/core";
-import type {
+import {
+  INTERCHANGE_SPEC_VERSION,
+  diagnosticDefinitionToDoc,
+  type DiagnosticDefinitionDoc,
   BundleDoc,
   MethodResultDoc,
   SelectionDoc,
   StochasticResultDoc,
   TriangleDoc,
 } from "@actuarial-ts/interchange";
+import type { VerifiedDiagnosticRunProvenance } from "./diagnosticRun.js";
+import { assertVerifiedDiagnosticRunProvenance, verifiedDefinitionForBundle } from "./diagnosticRun.js";
+import { ComplianceError } from "./errors.js";
+import { COMPLIANCE_PACKAGE_VERSION } from "./version.js";
+export { ComplianceError, COMPLIANCE_ERROR_CODES, type ComplianceErrorCode } from "./errors.js";
+export { COMPLIANCE_PACKAGE_VERSION } from "./version.js";
 
 export { canonicalJson, fnv1a64 };
 
@@ -54,23 +63,6 @@ export type WrappedBundleDoc = BundleDoc;
  * of this package. Add the code here when introducing a new throw.
  * (UNSUPPORTED_VALUE moved to core's registry with canonicalJson in 0.2.0.)
  */
-export const COMPLIANCE_ERROR_CODES = [
-  "BAD_BUNDLE",
-  "BAD_CDF",
-  "MISSING_RATIONALE",
-] as const;
-
-export type ComplianceErrorCode = (typeof COMPLIANCE_ERROR_CODES)[number];
-
-/** Thrown for invalid compliance input (bad bundles, judgment without rationale, non-positive CDFs). */
-export class ComplianceError extends Error {
-  readonly code: ComplianceErrorCode;
-  constructor(code: ComplianceErrorCode, message: string) {
-    super(message);
-    this.name = "ComplianceError";
-    this.code = code;
-  }
-}
 
 
 
@@ -81,7 +73,7 @@ export class ComplianceError extends Error {
  * test parses the emitted doc with the real interchange parser, which
  * refuses a wrong-major version — drift fails loudly.
  */
-export const WRAPPED_BUNDLE_INTERCHANGE_VERSION = "1.0.0";
+export const WRAPPED_BUNDLE_INTERCHANGE_VERSION = INTERCHANGE_SPEC_VERSION;
 
 /**
  * This package's version, stamped into a wrapped bundle's `generator`
@@ -89,7 +81,6 @@ export const WRAPPED_BUNDLE_INTERCHANGE_VERSION = "1.0.0";
  * silently drift (mirroring interchange's INTERCHANGE_PACKAGE_VERSION
  * discipline).
  */
-export const COMPLIANCE_PACKAGE_VERSION = "0.5.0";
 
 /**
  * The interchange mirror for a wrapped bundle (spec 3.2): the triangles the
@@ -136,6 +127,8 @@ export interface CreateBundleInput {
    * Wrapped-mode only; the inner payload never carries it.
    */
   generator?: { name: string; version: string };
+  /** Authenticated diagnostic runs included in the canonical body and, when wrapped, as typed definition documents. */
+  diagnosticRuns?: readonly VerifiedDiagnosticRunProvenance[];
 }
 
 export interface ReproducibilityBundle {
@@ -176,6 +169,11 @@ export function createBundle(input: CreateBundleInput): ReproducibilityBundle | 
     sdkVersions: input.sdkVersions,
   };
   if (input.seeds !== undefined) body["seeds"] = input.seeds;
+  if (input.diagnosticRuns !== undefined) {
+    for (const run of input.diagnosticRuns) assertVerifiedDiagnosticRunProvenance(run);
+    if(input.diagnosticRuns.length>0){const expected=input.diagnosticRuns[0]!.manifest.packageVersions;for(const [runIndex,run] of input.diagnosticRuns.entries()){if(canonicalJson(run.manifest.packageVersions)!==canonicalJson(expected))throw new ComplianceError("BAD_DIAGNOSTIC_RUN","Diagnostic runs disagree on SDK package versions",`$.diagnosticRuns[${runIndex}].manifest.packageVersions`)}for(const [name,version] of Object.entries(expected))if(input.sdkVersions[name]!==version)throw new ComplianceError("BAD_DIAGNOSTIC_RUN",`Outer sdkVersions must record ${name} at ${version}`,`$.sdkVersions.${name}`);if(input.wrap!==undefined&&input.generator!==undefined&&(input.generator.name!=="@actuarial-ts/compliance"||input.generator.version!==COMPLIANCE_PACKAGE_VERSION))throw new ComplianceError("BAD_DIAGNOSTIC_RUN","Wrapped diagnostic bundles require the actual compliance generator stamp","$.generator")}
+    body["diagnosticRuns"] = input.diagnosticRuns;
+  }
   const payload = canonicalJson(body);
   const inner: ReproducibilityBundle = { payload, hash: fnv1a64(payload) };
   if (input.wrap === undefined) return inner;
@@ -184,10 +182,19 @@ export function createBundle(input: CreateBundleInput): ReproducibilityBundle | 
   // tag is fnv1a64(canonicalJson({ bundle, interchange })) — exactly
   // interchange's semanticBodyOf for kind "bundle" (spec 3.2).
   const bundleSegment: Record<string, unknown> = { hash: inner.hash, payload: inner.payload };
+  const definitions = new Map<string, DiagnosticDefinitionDoc>();
+  for (const run of input.diagnosticRuns ?? []) {
+    const compiled = verifiedDefinitionForBundle(run);
+    definitions.set(run.definitionIdentities.definition, diagnosticDefinitionToDoc(compiled, {
+      createdAt: input.createdAt,
+      generator: { name: "@actuarial-ts/compliance", version: COMPLIANCE_PACKAGE_VERSION },
+    }));
+  }
   const interchange = {
     triangles: [...input.wrap.triangles],
     selections: [...input.wrap.selections],
     results: [...input.wrap.results],
+    ...(definitions.size === 0 ? {} : { diagnosticDefinitions: [...definitions.values()].sort((a,b)=>a.diagnosticDefinition.identities.definition<b.diagnosticDefinition.identities.definition?-1:1) }),
   };
   const wrapped: WrappedBundleDoc = {
     interchangeVersion: WRAPPED_BUNDLE_INTERCHANGE_VERSION,

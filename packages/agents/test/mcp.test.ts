@@ -49,7 +49,7 @@ describe("requireMcpTenant", () => {
     expect(requireMcpTenant(context)).toBe("p-2");
   });
 
-  it("reads the tenant via the installed-1.14.0 requestContext top-level 'authInfo' fallback", () => {
+  it("reads the tenant via the lock-tested requestContext top-level 'authInfo' fallback", () => {
     const context: McpToolContext = {
       requestContext: requestContext({ authInfo: { projectId: "p-3" } }),
     };

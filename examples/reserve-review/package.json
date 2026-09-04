@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "The SDK's in-repo consumer: a complete reserve review across all five packages",
+  "description": "The SDK's tested deterministic reserve review across core, interchange, data, and compliance",
   "scripts": {
     "example": "tsx src/main.ts",
     "test": "vitest run",

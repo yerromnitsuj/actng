@@ -5,6 +5,11 @@ together; this file covers them all.
 
 ## Unreleased
 
+The complete breaking-change guide is in
+[`docs/migrations/0.6-generalized-diagnostics.md`](docs/migrations/0.6-generalized-diagnostics.md),
+and the generated formula catalog is in
+[`docs/reference/diagnostic-formulas.md`](docs/reference/diagnostic-formulas.md).
+
 ### Breaking
 
 - **Generalize the diagnostics model for `0.6.0`.** Formula templates now
@@ -16,8 +21,73 @@ together; this file covers them all.
   formulas, and flattened provenance are replaced by measure-local missingness,
   compiled period axes, declarative rules, reusable basis bindings, and
   definition/run/result identities. This is a clean pre-1.0 break with no
-  compatibility aliases; the migration guide will map the old core, data, and
-  compliance diagnostics surface to the new API before release.
+  compatibility aliases.
+
+### Core
+
+- Adds six basis-independent formula templates, caller-bound metric instances,
+  structured count/exposure/amount bases, claim-level derivations, explicit
+  calendar and ordered period axes, declarative calculation and review rules,
+  deterministic ratio-of-sums aggregation, and separate formula, calculation,
+  definition, preparation, and result identities.
+- The casualty factory emits ten namespaced count instances plus six instances
+  per caller amount basis. Capped, primary, gross, net, and other views are
+  represented by caller measures and bases rather than cloned formulas.
+- Missing values remain explicit, invalid or nonpositive denominators produce
+  null results rather than exceptions/NaN, and raw versus presentation-scaled
+  values remain separate.
+
+### Data
+
+- Adds an atomic Zod validation boundary for complete diagnostic runs, long-form
+  exposure observations with origin-static or valuation-specific timing,
+  complete pre-exclusion audit records, declarative semantic review, and
+  separate review and metric execution gates.
+- Review evidence is snapshotted and identity-bound; source groups and mapped
+  output groups are distinct, and filters/cutoffs are period-axis aware.
+
+### Interchange
+
+- Wire `1.1.0` adds the typed `diagnostic-definition` document and nested
+  definition documents in bundles. Generic same-major parsing preserves future
+  fields; executable conversion accepts only vocabulary the current compiler
+  understands and verifies every embedded identity.
+- TypeScript, Python, and R adapter writers now emit wire `1.1.0`; the Python/R
+  adapter release is `0.2.0`, independent of the npm lockstep version. A frozen
+  cross-shore corpus verifies six formula identities, 22 calculation identities,
+  the definition identity, and all aggregate-cell replays, including UTF-16 key
+  ordering.
+
+### Compliance
+
+- Replaces free-form flattened diagnostic provenance with authenticated
+  completed-run provenance. Creation replays preparation, review, both gates,
+  and results; evidence records computed versus caller-declared assurance,
+  exact byte length, SHA-256 digests, and an acyclic artifact lineage graph.
+- Bundles require coherent core/data/compliance versions and include one
+  integrity-protected diagnostic definition per referenced definition.
+
+### Agents
+
+- Adds a strict trusted-catalog diagnostic selection tool: a model may select
+  host-approved instances, run preset, and view, but cannot author formulas,
+  populations, bases, or unstamped filtered results.
+- `defineActuarialTool` now exposes exact raw-input/result types, applies input
+  and output transforms once, validates both boundaries, preserves immutable
+  failure envelopes, and rejects incompatible output schemas at construction.
+
+### Examples and release engineering
+
+- The complete pinned French motor example now runs all 22 gross/net diagnostic
+  instances over 210 cells and carries the archive → manifest/transform →
+  derivative evidence graph through review, provenance, typed interchange, and
+  a wrapped compliance bundle. A clean-process canonical JSON gate checks byte
+  determinism.
+- All five npm packages move in lockstep to `0.6.0`. Core, data, interchange,
+  and compliance support Node 20+; agents and all-five consumers require Node
+  `22.13.0+` and the documented Mastra/MCP/Zod peer ranges. Version, legacy API,
+  generated reference, documentation inventory, snippets, package, advisory,
+  Python, and R checks are release-owned gates.
 
 ## 0.5.0 — 2026-08-31
 

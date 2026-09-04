@@ -158,4 +158,25 @@ cat(if (all_agree) {
   "OVERALL: DISAGREE — at least one fixture exceeded profile tolerance (see table).\n"
 })
 
+diagnostic_fixture <- file.path(FIXTURES, "diagnostics", "generalized-casualty")
+diagnostic_definition <- ats_parse_diagnostic_definition(file.path(diagnostic_fixture, "definition.json"))
+diagnostic_cell <- jsonlite::fromJSON(file.path(diagnostic_fixture, "cell.json"), simplifyVector = FALSE)
+if (length(diagnostic_definition$formulas) != 6L || length(diagnostic_definition$instances) != 22L) {
+  stop("diagnostic conformance fixture must contain six formulas and twenty-two instances")
+}
+for (expected in diagnostic_cell$expected) {
+  actual <- ats_replay_diagnostic_cell(diagnostic_definition, expected$instanceId, diagnostic_cell$values)
+  for (field in c("numerator", "denominator", "value")) {
+    if (is.null(expected[[field]])) {
+      if (!is.null(actual[[field]])) stop(sprintf("diagnostic %s %s expected null", expected$instanceId, field))
+    } else if (abs(as.numeric(actual[[field]]) - as.numeric(expected[[field]])) > 1e-12) {
+      stop(sprintf("diagnostic %s %s replay mismatch", expected$instanceId, field))
+    }
+  }
+}
+if (!identical(ats_sort_utf16(c("\ue000", "\U00010000")), c("\U00010000", "\ue000"))) {
+  stop("diagnostic identifier ordering is not ECMAScript UTF-16 order")
+}
+cat("diagnostic-definition: identities + 22 cell replays AGREE across the R shore.\n")
+
 if (!all_agree) quit(status = 1L, save = "no")

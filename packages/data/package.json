@@ -1,7 +1,7 @@
 {
   "name": "@actuarial-ts/data",
-  "version": "0.5.0",
-  "description": "Data ingestion and ASOP No. 23 data-quality review for the actuarial-ts SDK: loss-run and exposure import, annual claim-development adaptation, triangle assembly, and review checks.",
+  "version": "0.6.0",
+  "description": "Data ingestion and ASOP No. 23 support for actuarial-ts: loss/exposure preparation, atomic generalized diagnostic validation, declarative review, and triangle assembly.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -48,7 +48,7 @@
     "prepack": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.5.0",
+    "@actuarial-ts/core": "^0.6.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

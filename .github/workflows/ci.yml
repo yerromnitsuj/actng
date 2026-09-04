@@ -13,10 +13,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.22.0
           cache: npm
+      - name: Version stamps before install
+        run: npm run version:check
       - name: Install (runs workspace prepare scripts, builds SDK dist)
-        run: npm install
+        run: npm ci
+      - name: Version stamps after install
+        run: npm run version:check
+      - name: Release tooling and documentation contracts
+        run: |
+          npm run release:gate:test
+          npm run docs:check
+          npm run diagnostics:legacy:check -- --scope=source,declarations
+          npm run advisories:test
+          npm run advisories:check
+          npm run smoke:packed:test
       - name: Build all workspaces
         run: npm run build
       - name: Typecheck
@@ -24,9 +36,30 @@ jobs:
       - name: Test
         run: npm test
       - name: Pack check (all five published packages)
+        run: npm run smoke:packed
+
+  runtime-four-node-20:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+      - name: Build and hand off the four Node 20-compatible packages
         run: |
-          npm pack --dry-run -w @actuarial-ts/core
-          npm pack --dry-run -w @actuarial-ts/interchange
-          npm pack --dry-run -w @actuarial-ts/data
-          npm pack --dry-run -w @actuarial-ts/compliance
-          npm pack --dry-run -w @actuarial-ts/agents
+          npm ci
+          node tools/release/smoke-packed-diagnostics.mjs \
+            --package-set=runtime-four \
+            --pack-only \
+            --handoff-dir "$RUNNER_TEMP/actuarial-ts-runtime-four"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Consume the verified handoff under Node 20
+        run: |
+          node -e 'if (Number(process.versions.node.split(".")[0]) !== 20) process.exit(1)'
+          node tools/release/smoke-packed-diagnostics.mjs \
+            --package-set=runtime-four \
+            --consume-manifest "$RUNNER_TEMP/actuarial-ts-runtime-four/manifest.json" \
+            --require-node-major=20

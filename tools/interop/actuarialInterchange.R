@@ -441,6 +441,7 @@ ats_body_key <- function(kind) {
     "stochastic-result" = "result",
     "study" = "study",
     "crosscheck-report" = "report",
+    "diagnostic-definition" = "diagnosticDefinition",
     stop(sprintf("no semantic-body key for kind '%s'", kind))
   )
 }
@@ -736,10 +737,10 @@ ats_extract_mack_result <- function(fit, triangle_doc, selection_doc = NULL,
 # ===========================================================================
 
 ats_assemble_document <- function(kind, body, created_at = "2026-07-17T00:00:00Z",
-                                  generator = list(name = "actuarialInterchange.R", version = "0.1.0"),
+                                  generator = list(name = "actuarialInterchange.R", version = "0.2.0"),
                                   extensions = NULL, governance = NULL) {
   doc <- list(
-    interchangeVersion = "1.0.0",
+    interchangeVersion = "1.1.0",
     kind = kind,
     generator = generator,
     createdAt = created_at
@@ -788,7 +789,8 @@ ats_read_document <- function(path, verify_integrity = TRUE) {
   embedded <- if (identical(kind, "study")) {
     c(doc$study$triangles, doc$study$selections, doc$study$supportingResults)
   } else if (identical(kind, "bundle")) {
-    c(doc$interchange$triangles, doc$interchange$selections, doc$interchange$results)
+    c(doc$interchange$triangles, doc$interchange$selections, doc$interchange$results,
+      doc$interchange$diagnosticDefinitions)
   } else NULL
   for (inner in embedded) {
     v <- inner$interchangeVersion
@@ -814,6 +816,173 @@ ats_read_document <- function(path, verify_integrity = TRUE) {
     }
   }
   doc
+}
+
+# ===========================================================================
+# 13. Narrow diagnostic-definition conformance (identity + aggregate replay).
+# ===========================================================================
+
+ats_diagnostic_tag <- function(kind, key, value) {
+  body <- list(identityVersion = 1, kind = kind)
+  body[[key]] <- value
+  paste0("fnv1a64-jcs-v1:", ats_fnv1a64(ats_canonical_json(body)))
+}
+
+ats_diag_dependencies <- function(expression) {
+  op <- expression$op
+  if (op %in% c("measure", "claim-layer")) return(expression$measureId)
+  if (identical(op, "add")) return(unique(unlist(lapply(expression$terms, ats_diag_dependencies))))
+  if (identical(op, "subtract")) {
+    return(unique(c(ats_diag_dependencies(expression$left), ats_diag_dependencies(expression$right))))
+  }
+  stop(sprintf("unknown diagnostic expression operator '%s'", op))
+}
+
+ats_by_id <- function(items, key = "id") {
+  result <- list()
+  for (item in items) result[[item[[key]]]] <- item
+  result
+}
+
+# ECMAScript's canonical SDK orders identifiers by UTF-16 code units. R's
+# locale/code-point sort differs for astral characters, so identity-bearing
+# collections use this explicit comparator on every shore.
+ats_utf16_units <- function(value) {
+  codepoints <- utf8ToInt(enc2utf8(value))
+  unlist(lapply(codepoints, function(point) {
+    if (point <= 0xFFFF) return(point)
+    adjusted <- point - 0x10000
+    c(0xD800 + adjusted %/% 0x400, 0xDC00 + adjusted %% 0x400)
+  }), use.names = FALSE)
+}
+
+ats_utf16_less <- function(left, right) {
+  a <- ats_utf16_units(left)
+  b <- ats_utf16_units(right)
+  shared <- min(length(a), length(b))
+  if (shared > 0L) {
+    different <- which(a[seq_len(shared)] != b[seq_len(shared)])
+    if (length(different) > 0L) return(a[different[[1]]] < b[different[[1]]])
+  }
+  length(a) < length(b)
+}
+
+ats_sort_utf16 <- function(values) {
+  result <- as.character(values)
+  if (length(result) < 2L) return(result)
+  for (index in 2:length(result)) {
+    cursor <- index
+    while (cursor > 1L && ats_utf16_less(result[[cursor]], result[[cursor - 1L]])) {
+      swap <- result[[cursor - 1L]]
+      result[[cursor - 1L]] <- result[[cursor]]
+      result[[cursor]] <- swap
+      cursor <- cursor - 1L
+    }
+  }
+  result
+}
+
+ats_select_fields <- function(item, fields) {
+  result <- setNames(vector("list", length(fields)), fields)
+  # Single-bracket assignment preserves explicit JSON nulls; [[<- NULL would
+  # silently delete the field and change the cross-shore identity scope.
+  for (field in fields) result[field] <- list(item[[field]])
+  result
+}
+
+ats_diagnostic_identities <- function(definition) {
+  formulas <- ats_by_id(definition$formulas)
+  measures <- ats_by_id(definition$measures)
+  derivations <- ats_by_id(definition$derivedMeasures, "outputMeasureId")
+  populations <- ats_by_id(definition$countPopulations)
+  exposures <- ats_by_id(definition$exposureBases)
+  amounts <- ats_by_id(definition$amountBases)
+  formula_ids <- ats_sort_utf16(names(formulas))
+  formula_tags <- setNames(lapply(formula_ids, function(id) {
+    ats_diagnostic_tag("diagnostic-formula", "formula", formulas[[id]])
+  }), formula_ids)
+
+  transitive <- function(roots) {
+    found <- character(0)
+    stack <- roots
+    while (length(stack) > 0L) {
+      id <- stack[[length(stack)]]
+      stack <- stack[-length(stack)]
+      if (id %in% found) next
+      found <- c(found, id)
+      if (!is.null(derivations[[id]])) {
+        stack <- c(stack, ats_diag_dependencies(derivations[[id]]$expression))
+      }
+    }
+    ats_sort_utf16(found)
+  }
+
+  calculations <- list()
+  for (instance in definition$instances) {
+    deps <- transitive(unique(unlist(lapply(instance$bindings, ats_diag_dependencies))))
+    selected <- Filter(Negate(is.null), lapply(deps, function(id) measures[[id]]))
+    collect <- function(field) ats_sort_utf16(unique(Filter(Negate(is.null), lapply(selected, function(x) x[[field]]))))
+    pop_ids <- collect("countPopulationId")
+    exposure_ids <- collect("exposureBasisId")
+    amount_ids <- collect("basisId")
+    scope <- list(
+      formulaFingerprint = formula_tags[[instance$formulaId]],
+      instance = ats_select_fields(instance, c("id", "version", "formulaId", "bindings")),
+      lossRowGrain = definition$lossRowGrain,
+      measures = lapply(selected, ats_select_fields, fields = c("id", "source", "kind", "unit", "developmentSemantics", "aggregation", "missing", "basisId", "countPopulationId", "exposureBasisId", "exposureTiming")),
+      countPopulations = lapply(pop_ids, function(id) ats_select_fields(populations[[id]], c("id", "subject", "unit", "attributes"))),
+      exposureBases = lapply(exposure_ids, function(id) ats_select_fields(exposures[[id]], c("id", "basis", "unit", "attributes"))),
+      amountBases = lapply(amount_ids, function(id) ats_select_fields(amounts[[id]], c("id", "currency", "perspective", "components", "attributes"))),
+      derivedMeasures = Filter(function(item) item$outputMeasureId %in% deps, definition$derivedMeasures)
+    )
+    calculations[[instance$id]] <- ats_diagnostic_tag("diagnostic-calculation", "calculation", scope)
+  }
+  calculation_ids <- ats_sort_utf16(names(calculations))
+  calculations <- calculations[calculation_ids]
+  list(
+    algorithm = "fnv1a64-jcs-v1",
+    formulaById = formula_tags,
+    calculationByInstanceId = calculations,
+    definition = ats_diagnostic_tag("diagnostic-definition", "definition", definition)
+  )
+}
+
+ats_parse_diagnostic_definition <- function(path) {
+  doc <- ats_read_document(path)
+  if (!identical(doc$kind, "diagnostic-definition")) stop("expected diagnostic-definition")
+  body <- doc$diagnosticDefinition
+  if (!identical(body$definition$diagnosticDefinitionVersion, "1.0.0")) {
+    stop("unsupported diagnosticDefinitionVersion")
+  }
+  actual <- ats_diagnostic_identities(body$definition)
+  if (!identical(ats_canonical_json(actual), ats_canonical_json(body$identities))) {
+    stop("diagnostic definition identities do not match semantic definition")
+  }
+  body$definition
+}
+
+ats_eval_diagnostic_expression <- function(expression, values, reference) {
+  op <- expression$op
+  if (identical(op, reference)) {
+    key <- if (identical(reference, "measure")) expression$measureId else expression$role
+    return(values[[key]])
+  }
+  children <- if (identical(op, "add")) expression$terms else list(expression$left, expression$right)
+  evaluated <- lapply(children, ats_eval_diagnostic_expression, values = values, reference = reference)
+  if (any(vapply(evaluated, is.null, logical(1)))) return(NULL)
+  result <- if (identical(op, "add")) sum(unlist(evaluated)) else evaluated[[1]] - evaluated[[2]]
+  if (!is.finite(result)) NULL else result
+}
+
+ats_replay_diagnostic_cell <- function(definition, instance_id, values) {
+  instance <- Filter(function(item) identical(item$id, instance_id), definition$instances)[[1]]
+  formula <- Filter(function(item) identical(item$id, instance$formulaId), definition$formulas)[[1]]
+  roles <- lapply(instance$bindings, ats_eval_diagnostic_expression, values = values, reference = "measure")
+  numerator <- ats_eval_diagnostic_expression(formula$numerator, roles, "role")
+  denominator <- ats_eval_diagnostic_expression(formula$denominator, roles, "role")
+  value <- if (is.null(numerator) || is.null(denominator) || denominator <= 0) NULL else numerator / denominator
+  if (!is.null(value) && !is.finite(value)) value <- NULL
+  list(numerator = numerator, denominator = denominator, value = value)
 }
 
 # End of actuarialInterchange.R. Sourcing prints nothing; call ats_test_jcs().

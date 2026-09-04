@@ -5,7 +5,7 @@
   "description": "Monorepo for the @actuarial-ts SDK (five published packages) and the actuarial-interchange interop layer; not itself published",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
   "workspaces": [
     "packages/*",
@@ -20,13 +20,33 @@
     "prepare": "npm run build -w @actuarial-ts/core -w @actuarial-ts/interchange -w @actuarial-ts/data -w @actuarial-ts/compliance -w @actuarial-ts/agents",
     "example": "npm run example -w @actuarial-ts/example-reserve-review",
     "example:real-world": "npm run example -w @actuarial-ts/example-real-world-loss-run",
+    "example:determinism": "npm run determinism -w @actuarial-ts/example-real-world-loss-run",
     "example:cl-ts": "npm run example -w @actuarial-ts/example-chain-ladder-typescript",
     "example:cl-py": "npm run example -w @actuarial-ts/example-chain-ladder-python",
     "example:cl-r": "npm run example -w @actuarial-ts/example-chain-ladder-r",
     "example:cl-crosscheck": "npm run example -w @actuarial-ts/example-chain-ladder-crosscheck",
-    "app": "tsx tools/app-launcher.mts"
+    "app": "tsx tools/app-launcher.mts",
+    "version:check": "node tools/release/check-version-sync.mjs",
+    "version:test": "node --test tools/release/check-version-sync.test.mjs",
+    "docs:diagnostics": "tsx tools/docs/render-diagnostic-reference.mts",
+    "diagnostics:legacy:check": "tsx tools/docs/check-diagnostics-stale.mts",
+    "diagnostics:legacy:test": "vitest run tools/docs/check-diagnostics-stale.test.mts",
+    "docs:manifests": "tsx tools/docs/check-documentation.mts --write-manifests",
+    "docs:check:test": "vitest run tools/docs/check-documentation.test.mts",
+    "docs:check": "npm run docs:check:test && npm run diagnostics:legacy:check -- --scope=tracked-docs && tsx tools/docs/check-documentation.mts --mode=base",
+    "docs:check:py": "tsx tools/docs/check-documentation.mts --mode=python",
+    "docs:check:r": "tsx tools/docs/check-documentation.mts --mode=r",
+    "advisories:test": "node --test tools/release/check-npm-advisories.test.mjs",
+    "advisories:check": "node tools/release/check-npm-advisories.mjs",
+    "smoke:packed": "node tools/release/smoke-packed-diagnostics.mjs --package-set=all-five",
+    "smoke:packed:runtime-four": "node tools/release/smoke-packed-diagnostics.mjs --package-set=runtime-four",
+    "smoke:packed:test": "node --test tools/release/smoke-packed-diagnostics.test.mjs",
+    "release:gate": "bash tools/release/run-generalized-diagnostics-gate.sh",
+    "release:gate:test": "node --test tools/release/run-generalized-diagnostics-gate.test.mjs"
   },
   "devDependencies": {
-    "tsx": "^4.19.2"
+    "mdast-util-from-markdown": "^2.0.3",
+    "tsx": "^4.19.2",
+    "yaml": "^2.9.0"
   }
 }

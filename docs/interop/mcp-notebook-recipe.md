@@ -61,9 +61,9 @@ set)` once at boot. To turn it on, set BOTH (in the repo-root `.env`):
 
 ```bash
 # The bearer token that gates /mcp. Treat it like any other secret.
-ACTNG_MCP_TOKEN=<a long random string you generate>
+ACTNG_MCP_TOKEN="<a long random string you generate>"
 # The one project this token grants (v1 single-tenant: one token, one workspace).
-ACTNG_MCP_PROJECT_ID=<the project id, e.g. the UUID from GET /api/projects>
+ACTNG_MCP_PROJECT_ID="<the project id, e.g. the UUID from GET /api/projects>"
 ```
 
 `ACTNG_MCP_PROJECT_ID` is REQUIRED when the token is set — a bearer

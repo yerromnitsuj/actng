@@ -17,7 +17,8 @@
  *    keep their code; everything else gets the fallback.
  */
 
-import { createTool } from "@mastra/core/tools";
+import { createTool, type Tool } from "@mastra/core/tools";
+import { toStandardSchema, type StandardSchemaWithJSON } from "@mastra/core/schema";
 import type { z } from "zod";
 import { AgentsError } from "./errors.js";
 
@@ -26,9 +27,29 @@ import { AgentsError } from "./errors.js";
 
 /** The uniform tool-failure shape: agents branch on success, hosts log code. */
 export type ToolEnvelopeFailure = {
-  success: false;
-  error: { code: string; message: string };
+  readonly success: false;
+  readonly error: { readonly code: string; readonly message: string };
 };
+
+const TOOL_INPUT_INVALID: ToolEnvelopeFailure = Object.freeze({
+  success: false,
+  error: Object.freeze({ code: "TOOL_INPUT_INVALID", message: "Tool input failed schema validation" }),
+});
+const TOOL_OUTPUT_INVALID: ToolEnvelopeFailure = Object.freeze({
+  success: false,
+  error: Object.freeze({ code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" }),
+});
+
+function readonlyFailure(code: string, message: string): ToolEnvelopeFailure {
+  return Object.freeze({ success: false, error: Object.freeze({ code, message }) });
+}
+
+function deepFreezeResult<T>(value: T, seen = new WeakSet<object>()): T {
+  if (value === null || typeof value !== "object" || seen.has(value)) return value;
+  seen.add(value);
+  for (const child of Object.values(value as Record<string, unknown>)) deepFreezeResult(child, seen);
+  return Object.freeze(value);
+}
 
 /**
  * Converts anything thrown by a tool into the failure envelope. Never throws.
@@ -60,7 +81,7 @@ export function envelopeFailure(err: unknown, fallbackCode = "TOOL_ERROR"): Tool
   } catch {
     // A hostile getter must not break the envelope; keep the fallbacks.
   }
-  return { success: false, error: { code, message } };
+  return readonlyFailure(code, message);
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +137,7 @@ export function resolveMcpAuthInfo(context: McpContextLike | undefined): McpAuth
       | undefined;
     if (proxiedExtra?.authInfo) return proxiedExtra.authInfo;
 
-    // Installed @mastra/mcp 1.14.0: createProxiedRequestContext copies each
+    // Lock-tested @mastra/mcp 1.17.3: createProxiedRequestContext copies each
     // extra key onto the RequestContext verbatim, so authInfo is top-level.
     const topLevelAuthInfo = requestContext.get("authInfo") as McpAuthInfoLike | undefined;
     if (topLevelAuthInfo) return topLevelAuthInfo;
@@ -433,7 +454,7 @@ export type ActuarialToolKind = "read" | "action";
  */
 export type ActuarialToolContext = TenantToolContext;
 
-interface DefineActuarialToolCommon<TShape extends z.ZodRawShape> {
+interface DefineActuarialToolCommon<TShape extends z.ZodRawShape, TResult> {
   /**
    * Exact schema paths (the lint's dot notation, rooted at "input") where an
    * uninspectable type — z.unknown(), z.any(), z.map() — is INTENTIONAL
@@ -456,6 +477,11 @@ interface DefineActuarialToolCommon<TShape extends z.ZodRawShape> {
    * AgentsError("TENANT_IN_SCHEMA") at definition time if it does.
    */
   inputSchema: z.ZodObject<TShape>;
+  /**
+   * Optional observable-result schema. It must admit the complete success /
+   * failure union because validation errors are ordinary tool results.
+   */
+  outputSchema?: z.ZodType<TResult | ToolEnvelopeFailure, z.ZodTypeDef, unknown>;
 }
 
 /**
@@ -474,7 +500,7 @@ interface DefineActuarialToolCommon<TShape extends z.ZodRawShape> {
  * reviewable at the definition site.
  */
 export type DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResult> =
-  | (DefineActuarialToolCommon<TShape> & {
+  | (DefineActuarialToolCommon<TShape, TResult> & {
       tenant: "required";
       /** Trusted source for the tenant id. Default "request-context". */
       tenantSource?: TenantSource;
@@ -487,19 +513,64 @@ export type DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResult> =
        * envelope, never an exception.
        */
       execute: (
-        input: z.infer<z.ZodObject<TShape>>,
+        input: z.output<z.ZodObject<TShape>>,
         tenant: string,
         context: ActuarialToolContext,
       ) => Promise<TResult>;
     })
-  | (DefineActuarialToolCommon<TShape> & {
+  | (DefineActuarialToolCommon<TShape, TResult> & {
       tenant: "none";
       execute: (
-        input: z.infer<z.ZodObject<TShape>>,
+        input: z.output<z.ZodObject<TShape>>,
         tenant: null,
         context: ActuarialToolContext,
       ) => Promise<TResult>;
     });
+
+/**
+ * A Mastra-compatible tool whose direct execute boundary is fully owned by
+ * this SDK. Mastra metadata stays intentionally unknown: the real domain
+ * schemas are retained privately so framework validation cannot run their
+ * transforms a second time.
+ */
+export type DefinedActuarialTool<TInput, TOutput> = Omit<
+  Tool<unknown, unknown>,
+  "execute"
+> & {
+  readonly kind: ActuarialToolKind;
+  execute: (input: TInput, context: ActuarialToolContext) => Promise<TOutput>;
+};
+
+function metadataBridge(schema: z.ZodTypeAny): StandardSchemaWithJSON<unknown, unknown> {
+  const real = toStandardSchema(schema);
+  return {
+    "~standard": {
+      version: 1,
+      vendor: "actuarial-ts-metadata-bridge",
+      validate: (value: unknown) => ({ value }),
+      jsonSchema: {
+        input: (options) => real["~standard"].jsonSchema.input(options),
+        output: (options) => real["~standard"].jsonSchema.output(options),
+      },
+    },
+  };
+}
+
+function isFailure(value: unknown): value is ToolEnvelopeFailure {
+  if (value === null || typeof value !== "object") return false;
+  const candidate = value as { success?: unknown; error?: unknown };
+  if (candidate.success !== false || candidate.error === null || typeof candidate.error !== "object") return false;
+  const error = candidate.error as { code?: unknown; message?: unknown };
+  return typeof error.code === "string" && typeof error.message === "string";
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Wraps Mastra's createTool with the envelope + tenant-seam guarantees and
@@ -507,7 +578,7 @@ export type DefineActuarialToolOptions<TShape extends z.ZodRawShape, TResult> =
  */
 export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
   options: DefineActuarialToolOptions<TShape, TResult>,
-) {
+): DefinedActuarialTool<z.input<z.ZodObject<TShape>>, TResult | ToolEnvelopeFailure> {
   // FAIL CLOSED: a schema the seam cannot inspect is not definable, and the
   // tenant-key lint recurses through every container the model could reach.
   const shape = zodObjectShape(options.inputSchema);
@@ -538,28 +609,81 @@ export function defineActuarialTool<TShape extends z.ZodRawShape, TResult>(
         "relationship to the tenant seam explicitly",
     );
   }
+
+  if (options.outputSchema !== undefined) {
+    let probe;
+    try {
+      probe = options.outputSchema.safeParse(TOOL_OUTPUT_INVALID);
+    } catch {
+      throw new AgentsError(
+        "BAD_OUTPUT_SCHEMA",
+        `Tool "${options.id}": outputSchema threw while validating the required failure envelope`,
+      );
+    }
+    if (!probe.success || !sameJson(probe.data, TOOL_OUTPUT_INVALID)) {
+      throw new AgentsError(
+        "BAD_OUTPUT_SCHEMA",
+        `Tool "${options.id}": outputSchema must preserve the complete tool failure envelope`,
+      );
+    }
+  }
+
   const tool = createTool({
     id: options.id,
     description: options.description,
-    inputSchema: options.inputSchema,
-    execute: async (input: z.infer<z.ZodObject<TShape>>, context: unknown) => {
-      try {
-        if (options.tenant === "required") {
-          // Resolve BEFORE the body runs: an unauthenticated call fails closed
-          // here, and execute never sees it.
-          const tenant = resolveTenant(context as ActuarialToolContext, {
-            source: options.tenantSource,
-            key: options.tenantKey,
-          });
-          return await options.execute(input, tenant, context as ActuarialToolContext);
-        }
-        return await options.execute(input, null, context as ActuarialToolContext);
-      } catch (err) {
-        return envelopeFailure(err);
-      }
-    },
+    inputSchema: metadataBridge(options.inputSchema),
+    ...(options.outputSchema === undefined ? {} : { outputSchema: metadataBridge(options.outputSchema) }),
   });
-  return Object.assign(tool, { kind: options.kind });
+
+  const execute = async (
+    rawInput: z.input<z.ZodObject<TShape>>,
+    context: ActuarialToolContext,
+  ): Promise<TResult | ToolEnvelopeFailure> => {
+    let parsedInput;
+    try {
+      parsedInput = options.inputSchema.safeParse(rawInput);
+    } catch {
+      return TOOL_INPUT_INVALID;
+    }
+    if (!parsedInput.success) return TOOL_INPUT_INVALID;
+
+    let rawOutput: TResult | ToolEnvelopeFailure;
+    try {
+      if (options.tenant === "required") {
+        const tenant = resolveTenant(context, {
+          source: options.tenantSource,
+          key: options.tenantKey,
+        });
+        rawOutput = await options.execute(parsedInput.data, tenant, context);
+      } else {
+        rawOutput = await options.execute(parsedInput.data, null, context);
+      }
+    } catch (err) {
+      rawOutput = envelopeFailure(err);
+    }
+
+    if (options.outputSchema === undefined) {
+      return rawOutput === undefined ? TOOL_OUTPUT_INVALID : rawOutput;
+    }
+    let parsedOutput;
+    try {
+      parsedOutput = options.outputSchema.safeParse(rawOutput);
+    } catch {
+      return TOOL_OUTPUT_INVALID;
+    }
+    if (!parsedOutput.success) return TOOL_OUTPUT_INVALID;
+    if (isFailure(rawOutput) && !sameJson(parsedOutput.data, rawOutput)) return TOOL_OUTPUT_INVALID;
+    return deepFreezeResult(parsedOutput.data);
+  };
+
+  // The metadata bridges deliberately erase domain inference on the inherited
+  // Mastra surface. This is the single convergence assertion: the adapter
+  // above is the only executor and has the exact public input/output contract.
+  const defined = Object.assign(tool, { execute, kind: options.kind }) as DefinedActuarialTool<
+    z.input<z.ZodObject<TShape>>,
+    TResult | ToolEnvelopeFailure
+  >;
+  return defined;
 }
 
 // ---------------------------------------------------------------------------

@@ -7,8 +7,12 @@
  */
 import { execFile, spawnSync } from "node:child_process";
 
+export function rscriptExecutable(): string {
+  return process.env.ACTUARIAL_TS_RSCRIPT || "Rscript";
+}
+
 export function rscriptAvailable(): boolean {
-  return spawnSync("Rscript", ["--version"], { stdio: "ignore" }).status === 0;
+  return spawnSync(rscriptExecutable(), ["--version"], { stdio: "ignore" }).status === 0;
 }
 
 export function runRscript(
@@ -17,7 +21,7 @@ export function runRscript(
   timeoutMs = 120_000,
 ): Promise<{ ok: true; stdout: string } | { ok: false; code: string; message: string }> {
   return new Promise((resolve) => {
-    execFile("Rscript", [scriptPath, ...args], { timeout: timeoutMs }, (error, stdout, stderr) => {
+    execFile(rscriptExecutable(), [scriptPath, ...args], { timeout: timeoutMs }, (error, stdout, stderr) => {
       if (error === null) {
         resolve({ ok: true, stdout });
         return;

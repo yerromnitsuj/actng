@@ -16,6 +16,10 @@ on:
       - "examples/chain-ladder-crosscheck/**"
       - "packages/**"
       - "package-lock.json"
+      - "docs/**"
+      - "tools/docs/**"
+      - "tools/release/**"
+      - "package.json"
   pull_request:
     branches: [main]
     paths:
@@ -27,6 +31,10 @@ on:
       - "examples/chain-ladder-crosscheck/**"
       - "packages/**"
       - "package-lock.json"
+      - "docs/**"
+      - "tools/docs/**"
+      - "tools/release/**"
+      - "package.json"
 
 jobs:
   r-conformance:
@@ -35,50 +43,62 @@ jobs:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: "4.4"
+          r-version: "4.4.3"
           use-public-rspm: true # binary packages; cold install in seconds, not minutes
       - name: Cache R packages
         uses: actions/cache@v4
         with:
-          path: ${{ env.R_LIBS_USER }}
-          key: r-libs-${{ runner.os }}-chainladder-jsonlite-v1
-      - name: Install ChainLadder + jsonlite
+          path: ~/.R-interop-lib
+          key: r-4.4.3-chainladder-0.2.21-jsonlite-2.0.0-${{ runner.os }}
+      - name: Resolve the exact R executable
+        run: echo "ACTUARIAL_TS_RSCRIPT=$(command -v Rscript)" >> "$GITHUB_ENV"
+      - name: Install exact R environment contract
         run: |
-          Rscript -e 'installed <- rownames(installed.packages());
-            need <- setdiff(c("ChainLadder", "jsonlite"), installed);
-            if (length(need) > 0) install.packages(need, repos = "https://packagemanager.posit.co/cran/__linux__/jammy/latest")'
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/install-r-environment.R
+      - name: Verify exact R environment contract
+        run: |
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/test-r-environment.R
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/check-r-environment.R
       - name: JCS serializer self-test (committed vectors)
-        run: Rscript -e 'source("tools/interop/actuarialInterchange.R"); r <- ats_test_jcs(); stopifnot(r$failed == 0L)'
+        run: |
+          "$ACTUARIAL_TS_RSCRIPT" -e 'source("tools/interop/actuarialInterchange.R"); r <- ats_test_jcs(); stopifnot(r$failed == 0L)'
       - name: JCS serializer under a hostile collator (da_DK 'aa' contraction)
         # icuSetCollate needs no OS locale generation; if this R build lacks ICU
         # it warns and the step degenerates to a byte-order re-run (still valid).
         run: |
-          Rscript -e 'icuSetCollate(locale = "da_DK");
+          "$ACTUARIAL_TS_RSCRIPT" -e 'icuSetCollate(locale = "da_DK");
             if (capabilities("ICU") && order(c("00ab","00aa"))[1] != 1L)
               message("NOTICE: collator not hostile; locale leg is not exercising the trap");
             source("tools/interop/actuarialInterchange.R");
             r <- ats_test_jcs(); stopifnot(r$failed == 0L)'
       - name: Embedded document version guard (spec 3.5)
-        run: Rscript tools/interop/test-read-document.R
+        run: |
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/test-read-document.R
       - name: Cross-engine conformance (frozen corpus, mack1993-vw profile)
-        run: Rscript tools/interop/conformance.R
+        run: |
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/conformance.R
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22.0
           cache: npm
       - name: npm ci (workspace + SDK build via prepare)
         run: npm ci
+      - name: R-owned documentation snippets
+        run: npm run docs:check:r
+        env:
+          ACTUARIAL_TS_RSCRIPT: ${{ env.ACTUARIAL_TS_RSCRIPT }}
       - name: run-mack.R CLI smoke (literature anchor)
         run: |
-          Rscript tools/interop/run-mack.R \
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/run-mack.R \
             --in interop/conformance/fixtures/taylor-ashe/triangle.json \
             --selection interop/conformance/fixtures/taylor-ashe/selection.json \
             --out /tmp/r-result.json --created-at 2026-07-19T00:00:00Z
-          Rscript -e 'source("tools/interop/actuarialInterchange.R");
+          "$ACTUARIAL_TS_RSCRIPT" -e 'source("tools/interop/actuarialInterchange.R");
             doc <- ats_read_document("/tmp/r-result.json");
             stopifnot(abs(doc$result$totals$unpaid - 18680856) <= 1)'
       - name: run-mack.R selection honesty (injection + not-comparable)
-        run: Rscript tools/interop/test-run-mack-selection.R
+        run: |
+          "$ACTUARIAL_TS_RSCRIPT" tools/interop/test-run-mack-selection.R
       - name: Chain-ladder R example (live Rscript)
         run: npm test -w @actuarial-ts/example-chain-ladder-r
 
@@ -92,21 +112,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: "4.4"
+          r-version: "4.4.3"
           use-public-rspm: true
       - name: Cache R packages
         uses: actions/cache@v4
         with:
-          path: ${{ env.R_LIBS_USER }}
-          key: r-libs-${{ runner.os }}-chainladder-jsonlite-v1
-      - name: Install ChainLadder + jsonlite
+          path: ~/.R-interop-lib
+          key: r-4.4.3-chainladder-0.2.21-jsonlite-2.0.0-${{ runner.os }}
+      - name: Resolve and install exact R environment contract
         run: |
-          Rscript -e 'installed <- rownames(installed.packages());
-            need <- setdiff(c("ChainLadder", "jsonlite"), installed);
-            if (length(need) > 0) install.packages(need, repos = "https://packagemanager.posit.co/cran/__linux__/jammy/latest")'
+          echo "ACTUARIAL_TS_RSCRIPT=$(command -v Rscript)" >> "$GITHUB_ENV"
+          Rscript tools/interop/install-r-environment.R
+          Rscript tools/interop/check-r-environment.R
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22.0
           cache: npm
       - run: npm ci
       - uses: actions/setup-python@v5
@@ -117,22 +137,25 @@ jobs:
           python3 -m venv .venv-interop
           .venv-interop/bin/python -m pip install --upgrade pip
           .venv-interop/bin/pip install -e interop/python -r interop/sidecar/requirements.txt
-          PYTHONPATH=interop SIDECAR_TOKEN=ci-secret nohup .venv-interop/bin/python -m sidecar > sidecar.log 2>&1 &
+          SIDECAR_PORT="$(.venv-interop/bin/python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
+          SIDECAR_TOKEN=ci-secret
+          echo "SIDECAR_PORT=$SIDECAR_PORT" >> "$GITHUB_ENV"
+          echo "SIDECAR_URL=http://127.0.0.1:$SIDECAR_PORT" >> "$GITHUB_ENV"
+          echo "SIDECAR_TOKEN=$SIDECAR_TOKEN" >> "$GITHUB_ENV"
+          PYTHONPATH=interop SIDECAR_PORT="$SIDECAR_PORT" SIDECAR_TOKEN="$SIDECAR_TOKEN" nohup .venv-interop/bin/python -m sidecar > sidecar.log 2>&1 &
           echo $! > sidecar.pid
-      - name: Wait for /v1/health
+      - name: Wait for authenticated /v1/engine identity
         run: |
           for i in $(seq 1 60); do
-            if curl -sf "http://127.0.0.1:8091/v1/health" > /dev/null; then exit 0; fi
+            if engine="$(curl -sf --connect-timeout 1 --max-time 2 -H "Authorization: Bearer $SIDECAR_TOKEN" "$SIDECAR_URL/v1/engine")" && \
+               printf '%s' "$engine" | PYTHONPATH=interop .venv-interop/bin/python tools/release/check-sidecar-engine.py; then exit 0; fi
             sleep 1
           done
-          echo "sidecar never became healthy" >&2
+          echo "sidecar never returned the authenticated engine identity" >&2
           cat sidecar.log >&2
           exit 1
       - name: Capstone — three engines, one referee
         run: npm test -w @actuarial-ts/example-chain-ladder-crosscheck
-        env:
-          SIDECAR_URL: http://127.0.0.1:8091
-          SIDECAR_TOKEN: ci-secret
       - name: Sidecar log on failure
         if: failure()
         run: cat sidecar.log || true

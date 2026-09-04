@@ -22,7 +22,7 @@
  *    startup MUST abort.
  *
  * ---------------------------------------------------------------------------
- * VERIFIED against the installed @mastra/mcp 1.14.0 (house rule — types and
+ * VERIFIED against the lock-tested @mastra/mcp 1.17.3 (house rule — types and
  * compiled source, not memory):
  *
  * - MCPServer.executeTool(toolId, args, executionContext?: { messages?,
@@ -40,7 +40,7 @@
  *   tool context TWO ways: directly at `context.mcp.extra`, and — via
  *   createProxiedRequestContext — as INDIVIDUAL keys set on a fresh
  *   RequestContext (`context.requestContext.get("authInfo")`). NOTE the
- *   surprise: the installed 1.14.0 sets each extra key on the RequestContext
+ *   surprise: the lock-tested 1.17.3 sets each extra key on the RequestContext
  *   verbatim, so the tenant lives at `requestContext.get("authInfo")`, NOT
  *   under a single `"mcp.extra"` key as the research draft documented. This
  *   helper tries all three shapes so it is correct against both the installed

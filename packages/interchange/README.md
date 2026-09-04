@@ -1,79 +1,45 @@
 # @actuarial-ts/interchange
 
-The `actuarial-interchange` format (spec v1) for the actuarial-ts SDK:
-language-neutral, versioned documents that carry **data, intent, results,
-and governance** between actuarial-ts, chainladder-python, and R
-ChainLadder — plus the deterministic cross-implementation referee.
+Typed TypeScript implementation of actuarial-interchange: portable, integrity-stamped documents shared by actuarial-ts, chainladder-python, and R ChainLadder.
 
-## Install
-
-```sh
-npm install @actuarial-ts/interchange
+```bash
+npm install @actuarial-ts/interchange@0.6.0 @actuarial-ts/core@0.6.0
 ```
 
-ESM, Node >= 20. Depends on `@actuarial-ts/core` (>= 0.2.0 — it provides the
-`canonicalJson`/`fnv1a64` this package canonicalizes and stamps with) and
-`zod`.
+Node 20+, ESM. Version 0.6 writes wire `1.1.0` and reads compatible major-version-1 documents.
 
-- **Document kinds**: `triangle`, `selection`, `method-result`,
-  `stochastic-result`, `study`, `bundle`, `crosscheck-report` — zod
-  schemas with inferred types, mechanically emitted to JSON Schema under
-  `schema/interchange/1.0/` (committed; a drift test fails the build if
-  the emitted schemas and the committed files diverge).
-- **Canonicalization** is RFC 8785 (JCS) via `@actuarial-ts/core`'s
-  `canonicalJson`; the committed cross-language vector suite
-  (`schema/interchange/1.0/jcs-vectors.json`) is part of the spec.
-- **Integrity tags** cover the semantic body only —
-  `fnv1a64(canonicalJson(<kind-named object>))` — never the envelope, so
-  a re-export by another adapter changes the envelope, not the tag. Tags
-  detect ACCIDENTAL divergence; they are not a security control.
-- **Selections travel as intent + values** with a normative coherence
-  rule: computable intents must recompute to the stated value within
-  1e-9 relative, verified on import (warn or refuse via a strictness
-  flag; refusal is `INCOHERENT_SELECTION`). Values are authoritative only
-  for `judgmental`/`external` intents, whose rationale is required.
-- **Converters**: `triangleToDoc`/`docToTriangle`,
-  `selectionsToDoc`/`docToSelections` (intent ↔ the standard averages
-  menu), `resultToDoc` (chainLadder, mack, bornhuetterFerguson,
-  benktander; Cape Cod, Clark, Munich and the stochastic layer are not yet
-  converted and `resultToDoc` throws for them), and
-  `parseDocument` (version-checked, integrity-verified,
-  warning-channeled).
-- **The referee**: `crosscheck({ a, b, tolerance?, selection?, createdAt })`
-  compares two `method-result` documents by appliesTo tags and convention
-  profile, computes per-origin and total relative deviations, applies
-  requested-vs-effective downgrades, and returns a `crosscheck-report`
-  with verdict `agree | disagree | not-comparable | verified-by-value`.
-  Convention profiles (`deterministic-cl`, `mack1993-vw`) are shipped as
-  data, including each engine's pinned alignment parameters.
+## Document kinds
 
-Version handling (spec 3.5): wrong-major documents throw
-`ReservingError("UNSUPPORTED_VERSION")`; same-major unknown minor fields
-are accepted and preserved (schemas are passthrough), and
-`governance`/`extensions` round-trip opaquely.
+`triangle`, `selection`, `method-result`, `stochastic-result`, `study`, `bundle`, `crosscheck-report`, and `diagnostic-definition` share an envelope with writer version, generator, caller-supplied timestamp, semantic-body FNV-1a/JCS integrity tag, and optional governance/extensions.
 
-Everything is pure and browser-safe: no clock reads (`createdAt` is
-caller-supplied), no randomness, no node builtins. Depends on
-`@actuarial-ts/core` and `zod` only; `zod-to-json-schema` is a build-time
-devDependency used by `npm run emit-schema` (which builds first, then
-regenerates the committed JSON Schemas).
+```ts
+import {
+  diagnosticDefinitionToDoc,
+  docToDiagnosticDefinition,
+  parseDocument,
+} from "@actuarial-ts/interchange";
 
-This package is designed to support the actuary's compliance with the
-ASOPs; cross-implementation agreement supports, but does not by itself
-constitute, the model validation contemplated by ASOP No. 56.
+const document = diagnosticDefinitionToDoc(compiledDefinition, {
+  createdAt: "2026-09-03T00:00:00Z",
+});
+const generic = parseDocument(document);
+const executable = docToDiagnosticDefinition(document);
+```
 
-## Two referees
+Generic parsing validates known fields, preserves same-major unknown envelope and nested fields, verifies integrity, and recursively verifies documents embedded in studies/bundles. Executable diagnostic conversion is intentionally stricter: it requires the current normalized vocabulary, recompiles the complete definition, and verifies formula, calculation, and definition identities. A future field can therefore survive a storage hop without being silently executed.
 
-`crosscheck` compares DERIVATIONS: two deterministic `method-result` documents,
-where any deviation beyond float noise is a real disagreement.
+Bundles may carry typed diagnostic definition documents under `interchange.diagnosticDefinitions`; each nested document has its own tag and is also covered by the outer `{ bundle, interchange }` tag. JSON Schemas live in `schema/interchange/1.1`; the frozen `1.0` directory remains unchanged.
 
-`crosscheckStochastic` compares DRAWS: two `stochastic-result` documents, where
-the expected disagreement is nonzero and set by sampling theory. Its tolerance
-is derived from the simulation count and the observed coefficient of variation
-rather than declared, so it tightens as n grows, and it withholds that
-allowance from two results that both claim `seeded-reproducible` at one seed.
-See `docs/interop/reproducibility.md`.
+## Interoperability
+
+The three shores share RFC 8785 vectors, frozen reserving fixtures, and the generalized casualty definition with six formulas and 22 bound instances. Python and R independently recompute definition identities and replay every formula over the same aggregate cell.
+
+`crosscheck` compares two method-result documents under explicit convention profiles. Outcomes are `agree`, `disagree`, `not-comparable`, or `verified-by-value`; the referee never hides convention differences or treats mutual agreement as proof of correctness.
+
+Integrity tags detect accidental drift and support deterministic linking. FNV-1a is unkeyed and is not tamper resistance, authentication, or a security boundary.
+
+The normative format is [actuarial-interchange rev 2.4](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/spec/actuarial-interchange.md). See the generated [diagnostic formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache-2.0. See LICENSE and NOTICE.

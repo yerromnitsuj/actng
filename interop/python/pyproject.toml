@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "actuarial-interchange"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python adapter for the actuarial-interchange spec v1: canonical (JCS) serialization, interchange documents, and chainladder-python bridges."
 readme = "README.md"
 license = "Apache-2.0"

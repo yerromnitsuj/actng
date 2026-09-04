@@ -41,6 +41,7 @@ export type {
   DiagnosticMeasureStats,
   DiagnosticMetricInstance,
   DiagnosticMetricPresentation,
+  DiagnosticsFilter,
   DiagnosticMissingPolicy,
   DiagnosticPeriodAxis,
   DiagnosticPeriodCoordinate,
@@ -170,7 +171,6 @@ export * from "./berquist.js";
 export * from "./clark.js";
 export * from "./diagnostics.js";
 export * from "./periods.js";
-export * from "./metricDiagnostics.js";
 export * from "./casualtyDiagnostics.js";
 export * from "./mack.js";
 export * from "./capping.js";

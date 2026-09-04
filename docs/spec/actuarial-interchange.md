@@ -1,4 +1,4 @@
-# actuarial-interchange: cross-ecosystem interop (full design, rev 2.3)
+# actuarial-interchange: cross-ecosystem interop (full design, rev 2.4)
 
 > **Stable home.** This is the normative interchange specification; two other
 > documents cite it by section number. It moved here from
@@ -10,7 +10,8 @@ Status: BUILT — Phases A through E implemented and shipped (see the
 Progress Log in `docs/superpowers/plans/2026-07-16-actuarial-ts-sdk-master.md`
 and CHANGELOG `Unreleased`→0.2.0). This is no longer an unscheduled design:
 the TS/Python/R shores, the referee, the governance flows, the sidecar, and
-the MCP layer exist. Rev 2.2 adds a post-build **Field lessons** addendum
+the MCP layer exist. Rev 2.4 adds the portable diagnostic-definition document
+and wire 1.1.0 in Section 18. Rev 2.2 adds a post-build **Field lessons** addendum
 (Section 15, changelog-style) reconciling the as-built system with this
 design; the design body below (rev 2.1) is preserved unchanged. The
 interchange wire-format version stays v1.0 (no breaking field change; the
@@ -156,7 +157,7 @@ embedded in study/bundle documents.
     "measure": "paid",              // see measure vocabulary below
     "cumulative": true,
     "originLengthMonths": 12,       // 12 | 6 | 3 | 1 (annual/semiannual/quarterly/monthly)
-    "origins": [ { "label": "2023", "start": "2023-01-01" }, ... ],
+    "origins": [ { "label": "2023", "start": "2023-01-01" }, "..." ],
     "agesMonths": [12, 24, 36],
     "values": [[100, 160, 200], [110, 170, null], [120, null, null]],
     "valuationDate": "2025-12-31",
@@ -308,9 +309,9 @@ Injection honesty rules:
     "title": "GL occurrence Q3 factor study",
     "narrative": { "analyst": "Sam Doe", "sourceRef": "nb/q3-study.ipynb",
                    "summary": "VW 5-year anchors; 2021 excluded; exp-decay tail." },
-    "triangles": [ TriangleDoc, ... ],
-    "selections": [ SelectionDoc, ... ],
-    "supportingResults": [ MethodResultDoc, ... ],   // OPTIONAL; when absent, Gate 2 verifies coherence + replays, with no cross-engine referee step
+    "triangles": [ "<TriangleDoc>", "..." ],
+    "selections": [ "<SelectionDoc>", "..." ],
+    "supportingResults": [ "<MethodResultDoc>", "..." ],   // OPTIONAL; when absent, Gate 2 verifies coherence + replays, with no cross-engine referee step
     "expectations": { "replayTolerance": 0.0005 }     // subject to the host ceiling (Section 6)
   },
   "governance": { }    // reserved; round-tripped opaquely by non-TS adapters
@@ -497,11 +498,11 @@ Python `load_bundle` (no new machinery).
 
 ```jsonc
 {
-  "triangles": { "primary": TriangleDoc, "secondary": TriangleDoc? },  // secondary: MunichAdjustment's incurred (primary = paid)
-  "selection": SelectionDoc?,
-  "exposure": { "origins": ["2023", ...], "values": [10000, ...], "kind": "earnedPremium" }?,   // BF/Benktander/CapeCod apriori base
-  "parameters": { ... },                                              // method-specific, schema'd per method
-  "seed": 42?
+  "triangles": { "primary": "<TriangleDoc>", "secondary": "<optional TriangleDoc>" },  // secondary: MunichAdjustment's incurred (primary = paid)
+  "selection": "<optional SelectionDoc>",
+  "exposure": { "origins": ["2023", "..."], "values": [10000, "..."], "kind": "earnedPremium" },   // optional BF/Benktander/CapeCod apriori base
+  "parameters": { "methodSpecific": "..." },                         // method-specific, schema'd per method
+  "seed": 42                                                           // optional; method-specific
 }
 ```
 
@@ -858,7 +859,6 @@ access-path and enforcement-strength refinements, not design reversals.
 Because no wire field changed, the interchange **spec version stays v1.0**
 — this is a rev 2.2 *document* revision recording build learnings, not a
 format minor bump.
-```
 
 
 ## 16. Reproducibility classes (rev 2.3)
@@ -970,3 +970,36 @@ the rationale gate, with its stability self-check, before the actuary's
 attestation is written to the ledger. Promotion is not blocked — a witnessed
 result can be perfectly adequate support — but the attestation must be
 informed rather than nominal.
+
+## 18. Portable diagnostic definitions (rev 2.4, 2026-09-03)
+
+Wire `1.1.0` adds the `diagnostic-definition` kind. This is additive within
+major version 1: existing 1.0 documents remain valid and readers continue to
+accept compatible same-major minors. Writers on the 0.6 SDK emit 1.1.0.
+
+The semantic body is `{ definition, identities }`. `definition` is the complete
+normalized executable vocabulary: measures; count populations; exposure and
+amount bases; derived claim measures; formula templates; bound instances with
+presentation and rules; definition-level review rules; loss row grain; and the
+calendar or ordered period axis. `identities` records the algorithm plus
+formula IDs, calculation IDs, and full definition identity. The document’s
+ordinary envelope integrity covers the entire semantic body.
+
+Generic parsing validates known structure and recursively preserves unknown
+same-major fields so an older intermediary does not destroy a future document.
+Executable conversion is stricter: it compiles the normalized body under the
+current core vocabulary and recomputes every identity. Unknown behavior may be
+stored and forwarded but is never silently executed.
+
+Bundles may include complete definition documents under
+`interchange.diagnosticDefinitions`. Each nested document retains its own
+integrity tag; the bundle’s outer tag additionally covers the nested bytes as
+part of `{ bundle, interchange }`. Compliance-native run provenance and the
+nested document must refer to the same definition identity.
+
+The normative schemas are in `schema/interchange/1.1`. The 1.0 directory and
+frozen reserving corpus are preserved byte-for-byte. TypeScript, Python, and R
+all read/write wire 1.1.0; the three-shore conformance fixture independently
+recomputes six formula identities, 22 calculation identities, the definition
+identity, and 22 aggregate-cell replays. Python/R adapter generator version
+0.2.0 is independent of the lockstep npm package version 0.6.0.

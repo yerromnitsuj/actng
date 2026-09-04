@@ -15,6 +15,9 @@ on:
       - "packages/core/**"
       - "packages/agents/**"
       - "packages/compliance/**"
+      - "docs/**"
+      - "tools/docs/**"
+      - "tools/release/**"
       - "examples/chain-ladder-python/**"
       - "package.json"
       - "package-lock.json"
@@ -23,6 +26,25 @@ on:
     branches: [main]
 
 jobs:
+  py-base-310:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: python -m pip install -e interop/python pytest
+      - run: pytest interop/python/tests/test_jcs.py interop/python/tests/test_documents.py interop/python/tests/test_diagnostics.py -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+      - run: npm ci
+      - name: Python 3.10-owned documentation snippets
+        run: npm run docs:check:py
+        env:
+          ACTUARIAL_TS_PYTHON: python
+
   py-conformance:
     runs-on: ubuntu-latest
     strategy:
@@ -41,6 +63,15 @@ jobs:
           pip install "chainladder==${{ matrix.chainladder-version }}"
       - name: Python shore + cross-engine conformance
         run: pytest interop/python/tests interop/conformance/py -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+      - run: npm ci
+      - name: Python-owned documentation snippets
+        run: npm run docs:check:py
+        env:
+          ACTUARIAL_TS_PYTHON: python
 
   # The live referee (spec 5 "CI mode" / 13 Phase C): boots the sidecar,
   # proves its own pytest suite, then runs crosscheck:ci — TS engine vs the
@@ -49,7 +80,6 @@ jobs:
   crosscheck-ci:
     runs-on: ubuntu-latest
     env:
-      SIDECAR_URL: http://127.0.0.1:8091
       # Intentionally a NON-SECRET constant: the sidecar is an ephemeral
       # localhost process torn down at job end. Do NOT copy this pattern to a
       # real deployment token — the on-failure `cat sidecar.log` step is safe
@@ -66,23 +96,27 @@ jobs:
           pip install -e "interop/python[chainladder]" pytest
           pip install -r interop/sidecar/requirements-dev.txt
       - name: Sidecar test suite
-        run: pytest interop/sidecar/tests -q
+        run: PYTHONPATH=interop pytest interop/sidecar/tests tools/release/test-check-sidecar-engine.py -q
       - name: Boot the sidecar
         run: |
-          PYTHONPATH=interop SIDECAR_TOKEN="$SIDECAR_TOKEN" nohup python -m sidecar > sidecar.log 2>&1 &
+          SIDECAR_PORT="$(python -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
+          echo "SIDECAR_PORT=$SIDECAR_PORT" >> "$GITHUB_ENV"
+          echo "SIDECAR_URL=http://127.0.0.1:$SIDECAR_PORT" >> "$GITHUB_ENV"
+          PYTHONPATH=interop SIDECAR_PORT="$SIDECAR_PORT" SIDECAR_TOKEN="$SIDECAR_TOKEN" nohup python -m sidecar > sidecar.log 2>&1 &
           echo $! > sidecar.pid
-      - name: Wait for /v1/health
+      - name: Wait for authenticated /v1/engine identity
         run: |
           for i in $(seq 1 60); do
-            if curl -sf "$SIDECAR_URL/v1/health" > /dev/null; then exit 0; fi
+            if engine="$(curl -sf --connect-timeout 1 --max-time 2 -H "Authorization: Bearer $SIDECAR_TOKEN" "$SIDECAR_URL/v1/engine")" && \
+               printf '%s' "$engine" | PYTHONPATH=interop python tools/release/check-sidecar-engine.py; then exit 0; fi
             sleep 1
           done
-          echo "sidecar never became healthy" >&2
+          echo "sidecar never returned the authenticated engine identity" >&2
           cat sidecar.log >&2
           exit 1
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.22.0
           cache: npm
       - name: Install TS workspaces (builds the packages via prepare)
         run: npm ci

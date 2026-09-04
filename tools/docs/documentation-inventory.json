@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "documents": {
+    ".github/PULL_REQUEST_TEMPLATE.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "AGENTS.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "CHANGELOG.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "CLAUDE.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "CODE_OF_CONDUCT.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "CONTRIBUTING.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "SECURITY.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "VERSIONING.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/convention-map.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/mcp-notebook-recipe.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/reproducibility.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/upstream/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/upstream/chainladder-python-bootstrap-determinism.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/upstream/chainladder-python-proposal.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/interop/upstream/r-chainladder-note.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/migrations/0.6-generalized-diagnostics.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/publishing.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/reference/diagnostic-formulas.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/research/interop/chainladder-python-api.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/interop/mastra-mcp-capabilities.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/interop/r-chainladder-api.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/phase3/clark-2003.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/phase3/merz-wuthrich-2008.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/phase3/odp-bootstrap-england-verrall-shapland.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/phase5/munich-chain-ladder-quarg-mack-2004.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/research/phase5/ulae-conger-nolibos-2003.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/spec/actuarial-interchange.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "docs/superpowers/plans/2026-07-16-actuarial-ts-sdk-master.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-16-phase0-shipping-mechanics.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-16-phase1-friedland-shelf-data.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-17-interop-phaseA-spine.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-17-phase2-compliance.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-17-phase4-agents.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-17-phase5-reserve-review.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-18-interop-phaseB-governance.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-18-interop-phaseC-second-engine.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-18-interop-phaseD-mcp.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-18-interop-phaseE-r-shore.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-19-chain-ladder-apps.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/specs/2026-07-07-expected-losses-design.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/specs/2026-07-16-actuarial-ts-sdk-design.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/specs/2026-07-18-chain-ladder-examples-design.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/specs/2026-07-19-chain-ladder-app-design.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/specs/2026-08-27-quarterly-diagnostics-sdk.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "examples/real-world-loss-run/DATA-NOTICE.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "examples/real-world-loss-run/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "examples/real-world-loss-run/SOURCE.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
+    "interop/conformance/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "interchange"
+      ]
+    },
+    "interop/python/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "interchange"
+      ]
+    },
+    "interop/sidecar/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "interchange"
+      ]
+    },
+    "packages/agents/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "agents"
+      ]
+    },
+    "packages/compliance/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "compliance"
+      ]
+    },
+    "packages/core/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core"
+      ]
+    },
+    "packages/core/test/fixtures/quarterlyCasualty.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
+    "packages/data/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "data"
+      ]
+    },
+    "packages/interchange/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "interchange"
+      ]
+    },
+    "tools/interop/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "interchange"
+      ]
+    }
+  }
+}

@@ -994,7 +994,7 @@
                                 "exposureBasisId",
                                 "exposureTiming"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "countPopulations": {
@@ -1053,7 +1053,7 @@
                                 "description",
                                 "attributes"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "exposureBases": {
@@ -1102,7 +1102,7 @@
                                 "sourceDescription",
                                 "attributes"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "amountBases": {
@@ -1158,7 +1158,7 @@
                                             "required": [
                                               "kind"
                                             ],
-                                            "additionalProperties": false
+                                            "additionalProperties": true
                                           },
                                           {
                                             "type": "object",
@@ -1178,7 +1178,7 @@
                                               "kind",
                                               "description"
                                             ],
-                                            "additionalProperties": false
+                                            "additionalProperties": true
                                           },
                                           {
                                             "type": "object",
@@ -1227,7 +1227,7 @@
                                                     "required": [
                                                       "kind"
                                                     ],
-                                                    "additionalProperties": false
+                                                    "additionalProperties": true
                                                   },
                                                   {
                                                     "type": "object",
@@ -1252,7 +1252,7 @@
                                                       "actor",
                                                       "transformationRef"
                                                     ],
-                                                    "additionalProperties": false
+                                                    "additionalProperties": true
                                                   }
                                                 ]
                                               }
@@ -1264,7 +1264,7 @@
                                               "application",
                                               "derivation"
                                             ],
-                                            "additionalProperties": false
+                                            "additionalProperties": true
                                           }
                                         ]
                                       }
@@ -1274,7 +1274,7 @@
                                       "treatment",
                                       "limitation"
                                     ],
-                                    "additionalProperties": false
+                                    "additionalProperties": true
                                   }
                                 },
                                 "sourceDescription": {
@@ -1296,7 +1296,7 @@
                                 "sourceDescription",
                                 "attributes"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "derivedMeasures": {
@@ -1327,7 +1327,7 @@
                                         "op",
                                         "measureId"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     },
                                     {
                                       "type": "object",
@@ -1348,7 +1348,7 @@
                                         "op",
                                         "terms"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     },
                                     {
                                       "type": "object",
@@ -1369,7 +1369,7 @@
                                         "left",
                                         "right"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     },
                                     {
                                       "type": "object",
@@ -1403,7 +1403,7 @@
                                         "attachment",
                                         "limit"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     }
                                   ]
                                 }
@@ -1413,7 +1413,7 @@
                                 "outputMeasureId",
                                 "expression"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "formulas": {
@@ -1465,7 +1465,7 @@
                                       "compatibilityGroup",
                                       "developmentSemantics"
                                     ],
-                                    "additionalProperties": false
+                                    "additionalProperties": true
                                   }
                                 },
                                 "numerator": {
@@ -1485,7 +1485,7 @@
                                         "op",
                                         "role"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     },
                                     {
                                       "type": "object",
@@ -1506,7 +1506,7 @@
                                         "op",
                                         "terms"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     },
                                     {
                                       "type": "object",
@@ -1527,7 +1527,7 @@
                                         "left",
                                         "right"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     }
                                   ]
                                 },
@@ -1547,7 +1547,7 @@
                                 "denominator",
                                 "denominatorPolicy"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "instances": {
@@ -1583,7 +1583,7 @@
                                           "op",
                                           "measureId"
                                         ],
-                                        "additionalProperties": false
+                                        "additionalProperties": true
                                       },
                                       {
                                         "type": "object",
@@ -1604,7 +1604,7 @@
                                           "op",
                                           "terms"
                                         ],
-                                        "additionalProperties": false
+                                        "additionalProperties": true
                                       },
                                       {
                                         "type": "object",
@@ -1625,7 +1625,7 @@
                                           "left",
                                           "right"
                                         ],
-                                        "additionalProperties": false
+                                        "additionalProperties": true
                                       }
                                     ]
                                   }
@@ -1661,7 +1661,7 @@
                                     "numeratorLabel",
                                     "denominatorLabel"
                                   ],
-                                  "additionalProperties": false
+                                  "additionalProperties": true
                                 },
                                 "rules": {
                                   "type": "array",
@@ -1704,7 +1704,7 @@
                                                   "source",
                                                   "expression"
                                                 ],
-                                                "additionalProperties": false
+                                                "additionalProperties": true
                                               },
                                               {
                                                 "type": "object",
@@ -1725,7 +1725,7 @@
                                                   "source",
                                                   "field"
                                                 ],
-                                                "additionalProperties": false
+                                                "additionalProperties": true
                                               },
                                               {
                                                 "type": "object",
@@ -1742,7 +1742,7 @@
                                                   "source",
                                                   "value"
                                                 ],
-                                                "additionalProperties": false
+                                                "additionalProperties": true
                                               }
                                             ]
                                           },
@@ -1776,7 +1776,7 @@
                                               "absolute",
                                               "relative"
                                             ],
-                                            "additionalProperties": false
+                                            "additionalProperties": true
                                           }
                                         },
                                         "required": [
@@ -1785,7 +1785,7 @@
                                           "right",
                                           "tolerance"
                                         ],
-                                        "additionalProperties": false
+                                        "additionalProperties": true
                                       }
                                     },
                                     "required": [
@@ -1795,7 +1795,7 @@
                                       "severity",
                                       "when"
                                     ],
-                                    "additionalProperties": false
+                                    "additionalProperties": true
                                   }
                                 }
                               },
@@ -1807,7 +1807,7 @@
                                 "presentation",
                                 "rules"
                               ],
-                              "additionalProperties": false
+                              "additionalProperties": true
                             }
                           },
                           "reviewRules": {
@@ -1870,7 +1870,7 @@
                                                 "op",
                                                 "value"
                                               ],
-                                              "additionalProperties": false
+                                              "additionalProperties": true
                                             }
                                           ]
                                         },
@@ -1886,7 +1886,7 @@
                                         "operator",
                                         "right"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     }
                                   },
                                   "required": [
@@ -1899,7 +1899,7 @@
                                     "kind",
                                     "when"
                                   ],
-                                  "additionalProperties": false
+                                  "additionalProperties": true
                                 },
                                 {
                                   "type": "object",
@@ -1944,7 +1944,7 @@
                                     "actual",
                                     "expected"
                                   ],
-                                  "additionalProperties": false
+                                  "additionalProperties": true
                                 },
                                 {
                                   "type": "object",
@@ -1993,7 +1993,7 @@
                                     "expression",
                                     "direction"
                                   ],
-                                  "additionalProperties": false
+                                  "additionalProperties": true
                                 },
                                 {
                                   "type": "object",
@@ -2039,7 +2039,7 @@
                                           "required": [
                                             "kind"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": true
                                         },
                                         {
                                           "type": "object",
@@ -2056,7 +2056,7 @@
                                             "kind",
                                             "rationaleArtifactId"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": true
                                         }
                                       ]
                                     }
@@ -2073,7 +2073,7 @@
                                     "broader",
                                     "comparability"
                                   ],
-                                  "additionalProperties": false
+                                  "additionalProperties": true
                                 },
                                 {
                                   "type": "object",
@@ -2194,7 +2194,7 @@
                                             "minDevelopmentAge",
                                             "maxDevelopmentAge"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": true
                                         },
                                         {
                                           "type": "null"
@@ -2218,7 +2218,7 @@
                                             "kind",
                                             "valuation"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": true
                                         },
                                         {
                                           "type": "object",
@@ -2231,7 +2231,7 @@
                                           "required": [
                                             "kind"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": true
                                         },
                                         {
                                           "type": "object",
@@ -2244,7 +2244,7 @@
                                           "required": [
                                             "kind"
                                           ],
-                                          "additionalProperties": false
+                                          "additionalProperties": true
                                         }
                                       ]
                                     }
@@ -2262,7 +2262,7 @@
                                     "filter",
                                     "projection"
                                   ],
-                                  "additionalProperties": false
+                                  "additionalProperties": true
                                 }
                               ]
                             }
@@ -2323,7 +2323,7 @@
                                   "ageUnit",
                                   "ageOffset"
                                 ],
-                                "additionalProperties": false
+                                "additionalProperties": true
                               },
                               {
                                 "type": "object",
@@ -2367,7 +2367,7 @@
                                         "aliases",
                                         "coordinate"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     }
                                   },
                                   "valuations": {
@@ -2393,7 +2393,7 @@
                                         "aliases",
                                         "coordinate"
                                       ],
-                                      "additionalProperties": false
+                                      "additionalProperties": true
                                     }
                                   }
                                 },
@@ -2406,7 +2406,7 @@
                                   "origins",
                                   "valuations"
                                 ],
-                                "additionalProperties": false
+                                "additionalProperties": true
                               }
                             ]
                           }
@@ -2426,7 +2426,7 @@
                           "reviewRules",
                           "periodAxis"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": true
                       },
                       "identities": {
                         "type": "object",
@@ -2458,14 +2458,14 @@
                           "calculationByInstanceId",
                           "definition"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": true
                       }
                     },
                     "required": [
                       "definition",
                       "identities"
                     ],
-                    "additionalProperties": false
+                    "additionalProperties": true
                   }
                 },
                 "required": [

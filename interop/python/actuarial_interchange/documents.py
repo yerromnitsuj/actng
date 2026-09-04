@@ -67,15 +67,16 @@ __all__ = [
     "CrosscheckTolerance",
     "CrosscheckDeviations",
     "CrosscheckReportPayload",
+    "DiagnosticDefinitionPayload",
     "Document",
     "parse_document",
     "serialize_document",
 ]
 
-SPEC_VERSION = "1.0.0"
+SPEC_VERSION = "1.1.0"
 SUPPORTED_MAJOR = 1
 GENERATOR_NAME = "actuarial-interchange"
-GENERATOR_VERSION = "0.1.0"
+GENERATOR_VERSION = "0.2.0"
 
 #: Intent kinds whose value is recomputable from the triangle (spec 3.2).
 COMPUTABLE_INTENT_KINDS = frozenset(
@@ -125,6 +126,7 @@ _BODY_KEYS: dict[str, str] = {
     "stochastic-result": "result",
     "study": "study",
     "crosscheck-report": "report",
+    "diagnostic-definition": "diagnosticDefinition",
 }
 
 #: The wrapped bundle's two body keys; the OUTER integrity tag is
@@ -976,6 +978,7 @@ class BundlePayload:
     triangles: list["Document"]
     selections: list["Document"]
     results: list["Document"]
+    diagnostic_definitions: list["Document"] = field(default_factory=list)
     interchange_extra: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -997,6 +1000,11 @@ class BundlePayload:
                     f"bundle interchange.results carries kind '{doc.kind}'; "
                     "only method-result/stochastic-result documents belong there"
                 )
+        for doc in self.diagnostic_definitions:
+            if doc.kind != "diagnostic-definition":
+                raise BadInterchangeError(
+                    "bundle interchange.diagnosticDefinitions accepts only diagnostic-definition documents"
+                )
 
     def to_body(self) -> dict:
         interchange: dict = {
@@ -1004,6 +1012,8 @@ class BundlePayload:
             "selections": [doc.to_dict() for doc in self.selections],
             "results": [doc.to_dict() for doc in self.results],
         }
+        if self.diagnostic_definitions:
+            interchange["diagnosticDefinitions"] = [doc.to_dict() for doc in self.diagnostic_definitions]
         interchange.update(self.interchange_extra)
         return {"bundle": self.bundle, "interchange": interchange}
 
@@ -1015,7 +1025,7 @@ class BundlePayload:
         interchange = _require(body, "interchange", "bundle")
         if not isinstance(interchange, dict):
             raise BadInterchangeError("bundle: 'interchange' mirror must be a JSON object")
-        known = {"triangles", "selections", "results"}
+        known = {"triangles", "selections", "results", "diagnosticDefinitions"}
         return cls(
             bundle=bundle,
             triangles=[
@@ -1029,6 +1039,9 @@ class BundlePayload:
             results=[
                 parse_document(doc)
                 for doc in _require(interchange, "results", "bundle interchange")
+            ],
+            diagnostic_definitions=[
+                parse_document(doc) for doc in interchange.get("diagnosticDefinitions", [])
             ],
             interchange_extra=_extra_of(interchange, known),
         )
@@ -1314,6 +1327,34 @@ class CrosscheckReportPayload:
         )
 
 
+@dataclass
+class DiagnosticDefinitionPayload:
+    """Opaque generic representation of the integrity-covered diagnostic body.
+
+    Semantic validation and replay live in ``diagnostics.py`` so generic
+    same-major parsing can preserve fields it does not execute.
+    """
+
+    definition: dict
+    identities: dict
+    extra: dict = field(default_factory=dict)
+
+    def to_body(self) -> dict:
+        out = {"definition": self.definition, "identities": self.identities}
+        out.update(self.extra)
+        return out
+
+    @classmethod
+    def from_body(cls, body: dict) -> "DiagnosticDefinitionPayload":
+        if not isinstance(body, dict):
+            raise BadInterchangeError("diagnosticDefinition must be a JSON object")
+        return cls(
+            definition=_require(body, "definition", "diagnosticDefinition"),
+            identities=_require(body, "identities", "diagnosticDefinition"),
+            extra=_extra_of(body, {"definition", "identities"}),
+        )
+
+
 Payload = Union[
     TrianglePayload,
     SelectionPayload,
@@ -1322,6 +1363,7 @@ Payload = Union[
     StudyPayload,
     BundlePayload,
     CrosscheckReportPayload,
+    DiagnosticDefinitionPayload,
 ]
 
 _PAYLOAD_TYPES: dict[str, type] = {
@@ -1332,6 +1374,7 @@ _PAYLOAD_TYPES: dict[str, type] = {
     "study": StudyPayload,
     "bundle": BundlePayload,
     "crosscheck-report": CrosscheckReportPayload,
+    "diagnostic-definition": DiagnosticDefinitionPayload,
 }
 
 _KIND_BY_PAYLOAD_TYPE: dict[type, str] = {
@@ -1342,6 +1385,7 @@ _KIND_BY_PAYLOAD_TYPE: dict[type, str] = {
     StudyPayload: "study",
     BundlePayload: "bundle",
     CrosscheckReportPayload: "crosscheck-report",
+    DiagnosticDefinitionPayload: "diagnostic-definition",
 }
 
 

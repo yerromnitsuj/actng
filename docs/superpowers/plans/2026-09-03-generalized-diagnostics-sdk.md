@@ -1,5 +1,7 @@
 # Generalized diagnostics SDK (`0.6.0`) — implementation plan
 
+> **Status: EXECUTED THROUGH TASK 19; PUBLICATION REQUIRES SEPARATE AUTHORIZATION.**
+>
 > **Execution contract:** implement this plan test-first, task by task. Keep
 > commits narrowly scoped, preserve unrelated work, and do not publish, tag, or
 > create a GitHub release without a separate explicit instruction. The
@@ -2995,7 +2997,8 @@ cannot create or restate a calculation population.
   Export the strict real Zod schemas separately. Make the existing
   `ToolEnvelopeFailure` recursively readonly and snapshot every existing tool
   declaration affected by that deliberate `0.6.0` tightening.
-- [ ] Account explicitly for installed Mastra `1.51.0`: its `Tool.execute`
+- [ ] Account explicitly for the minimum-tested Mastra `1.51.0` contract and
+  lock-tested `1.64.0`: their `Tool.execute`
   return includes `ValidationError | void`, and the real public
   `makeCoreTool`/Agent conversion validates an attached input schema before it
   calls `Tool.execute`. Attaching the private real Zod would therefore run a
@@ -4443,9 +4446,12 @@ release candidate.
   other installs the same tarballs plus the exact concrete lower bounds parsed
   from the agents peer ranges. Fail if a peer range has no testable lower bound
   or either profile violates the agents engine. For this release both profiles
-  resolve to `@mastra/core@1.51.0`, `@mastra/mcp@1.14.0`, and `zod@3.25.76`, but
-  still execute both clean consumers so later lock drift cannot silently leave
-  the declared minimum untested. Each consumer performs one
+  use `@mastra/core@1.51.0`, `@mastra/mcp@1.14.0`, and `zod@3.25.76` in the
+  minimum profile. The release-candidate lock profile resolves
+  `@mastra/core@1.64.0`, `@mastra/mcp@1.17.3`, and `zod@3.25.76` after the
+  compatible advisory-remediation update. Execute both clean consumers so
+  later lock drift cannot silently leave either the declared minimum or the
+  resolved integration version untested. Each consumer performs one
   `npm install --save-exact`, runs the same public fixture and `npm ls`, and
   needs no shell-local environment handoff. The fixture must exercise
   `defineActuarialTool` through installed public `makeCoreTool`, not merely

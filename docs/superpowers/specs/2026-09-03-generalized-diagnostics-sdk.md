@@ -1,7 +1,8 @@
 # Generalized actuarial diagnostics SDK design
 
-> **Status: APPROVED FOR IMPLEMENTATION.** This specification supersedes the
-> 2026-08-27 quarterly-diagnostics design for the planned `0.6.0` release.
+> **Status: IMPLEMENTED AND VERIFIED AS A 0.6.0 RELEASE CANDIDATE — NOT YET PUBLISHED.**
+> This specification supersedes the 2026-08-27 quarterly-diagnostics design
+> for the unpublished `0.6.0` release candidate.
 > The `0.4.0` and `0.5.0` records remain historically correct and must not be
 > rewritten. The implementation plan is
 > [`../plans/2026-09-03-generalized-diagnostics-sdk.md`](../plans/2026-09-03-generalized-diagnostics-sdk.md).
@@ -4357,7 +4358,8 @@ and then runs exactly once per execute call; transform-count tests must account
 for or reset after that probe.
 
 This adaptation is necessary because the lock-resolved installed Mastra core
-declarations (currently `1.51.0`) type `Tool.execute` as
+declarations (initially verified at `1.51.0`, and lock-tested for this candidate
+at `1.64.0`) type `Tool.execute` as
 `TOutput | ValidationError | void`, infer `Tool<..., unknown>` when
 `outputSchema` is absent, and the real `makeCoreTool`/Agent conversion validates
 the attached input schema before calling `Tool.execute`. Attaching the real Zod

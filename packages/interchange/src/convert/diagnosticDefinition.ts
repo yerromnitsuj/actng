@@ -1,6 +1,7 @@
 import {
   ReservingError,
   assertCompiledDiagnosticDefinition,
+  canonicalJson,
   compileDiagnosticDefinition,
   type CompiledDiagnosticDefinition,
 } from "@actuarial-ts/core";
@@ -55,6 +56,12 @@ export function docToDiagnosticDefinition(
   }
   const body = parsed.doc.diagnosticDefinition;
   const compiled = compileDiagnosticDefinition(body.definition);
+  if (canonicalJson(body.definition) !== canonicalJson(compiled.definition)) {
+    throw new ReservingError(
+      "BAD_INTERCHANGE",
+      "Diagnostic definition contains unsupported executable vocabulary or is not in normalized form",
+    );
+  }
   const identities = body.identities;
   if (
     identities.algorithm !== "fnv1a64-jcs-v1" ||

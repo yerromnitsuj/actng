@@ -91,7 +91,7 @@ describe("createBundle with wrap (spec 3.2)", () => {
     const { wrapped } = createBundle(input);
 
     expect(wrapped.kind).toBe("bundle");
-    expect(wrapped.interchangeVersion).toBe("1.0.0");
+    expect(wrapped.interchangeVersion).toBe("1.1.0");
     expect(wrapped.createdAt).toBe(CREATED_AT);
     expect(wrapped.interchange.triangles).toHaveLength(1);
     expect(wrapped.interchange.selections).toHaveLength(1);

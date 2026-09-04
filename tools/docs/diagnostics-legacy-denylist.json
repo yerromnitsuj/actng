@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    { "category": "removed-export", "match": "whole-identifier", "values": [
+      "MetricDefinition", "MetricWarningRule", "MetricWarningContext", "MetricEvaluation",
+      "SparseValuePolicy", "DiagnosticMeasureMap", "MeasureExpression", "DiagnosticWarning",
+      "diagnosticWarningToFinding", "MeasureAggregateCell", "MeasureAggregate", "FinalizedMeasures",
+      "measureExpressionComponents", "evaluateMetric", "AmountLayerDefinition", "LayerExpression",
+      "DiagnosticClaimRow", "DiagnosticLossRow", "DiagnosticExposureRow", "deriveAmountLayers",
+      "CASUALTY_QUARTERLY_METRICS", "CASUALTY_DIAGNOSTIC_COMPONENTS", "createCasualtyQuarterlyMetrics",
+      "CASUALTY_AMOUNT_LAYERS", "createCasualtyAmountLayers", "CasualtyDiagnosticComponentKeys",
+      "CasualtyMetricPresetOptions", "CasualtyAmountLayerOptions", "aggregateMeasures",
+      "mergeMeasureAggregates", "finalizeMeasureAggregate", "DiagnosticExposureReconciliationFinding",
+      "ReconciledDiagnosticExposures", "reconcileDiagnosticExposureKeys", "metricTriangleFromEmergence",
+      "ValidatedDiagnosticDataset", "validateDiagnosticDataset", "validateAndReconcileDiagnosticExposures",
+      "ValidatedMetricDiagnosticsOptions", "DiagnosticReviewSnapshot", "DiagnosticReviewExposure",
+      "DiagnosticAmountPair", "DiagnosticLayerReviewDefinition", "DiagnosticLayerControlTotal",
+      "CachedFormulaProvenance", "ReviewDiagnosticDataOptions", "reviewDiagnosticData",
+      "DIAGNOSTIC_REVIEW_CHECK_CODES", "DiagnosticReviewCheckCode", "DiagnosticMetricProvenance",
+      "DiagnosticLayerProvenance", "CreateDiagnosticsProvenanceInput", "createDiagnosticsProvenance"
+    ]},
+    { "category": "removed-field", "match": "whole-identifier", "values": [
+      "ageMonths", "minAgeMonths", "maxAgeMonths", "policyPeriod", "policyPeriods", "sparsePolicy",
+      "evaluateWarnings", "warningRules", "requiredComponents", "rawNumerator", "rawDenominator",
+      "rawComponents", "componentWarnings", "metricId", "metricVersion", "frequencyScale",
+      "frequencyUnit", "definitionVersion", "basisLabels", "limited250", "paid250", "incurred250",
+      "paidPrimary", "incurredPrimary", "indemnityLimit", "paidSourceMeasure", "incurredSourceMeasure",
+      "indemnityPaidMeasure", "indemnityIncurredMeasure", "expensePaidMeasure", "expenseIncurredMeasure",
+      "formulaPack", "ageConvention", "appliedFilters", "groupingSelections", "inputReferences"
+    ]},
+    { "category": "removed-token", "match": "exact-string-token", "values": [
+      "preserve-null", "zero-fill", "claim-cap", "pre-capped-additive", "unlimited-additive",
+      "claim-level-cap", "numerator-greater-than-denominator", "casualty-quarterly-v1",
+      "250k-pre-capped-total", "primary-1m-indemnity-plus-expense", "preCapped250Paid",
+      "preCapped250Incurred", "paid-to-incurred-250", "paid-to-incurred-primary",
+      "incurred-250-per-exposure", "incurred-primary-per-exposure", "incurred-250-per-non-cnp",
+      "incurred-primary-per-non-cnp", "paid-250-per-exposure", "paid-primary-per-exposure",
+      "paid-250-per-closed-with-pay", "paid-primary-per-closed-with-pay", "case-250-per-open",
+      "case-primary-per-open", "MISSING_COMPONENT", "NON_FINITE_COMPONENT", "NON_FINITE_NUMERATOR",
+      "NON_FINITE_RESULT", "INVALID_DENOMINATOR", "INCOMPLETE_EXPOSURE", "CONFLICTING_EXPOSURE",
+      "DUPLICATE_EXPOSURE_KEY", "PAID_EXCEEDS_INCURRED", "duplicate-exposure-key",
+      "invalid-development-age", "development-age-mismatch", "closed-no-pay-exceeds-reported",
+      "cumulative-paid-decreasing", "cumulative-reported-decreasing", "layer-control-reconciliation",
+      "zero-exposure"
+    ]},
+    { "category": "removed-count-id", "match": "exact-string-token", "values": [
+      "reported-frequency", "open-frequency", "closed-no-pay-frequency", "closed-with-pay-frequency",
+      "non-closed-no-pay-frequency", "closed-no-pay-share", "closed-with-pay-share",
+      "closed-with-pay-share-of-non-cnp", "open-share", "open-share-of-non-cnp"
+    ]}
+  ],
+  "historicalPaths": [
+    { "prefix": "CHANGELOG.md", "reason": "Immutable release history and current migration notes." },
+    { "prefix": "docs/migrations/", "reason": "The migration guide must name the removed API." },
+    { "prefix": "docs/superpowers/", "reason": "Dated design and execution records." },
+    { "prefix": "packages/core/test/fixtures/quarterlyCasualty", "reason": "Frozen 0.5 numeric migration evidence." },
+    { "prefix": "tools/docs/fixtures/", "reason": "Frozen 0.5 declaration fixture." }
+  ],
+  "allowlist": [
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "reported-frequency", "line": "    [\"reported-frequency\", \"frequency\", m(input.counts.reported), m(input.exposure), presentation(\"Reported frequency\", \"Reported count divided by exposure\", \"count per exposure\", \"reported\", \"exposure\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced as casualty/count/reported-frequency." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "open-frequency", "line": "    [\"open-frequency\", \"frequency\", m(input.counts.open), m(input.exposure), presentation(\"Open frequency\", \"Open count divided by exposure\", \"count per exposure\", \"open\", \"exposure\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "closed-no-pay-frequency", "line": "    [\"closed-no-pay-frequency\", \"frequency\", m(input.counts.closedNoPay), m(input.exposure), presentation(\"Closed-no-pay frequency\", \"Closed-no-pay count divided by exposure\", \"count per exposure\", \"closed-no-pay\", \"exposure\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "closed-with-pay-frequency", "line": "    [\"closed-with-pay-frequency\", \"frequency\", m(input.counts.closedWithPay), m(input.exposure), presentation(\"Closed-with-pay frequency\", \"Closed-with-pay count divided by exposure\", \"count per exposure\", \"closed-with-pay\", \"exposure\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "non-closed-no-pay-frequency", "line": "    [\"non-closed-no-pay-frequency\", \"frequency\", nonClosedNoPay, m(input.exposure), presentation(\"Non-closed-no-pay frequency\", \"Reported less closed-no-pay count divided by exposure\", \"count per exposure\", \"reported less closed-no-pay\", \"exposure\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "closed-no-pay-share", "line": "    [\"closed-no-pay-share\", \"share\", m(input.counts.closedNoPay), m(input.counts.reported), presentation(\"Closed-no-pay share\", \"Closed-no-pay count divided by reported count\", \"ratio\", \"closed-no-pay\", \"reported\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "closed-with-pay-share", "line": "    [\"closed-with-pay-share\", \"share\", m(input.counts.closedWithPay), m(input.counts.reported), presentation(\"Closed-with-pay share\", \"Closed-with-pay count divided by reported count\", \"ratio\", \"closed-with-pay\", \"reported\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/core/src/casualtyDiagnostics.ts", "entry": "open-share", "line": "    [\"open-share\", \"share\", m(input.counts.open), m(input.counts.reported), presentation(\"Open share\", \"Open count divided by reported count\", \"ratio\", \"open\", \"reported\")],", "count": 1, "reason": "Factory-internal suffix; the emitted ID is namespaced." },
+    { "path": "packages/data/src/review.ts", "entry": "ageMonths", "line": "  ageMonths?: number;", "count": 1, "reason": "Pre-existing generic reserving finding context, not the removed diagnostics period model." }
+    ,{ "path": "docs/interop/convention-map.md", "entry": "ageMonths", "line": "| `judgmental` / `external` values | typed selection vector | `DevelopmentConstant(patterns={ageMonths: ldf}, style=\"ldf\")` | `CLFMdelta(Triangle, selected)` → per-period `delta` |", "count": 1, "reason": "chainladder-python selection-vector API syntax, unrelated to the removed diagnostic row field." }
+    ,{ "path": "docs/spec/actuarial-interchange.md", "entry": "ageMonths", "line": "| judgmental/external values | typed vector (exact) | `DevelopmentConstant(patterns={ageMonths: ldf}, style=\"ldf\")` (exact) | `CLFMdelta(Triangle, selected)` → per-period `delta` (exact WHEN feasible) |", "count": 1, "reason": "chainladder-python selection-vector API syntax, unrelated to the removed diagnostic row field." }
+  ]
+}

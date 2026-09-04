@@ -1,255 +1,94 @@
 # @actuarial-ts/core
 
-A pure, zero-dependency P&C loss reserving engine for TypeScript. The
-deterministic shelf: triangles, development factors, chain ladder,
-Bornhuetter-Ferguson, Benktander, Cape Cod (with the Gluck decay
-generalization), Expected Claims, frequency-severity, Berquist-Sherman,
-Munich chain ladder, case-outstanding development, Fisher-Lange,
-salvage/subrogation, ULAE, tail fitting, large-loss capping and ILF
-restoration, trend and premium on-leveling, discounting (built to the June
-2026 ASOP No. 20), and assumption diagnostics. The stochastic layer, fully
-seeded and reproducible: Mack standard errors, the ODP bootstrap,
-Merz-Wuthrich one-year risk, and Clark growth-curve MLE — every method
-validated against published actuarial literature where published values
-exist.
+Pure, framework-free P&C actuarial math for TypeScript. It includes triangles, deterministic and stochastic reserving, trends/on-leveling, limits and ILFs, discounting, and generalized definition-driven casualty diagnostics.
 
-`@actuarial-ts/core` is the numeric kernel of the actuarial-ts SDK. It is
-**designed to support the actuary's compliance with the Actuarial Standards of
-Practice** (ASOP Nos. 43, 23, 41, 56, 20, and 21) by making
-methods, assumptions, and their diagnostics explicit and reportable.
-Responsibility for compliance remains with the credentialed actuary; no
-software can be "ASOP-approved" and this one does not claim to be.
+The package is designed to support an actuary’s work under applicable ASOPs; it does not make a work product compliant and is not “ASOP-approved.” The credentialed actuary remains responsible for data, assumptions, selections, review, and communication.
 
 ## Install
 
 ```bash
-npm install @actuarial-ts/core
+npm install @actuarial-ts/core@0.6.0
 ```
 
-ESM, TypeScript-first, zero runtime dependencies, Node >= 20.
+ESM, TypeScript-first, zero runtime dependencies, Node 20+.
 
-## Quick start
+## Reserving quick start
+
+```ts
+import { buildTriangles, computeDevelopmentFactors, runChainLadder, runMack } from "@actuarial-ts/core";
+
+const { paid } = buildTriangles(claimSnapshots, { cadence: "annual", asOfDate: "2025-12-31" });
+const selected = computeDevelopmentFactors(paid).averages.find((item) => item.spec.key === "all-wtd")!.values;
+const chainLadder = runChainLadder(paid, { selected, tailFactor: 1.02 });
+const mack = runMack(paid, { selected, tailFactor: 1.02 });
+```
+
+Unobservable triangle cells are `null`. Volume-weighted factors are sum/sum over rows where both cells exist. CDFs multiply right-to-left, tail last. Missing, zero, or negative divisors yield `null`, never `NaN`.
+
+## Generalized diagnostics
+
+The model deliberately separates five concerns:
+
+1. A measure declares source, quantity kind, unit, development semantics, sum aggregation, missingness, and its population/basis.
+2. A formula template declares reusable arithmetic over typed roles.
+3. An instance binds formula roles to measure expressions.
+4. Calculation identity covers arithmetic, bindings, and all dependent measure/population/basis semantics.
+5. Presentation and review rules remain visible in full definition identity without pretending to change the arithmetic.
 
 ```ts
 import {
-  buildTriangles,
-  computeDevelopmentFactors,
-  runChainLadder,
-  runMack,
-  fitAllTails,
-} from "@actuarial-ts/core";
-
-// One row per claim per evaluation snapshot (the standard loss-run shape).
-const { paid, incurred } = buildTriangles(claimSnapshots, {
-  cadence: "annual",
-  asOfDate: "2025-12-31",
-});
-
-// The averages menu: all-year/n-year straight and volume-weighted, medial,
-// geometric. Selection is YOUR judgment; the engine never picks for you.
-const factors = computeDevelopmentFactors(paid);
-const selected = factors.averages.find((a) => a.spec.key === "all-wtd")!.values;
-
-const tails = fitAllTails(selected);
-const tail = tails.exponentialDecay.valid ? tails.exponentialDecay.tailFactor : 1;
-
-const cl = runChainLadder(paid, { selected, tailFactor: tail });
-const mack = runMack(paid, { selected, tailFactor: tail });
-
-console.log(cl.totals.unpaid, mack.totals.standardError, cl.warnings);
-```
-
-## The contract
-
-Three rules hold everywhere:
-
-1. **Null is a first-class citizen.** Unobservable triangle cells are `null`.
-   Division by a missing, zero, or negative denominator yields `null` ("no
-   factor") — never an exception, never `NaN`.
-2. **Three-tier severity.** Impossible input throws `ReservingError` with a
-   machine-readable code from the exported `RESERVING_ERROR_CODES` registry.
-   Degraded-but-legal situations compute anyway and explain themselves in the
-   result's `warnings: string[]`. Missing data is `null`, not an error.
-3. **Judgment belongs to the caller.** The engine computes evidence (factor
-   menus, tail fits, diagnostics) and applies *your* selections (LDFs, tails,
-   a-prioris, trends, caps). It never silently selects.
-
-## Method inventory
-
-| Module | Methods | Primary literature |
-|---|---|---|
-| `triangle` | `buildTriangles` (7 triangle kinds from claim-level snapshots, annual/quarterly), `triangleFromGrid` | Friedland, *Estimating Unpaid Claims Using Basic Techniques* |
-| `factors` | `computeDevelopmentFactors` (averages menu), `factorVolatility` | Friedland ch. 7; Mack (1993) factor conventions |
-| `chainladder` | `runChainLadder` | Friedland ch. 7 |
-| `mack` | `runMack` — distribution-free standard errors on the selected basis, with tail | Mack (1993) ASTIN 23(2); Mack (1999) ASTIN 29(2) |
-| `bf` | `runBornhuetterFerguson` (per-origin/global/derived a-priori) | Bornhuetter & Ferguson (1972) |
-| `elrMethods` | `runCapeCod`, `runExpectedClaims` | Stanard-Buhlmann; Friedland chs. 8, 10 |
-| `tail` | `fitTail`, `fitAllTails` (exponential decay, Sherman inverse power, validity gates) | Sherman (1984); Boor (2006) |
-| `berquist` | `berquistCaseAdequacy`, `berquistSettlement` | Berquist & Sherman (1977); Friedland ch. 13 |
-| `benktander` | `runBenktander` — the iterated BF credibility blend | Mack (2000) ASTIN 30(2); Benktander (1976) |
-| `freqSev` | `runFrequencySeverity`, `severityTriangle` | Friedland ch. 11 |
-| `munichChainLadder` | `runMunichChainLadder` — closes the paid/incurred gap | Quarg & Mack (2004), Variance 2:2 |
-| `caseOutstanding` | `runCaseOutstanding` | Friedland ch. 12 |
-| `fisherLange` | `runFisherLange` — disposal-rate frequency-severity | Fisher & Lange (1973); Friedland ch. 11 |
-| `salvageSubro` | `runSalvageSubro`, `netOfRecoveries` | Friedland ch. 14 |
-| `ulae` | `ulaeRatios`, `ulaeReserve`, `ULAE_WEIGHT_PRESETS` | Conger & Nolibos (2003); Kittel (1981) |
-| `discounting` | `payoutPatternFromChainLadder`, `discountUnpaid` | ASOP No. 20 (June 2026 edition) |
-| `stochastic` | `createRng` (seeded), `summarizeSample`, `StochasticResult` | — |
-| `triangleAlgebra` | `cumulativeToIncremental`, `incrementalToCumulative`, `addTriangles`, `subtractTriangles` | — |
-| `odpBootstrap` | `odpFit` (GLM == chain ladder identity), `runOdpBootstrap` | England & Verrall (1999/2002); Shapland, CAS Monograph 4 |
-| `merzWuthrich` | `runMerzWuthrich` — one-year CDR MSEP vs Mack's ultimate view | Merz & Wuthrich (2008), CAS E-Forum |
-| `clark` | `clarkGrowth`, `runClarkLdf`, `runClarkCapeCod` — MLE + delta-method variances | Clark (2003), CAS Forum |
-| `capping` | `capClaims`, `claimSizeDiagnostics` (per-occurrence caps, indexed) | standard large-loss practice |
-| `ilf` | censored-MLE severity fits (lognormal, Pareto), Kaplan-Meier checks, ILF table interpolation, uncap factors | Klugman et al., *Loss Models*; standard ILF practice |
-| `trend` | `analyzeTrend`, `trendValue` (log-linear, windowed) | Werner & Modlin, *Basic Ratemaking* ch. 6 |
-| `onlevel` | `parallelogramOnLevel` (exact piecewise-linear earning geometry) | Werner & Modlin ch. 5 |
-| `diagnostics` | `runDiagnostics` (paid/incurred drift, case adequacy, closure rates), `calendarYearTest` | Mack (1994) calendar-year rank test |
-| `metricDiagnostics` | generic ratio-of-sums metrics, claim-level amount layers, emergence/triangle/maturity views, optional 22-metric casualty preset | actuarial diagnostic practice |
-| `periods` | quarterly parse/format/compare, development age, fiscal/policy mapping, complete-quarter cutoffs | explicit SDK conventions |
-| `canonical` | `canonicalJson` (RFC 8785 / JCS canonical serialization), `fnv1a64` (integrity tagging aid — not a security control) | RFC 8785 |
-
-## Quarterly metric diagnostics
-
-`runMetricDiagnostics` is the generic engine behind the optional
-`CASUALTY_QUARTERLY_METRICS` preset. A metric is a versioned definition with
-caller-selected additive component expressions. The engine sums components at
-the requested group/origin/valuation grain and divides once; it never averages
-row ratios. Each result retains the raw numerator, denominator, component
-values, labels, basis, scale, and structured warnings.
-
-```ts
-import {
-  CASUALTY_QUARTERLY_METRICS,
+  CASUALTY_FORMULA_TEMPLATES,
+  compileDiagnosticDefinition,
+  createCasualtyMetricInstances,
+  prepareDiagnosticData,
   runMetricDiagnostics,
 } from "@actuarial-ts/core";
 
-const result = runMetricDiagnostics({
-  losses: [{
-    id: "snapshot-1",
-    group: "commercial-auto",
-    origin: "2025Q1",
-    valuation: "2025Q1",
-    ageMonths: 3,
-    policyPeriod: "PY2024",
-    measures: {
-      reportedCount: 80,
-      openCount: 30,
-      closedNoPayCount: 20,
-      closedWithPayCount: 30,
-      paid250: 450_000,
-      incurred250: 700_000,
-      paidPrimary: 600_000,
-      incurredPrimary: 950_000,
-    },
-  }],
-  exposures: [{
-    key: "fleet-2025Q1",
-    group: "commercial-auto",
-    origin: "2025Q1",
-    measures: { exposure: 1_600_000 },
-  }],
-  metrics: CASUALTY_QUARTERLY_METRICS,
+const instances = createCasualtyMetricInstances({
+  counts: { reported: "reported", open: "open", closedNoPay: "closed-no-pay", closedWithPay: "closed-with-pay" },
+  exposure: "earned-vehicle-years",
+  amountBindings: [
+    { id: "gross", paid: "gross-paid", incurred: "gross-incurred" },
+    { id: "primary-250k", paid: "primary-paid", incurred: "primary-incurred" },
+  ],
 });
 
-const reported = result.emergence[0]!.metrics["reported-frequency"]!;
-console.log(reported.value, reported.rawNumerator, reported.rawDenominator);
-console.log(result.triangles[0]!.values, result.latestDiagonal);
+const compiled = compileDiagnosticDefinition({
+  diagnosticDefinitionVersion: "1.0.0",
+  id: "fleet-diagnostics",
+  version: "1.0.0",
+  lossRowGrain: "aggregate",
+  measures,
+  countPopulations,
+  exposureBases,
+  amountBases,
+  derivedMeasures: [],
+  formulas: CASUALTY_FORMULA_TEMPLATES,
+  instances,
+  reviewRules,
+  periodAxis,
+});
+
+const prepared = prepareDiagnosticData({ definition: compiled, losses, exposures });
+const result = runMetricDiagnostics({ prepared, groupMap: { fleet: "all-fleet" } });
 ```
 
-Missing components remain null by default. An explicit `sparsePolicy:
-"zero-fill"` is required to treat sparse values as zero. A missing,
-non-finite, zero, or negative denominator produces a null metric and an
-`INVALID_DENOMINATOR` warning; negative numerators remain valid.
-`diagnosticWarningToFinding` adapts these warning payloads to the existing core
-`DiagnosticFinding` severity vocabulary when a consumer wants one findings
-stream; ASOP-oriented `DataReviewReport` statuses remain a separate contract.
+The six built-in formulas are basis-independent. The factory creates ten count instances plus six per amount basis (`10 + 6 × basisCount`): one basis produces 16, two produce 22. A `$250K`, primary, gross, net, or ceded calculation is represented by caller-declared amount measures and a structured `AmountBasisDefinition`; it does not need a separate capped formula. Claim-level caps use `claim-layer` derivations before aggregation. Pre-limited external values record their source/transformation instead of implying the SDK recreated an unavailable claim-level operation.
 
-Use `createCasualtyQuarterlyMetrics` to override the source component keys,
-exposure key, frequency scale/unit, definition version, basis labels, and
-display metadata. The exported `CASUALTY_QUARTERLY_METRICS` constant is the
-standard one-million-scale configuration. `groupMap` combines arbitrary source
-groups at a requested output grain by summing their components first. When
-exposure rows are supplied, every contributing source group/origin must have
-exposure; a missing contributor makes the combined exposure null with an
-`INCOMPLETE_EXPOSURE` warning instead of using a partial denominator. Dated
-exposure copies honor valuation filters, while exposure rows without a
-valuation remain timeless.
+All metrics are ratio-of-sums: measures are aggregated at source-group/origin/valuation, groups are mapped and merged, then division happens once. Measure-local `missing: "unknown" | "zero"` is explicit. Exposure timing is either `origin-static` or `valuation-specific`. Calendar and ordered axes derive normalized origins, valuations, development ages, and units; input rows cannot assert a trusted age.
 
-The preset's count-share definitions include the reported-base ratios
-`CNP / reported`, `CWP / reported`, and `open / reported`, plus two
-non-CNP-base ratios:
+Compilation validates the whole graph atomically: IDs, sources, role types, compatibility groups, development semantics, derivation acyclicity, expression limits, rule operands, basis/population references, and period coordinates. Authentic compiled/prepared objects are owner-branded and frozen. Formula, calculation, definition, preparation, and result identities are deterministic FNV-1a/JCS integrity aids—not cryptographic signatures.
 
-- `closed-with-pay-share-of-non-cnp` = `CWP / (reported - CNP)`
-- `open-share-of-non-cnp` = `open / (reported - CNP)`
+See the generated [formula and instance catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
 
-Both use the ordinary metric evaluator, so aggregation is a ratio of component
-sums and a non-positive or incomplete `reported - CNP` denominator fails
-closed with the standard structured warnings.
+## Main method families
 
-### Amount layers
+- Reserving: chain ladder, Mack, Bornhuetter-Ferguson, Benktander, Cape Cod/Gluck, Expected Claims, frequency-severity, Fisher-Lange, Munich chain ladder, Clark, ODP bootstrap, and Merz-Wüthrich one-year risk.
+- Adjustments: Berquist-Sherman, salvage/subrogation, ULAE, tails, trends, premium on-leveling, discounting, capping, severity models, and ILFs.
+- Infrastructure: triangle algebra, seeded RNG, RFC 8785 canonical JSON, integrity tags, traditional triangle diagnostics, and generalized metric diagnostics.
 
-`deriveAmountLayers` evaluates a declarative layer on each claim row before
-aggregation. `CASUALTY_AMOUNT_LAYERS` documents two reference bases:
-
-- `$250K pre-capped total` reads already-limited paid and incurred components
-  as additive measures. The SDK does not attempt to recreate a lost
-  claim-level cap from an aggregate.
-- `Primary: $1M capped indemnity plus unlimited expense` caps paid and incurred
-  indemnity on each claim row, then adds expense without a cap.
-
-This distinction is intentional: capping an aggregate after summation is not
-equivalent to a claim-level layer and is not offered by the API.
-`createCasualtyAmountLayers` configures every source/output key, identifier,
-display label, and indemnity limit; arbitrary caller layers can be authored
-directly as `AmountLayerDefinition` values.
-
-### Views and periods
-
-The engine derives audited emergence points, nullable metric triangles, and a
-ragged latest diagonal from the same aggregated records. `sameMaturity` and
-`commonMaturity` select comparable points for any caller group IDs.
-`parseQuarterPeriod`, `compareQuarterPeriods`, `developmentAgeMonths`,
-`policyPeriodLabel`, `completeQuarterCutoff`, and
-`completeQuarterlyCutoffs` make period assumptions explicit. The default
-quarter-end convention starts at age 3; select the `elapsed` convention only
-for genuine age-zero observations.
-
-Core results deliberately contain no provenance, persistence state, or
-arbitrary application filter state. Use `createDiagnosticsProvenance` from
-`@actuarial-ts/compliance`, embed its record in
-`createBundle(...).parameters`, and record material judgment in the assumption
-ledger. Interchange consumers can carry the same record in `extensions`. No
-diagnostic-specific interchange schema is claimed.
-
-## Validation against published results
-
-The test suite reproduces the following, each transcribed from the primary
-source into `test/fixtures/`. Five of them additionally carry a full research
-transcription with context and caveats under `docs/research/` (Clark,
-Merz-Wuthrich, England/Verrall, Munich, ULAE); for the rest the transcription
-notes live in the fixture file itself.
-
-- Mack (1993), ASTIN 23(2): Taylor/Ashe and mortgage-guarantee factors,
-  reserves, sigma-squared (including the extrapolated column), standard errors.
-- Mack (1994), CAS Forum: the RAA triangle's calendar-year test (Appendix H)
-  and factor-correlation test (Appendix G), every printed statistic.
-- Mack (1999), ASTIN 29(2): ultimates under the published 1.05 tail.
-- Mack (2000), ASTIN 30(2): the Benktander numerical example.
-- Gluck (1997), PCAS LXXXIV: Generalized Cape Cod Tables 1-4.
-- England (2002), IME 31: ODP bootstrap prediction errors and percentiles
-  on Taylor/Ashe — all nine published accident years plus the Table 3
-  predictive distribution. Asserted within the sampling error the publication
-  itself exhibits, because a bootstrap figure is one finite sample and cannot
-  be reproduced to the digit the way Mack's closed form can.
-- Merz & Wuthrich (2008): the Table 4 one-year CDR volatilities.
-- Clark (2003): both methods' fitted parameters, reserves, and variance
-  decompositions (to ~1e-5).
-- Quarg & Mack (2004): the fire-portfolio example's every printed parameter
-  row and projected cell.
-
-These published-value tests are the package's change contract: math changes
-are wrong until they pass.
+Published-value tests are the numerical contract. A reserving math change is not acceptable until those fixtures still pass.
 
 ## License
 
-Apache-2.0. Copyright 2026 Justin Morrey.
+Apache-2.0. See LICENSE and NOTICE.

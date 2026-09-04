@@ -1,148 +1,66 @@
 # @actuarial-ts/data
 
-Data ingestion and ASOP No. 23 data-quality review for the
-[actuarial-ts](../core) SDK. Pure functions, fully typed, with runtime schemas
-at object boundaries.
+Typed ingestion, preparation, and data-review boundaries for the actuarial-ts SDK. It supports loss-run/exposure CSVs, annual claim-development adaptation, triangle assembly, and generalized diagnostic review designed to support ASOP No. 23 work.
 
-- `parseCsv(text)` — minimal RFC 4180-subset CSV parser (quoted fields,
-  escaped quotes, embedded commas/newlines, BOM, CRLF/LF); the result's
-  `rowLines` gives each row's 1-based physical start line in the file.
-- `parseLossRunCsv(text)` — loss-run import to `ClaimSnapshot[]` with
-  per-row validation errors (errors cite 1-based physical file lines,
-  header = line 1).
-- `annualDevelopmentToClaimSnapshots(rows, options)` — converts claim
-  valuations known only to annual precision without hiding the derived-date,
-  report-year, or duplicate-row conventions.
-- `parseExposureCsv(text)` — imports earned premium and/or exposure units by
-  origin; extra source measures remain extra rather than being relabeled.
-- `triangleFromLongFormat(rows, { kind })` — pivots long-format
-  `(origin, age, value)` rows into a `Triangle`.
-- `reviewClaimData(claims, { asOfDate? })` / `reviewTriangles(paid, incurred)`
-  — the ASOP No. 23-oriented review; every check performed is listed in the
-  report, pass or fail, so the actuary's disclosure can state what WAS
-  reviewed, not just what was found.
-- `validateDiagnosticDataset(value)` /
-  `validateAndReconcileDiagnosticExposures(value)` /
-  `runValidatedMetricDiagnostics(...)` — Zod-validated boundaries plus
-  stable-key exposure reconciliation for generic diagnostic rows.
-- `reviewDiagnosticData(snapshots, exposures, options)` — quarterly aggregate,
-  exposure, layer, grouping, and cached-formula checks using the same
-  `DataReviewReport` status contract, with optional structured finding context.
-
-## Checks
-
-### `reviewClaimData`
-
-| id | status when found | what it finds |
-|----|-------------------|---------------|
-| `negative-paid` | fail | cumulative paid < 0 |
-| `negative-case` | warning | case reserve < 0 (legitimate but rare) |
-| `paid-decreasing` | fail | cumulative paid decreasing across a claim's snapshots ordered by evaluation date |
-| `date-order` | fail | report before accident, or evaluation before report |
-| `duplicate-snapshot` | fail | same claimId + evaluationDate twice |
-| `future-dated` | fail | any claim date after `asOfDate` (not evaluated when `asOfDate` is omitted) |
-| `closed-with-case` | warning | closed claim still carrying case reserve |
-
-### `reviewTriangles`
-
-| id | status when found | what it finds |
-|----|-------------------|---------------|
-| `shape-mismatch` | fail | origins/ages differ between paid and incurred (blocks cell-level checks, which stay listed as "not evaluated") |
-| `paid-exceeds-incurred` | fail | paid > incurred in a cell (1e-9 relative tolerance) |
-| `negative-incremental-paid` | warning | cumulative paid decreasing along a row (salvage/subrogation makes this legal but reportable) |
-| `negative-incremental-incurred` | warning | cumulative incurred decreasing along a row |
-| `interior-missing` | warning | a null cell with observed cells both before and after it in the same row |
-
-## Quickstart
-
-```ts
-import { buildTriangles } from "@actuarial-ts/core";
-import { parseLossRunCsv, reviewClaimData, reviewTriangles } from "@actuarial-ts/data";
-
-const { claims, errors } = parseLossRunCsv(csvText);
-if (errors.length > 0) console.warn(errors); // caller decides: abort or proceed
-
-const claimReview = reviewClaimData(claims, { asOfDate: "2023-12-31" });
-
-const { paid, incurred } = buildTriangles(claims, {
-  cadence: "annual",
-  asOfDate: "2023-12-31",
-});
-const triangleReview = reviewTriangles(paid, incurred);
+```bash
+npm install @actuarial-ts/data@0.6.0 @actuarial-ts/core@0.6.0
 ```
 
-### Annual-precision claim data
+Node 20+, ESM. Responsibility for the review and resulting actuarial work remains with the actuary.
 
-Do not label a source year as an exact accident or evaluation date. Normalize
-the source fields to annual rows, then let the adapter derive calendar-year-end
-compatibility dates and return the convention as a disclosure finding:
+## Existing ingestion and triangle review
+
+`parseLossRunCsv`, `parseExposureCsv`, `adaptAnnualClaimDevelopment`, `triangleFromLongFormat`, `reviewClaimData`, and `reviewTriangles` return structured errors/findings rather than silently cleaning source records. Physical source-line numbers are retained where available.
+
+## Diagnostic run boundary
+
+Use `validateDiagnosticRunInput` before `runValidatedMetricDiagnostics`. Validation parses the entire configuration atomically and compiles its definition; no partially validated run escapes.
 
 ```ts
-import { annualDevelopmentToClaimSnapshots } from "@actuarial-ts/data";
+import { runValidatedMetricDiagnostics, validateDiagnosticRunInput } from "@actuarial-ts/data";
 
-const conversion = annualDevelopmentToClaimSnapshots(
-  [{
-    claimId: "1995-000001",
-    originYear: 1995,
-    evaluationYear: 1996,
-    paidToDate: 100,
-    incurredToDate: 140,
-    status: "open",
+const validated = validateDiagnosticRunInput({
+  definition,
+  losses: [{
+    rowType: "aggregate",
+    recordId: "loss-1",
+    sourceGroup: "fleet-a",
+    origin: "2025",
+    valuation: "2025-03-31",
+    complete: true,
+    source: { artifactId: "loss-run", sourceRow: 2 },
+    measures: { reported: 4, "gross-paid": 100, "gross-incurred": 160 },
   }],
-  { duplicatePolicy: "reject" },
-);
+  exposures: [{
+    key: "exp-2025",
+    sourceGroup: "fleet-a",
+    origin: "2025",
+    measureId: "earned-vehicle-years",
+    value: 20,
+    complete: true,
+    source: { artifactId: "exposures", sourceRow: 2 },
+  }],
+  filter: { sourceGroups: ["fleet-a"], instanceIds: ["casualty/count/reported-frequency"] },
+  groupMap: { "fleet-a": "all-fleet" },
+  groupDimensions: { "all-fleet": { region: "all" } },
+  runPresetId: "annual-review-v1",
+  datasetArtifactId: "loss-run",
+});
 
-console.log(conversion.conventions.derivedDateConvention); // calendar-year-end
-console.log(conversion.findings); // date and inferred-report-year disclosures
+const outcome = runValidatedMetricDiagnostics(validated);
+if (outcome.status !== "completed") console.error(outcome.stage, outcome.review.report);
 ```
 
-The default duplicate policy is `reject`. Selecting `combine` is an explicit
-judgment: same-claim/same-year paid and incurred values are summed, and the
-combined record is open if any component is open. The adapter reports how many
-groups and rows were combined.
+Loss rows use `sourceGroup`; output `group` exists only after explicit mapping. Exposure observations are long-form and measure-specific. `origin-static` exposures ignore valuation filters but honor source-group/origin selection; `valuation-specific` exposures require and honor a valuation. The pre-exclusion audit retains invalid, cutoff, filtered, and retained inputs. Omitted and explicitly empty expected-cell grids remain distinct.
 
-### Exposure data
+Review happens before output-group filtering and calculation. The structural catalog checks identities, periods, measure/source contracts, completeness, exposure attachment, expected-cell coverage, grouping evidence, and cached-formula provenance in deterministic order. Full findings retain code, message, complete source unions, origin, valuation, derived development age, and unit. `not-evaluated` is not treated as pass.
 
-`parseExposureCsv` requires `origin` plus `earned_premium`, `exposure_units`,
-or both. Each numeric measure may be blank independently. For example, a
-source containing insurance-years and gross written premium should expose only
-the insurance-years to the SDK unless an earned-premium transformation has
-actually been performed:
+Definitions add declarative `compare`, `reconcile`, `monotonic`, `layer-order`, and `control-total` review rules. `createCasualtyDiagnosticReviewRules` is an optional convenience factory, not a fixed taxonomy. Missing rule inputs follow each rule’s explicit `not-evaluated` or `finding` policy. Review and metric gates have separate allowed status/severity sets; permitting a fail requires a nonblank rationale reference.
 
-```csv
-origin,exposure_units,gross_written_premium
-2024,125000,42000000
-```
+Completed outcomes are owner-branded and include the exact prepared data, review receipt, run preset, dataset artifact, grouping, result, and two-gate receipt. Compliance provenance accepts only that completed object.
 
-The extra GWP column is retained in the source file but ignored by the parser;
-it is never silently loaded as `earnedPremium`.
-
-### Quarterly diagnostic review
-
-`reviewDiagnosticData` lists all 19 stable codes in
-`DIAGNOSTIC_REVIEW_CHECK_CODES`. The suite covers duplicate aggregate and
-exposure keys; invalid or mismatched development ages; valuation-before-origin;
-count identities; paid/incurred and cumulative movement checks; reopen
-signals; layer ordering and control totals; both sides of the loss/exposure
-join; zero/incomplete exposure; grouping consistency; and lightweight cached
-formula provenance.
-
-The existing `DataCheck.details: string[]` field is unchanged. New checks also
-populate `DataCheck.findings` with optional `origin`, `valuation`, `ageMonths`,
-`group`, `sourceFile`, and `sourceRow` context so consumers need not parse
-prose. Severities and numeric tolerances are caller-configurable. Optional
-checks without configuration report `not-evaluated`, never a misleading pass.
-
-For unknown objects, call `validateDiagnosticDataset` (or the convenience
-`runValidatedMetricDiagnostics`) before the core analysis. For workbook input,
-extract rows with the host's spreadsheet tooling and pass cached formula
-metadata to the review; this package deliberately does not add a heavyweight
-XLSX dependency.
-
-These utilities are designed to support the actuary's compliance with
-ASOP No. 23; responsibility for compliance remains with the credentialed
-actuary.
+See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 
-Apache-2.0. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+Apache-2.0. See LICENSE and NOTICE.

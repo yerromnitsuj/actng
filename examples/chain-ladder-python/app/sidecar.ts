@@ -7,6 +7,7 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
+import { createServer } from "node:net";
 import { join } from "node:path";
 
 export interface SidecarHandle {
@@ -17,7 +18,17 @@ export interface SidecarHandle {
   stop(): void;
 }
 
-const LAUNCH_PORT = 18091; // fixed non-default: never collides with a user's own 8091 sidecar
+async function allocateLoopbackPort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  await new Promise<void>((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)));
+  if (address === null || typeof address === "string") throw new Error("could not allocate a loopback sidecar port");
+  return address.port;
+}
 
 export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
   const envUrl = process.env.SIDECAR_URL;
@@ -35,13 +46,14 @@ export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
     );
   }
   const token = randomBytes(24).toString("hex");
+  const port = await allocateLoopbackPort();
   const stderrTail: string[] = [];
   const child = spawn(python, ["-m", "sidecar"], {
     env: {
       ...process.env,
       PYTHONPATH: join(repoRoot, "interop"),
       SIDECAR_TOKEN: token,
-      SIDECAR_PORT: String(LAUNCH_PORT),
+      SIDECAR_PORT: String(port),
     },
     stdio: ["ignore", "ignore", "pipe"],
   });
@@ -68,12 +80,18 @@ export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
   // need its own signal handling to get the same guarantee.
   process.on("exit", stop);
 
-  const url = `http://127.0.0.1:${LAUNCH_PORT}`;
+  const url = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + 30_000;
   for (;;) {
     try {
-      const res = await fetch(`${url}/v1/health`);
-      if (res.ok) break;
+      const res = await fetch(`${url}/v1/engine`, {
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(1_000),
+      });
+      if (res.ok) {
+        const identity = await res.json() as { name?: unknown; profiles?: unknown; methods?: unknown };
+        if (identity.name === "chainladder-python" && Array.isArray(identity.profiles) && Array.isArray(identity.methods)) break;
+      }
     } catch {
       /* not up yet */
     }
@@ -85,7 +103,7 @@ export async function resolveSidecar(repoRoot: string): Promise<SidecarHandle> {
           ? `the sidecar process could not be spawned (${err.message}) — ` +
             `check that ${python} is executable (a copied or restored venv can lose its exec bit; ` +
             `recreate it with: python3.12 -m venv .venv-interop)`
-          : "the launched sidecar did not become healthy within 30s";
+          : "the launched sidecar did not return its authenticated engine identity within 30s";
       throw new Error(`${reason}\n${stderrTail.join("").trim()}`.trim());
     }
     await new Promise((r) => setTimeout(r, 250));

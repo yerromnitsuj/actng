@@ -10,6 +10,7 @@
 - **Research archive / citation:** <https://doi.org/10.57745/P0KHAG>
 - **Pinned source:** <https://raw.githubusercontent.com/dutangc/CASdatasets/e51f30edc0b8dbfe096cad2d0967d42ce3707f63/data/freclaimset2motor.rda>
 - **Pinned source SHA-256:** `4409adb022d18e24a3a0e724523706616e707c53e55f8625ce9fc122a20185d6`
+- **Pinned source byte length:** `9,482,793`
 - **Source archive publication/update date used for attribution:** 2024-07-09
 
 The machine-readable source of truth for these values is
@@ -44,6 +45,14 @@ the source:
    authoritative first-development frequency measure.
 8. Missing annual snapshots are carried forward as the latest known cumulative
    state. This matches the SDK's claim-timeline triangle convention.
+9. `ClaimStatus` values `on-going`, `partially closed`, and `reopened` are
+   treated as open; `closed without payment` and `closed with payment` are
+   treated as closed, and the transform rejects any unknown status. At each
+   management year, an identifier is open if any combined source row has an
+   open status. Reported, open, closed with pay, and closed without pay are then
+   computed from the carried-forward identifier state. This is an adapted
+   population because source identifiers collide; it is not represented as an
+   undisputed distinct-claim count.
 
 No row is silently dropped because paid decreases, inferred case is negative,
 or a claim reopens. Those facts remain visible in `data/quality-summary.csv`
@@ -61,3 +70,9 @@ The fetch step refuses to write an unverified source file. The transformation
 requires base R only and regenerates the compact committed CSVs plus an ignored
 `generated/freclaimset2motor-annual.csv` containing all source rows and both
 gross and net measures.
+
+`data/diagnostic-snapshots.csv` is the 210-cell upper triangle used by the
+generalized diagnostic example. Each row contains origin year, valuation year,
+the four adapted claim-state counts, and cumulative gross/net paid/incurred.
+The transform asserts the claim states reconcile and every numeric diagnostic
+value is finite before writing the derivative.

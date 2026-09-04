@@ -49,23 +49,26 @@ describe("diagnostic-definition interchange", () => {
 
   it("detects body mutation and independently detects stale nested identities", () => {
     const doc = authored();
-    const changed = structuredClone(doc);
+    const changed = structuredClone(doc) as any;
     changed.diagnosticDefinition.definition.instances[0]!.presentation.displayName = "Changed";
     expect(() => docToDiagnosticDefinition(changed)).toThrow(/Integrity tag mismatch/);
     const restamped = stampIntegrity(changed);
     expect(() => docToDiagnosticDefinition(restamped)).toThrow(/identities do not match/);
   });
 
-  it("preserves generic same-major fields but refuses unknown executable vocabulary", () => {
+  it("preserves generic same-major fields while the semantic converter refuses unknown behavior", () => {
     const doc = authored();
-    const future = structuredClone(doc) as typeof doc & { futureEnvelope: string };
+    const future = structuredClone(doc) as any;
     future.futureEnvelope = "preserved";
     future.diagnosticDefinition.definition.measures[0] = {
       ...future.diagnosticDefinition.definition.measures[0]!,
       futureBehavior: true,
     } as never;
     const restamped = stampIntegrity(future);
-    expect(() => parseDocument(restamped)).toThrow(/Unrecognized key/);
+    const generic = parseDocument(restamped).doc as any;
+    expect(generic.futureEnvelope).toBe("preserved");
+    expect(generic.diagnosticDefinition.definition.measures[0].futureBehavior).toBe(true);
+    expect(() => docToDiagnosticDefinition(restamped)).toThrow(/unsupported executable/i);
   });
 
   it("verifies nested definitions and covers them with bundle integrity", () => {
@@ -76,7 +79,7 @@ describe("diagnostic-definition interchange", () => {
       interchange: { triangles: [], selections: [], results: [], diagnosticDefinitions: [nested] },
     });
     expect(parseDocument(bundle).doc.kind).toBe("bundle");
-    const changed = structuredClone(bundle);
+    const changed = structuredClone(bundle) as any;
     changed.interchange.diagnosticDefinitions![0]!.diagnosticDefinition.definition.id = "changed";
     expect(() => parseDocument(changed)).toThrow(/Integrity tag mismatch/);
   });

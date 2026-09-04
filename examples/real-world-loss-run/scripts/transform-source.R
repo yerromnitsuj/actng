@@ -74,6 +74,7 @@ expected_recourse_state <- numeric(n_claims)
 seen <- logical(n_claims)
 last_evaluation_year <- integer(n_claims)
 evaluation_count <- integer(n_claims)
+open_state <- logical(n_claims)
 
 metrics <- list(
   duplicate_claim_year_groups = 0,
@@ -88,6 +89,7 @@ metrics <- list(
 )
 
 triangle_rows <- list()
+diagnostic_rows <- data.frame()
 for (basis in c("gross_paid", "gross_incurred", "net_paid", "net_incurred")) {
   triangle_rows[[basis]] <- data.frame(origin = integer(), age = integer(), value = numeric())
 }
@@ -150,6 +152,7 @@ for (evaluation_year in years) {
   seen[updated_ids] <- TRUE
   last_evaluation_year[updated_ids] <- evaluation_year
   evaluation_count[updated_ids] <- evaluation_count[updated_ids] + 1L
+  open_state[updated_ids] <- combined_open
 
   for (origin_year in years[years <= evaluation_year]) {
     members <- origin_by_claim == origin_year
@@ -178,6 +181,22 @@ for (evaluation_year in years) {
         value = sum(gross_incurred_state[members] - expected_recourse_state[members])
       )
     )
+    reported <- sum(members & seen)
+    open <- sum(members & seen & open_state)
+    closed_with_pay <- sum(members & seen & !open_state & gross_paid_state > 0)
+    closed_no_pay <- reported - open - closed_with_pay
+    diagnostic_rows <- rbind(diagnostic_rows, data.frame(
+      origin = origin_year,
+      valuation = evaluation_year,
+      reported = reported,
+      open = open,
+      closed_no_pay = closed_no_pay,
+      closed_with_pay = closed_with_pay,
+      gross_paid = sum(gross_paid_state[members]),
+      gross_incurred = sum(gross_incurred_state[members]),
+      net_paid = sum(gross_paid_state[members] - recourse_state[members]),
+      net_incurred = sum(gross_incurred_state[members] - expected_recourse_state[members])
+    ))
   }
 }
 
@@ -203,6 +222,10 @@ for (basis in names(triangle_rows)) {
     quote = FALSE
   )
 }
+if (nrow(diagnostic_rows) != 210L) stop("diagnostic derivative must contain 210 upper-triangle cells")
+if (any(diagnostic_rows$reported != diagnostic_rows$open + diagnostic_rows$closed_no_pay + diagnostic_rows$closed_with_pay)) stop("diagnostic claim counts do not reconcile")
+if (any(!is.finite(as.matrix(diagnostic_rows[, 3:ncol(diagnostic_rows)])))) stop("diagnostic derivative contains non-finite values")
+write.csv(diagnostic_rows, file.path(compact_dir, "diagnostic-snapshots.csv"), row.names = FALSE, quote = FALSE)
 
 diagonal <- claims$OccurYear == claims$ManagYear
 quality <- data.frame(

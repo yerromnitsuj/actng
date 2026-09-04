@@ -20,9 +20,10 @@ One repository, three things:
 
 ## Setup
 
-Node 20 or newer (the repo is developed on 22; if your shell defaults to an
-older Node, prefix `PATH` rather than switching globally). npm workspaces — no
-other package manager.
+Node 22.22.0 for repository development and all-five-package work. The four
+framework-free packages (`core`, `interchange`, `data`, and `compliance`) retain
+a Node 20 public runtime floor; `agents` and the complete repository require
+Node 22.13.0 or newer. npm workspaces — no other package manager.
 
 ```bash
 npm install        # runs the ordered `prepare`, which builds the SDK dist in dependency order
@@ -41,6 +42,7 @@ To run the end-to-end example:
 ```bash
 npm run example    # triangle -> CL + Mack -> interchange -> referee -> bundle
 npm run example:real-world  # real claim development -> review -> CL + exposure-based Cape Cod
+npm run example:determinism # clean-process canonical diagnostic replay
 ```
 
 It is covered by tests, so a change that makes the public API awkward breaks it
@@ -62,15 +64,16 @@ npm run test:py
 
 ### The R shore (optional, needed for interop work)
 
-```r
-dir.create("~/.R-interop-lib", showWarnings = FALSE)
-install.packages(c("ChainLadder", "jsonlite"),
-                 lib = "~/.R-interop-lib", repos = "https://cloud.r-project.org")
-```
+The release contract is R 4.4.3 with the exact direct-package pins in
+[`tools/interop/r-environment.json`](tools/interop/r-environment.json). Install
+R 4.4.3 using the official CRAN installer or `rig`, locate that installation's
+absolute `Rscript`, then run:
 
 ```bash
-Rscript tools/interop/actuarialInterchange.R   # self-tests the JCS serializer
-Rscript tools/interop/conformance.R            # cross-engine verdict table
+export ACTUARIAL_TS_RSCRIPT="/absolute/path/to/R 4.4.3/bin/Rscript"
+"$ACTUARIAL_TS_RSCRIPT" tools/interop/install-r-environment.R
+"$ACTUARIAL_TS_RSCRIPT" tools/interop/check-r-environment.R
+"$ACTUARIAL_TS_RSCRIPT" tools/interop/conformance.R
 ```
 
 See [`tools/interop/README.md`](tools/interop/README.md).
@@ -114,6 +117,9 @@ deliberate decision, not by omission.
   (build, typecheck, test, pack-check all five packages) and
   `Python interop conformance` (the Python shore plus the live cross-engine
   referee against the sidecar).
+- Before proposing a `0.6` release candidate, run `npm run release:gate`; it
+  composes version, documentation, legacy-surface, package, three-shore, and
+  example checks under the pinned environments.
 - Add or update tests with behavior changes. For a new method, that means a
   published-value pin.
 - Explain *why* in the commit message, not just what — especially for anything

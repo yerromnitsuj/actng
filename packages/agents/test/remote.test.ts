@@ -1,6 +1,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
+import { standardSchemaToJSONSchema, type StandardSchemaWithJSON } from "@mastra/core/schema";
 import { runChainLadder, triangleFromGrid } from "@actuarial-ts/core";
 import {
   resultToDoc,
@@ -9,7 +10,6 @@ import {
   type TriangleDoc,
 } from "@actuarial-ts/interchange";
 import { defineRemoteMethod, type RemoteMethodResult } from "../src/remote.js";
-import { zodObjectShape } from "../src/tools.js";
 import type { ToolEnvelopeFailure } from "../src/tools.js";
 
 /**
@@ -298,10 +298,9 @@ describe("defineRemoteMethod", () => {
     // defineActuarialTool's tenant lint ran at definition time (a violating
     // schema would have thrown TENANT_IN_SCHEMA before this line); the
     // declared surface is exactly the spec-7 wire minus engagementRef.
-    const shape = zodObjectShape(tool.inputSchema);
-    expect(shape).not.toBeNull();
-    expect(Object.keys(shape!).sort()).toEqual(["exposure", "parameters", "seed", "selection", "triangles"]);
-    for (const key of Object.keys(shape!)) {
+    const schema = standardSchemaToJSONSchema(tool.inputSchema as StandardSchemaWithJSON, { io: "input" }) as { properties: Record<string, unknown> };
+    expect(Object.keys(schema.properties).sort()).toEqual(["exposure", "parameters", "seed", "selection", "triangles"]);
+    for (const key of Object.keys(schema.properties)) {
       expect(key).not.toMatch(/^(project|tenant)[_-]?id$/i);
     }
   });

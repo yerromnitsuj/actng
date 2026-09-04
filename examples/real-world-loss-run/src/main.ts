@@ -9,12 +9,17 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import {
+  CASUALTY_FORMULA_TEMPLATES,
+  canonicalJson,
+  compileDiagnosticDefinition,
+  createCasualtyMetricInstances,
   computeDevelopmentFactors,
   runCapeCod,
   runChainLadder,
   type LdfSelections,
   type Triangle,
   type TriangleKind,
+  type DiagnosticDefinition,
 } from "@actuarial-ts/core";
 import {
   parseCsv,
@@ -24,13 +29,19 @@ import {
   type DataCheck,
   type DataReviewReport,
   type LongFormatRow,
+  createCasualtyDiagnosticReviewRules,
+  runValidatedMetricDiagnostics,
+  validateDiagnosticRunInput,
 } from "@actuarial-ts/data";
 import {
   createLedger,
   generateDisclosure,
   recordAssumption,
   type AssumptionLedger,
+  createBundle,
+  createDiagnosticRunIdentity,
 } from "@actuarial-ts/compliance";
+import { docToDiagnosticDefinition, parseDocument } from "@actuarial-ts/interchange";
 import { SOURCE } from "./sourceManifest.js";
 
 export { SOURCE } from "./sourceManifest.js";
@@ -70,6 +81,10 @@ export type LossBasis = "gross" | "net";
 
 function dataFile(name: string): string {
   return readFileSync(new URL(`../data/${name}`, import.meta.url), "utf8");
+}
+
+function exampleFile(name: string): string {
+  return readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
 }
 
 function recordsFromCsv(text: string, expectedHeaders: readonly string[]): Record<string, string>[] {
@@ -127,7 +142,7 @@ function summarize(checks: DataCheck[]): DataReviewReport["summary"] {
 function sourceQualityChecks(quality: SourceQuality, basis: LossBasis): DataCheck[] {
   const negativeCase =
     basis === "net" ? quality.negative_net_case_records : quality.negative_gross_case_records;
-  return [
+  const checks: Omit<DataCheck, "findings">[] = [
     {
       id: "source-integrity",
       description: "The source archive is pinned and checksum-verified",
@@ -194,6 +209,12 @@ function sourceQualityChecks(quality: SourceQuality, basis: LossBasis): DataChec
       details: ["GWP is retained in the source CSV and is not loaded as earned premium"],
     },
   ];
+  return checks.map((check) => ({
+    ...check,
+    findings: check.status === "pass" || check.status === "not-evaluated"
+      ? []
+      : check.details.map((message) => ({ code: check.id, message, context: {} })),
+  }));
 }
 
 function combinedReview(
@@ -293,6 +314,331 @@ export interface RealWorldReviewOutcome {
   disclosure: string;
 }
 
+const diagnosticRowSchema = z
+  .object({
+    origin: z.string().regex(/^\d{4}$/),
+    valuation: z.string().regex(/^\d{4}$/),
+    reported: decimalString,
+    open: decimalString,
+    closed_no_pay: decimalString,
+    closed_with_pay: decimalString,
+    gross_paid: decimalString,
+    gross_incurred: decimalString,
+    net_paid: decimalString,
+    net_incurred: decimalString,
+  })
+  .strict();
+
+const diagnosticCounts = {
+  reported: "reported",
+  open: "open",
+  closedNoPay: "closed-no-pay",
+  closedWithPay: "closed-with-pay",
+} as const;
+
+function amountMeasure(id: "gross-paid" | "gross-incurred" | "net-paid" | "net-incurred") {
+  return {
+    id,
+    displayName: id,
+    description: `Cumulative ${id} loss`,
+    source: "loss" as const,
+    kind: "amount" as const,
+    unit: "EUR",
+    developmentSemantics: "cumulative" as const,
+    aggregation: "sum" as const,
+    missing: "unknown" as const,
+    basisId: id.startsWith("gross") ? "gross-loss" : "net-loss",
+  };
+}
+
+export function buildRealWorldDiagnosticDefinition(): DiagnosticDefinition {
+  const countMeasureInputs = [
+    ["reported", "Reported", "cumulative"],
+    ["open", "Open", "point-in-time"],
+    ["closed-no-pay", "Closed no pay", "cumulative"],
+    ["closed-with-pay", "Closed with pay", "cumulative"],
+  ] as const;
+  const countMeasures: DiagnosticDefinition["measures"] = countMeasureInputs.map(
+    ([id, displayName, developmentSemantics]) => ({
+    id,
+    displayName,
+    description: `${displayName} claims under the documented adapted source-state mapping`,
+    source: "loss",
+    kind: "count",
+    unit: "claim",
+    developmentSemantics,
+    aggregation: "sum",
+    missing: "unknown",
+    countPopulationId: "adapted-source-claims",
+    }),
+  );
+  const measure = (measureId: string) => ({ op: "measure" as const, measureId });
+  const instances = createCasualtyMetricInstances({
+    counts: diagnosticCounts,
+    exposure: "insurance-years",
+    amountBindings: [
+      { id: "gross", paid: "gross-paid", incurred: "gross-incurred" },
+      { id: "net", paid: "net-paid", incurred: "net-incurred" },
+    ],
+  });
+
+  return {
+    diagnosticDefinitionVersion: "1.0.0",
+    id: "freclaimset2motor-annual-diagnostics",
+    version: "1.0.0",
+    lossRowGrain: "aggregate",
+    measures: [
+      ...countMeasures,
+      {
+        id: "insurance-years",
+        displayName: "Insurance years",
+        description:
+          "Origin-year exposure supplied by aggdata.Exposure; no earned, written, or in-force interpretation is inferred",
+        source: "exposure",
+        kind: "exposure",
+        unit: "insurance-year",
+        developmentSemantics: "point-in-time",
+        aggregation: "sum",
+        missing: "unknown",
+        exposureBasisId: "source-insurance-years",
+        exposureTiming: "origin-static",
+      },
+      amountMeasure("gross-paid"),
+      amountMeasure("gross-incurred"),
+      amountMeasure("net-paid"),
+      amountMeasure("net-incurred"),
+    ],
+    countPopulations: [
+      {
+        id: "adapted-source-claims",
+        displayName: "Adapted source claims",
+        subject: "claim",
+        unit: "claim",
+        description:
+          "ClaimID state carried forward by management year; source identifier collisions remain disclosed",
+      },
+    ],
+    exposureBases: [
+      {
+        id: "source-insurance-years",
+        displayName: "Source insurance years",
+        basis: "other",
+        unit: "insurance-year",
+        description: "Source Exposure field by origin year",
+        sourceDescription:
+          "CASdatasets aggdata.Exposure; semantics are not relabeled as earned, written, or in-force",
+      },
+    ],
+    amountBases: [
+      {
+        id: "gross-loss",
+        displayName: "Gross loss",
+        currency: "EUR",
+        perspective: "gross",
+        components: [
+          { id: "indemnity", treatment: "included", limitation: { kind: "unlimited" } },
+        ],
+      },
+      {
+        id: "net-loss",
+        displayName: "Net loss",
+        currency: "EUR",
+        perspective: "net",
+        components: [
+          {
+            id: "indemnity-net-of-recourse",
+            treatment: "included",
+            limitation: { kind: "unlimited" },
+          },
+        ],
+      },
+    ],
+    derivedMeasures: [],
+    formulas: CASUALTY_FORMULA_TEMPLATES,
+    instances,
+    reviewRules: createCasualtyDiagnosticReviewRules({
+      counts: diagnosticCounts,
+      exposure: "insurance-years",
+      monotonicMeasures: [
+        {
+          id: "casualty/review/gross-incurred-monotonic",
+          expression: measure("gross-incurred"),
+          direction: "nondecreasing",
+        },
+        {
+          id: "casualty/review/net-incurred-monotonic",
+          expression: measure("net-incurred"),
+          direction: "nondecreasing",
+        },
+      ],
+      layerOrders: [],
+      controlTotals: [],
+    }),
+    periodAxis: {
+      kind: "calendar",
+      originCadence: "year",
+      valuationCadence: "year",
+      originAnchor: "start",
+      valuationAnchor: "end",
+      ageUnit: "month",
+      ageOffset: 0,
+    },
+  };
+}
+
+export interface RealWorldDiagnosticOutcome {
+  readonly completed: Extract<
+    ReturnType<typeof runValidatedMetricDiagnostics>,
+    { status: "completed" }
+  >;
+  readonly provenance: Awaited<ReturnType<typeof createDiagnosticRunIdentity>>;
+  readonly bundle: ReturnType<typeof createBundle>;
+  readonly parsedDefinitionIntegrity: string;
+}
+
+/** Complete public-package diagnostic vertical slice over the committed derivative. */
+export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosticOutcome> {
+  const snapshotText = dataFile("diagnostic-snapshots.csv");
+  const rows = recordsFromCsv(snapshotText, [
+    "origin",
+    "valuation",
+    "reported",
+    "open",
+    "closed_no_pay",
+    "closed_with_pay",
+    "gross_paid",
+    "gross_incurred",
+    "net_paid",
+    "net_incurred",
+  ]).map((row) => diagnosticRowSchema.parse(row));
+  const exposureText = dataFile("exposures.csv");
+  const exposureRows = parseExposureCsv(exposureText);
+  if (exposureRows.errors.length > 0) throw new Error("Exposure derivative is invalid");
+
+  const definition = buildRealWorldDiagnosticDefinition();
+  const outcome = runValidatedMetricDiagnostics(
+    validateDiagnosticRunInput({
+      definition,
+      losses: rows.map((row, index) => ({
+        rowType: "aggregate" as const,
+        recordId: `diagnostic-row-${index + 2}`,
+        sourceGroup: "motor",
+        origin: row.origin,
+        valuation: row.valuation,
+        complete: true,
+        source: {
+          artifactId: "diagnostic-snapshots",
+          sourceFile: "data/diagnostic-snapshots.csv",
+          sourceRow: index + 2,
+        },
+        measures: {
+          reported: row.reported,
+          open: row.open,
+          "closed-no-pay": row.closed_no_pay,
+          "closed-with-pay": row.closed_with_pay,
+          "gross-paid": row.gross_paid,
+          "gross-incurred": row.gross_incurred,
+          "net-paid": row.net_paid,
+          "net-incurred": row.net_incurred,
+        },
+      })),
+      exposures: exposureRows.exposures.map((row, index) => ({
+        key: `exposure-${row.origin}`,
+        sourceGroup: "motor",
+        origin: row.origin,
+        measureId: "insurance-years",
+        value: row.exposureUnits,
+        complete: true,
+        source: {
+          artifactId: "exposures",
+          sourceFile: "data/exposures.csv",
+          sourceRow: index + 2,
+        },
+      })),
+      filter: { instanceIds: definition.instances.map((instance) => instance.id) },
+      completePeriodCutoffs: [
+        { sourceGroup: "motor", originThrough: "2014", valuationThrough: "2014" },
+      ],
+      runPresetId: "freclaimset2motor-all-annual-v1",
+      datasetArtifactId: "diagnostic-snapshots",
+      groupMap: { motor: "all-motor" },
+    }),
+  );
+  if (outcome.status !== "completed") {
+    throw new Error(`Diagnostic run blocked at ${outcome.stage}`);
+  }
+
+  const encoder = new TextEncoder();
+  const provenance = await createDiagnosticRunIdentity({
+    completedRun: outcome,
+    artifacts: [
+      {
+        id: "source-archive",
+        scope: "input",
+        assurance: "caller-declared",
+        algorithm: "sha-256",
+        value: SOURCE.sourceSha256,
+        byteLength: SOURCE.sourceByteLength,
+      },
+      {
+        id: "source-manifest",
+        scope: "preparation",
+        assurance: "sdk-computed",
+        bytes: encoder.encode(exampleFile("source-manifest.json")),
+      },
+      {
+        id: "transform-script",
+        scope: "preparation",
+        assurance: "sdk-computed",
+        bytes: encoder.encode(exampleFile("scripts/transform-source.R")),
+      },
+      {
+        id: "diagnostic-snapshots",
+        scope: "input",
+        assurance: "sdk-computed",
+        bytes: encoder.encode(snapshotText),
+      },
+      {
+        id: "exposures",
+        scope: "input",
+        assurance: "sdk-computed",
+        bytes: encoder.encode(exposureText),
+      },
+    ],
+    lineage: [
+      {
+        artifactId: "diagnostic-snapshots",
+        inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
+      },
+      {
+        artifactId: "exposures",
+        inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
+      },
+    ],
+  });
+  const bundle = createBundle({
+    inputs: { source: SOURCE },
+    parameters: { preset: outcome.runPresetId },
+    results: outcome.result,
+    sdkVersions: { ...provenance.manifest.packageVersions },
+    createdAt: GENERATED_AT,
+    diagnosticRuns: [provenance],
+    wrap: { triangles: [], selections: [], results: [] },
+  });
+  if (!("wrapped" in bundle)) throw new Error("Expected wrapped bundle");
+  const parsed = parseDocument(bundle.wrapped);
+  if (parsed.doc.kind !== "bundle") throw new Error("Expected bundle document");
+  const nested = parsed.doc.interchange.diagnosticDefinitions?.[0];
+  if (!nested) throw new Error("Missing diagnostic definition document");
+  const roundTripped = docToDiagnosticDefinition(nested);
+  return {
+    completed: outcome,
+    provenance,
+    bundle,
+    parsedDefinitionIntegrity: roundTripped.definition.definitionIntegrity,
+  };
+}
+
 export function runRealWorldLossRunReview(
   input: RealWorldReviewOptions = {},
 ): RealWorldReviewOutcome {
@@ -382,7 +728,7 @@ export function runRealWorldLossRunReview(
       "Gross written premium is retained but is not used as earned premium; Cape Cod uses insurance-year exposure as a pure-premium base.",
       "The all-year volume-weighted factors and 1.0 tail are illustrative selections, not conclusions for production use.",
     ],
-    sdkVersion: "0.5.0",
+    sdkVersion: "0.6.0",
     generatedAt: GENERATED_AT,
   });
 
@@ -407,20 +753,43 @@ export function runRealWorldLossRunReview(
   };
 }
 
+/** Byte-stable, complete public outcome used by the clean-process determinism gate. */
+export async function realWorldCanonicalOutcome(): Promise<string> {
+  const diagnostics = await runRealWorldDiagnosticReview();
+  return canonicalJson({
+    reserving: runRealWorldLossRunReview(),
+    diagnostics: {
+      provenance: diagnostics.provenance,
+      bundle: diagnostics.bundle,
+      parsedDefinitionIntegrity: diagnostics.parsedDefinitionIntegrity,
+    },
+  });
+}
+
 /* c8 ignore start -- CLI entry; the tested function above owns the behavior. */
 if (process.argv[1]?.endsWith("main.ts") || process.argv[1]?.endsWith("main.js")) {
-  const outcome = runRealWorldLossRunReview();
-  const money = (value: number) =>
-    value.toLocaleString("en-US", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-  console.log("CASdatasets freclaimset2motor — real-world net motor development\n");
-  console.log(`  source rows          ${outcome.quality.source_claim_rows.toLocaleString("en-US")}`);
-  console.log(`  insurance-years      ${outcome.totalExposureUnits.toLocaleString("en-US")}`);
-  console.log(`  paid CL unpaid       ${money(outcome.paid.unpaid)}`);
-  console.log(`  incurred CL IBNR     ${money(outcome.incurred.unpaid)}`);
-  console.log(`  Cape Cod IBNR        ${money(outcome.capeCod.ibnr)}`);
-  console.log(
-    `  data review          ${outcome.dataReview.summary.pass} pass / ${outcome.dataReview.summary.warning} warning / ${outcome.dataReview.summary.fail} fail`,
-  );
-  console.log("\nReview findings are retained, not silently cleaned. See SOURCE.md and DATA-NOTICE.md.");
+  if (process.argv.includes("--format=canonical-json")) {
+    process.stdout.write(`${await realWorldCanonicalOutcome()}\n`);
+  } else {
+    const outcome = runRealWorldLossRunReview();
+    const money = (value: number) =>
+      value.toLocaleString("en-US", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      });
+    console.log("CASdatasets freclaimset2motor — real-world net motor development\n");
+    console.log(`  source rows          ${outcome.quality.source_claim_rows.toLocaleString("en-US")}`);
+    console.log(`  insurance-years      ${outcome.totalExposureUnits.toLocaleString("en-US")}`);
+    console.log(`  paid CL unpaid       ${money(outcome.paid.unpaid)}`);
+    console.log(`  incurred CL IBNR     ${money(outcome.incurred.unpaid)}`);
+    console.log(`  Cape Cod IBNR        ${money(outcome.capeCod.ibnr)}`);
+    console.log(
+      `  data review          ${outcome.dataReview.summary.pass} pass / ${outcome.dataReview.summary.warning} warning / ${outcome.dataReview.summary.fail} fail`,
+    );
+    console.log(
+      "\nReview findings are retained, not silently cleaned. See SOURCE.md and DATA-NOTICE.md.",
+    );
+  }
 }
 /* c8 ignore stop */

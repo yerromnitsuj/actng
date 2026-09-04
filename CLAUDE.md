@@ -1,12 +1,13 @@
 # ActNG - Claude Code Rules
 
 Open-source P&C actuarial SDK + the actuarial-interchange interop layer. npm-workspaces monorepo:
-`packages/{core,data,compliance,agents}` = the `@actuarial-ts/*` SDK
-(published to npm at 0.1.0, tag v0.1.0; core is the pure math;
+`packages/{core,interchange,data,compliance,agents}` = the lockstep-versioned
+`@actuarial-ts/*` SDK (see package manifests for the current candidate; core is pure math;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
 `npm install`), and `examples/reserve-review` — a runnable, TESTED end-to-end
-consumer of all five packages that exists so API awkwardness surfaces here
-before it reaches users. The ActNG reserving workbench was extracted to its own
+consumer of core, interchange, data, and compliance. Agent tools require host
+context and are exercised by their own suite and the packed all-five consumer.
+The ActNG reserving workbench was extracted to its own
 repository on 2026-07-18 and now consumes the published packages.
 
 ## Commands
@@ -14,7 +15,7 @@ repository on 2026-07-18 and now consumes the published packages.
 - Node 22 via nvm (`.nvmrc`); the shell default may be v18 - prefix
   `PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH"` for every command.
 - `npm run example` - the end-to-end reserve review (reproduces Mack 1993's published unpaid and R ChainLadder's published SE)
-- `npm test` - all workspace suites: core (incl. Mack 1993/1999 published-value validation), interchange, data, compliance, agents, and the reserve-review example - 843 tests (11 skipped). `npm run test:py` runs the 261-case Python interop suite (needs `.venv-interop`, Python >= 3.10). The R shore runs via `Rscript tools/interop/conformance.R` and in the `R interop conformance` workflow.
+- `npm test` - all workspace suites, including published-value, generalized-diagnostic, interchange, provenance, agent, and example coverage. `npm run test:py` runs the Python interop suite (needs `.venv-interop`, Python >= 3.10). The R shore runs via `Rscript tools/interop/conformance.R` and in the `R interop conformance` workflow.
 - `npm run typecheck` - every workspace (five @actuarial-ts packages + the example)
 
 ## Non-negotiable domain rules
@@ -36,7 +37,7 @@ repository on 2026-07-18 and now consumes the published packages.
   `node_modules/@mastra/core/dist/**/*.d.ts` before writing agent code. The
   mastra docs MCP server can lag releases; trust order: installed types >
   npm dist-tags > docs server > training data.
-- Current (1.49) shapes used here: `createTool({ execute: async (input, context) })`
+- Current lock-tested (1.64) shapes used here: `createTool({ execute: async (input, context) })`
   with direct args; `RequestContext` from `@mastra/core/request-context`;
   `agent.stream(messages, { memory: { thread, resource }, requestContext, maxSteps })`;
   fullStream chunks are `{ type: "text-delta", delta }` and

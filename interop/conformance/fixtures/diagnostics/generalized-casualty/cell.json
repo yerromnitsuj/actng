@@ -1,0 +1,147 @@
+{
+  "values": {
+    "reported": 10,
+    "open": 4,
+    "closed-no-pay": 2,
+    "closed-with-pay": 4,
+    "insurance-years": 100,
+    "gross-paid": 500,
+    "gross-incurred": 800,
+    "net-paid": 400,
+    "net-incurred": 600
+  },
+  "expected": [
+    {
+      "instanceId": "casualty/count/reported-frequency",
+      "numerator": 10,
+      "denominator": 100,
+      "value": 0.1
+    },
+    {
+      "instanceId": "casualty/count/open-frequency",
+      "numerator": 4,
+      "denominator": 100,
+      "value": 0.04
+    },
+    {
+      "instanceId": "casualty/count/closed-no-pay-frequency",
+      "numerator": 2,
+      "denominator": 100,
+      "value": 0.02
+    },
+    {
+      "instanceId": "casualty/count/closed-with-pay-frequency",
+      "numerator": 4,
+      "denominator": 100,
+      "value": 0.04
+    },
+    {
+      "instanceId": "casualty/count/non-closed-no-pay-frequency",
+      "numerator": 8,
+      "denominator": 100,
+      "value": 0.08
+    },
+    {
+      "instanceId": "casualty/count/closed-no-pay-share",
+      "numerator": 2,
+      "denominator": 10,
+      "value": 0.2
+    },
+    {
+      "instanceId": "casualty/count/closed-with-pay-share",
+      "numerator": 4,
+      "denominator": 10,
+      "value": 0.4
+    },
+    {
+      "instanceId": "casualty/count/closed-with-pay-share-of-non-closed-no-pay",
+      "numerator": 4,
+      "denominator": 8,
+      "value": 0.5
+    },
+    {
+      "instanceId": "casualty/count/open-share",
+      "numerator": 4,
+      "denominator": 10,
+      "value": 0.4
+    },
+    {
+      "instanceId": "casualty/count/open-share-of-non-closed-no-pay",
+      "numerator": 4,
+      "denominator": 8,
+      "value": 0.5
+    },
+    {
+      "instanceId": "casualty/amount/gross/paid-to-incurred",
+      "numerator": 500,
+      "denominator": 800,
+      "value": 0.625
+    },
+    {
+      "instanceId": "casualty/amount/gross/incurred-per-exposure",
+      "numerator": 800,
+      "denominator": 100,
+      "value": 8
+    },
+    {
+      "instanceId": "casualty/amount/gross/incurred-per-non-closed-no-pay-claim",
+      "numerator": 800,
+      "denominator": 8,
+      "value": 100
+    },
+    {
+      "instanceId": "casualty/amount/gross/paid-per-exposure",
+      "numerator": 500,
+      "denominator": 100,
+      "value": 5
+    },
+    {
+      "instanceId": "casualty/amount/gross/paid-per-closed-with-pay-claim",
+      "numerator": 500,
+      "denominator": 4,
+      "value": 125
+    },
+    {
+      "instanceId": "casualty/amount/gross/case-per-open-claim",
+      "numerator": 300,
+      "denominator": 4,
+      "value": 75
+    },
+    {
+      "instanceId": "casualty/amount/net/paid-to-incurred",
+      "numerator": 400,
+      "denominator": 600,
+      "value": 0.6666666666666666
+    },
+    {
+      "instanceId": "casualty/amount/net/incurred-per-exposure",
+      "numerator": 600,
+      "denominator": 100,
+      "value": 6
+    },
+    {
+      "instanceId": "casualty/amount/net/incurred-per-non-closed-no-pay-claim",
+      "numerator": 600,
+      "denominator": 8,
+      "value": 75
+    },
+    {
+      "instanceId": "casualty/amount/net/paid-per-exposure",
+      "numerator": 400,
+      "denominator": 100,
+      "value": 4
+    },
+    {
+      "instanceId": "casualty/amount/net/paid-per-closed-with-pay-claim",
+      "numerator": 400,
+      "denominator": 4,
+      "value": 100
+    },
+    {
+      "instanceId": "casualty/amount/net/case-per-open-claim",
+      "numerator": 200,
+      "denominator": 4,
+      "value": 50
+    }
+  ]
+}

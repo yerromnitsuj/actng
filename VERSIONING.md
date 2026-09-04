@@ -24,10 +24,11 @@ While pre-1.0:
 ## The wire format (`interchangeVersion`)
 
 The interchange spec versions separately (`docs/spec/actuarial-interchange.md`,
-section 11). Readers accept same-major and ignore unknown minor fields, so
-ADDITIVE optional fields do not bump the wire version — reproducibility
-classes landed inside 1.0 this way. Changing what a document MUST contain, or
-how it must be read, is a spec minor; changing existing alignment requirements
+section 11). Readers accept same-major documents and preserve unknown minor
+fields. Additive fields within an existing kind may remain on the current
+minor, but a new document kind or new required semantic body increments the
+wire minor: `diagnostic-definition` therefore introduced `1.1.0`. Changing
+existing alignment requirements
 or replay capabilities is a spec major with a dual-read window.
 
 The frozen conformance corpus is the compatibility statement for the wire

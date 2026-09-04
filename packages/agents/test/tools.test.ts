@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { RequestContext } from "@mastra/core/request-context";
+import { standardSchemaToJSONSchema, toStandardSchema, type StandardSchemaWithJSON } from "@mastra/core/schema";
+import { makeCoreTool } from "@mastra/core/utils";
 import { AgentsError } from "../src/errors.js";
 import {
   defineActuarialTool,
@@ -88,6 +90,67 @@ describe("tenantOf", () => {
 });
 
 describe("defineActuarialTool", () => {
+  it("parses type-changing input exactly once and exposes identity-validation metadata", async () => {
+    let transforms = 0;
+    const inputSchema = z.object({ nested: z.object({ value: z.string().transform((value) => { transforms += 1; return Number(value); }) }) });
+    const tool = defineActuarialTool({
+      id: "transformed-input",
+      tenant: "none",
+      description: "checks once-only parsing",
+      kind: "read",
+      inputSchema,
+      execute: async (input) => ({ success: true as const, doubled: input.nested.value * 2 }),
+    });
+    await expect(tool.execute({ nested: { value: "3" } }, toolContext())).resolves.toEqual({ success: true, doubled: 6 });
+    expect(transforms).toBe(1);
+
+    const bridge = tool.inputSchema as StandardSchemaWithJSON<unknown, unknown>;
+    expect(await bridge["~standard"].validate({ nested: { value: "not parsed" } })).toEqual({ value: { nested: { value: "not parsed" } } });
+    expect(standardSchemaToJSONSchema(bridge, { io: "input" })).toEqual(standardSchemaToJSONSchema(toStandardSchema(inputSchema), { io: "input" }));
+  });
+
+  it("normalizes bad input through both direct execute and public makeCoreTool", async () => {
+    let calls = 0;
+    const tool = defineActuarialTool({ id: "core-path", tenant: "none", description: "core conversion", kind: "read", inputSchema: z.object({ n: z.number() }), execute: async () => { calls += 1; return { success: true as const }; } });
+    await expect(tool.execute({ n: "bad" } as never, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_INPUT_INVALID", message: "Tool input failed schema validation" } });
+    const requestContext = new RequestContext();
+    const core = makeCoreTool(tool, { name: tool.id, requestContext });
+    await expect(core.execute!({ n: "bad" }, { requestContext } as never)).resolves.toEqual({ success: false, error: { code: "TOOL_INPUT_INVALID", message: "Tool input failed schema validation" } });
+    expect(calls).toBe(0);
+  });
+
+  it("validates observable output exactly once and rejects success-only schemas", async () => {
+    const failure = z.object({ success: z.literal(false), error: z.object({ code: z.string(), message: z.string() }).strict() }).strict();
+    const success = z.object({ success: z.literal(true), value: z.number() }).strict();
+    let transforms = 0;
+    const output = z.union([success, failure]).transform((value) => { transforms += 1; return value; });
+    const tool = defineActuarialTool({ id: "validated-output", tenant: "none", description: "validates output", kind: "read", inputSchema: z.object({}), outputSchema: output, execute: async () => ({ success: true as const, value: 4 }) });
+    expect(transforms).toBe(1); // the documented construction probe
+    await expect(tool.execute({}, toolContext())).resolves.toEqual({ success: true, value: 4 });
+    expect(transforms).toBe(2);
+    expect(() => defineActuarialTool({ id: "bad-output", tenant: "none", description: "omits failure", kind: "read", inputSchema: z.object({}), outputSchema: success, execute: async () => ({ success: true as const, value: 1 }) })).toThrowError(AgentsError);
+  });
+
+  it("normalizes malformed, undefined, throwing, and rewritten outputs", async () => {
+    const failure = z.object({ success: z.literal(false), error: z.object({ code: z.string(), message: z.string() }).strict() }).strict();
+    const success = z.object({ success: z.literal(true), value: z.number() }).strict();
+    const output = z.union([success, failure]);
+    const malformed = defineActuarialTool({ id: "malformed-output", tenant: "none", description: "bad body", kind: "read", inputSchema: z.object({}), outputSchema: output, execute: async () => ({ success: true as const, value: "bad" } as never) });
+    await expect(malformed.execute({}, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" } });
+
+    const missing = defineActuarialTool({ id: "missing-output", tenant: "none", description: "undefined body", kind: "read", inputSchema: z.object({}), execute: async () => undefined });
+    await expect(missing.execute({}, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" } });
+
+    const throwingInput = defineActuarialTool({ id: "throwing-input", tenant: "none", description: "throwing transform", kind: "read", inputSchema: z.object({ value: z.string().transform(() => { throw new Error("bad transform"); }) }), execute: async () => ({ success: true as const }) });
+    await expect(throwingInput.execute({ value: "x" }, toolContext())).resolves.toMatchObject({ success: false, error: { code: "TOOL_INPUT_INVALID" } });
+
+    const conditional = z.union([success, failure]).transform((value) => value.success === false && value.error.code !== "TOOL_OUTPUT_INVALID" ? { ...value, error: { ...value.error, message: "rewritten" } } : value);
+    const protectedFailure = defineActuarialTool({ id: "protected-failure", tenant: "none", description: "protects envelopes", kind: "read", inputSchema: z.object({}), outputSchema: conditional, execute: async () => { throw new Error("body failed"); } });
+    await expect(protectedFailure.execute({}, toolContext())).resolves.toEqual({ success: false, error: { code: "TOOL_OUTPUT_INVALID", message: "Tool output failed schema validation" } });
+
+    expect(() => defineActuarialTool({ id: "throwing-probe", tenant: "none", description: "throws in output probe", kind: "read", inputSchema: z.object({}), outputSchema: z.any().transform(() => { throw new Error("probe"); }), execute: async () => ({ success: true as const }) })).toThrowError(AgentsError);
+  });
+
   it("returns the execute result untouched on success", async () => {
     const tool = defineActuarialTool({
       id: "get_thing",

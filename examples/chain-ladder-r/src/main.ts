@@ -367,7 +367,7 @@ export async function runChainLadderR(): Promise<ClExampleOutcome> {
       },
     ],
     ledger: outcome.ledger,
-    sdkVersion: "0.5.0",
+    sdkVersion: "0.6.0",
     generatedAt: CREATED_AT,
   });
 

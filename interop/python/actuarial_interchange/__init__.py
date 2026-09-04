@@ -30,6 +30,7 @@ from .documents import (
     CrosscheckEngines,
     CrosscheckParameters,
     CrosscheckReportPayload,
+    DiagnosticDefinitionPayload,
     CrosscheckTolerance,
     DeviationCell,
     DevelopmentIntent,
@@ -55,6 +56,7 @@ from .documents import (
     parse_document,
     serialize_document,
 )
+from .diagnostics import diagnostic_identities, parse_diagnostic_definition, replay_diagnostic_cell
 from .errors import (
     BadInterchangeError,
     IncoherentSelectionError,
@@ -106,6 +108,10 @@ __all__ = [
     "CrosscheckTolerance",
     "CrosscheckDeviations",
     "CrosscheckReportPayload",
+    "DiagnosticDefinitionPayload",
+    "diagnostic_identities",
+    "parse_diagnostic_definition",
+    "replay_diagnostic_cell",
     "parse_document",
     "serialize_document",
     # bundle/study workflow (spec 4.2; stdlib-only unless chainladder=True)

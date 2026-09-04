@@ -86,8 +86,10 @@ seeded request more than once, compares, and writes the answer onto the
 document.
 
 ```json
-"reproducibility": "witnessed",
-"stability": { "repeats": 2, "byteIdentical": false, "maxRelativeDeviation": 0.0021 }
+{
+  "reproducibility": "witnessed",
+  "stability": { "repeats": 2, "byteIdentical": false, "maxRelativeDeviation": 0.0021 }
+}
 ```
 
 Instability is therefore *measured and disclosed at run time*, rather than

@@ -1,0 +1,1589 @@
+{
+  "schemaVersion": 1,
+  "fences": [
+    {
+      "path": "CONTRIBUTING.md",
+      "heading": "Setup",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "3c11f80acab0279a272f0e028462234adc02b5335396c1276f69669769ce7b6e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "heading": "Setup",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "95d4f23c86765652f2fcf43439c543b423a0d78c3d13e7f1920d13b910964de6",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "heading": "The Python shore (optional, needed for interop work)",
+      "language": "bash",
+      "ordinal": 3,
+      "sha256": "92635b960f7d46b1d456cddfb14d7cad66a752a843614bfe05a952a31f933189",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "heading": "The R shore (optional, needed for interop work)",
+      "language": "bash",
+      "ordinal": 4,
+      "sha256": "7f8d69bd6e24945c4c59f689aee1d3eb0f69a4acdbbabbd5242272fc1f0291d7",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "README.md",
+      "heading": "Quick taste",
+      "language": "ts",
+      "ordinal": 1,
+      "sha256": "55ff0d40f763d4bb6922cdfc42be0e956a3b938182d87289bcad7577f4e27965",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "README.md",
+      "heading": "Try it",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "582b0899ca59d2b3d42bcc92afc9e69f15749f331ac601f8c8c5aafaf0e5d838",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "README.md",
+      "heading": "Try it",
+      "language": "text",
+      "ordinal": 3,
+      "sha256": "9e200966933ef81740fb857359c5e9b14fa732b4a027d36c2d07eadbe2d4feea",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "README.md",
+      "heading": "Try it",
+      "language": "bash",
+      "ordinal": 4,
+      "sha256": "6bc4ef355c42a38a0f9d2643e53ccd7ffcc58577fae9924fff4e9a3888125c88",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "README.md",
+      "heading": "Development",
+      "language": "bash",
+      "ordinal": 5,
+      "sha256": "aa2022268ba307ed4984916be97ff8976591410e788759acde4ed1a0250e81d9",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/interop/mcp-notebook-recipe.md",
+      "heading": "2. Enabling the server (two env vars)",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "ccf91df512d5e9cb2ca4c12fa55257ce472ddeba712055f8869012e325259654",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/interop/mcp-notebook-recipe.md",
+      "heading": "2. Enabling the server (two env vars)",
+      "language": "text",
+      "ordinal": 2,
+      "sha256": "e45edf1f093bb8bda82031fb993a2284214e885e4567a74a1c82deed5e2e67c1",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/interop/mcp-notebook-recipe.md",
+      "heading": "Native HTTP MCP clients (a notebook MCP client, Cursor, any client that speaks HTTP servers)",
+      "language": "json",
+      "ordinal": 3,
+      "sha256": "fd882dc33fccb00bd7398c2e4b6a33508aff52b2dcc21b36b1c9889c6b7cfceb",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/interop/mcp-notebook-recipe.md",
+      "heading": "stdio-only clients (bridge via mcp-remote)",
+      "language": "json",
+      "ordinal": 4,
+      "sha256": "0be2f9a76651d3e22fd06509ff08fbd7086eab435910c4cf2187bd85cfeee2c5",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/interop/mcp-notebook-recipe.md",
+      "heading": "4b. Author a StudyDoc and stage it",
+      "language": "text",
+      "ordinal": 5,
+      "sha256": "e7de7db009ec95afba304bca2ad1ca05490a875e78c3a4e536ba6867d4767c90",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/interop/reproducibility.md",
+      "heading": "What the sidecar does about it",
+      "language": "json",
+      "ordinal": 1,
+      "sha256": "e68bd86dc3e74baa0461e2593eba1b1ffcc2b1522b3da71049187c874630f052",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/interop/upstream/chainladder-python-bootstrap-determinism.md",
+      "heading": "Reproduction",
+      "language": "python",
+      "ordinal": 1,
+      "sha256": "321af05ce57639c19a8ce9812db15d43697e2c4c99d0afc778669dd8c86b21a9",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/interop/upstream/chainladder-python-bootstrap-determinism.md",
+      "heading": "Reproduction",
+      "language": "text",
+      "ordinal": 2,
+      "sha256": "759ba1007882559501ea4d944a043922898f81ef20a8aee4c16c59021b38f6b3",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/migrations/0.6-generalized-diagnostics.md",
+      "heading": "Migrating diagnostics from 0.5 to 0.6",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "08b5ad08fee4fa201b2c0e4a061f574f9c78c987a5d1f07223e2473045b7da73",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/migrations/0.6-generalized-diagnostics.md",
+      "heading": "The new model",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "2487decc4e10de21ac5f446448f69479a5ab765ba2422be872c3ea96169aa95e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/migrations/0.6-generalized-diagnostics.md",
+      "heading": "Input and execution changes",
+      "language": "ts",
+      "ordinal": 3,
+      "sha256": "42a08d8b0d0ed825ce6733d9b0fdc72cecc95b88e5ad0d5d5f3b4cbbe05d90fc",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/migrations/0.6-generalized-diagnostics.md",
+      "heading": "Provenance and interchange",
+      "language": "ts",
+      "ordinal": 4,
+      "sha256": "bc1b1630e74cc55f418d7ea06a8c308bd6c0706090c67b8a52e52818e0108192",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/migrations/0.6-generalized-diagnostics.md",
+      "heading": "Verification",
+      "language": "bash",
+      "ordinal": 5,
+      "sha256": "23f163179be04d5657ed06d4b6556cbc788f7341b876be45f2f459453b273e46",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/publishing.md",
+      "heading": "Release (per version)",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "501c3499a52f3e3a12560ae858d8e2163f6fd058d1888f301e8155b558d77d0c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/publishing.md",
+      "heading": "Release (per version)",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "d046c86c32bf4a173ce93a3b4d2aa36d5dd3e38ca15d5aa53e4f3db55be87d65",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "2. Architecture",
+      "language": "text",
+      "ordinal": 1,
+      "sha256": "e430d00f221efaad798052910b9fd26a28080235b4acad29c7913775f08e2355",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "TriangleDoc",
+      "language": "jsonc",
+      "ordinal": 2,
+      "sha256": "4fe30fcce1bdd1d6ced57de5940613fa5809d16786e17ca5c9069b7ef3c923a3",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "SelectionDoc — intent + values, with a coherence rule",
+      "language": "jsonc",
+      "ordinal": 3,
+      "sha256": "1c773052c7a5b715dc0df19f9726b950352348f1136418b8d6ef13c7092e4eae",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "MethodResultDoc / StochasticResultDoc",
+      "language": "jsonc",
+      "ordinal": 4,
+      "sha256": "587a0864a890f753c706dd4a7b79024b5c06b06d65a90b46d9feaa795322d643",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "StudyDoc — the promotion unit",
+      "language": "jsonc",
+      "ordinal": 5,
+      "sha256": "0c6cf07865f345f4729360a189a7756ba0478792b8362698c686c4455b46fb47",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "7. The sidecar (Python compute service)",
+      "language": "jsonc",
+      "ordinal": 6,
+      "sha256": "c61ab90ce8a950013a76cb512d0dea146d1e6355ede2e1ece9632082f5cd5e25",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/spec/actuarial-interchange.md",
+      "heading": "17. The stochastic referee (rev 2.3)",
+      "language": "text",
+      "ordinal": 7,
+      "sha256": "7d447db0e860b3a30dbfea514098f63eba1e8c688fe6e0b1bf2f2a90b170839f",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-16-phase0-shipping-mechanics.md",
+      "heading": "Task 3: Real build output (dist + exports map)",
+      "language": "json",
+      "ordinal": 1,
+      "sha256": "7f7307123e55f423bbba2b3f36a032b7c12d4f14815ccea8dd741fd5c85925c4",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-16-phase0-shipping-mechanics.md",
+      "heading": "Task 3: Real build output (dist + exports map)",
+      "language": "json",
+      "ordinal": 2,
+      "sha256": "b799df78f52ca8f26f2ffa77de9fb93fd2740f304ee419d141e7ec0c904aeed9",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-apps.md",
+      "heading": "Task A: The TypeScript app (template)",
+      "language": "ts",
+      "ordinal": 1,
+      "sha256": "48a7528c1a970280956035ef7faa6f0ba8c54ab3b756adaccea308da061b4aa2",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-apps.md",
+      "heading": "Task A: The TypeScript app (template)",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "810676b9c16d3c55fa3484d10e62dbd3606ba02cb58b2afb6a5595cbcb3a6dd6",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-apps.md",
+      "heading": "Task A: The TypeScript app (template)",
+      "language": "html",
+      "ordinal": 3,
+      "sha256": "a90ae00f86c59cb3f76df925f462eb05683a2610324c7f66017e78afb9cf63fb",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-apps.md",
+      "heading": "Task C: The R app + tools/interop/run-cl.R",
+      "language": "r",
+      "ordinal": 4,
+      "sha256": "633d1e1775879b9f0a32e15f9881df89530b51bc91f6cd0166110a87d3d4166d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 1: TypeScript example — math spine, interchange docs, replay referee",
+      "language": "json",
+      "ordinal": 1,
+      "sha256": "2be0e4ff8750a03221e59ce8226c8b239a4190494be76cc06cd8dd04939bdcfc",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 1: TypeScript example — math spine, interchange docs, replay referee",
+      "language": "json",
+      "ordinal": 2,
+      "sha256": "69efb61f0659d17b88b7532307730e52144b01e145b056b7874523195848937a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 1: TypeScript example — math spine, interchange docs, replay referee",
+      "language": "ts",
+      "ordinal": 3,
+      "sha256": "b8eb0bd5ee7b6f3574bab8e85730ced20beb7e9691aa7b00c1b08c7709f54c48",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 1: TypeScript example — math spine, interchange docs, replay referee",
+      "language": "ts",
+      "ordinal": 4,
+      "sha256": "6af72e8eeac97e9d04b8d593ee6b5efc364fee871a22e3d9de92ba3fc761b14e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 1: TypeScript example — math spine, interchange docs, replay referee",
+      "language": "bash",
+      "ordinal": 5,
+      "sha256": "8562cb59aa0f46b27fb65f7e710f0257a6f327de30e2d64e96ea58e02f946d6a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 2: TypeScript example — agent layer (tools, tenant seam, judgment chain, disclosure)",
+      "language": "ts",
+      "ordinal": 6,
+      "sha256": "6d43f795fde0940d26c1586ce0ccfb783c96a920e2795604300c44d0734a3ad7",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 2: TypeScript example — agent layer (tools, tenant seam, judgment chain, disclosure)",
+      "language": "ts",
+      "ordinal": 7,
+      "sha256": "e62d668dd563cd9e6cb12a4d3135db405f59fb5e94dbeb456cc893743d811e43",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 2: TypeScript example — agent layer (tools, tenant seam, judgment chain, disclosure)",
+      "language": "ts",
+      "ordinal": 8,
+      "sha256": "730e17b469d7d225adafcc9bbbf5c2a204f4c75a0a895140405885a45ca5bc1d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 2: TypeScript example — agent layer (tools, tenant seam, judgment chain, disclosure)",
+      "language": "ts",
+      "ordinal": 9,
+      "sha256": "b56edbaaf0f036d939edfc32ee0b0d89391701be95efd7c84a0a46d29616c1e3",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 2: TypeScript example — agent layer (tools, tenant seam, judgment chain, disclosure)",
+      "language": "ts",
+      "ordinal": 10,
+      "sha256": "a4eb26dc48189a04f6c23816888e3d12402f441d9e2e2fdb7221e05aace74409",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 2: TypeScript example — agent layer (tools, tenant seam, judgment chain, disclosure)",
+      "language": "bash",
+      "ordinal": 11,
+      "sha256": "e538861fb0026e593a8fb30188cbe47248ea6d682741d848a30d2895bfe193f4",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "ts",
+      "ordinal": 12,
+      "sha256": "957a0095d28a24c0d075851deebec33cff257019705566e46df18662491488a8",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "ts",
+      "ordinal": 13,
+      "sha256": "11a5d1705d73c39a5cd531a07410460917b68c3ca1c644be330060cb6e82a88a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "ts",
+      "ordinal": 14,
+      "sha256": "b74efb892afb9e5b2f8bbc22c9b3420a3815805f9b54bc9ceaf6dee518b1fa61",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "ts",
+      "ordinal": 15,
+      "sha256": "d0dafdf5b74fb0bfeedde9125589a4515ce3dad957ab6a388301af6770eb3a9c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "bash",
+      "ordinal": 16,
+      "sha256": "e8ae9dffa252d2078962c82670f000375ac3fe3cd9a9f04ac8e7894a3bfc1b2e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "yaml",
+      "ordinal": 17,
+      "sha256": "d120ce177136c8e4a6942aaea8bb49d6b21cf5c5ae7495a15f1e337b1d1a9b82",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "yaml",
+      "ordinal": 18,
+      "sha256": "4e9d90b187599c674cfbc4b57edd79f67c6f5c3579c1172047234440d84a4c48",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 3: Python example + py-conformance CI extension",
+      "language": "bash",
+      "ordinal": 19,
+      "sha256": "af9efad450fb293bc2795f982224fef4967bc0f5e91fe5bc16c3b8038d19adeb",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 4: Install R locally + tools/interop/run-mack.R (the CLI entrypoint)",
+      "language": "bash",
+      "ordinal": 20,
+      "sha256": "54d4351add50a417de4f2fa090137c6f5ff97fabfbc2abd76e34a63f30c5c832",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 4: Install R locally + tools/interop/run-mack.R (the CLI entrypoint)",
+      "language": "bash",
+      "ordinal": 21,
+      "sha256": "e1d36e7cae8cf3bba863ff6cbd7b6ddcf176f3f9118d196106ab0584b9ac5cee",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 4: Install R locally + tools/interop/run-mack.R (the CLI entrypoint)",
+      "language": "r",
+      "ordinal": 22,
+      "sha256": "7058ded2d6288f5ebac23790f266338b2de59849bb2c39336dc0f78aa6346e9a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 4: Install R locally + tools/interop/run-mack.R (the CLI entrypoint)",
+      "language": "bash",
+      "ordinal": 23,
+      "sha256": "2158a36a473c3af648215b5b50b3494a0ec4681206dd264a6135aef1b852e260",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 4: Install R locally + tools/interop/run-mack.R (the CLI entrypoint)",
+      "language": "bash",
+      "ordinal": 24,
+      "sha256": "887c5f147fe2910cfdcf88a5030dbf5494f5a2e577bfe549884df1d0619c7ab0",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "ts",
+      "ordinal": 25,
+      "sha256": "c2dc7622c350eeca671b8a88b4309688bb8cc5de565191f5e0310370aa9adeef",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "ts",
+      "ordinal": 26,
+      "sha256": "6db551927784fb5e2ddb053884cb80dbf46e792a02143e65748e59c99f7c4b04",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "ts",
+      "ordinal": 27,
+      "sha256": "ca72e6555c8414358fa8a7b1778ebe972300483b9eefc17e43778142bb30432f",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "ts",
+      "ordinal": 28,
+      "sha256": "39315af45b24205b4d0b2d9349601fadcb10433fbcb55b4f2b1ce2726a3e8389",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "ts",
+      "ordinal": 29,
+      "sha256": "e3f74d099cad05bda6de24467f713c988e91ea40425da964849f39817e43c0d4",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "ts",
+      "ordinal": 30,
+      "sha256": "22aca22c90c3f4ca9dca8787bb2f571f5c40e7a2529c91d326cf45ec7a7e2f5d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "yaml",
+      "ordinal": 31,
+      "sha256": "6bf2070960c011d0cc29311c615cd919a4ecf259f63b902ab7b470c149fd6096",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "yaml",
+      "ordinal": 32,
+      "sha256": "7e1716a9885f4c7a71dc6f74adb9ba64aa006d521739b34159ed42920d626d38",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 5: R example + r-conformance CI extension",
+      "language": "bash",
+      "ordinal": 33,
+      "sha256": "0bfd6efd2d87cea382f893a6eb3961bdbaae866e585b4f32cca1420925c17653",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 6: The capstone — three live engines, one referee",
+      "language": "ts",
+      "ordinal": 34,
+      "sha256": "1b0928893417dd88c0c07f7feec5e2ed8836efc7b2770b204d8a2477fea423f1",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 6: The capstone — three live engines, one referee",
+      "language": "ts",
+      "ordinal": 35,
+      "sha256": "03f0c805251e98664084fba34a7494f3d3b8d5eec2427794cba04dfe9e3cc928",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 6: The capstone — three live engines, one referee",
+      "language": "ts",
+      "ordinal": 36,
+      "sha256": "f2165352eb2a845cdc7c6af097d13ba007c01bdb0c073d9dd0a5abe90ddc8711",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 6: The capstone — three live engines, one referee",
+      "language": "bash",
+      "ordinal": 37,
+      "sha256": "d133441920e689321d1d9198ea2e97d2691dbbfcc3bb1ba062e0750ec0e81f49",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 6: The capstone — three live engines, one referee",
+      "language": "yaml",
+      "ordinal": 38,
+      "sha256": "c2c6cc588509336bb7634216a8bf5bdecc30ffc8a69f0b595190d4fc391cf60e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 6: The capstone — three live engines, one referee",
+      "language": "bash",
+      "ordinal": 39,
+      "sha256": "ae7429a3a608128894700407dc6f780f45505cb84e17faf42d60d2380452328f",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 7: Root scripts + full verification",
+      "language": "json",
+      "ordinal": 40,
+      "sha256": "58364d5388c35ba7f51f40bbf088d4a87316392e8252fc3dfd44ce7236561024",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 7: Root scripts + full verification",
+      "language": "bash",
+      "ordinal": 41,
+      "sha256": "2a5b8150477acd9b93358b81e72c959a2e3c1d28cf779f8c087115f70c5aa491",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-19-chain-ladder-examples.md",
+      "heading": "Task 7: Root scripts + full verification",
+      "language": "bash",
+      "ordinal": 42,
+      "sha256": "2115e18accad1bfd526c40f4d9e43ff221b65fc7736507c5c7cc13b85bed387c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Generalized diagnostics SDK (0.6.0) — implementation plan",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "1c356470d929b75e7873d7396a984224217b2d791373dd6fe8e214954627808a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Dependency graph and safe parallelism",
+      "language": "text",
+      "ordinal": 2,
+      "sha256": "bb2d16df2bccbf4410a22dbf5d0fdfa61410e433876288c987a6898165fe8ab0",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 3,
+      "sha256": "66ded06df788c6a53a22e0c5f11d967a913c4352eadd63398b8529d322684b3f",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 4,
+      "sha256": "e8c365d7df9ac1c84da77e611b1cb4001bdef6e3a566516a950eb4e50360f320",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 5,
+      "sha256": "66762bb0a13c02e39d886f4b075767d95942b7e45cf02b9afbcda1eacc734a05",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 6,
+      "sha256": "fbe01731b333d213afedc9472772c001139a8f1a317a6a2a3f502bc718352ffb",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 7,
+      "sha256": "e7fc7fe00c104a618702debf64533c7ac2ac6fa8fb5ed152338a5bd3cd2b6d11",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 8,
+      "sha256": "517a2573644884b9bff8081f9f48c96ef48e2c0c669103202938cc9b9ba6acbd",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 9,
+      "sha256": "5695fdc73a56ef9d778d54633e59200ce65955a1048d3b57f715ad368ab9d61d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 10,
+      "sha256": "afec849153ccee8767a51dc82e7aaac72af89c845a610e1b1a3482d27679b2ea",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "ts",
+      "ordinal": 11,
+      "sha256": "ac2e843a61f8ede40e294c6c4f588e120bece129fb76a1e64ea66e3e0f1dda88",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 12,
+      "sha256": "b51d584e0fe50e6da9d1fdb43b43426eff492070188c21e5edc0eff9c1f4533d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 13,
+      "sha256": "b40410c84796ca627837e3aea88d83473799077e1cb320b7f1fe27665214cd62",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 14,
+      "sha256": "84deeae96d448f722bd339ea19dddb0e775f642201536f51f05234ef783dd26d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 15,
+      "sha256": "3106deaa31bb351ae405e9848c2001b6b8a9323667e740520a8dfbc9a5e55e4e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 16,
+      "sha256": "d94b9b4297f608c894b327ed58558099caa4f7ea7b30b29767da803e9899cdd2",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 17,
+      "sha256": "f25d28a07797309eb4ef86befa8522326ac9d2bf25ccd8f5540158c267bdc8b4",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 18,
+      "sha256": "7bcdb97b5e5b8c996613ea77ace6e55f316cf9807620e808015883a7def4d7cd",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 19,
+      "sha256": "c7ddfc3e787be59795ea44fbd949fbf43b5ce2977788f8fd6c64e3d28beade64",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 20,
+      "sha256": "73c2ea13c25b60094153bdb0048a84ac0eea1f2b616fd3047352a746b2168d7e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Task 16: Build the holistic real-world diagnostic pipeline",
+      "language": "text",
+      "ordinal": 21,
+      "sha256": "5adc0947ef70c2f79472047c6460dc85bfa333c65be870544361d485f00e9f63",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 22,
+      "sha256": "efd016b23f7ff4bca6f368f5a93174df89239eddd6b6df2c0ebd84ebc7f88fe0",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 23,
+      "sha256": "9147c03a4ffe0c0fcfa049eaafb9b98ad11d5f44f73c6074637223e845005883",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 24,
+      "sha256": "71b3652701a3d0c477604d6816cf338e211a9db70a4d66343e3a6f98a248d79b",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 25,
+      "sha256": "481079d400244e2ca1fe935890cffe0dc36c6f338fc5b1ddbeb42a88a686d132",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 26,
+      "sha256": "0c0a1866be2f28675e18f5b40fa0166fb21f690fb8841e62cd512d3a25515d7a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 1: CI wiring",
+      "language": "bash",
+      "ordinal": 27,
+      "sha256": "6003690487d514817922b59d01414d9639e6f106bcb00730be736a78da8b3c77",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 2: Full local test matrix",
+      "language": "bash",
+      "ordinal": 28,
+      "sha256": "cb8f4b81ebde653326fa1b59f9d6408242479b688f131f2d0b85abf6b23dd1f8",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 2: Full local test matrix",
+      "language": "bash",
+      "ordinal": 29,
+      "sha256": "f50be125ac94ca75ad59c521f9759bfb7e594dfafb300f36ab387b4fe3f32853",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 2: Full local test matrix",
+      "language": "bash",
+      "ordinal": 30,
+      "sha256": "cda94cc094fc23ea8ebab66d14312345f92415394a7573e225f31c711ed6208c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 2: Full local test matrix",
+      "language": "bash",
+      "ordinal": 31,
+      "sha256": "7fa09e86cf1d48f83a74cda87d228402f73384b9073d62b68ee8299adb7a0c75",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 4: Dependency and advisory review",
+      "language": "bash",
+      "ordinal": 32,
+      "sha256": "9ec41baa3fa7e10021699cb0f4efa128fc7b02bb735b5af0724202e5a8bebfc9",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 5: Real tarballs and clean consumer",
+      "language": "bash",
+      "ordinal": 33,
+      "sha256": "e280eb8d7fed740e9535f8531fe40f28eb58ff92be8f192f98a4cd91e0b060bc",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Step 6: Source, docs, and repository hygiene",
+      "language": "bash",
+      "ordinal": 34,
+      "sha256": "f80d9582ac7b43726427fc7c626d04108a9e514c642f7709d7819901f2b1dbfc",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 35,
+      "sha256": "4352ea4d47e1f7755c370ad41086071a89faac2239686c7df7700901544b3d79",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Steps",
+      "language": "bash",
+      "ordinal": 36,
+      "sha256": "5edc882ac52a46315cb45e4e599ab93ad013bdafa7c00864863e5c04fc43c9af",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-07-expected-losses-design.md",
+      "heading": "WorkspaceState additions (with in-place migration, like weightsByOrigin)",
+      "language": "text",
+      "ordinal": 1,
+      "sha256": "4f3193cd6b8eb3248423849e904357a6318a64a30ebc8a5694814ef76755877a",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-18-chain-ladder-examples-design.md",
+      "heading": "2. Architecture",
+      "language": "text",
+      "ordinal": 1,
+      "sha256": "8e8cbf53e0ac85bc5e5aaa7777322b15c7acaf6e6efc5fdf2621361fa0e099b0",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-18-chain-ladder-examples-design.md",
+      "heading": "2. Architecture",
+      "language": "text",
+      "ordinal": 2,
+      "sha256": "aab11efa99ab82b2e57584e51649635e3c8d3b1264a68e05f644ba32ff3ac9f9",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-18-chain-ladder-examples-design.md",
+      "heading": "3. The spine — identical in all three shore examples",
+      "language": "text",
+      "ordinal": 3,
+      "sha256": "2c685518b39fb8d12f71bcd2aa601c5b9c3f4d76315cc68fbda99a705abe0c93",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-18-chain-ladder-examples-design.md",
+      "heading": "5.1 tools/interop/run-mack.R — new, ~40 lines",
+      "language": "text",
+      "ordinal": 4,
+      "sha256": "b335152e39ffef8689616b4e8d22c1d1838d907770eb1cda55015885245bb782",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-18-chain-ladder-examples-design.md",
+      "heading": "6.1 Root scripts",
+      "language": "text",
+      "ordinal": 5,
+      "sha256": "1939a3d0e43ecc224abef765dd61b985535e666b68985e0ce5ecd37375e81355",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-19-chain-ladder-app-design.md",
+      "heading": "3. Architecture",
+      "language": "text",
+      "ordinal": 1,
+      "sha256": "91b4a14f7233985863fd924307ff9a71deab936ef056f1af4f2ad5e427c398f4",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "2. Why this shape",
+      "language": "text",
+      "ordinal": 1,
+      "sha256": "92de221516c69154820f0d054c7a61cb223d4dd1673a80f4d81477b531d26ba9",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "5. Public definition model",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "9a4b69c341b9bafa69b527ed616f9ef16981f0fe11783ec47cf10dfe8cd41aaa",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "5. Public definition model",
+      "language": "ts",
+      "ordinal": 3,
+      "sha256": "e61e1ac59eca3a9120609e17e6128cab30a66e834dab5ae6bfc5f5bd26e4c412",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "6. Structured amount bases",
+      "language": "ts",
+      "ordinal": 4,
+      "sha256": "554a385d24d8fee46085f8f09a3f6fb9fc5d084fca5cbc06058cf1816c75e453",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "7. Expressions, formula templates, and bindings",
+      "language": "ts",
+      "ordinal": 5,
+      "sha256": "d62bb80dbdfa61c52ccb5cf458d9031b48fb8064a480f973b9482647b37c020c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "7. Expressions, formula templates, and bindings",
+      "language": "ts",
+      "ordinal": 6,
+      "sha256": "5df21d2f49b888d47543c1e5b2a710b865388365761af3d10e465d75416035e4",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Standard formula templates",
+      "language": "ts",
+      "ordinal": 7,
+      "sha256": "0d71f8a467047b82068df1b778df34a5500fdf0dd41d7c460bd9cf6b839dd9ad",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "8. Casualty reference factory",
+      "language": "ts",
+      "ordinal": 8,
+      "sha256": "935ffc6c142d50e711de7e98245b592890bf2d9b129738d1016364f3acc7f3df",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "8. Casualty reference factory",
+      "language": "text",
+      "ordinal": 9,
+      "sha256": "c5cd3441d0afaaaa00e9bf5e725946f32c139fe2057a0808cbb1d6e38b3e6d3d",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "8. Casualty reference factory",
+      "language": "text",
+      "ordinal": 10,
+      "sha256": "d47d7dbf0d64d9aca98aef479bbb5a2e28e91b6ee4eb2213ac37ea8041863f77",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "9. Claim-level derived measures",
+      "language": "ts",
+      "ordinal": 11,
+      "sha256": "224cf1f72f0213dbbe768f0031d6dff791e5a030a711d7c042946d7d57970151",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "10. Aggregation and missingness",
+      "language": "ts",
+      "ordinal": 12,
+      "sha256": "058a6b2ce9613718ef3d21f22da84755d9af80a9087fca4bf2e7d71727746f21",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "11. Exposure timing",
+      "language": "ts",
+      "ordinal": 13,
+      "sha256": "0926a17f61fc5e05a9162f27cda73d49167e2f4f26cc9a3ede03ca164172532f",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "12. Period axes",
+      "language": "ts",
+      "ordinal": 14,
+      "sha256": "ed5abe4f64d48222bb0947abfd74dbd9696b97d2ad4fa4ea6f9299d571826eda",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "12. Period axes",
+      "language": "text",
+      "ordinal": 15,
+      "sha256": "879c415291146f4da60a7e4ee9559463be25eeaaef6f9e042c3a5f9ce515df24",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Core metric rules",
+      "language": "ts",
+      "ordinal": 16,
+      "sha256": "19cd943ee831913f525b112ec9ad88d5572297660a0d96ee66710be0a4333980",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Data review",
+      "language": "ts",
+      "ordinal": 17,
+      "sha256": "92be1bbd5cc39a36e9aca67fab81eeaa218d5d37b3867df48f496f8d29d2561f",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Data review",
+      "language": "ts",
+      "ordinal": 18,
+      "sha256": "87ea612ada8d90d5368866b5fa5a4ecd3cf1e0b26230376f81b38c8ae8d09207",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Data review",
+      "language": "ts",
+      "ordinal": 19,
+      "sha256": "34a574d6e44ebb9898b8205a6ab1f0d6107e78ff394b434f9637ff50df56b1ba",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "Data review",
+      "language": "ts",
+      "ordinal": 20,
+      "sha256": "3ca9ef645fddfcc3fc65e06449f6b6dc7dc03e86076a616ce658af46714dbb23",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "14. Results and projections",
+      "language": "ts",
+      "ordinal": 21,
+      "sha256": "04f8a56c671dada5073b8e4911dc73df3ad27fd9a9c9a646d2149150365d6f5d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "14. Results and projections",
+      "language": "ts",
+      "ordinal": 22,
+      "sha256": "150c5174f26fbc8beeaf588ea202cef0bc709020dc9cb502ae8f4a7be253f40c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "14. Results and projections",
+      "language": "ts",
+      "ordinal": 23,
+      "sha256": "7b9232cc781590f0dbe0b89127161b2c3e6be3443b9f47578aecdc8fd95464f9",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "15. Deterministic identities",
+      "language": "ts",
+      "ordinal": 24,
+      "sha256": "febc064435ef261a05ea40641d1cbc03d5d9c6b7872cf5546c7f8cb5dff5fe10",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "15. Deterministic identities",
+      "language": "ts",
+      "ordinal": 25,
+      "sha256": "e57e6b609d6a59d9a3a9675a034fb922ca8e59c06126618626bded09d7d9f98c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "15. Deterministic identities",
+      "language": "text",
+      "ordinal": 26,
+      "sha256": "fe56c3d57345b944a838c1da16b4eac0c6a7e7fa9c50f75c8eed8f6d0324f250",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "16. Run manifest and result identity",
+      "language": "ts",
+      "ordinal": 27,
+      "sha256": "26e82390120a4031885bd7ce2d85f2efb124bf57dfcec58a44444765b83c8cae",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "17. Typed interchange contract",
+      "language": "ts",
+      "ordinal": 28,
+      "sha256": "f1cf41b9c4d32a1b11e54d3b68b36471f0e44dd7e6a53e0c73c4c0dff9e60f09",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md",
+      "heading": "@actuarial-ts/agents",
+      "language": "ts",
+      "ordinal": 29,
+      "sha256": "1420b7590a7332161efa89460e9f9ac6a0a0319b6a956454f49d2ea3681fffb3",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "examples/real-world-loss-run/README.md",
+      "heading": "Real-world loss development and exposures",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "f32363e41515783b4f636bbe5dbec5e640bae24de2c6c3f1da0bfabf4f823847",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "examples/real-world-loss-run/README.md",
+      "heading": "Real-world loss development and exposures",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "5f3a406d85f06726da55365d7f0634d3d7010c0a97d4be646f6b48875cc399d2",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "examples/real-world-loss-run/SOURCE.md",
+      "heading": "Reproduction",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "7025ccbf060a18673e0c7891be824015c6c64a3c62d7aa29a6d4728452c5f4af",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/conformance/README.md",
+      "heading": "Layout",
+      "language": "text",
+      "ordinal": 1,
+      "sha256": "0d20a942c1168857c1dd056ca22b8112fc130cbd92ca82449bf51805b68fb9d7",
+      "classification": "reviewed-illustrative",
+      "reason": "Non-executable output, diagram, or prose example."
+    },
+    {
+      "path": "interop/conformance/README.md",
+      "heading": "Running",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "7b8a666eb366c7ce153e27a8db8c0dd8e1874ada15154eedd8bc9d82c39ba8f7",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/conformance/README.md",
+      "heading": "Running",
+      "language": "bash",
+      "ordinal": 3,
+      "sha256": "018c0248426dcbd69c5f1a3ffe2aa5e7ac415ea3115c630d12eb7e544fd107e3",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/python/README.md",
+      "heading": "actuarial-interchange (Python)",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "4c79505d0ef367a3dede84811bd5c4d8921288847bc812f0ad6819ad799b5d69",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/sidecar/README.md",
+      "heading": "POST /v1/run/{method} (bearer auth)",
+      "language": "jsonc",
+      "ordinal": 1,
+      "sha256": "eed43033b4a91d1e8a52987afecfd219fbec816b064bbebcdc8391e7655cf72e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/sidecar/README.md",
+      "heading": "Running",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "8e81f1bb394f825c547685fe9f5b2b6130517acb093e24e35fbaac617e5aa63c",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/sidecar/README.md",
+      "heading": "Running",
+      "language": "bash",
+      "ordinal": 3,
+      "sha256": "8c018296c8daac80042306e7460608574c25392a937abfa5e3b099a841a2c426",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "interop/sidecar/README.md",
+      "heading": "Tests",
+      "language": "bash",
+      "ordinal": 4,
+      "sha256": "ded444f3a71519cefcaa805b61b5ad18ee5f6f2c4cfc6a6007583abab9f9036e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/agents/README.md",
+      "heading": "@actuarial-ts/agents",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "18a1bee3caba6227195db2b61157d18fe4ff6265c4c2fc3b12631c3a04073732",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/agents/README.md",
+      "heading": "Trusted diagnostic selection",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "8517260d3223c810f63b15698076ad797b0acb455c7de1a006c1c35beded719a",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/agents/README.md",
+      "heading": "Trusted diagnostic selection",
+      "language": "ts",
+      "ordinal": 3,
+      "sha256": "13b1a768537988cf2a292a235123d8c61df82c7849e4d0b667ebcd91bf9704bb",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/compliance/README.md",
+      "heading": "@actuarial-ts/compliance",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "6153b3786b1803d335b39c34ca17e6c41bbb9577ec3d0a5ce29fb31a53c59384",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/compliance/README.md",
+      "heading": "Diagnostic provenance",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "9ed800fbcabd584fa1705f22a10c3611500149628d6e673c6f7ffd902ef56c8d",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/core/README.md",
+      "heading": "Install",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "efdbaaef14d9f15d3b084aeb36a7141e103695291da92e60bc667e63b8d9e544",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/core/README.md",
+      "heading": "Reserving quick start",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "e86c09233a344ddf911966807ccbc97f6ae4a352e06f56578d6d3d6711b303fa",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/core/README.md",
+      "heading": "Generalized diagnostics",
+      "language": "ts",
+      "ordinal": 3,
+      "sha256": "9b30afc5812dd8a523aedc1e5f3e22655a0bd114050b2b5a51c444802f2c20e1",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/data/README.md",
+      "heading": "@actuarial-ts/data",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "33546b3e12f0894d8e4188b1d56396bdf186669881d0aeabbd5bad9763e1ad6e",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/data/README.md",
+      "heading": "Diagnostic run boundary",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "3d1c51b6c5702b851daf6ed7de92ed8dbe73ce5256d89130bc9a6776c96a04c8",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/interchange/README.md",
+      "heading": "@actuarial-ts/interchange",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "9bd3a008db7efc3a98646dbb24f14e906c0d5526424c5c037f768c9efb8ee111",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "packages/interchange/README.md",
+      "heading": "Document kinds",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "a11996342b14743d68fa7dbf1c8cd2ecc79860d4dae54d79e10672971d37e0a1",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "tools/interop/README.md",
+      "heading": "Setup (once)",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "1a8bfb0060038c1033dc2710d843b1fab58d55f2d8642e33badf1237622178ad",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    },
+    {
+      "path": "tools/interop/README.md",
+      "heading": "Run",
+      "language": "bash",
+      "ordinal": 2,
+      "sha256": "124b9af3bbd62da16bb7e7b24394cdc78ddf6d0e548c7e642a3cff8a10bcd9d6",
+      "classification": "reviewed-public",
+      "reason": "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
+    }
+  ]
+}

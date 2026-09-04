@@ -12,12 +12,12 @@ package (`interop/python`), integrity tags and all.
 
 ```jsonc
 {
-  "triangles": { "primary": TriangleDoc, "secondary": TriangleDoc? },  // secondary: MunichAdjustment's incurred (primary = paid)
-  "selection": SelectionDoc?,          // replayed per the spec 3.2 intent equivalence table
-  "exposure": { "origins": ["2001", ...], "values": [10000, ...], "kind": "earnedPremium" }?,  // BF/Benktander/CapeCod apriori base
-  "parameters": { ... },               // method-specific, schema'd per method (unknown keys are 422)
-  "seed": 42?,                         // BootstrapODPSample only (REQUIRED there, refused elsewhere)
-  "engagementRef": "ENG-2026-071"?     // opaque passthrough into the result's extensions
+  "triangles": { "primary": "<TriangleDoc>", "secondary": "<optional TriangleDoc>" },  // secondary: MunichAdjustment's incurred (primary = paid)
+  "selection": "<optional SelectionDoc>",          // replayed per the spec 3.2 intent equivalence table
+  "exposure": { "origins": ["2001", "..."], "values": [10000, "..."], "kind": "earnedPremium" },  // optional BF/Benktander/CapeCod apriori base
+  "parameters": { "methodSpecific": "..." },      // method-specific, schema'd per method (unknown keys are 422)
+  "seed": 42,                                      // optional; BootstrapODPSample requires it and other methods refuse it
+  "engagementRef": "ENG-2026-071"                  // optional opaque passthrough into the result's extensions
 }
 ```
 
@@ -86,8 +86,12 @@ interchange: { specVersion, generator } }`.
 
 ## Running
 
-Local (needs `.venv-interop` with `actuarial-interchange` installed
-editable — see `interop/conformance/README.md`):
+Local release verification uses Python 3.12 and the exact scientific stack in
+`requirements.txt`/`requirements-dev.txt`. This is distinct from the Python
+3.10 floor for the base document adapter, which does not claim support for the
+optional scientific bridge. The stable full lifecycle is `npm run release:gate`.
+
+Authenticated local boot (after creating the pinned environment):
 
 ```bash
 PYTHONPATH=interop SIDECAR_TOKEN=dev-secret .venv-interop/bin/python -m sidecar

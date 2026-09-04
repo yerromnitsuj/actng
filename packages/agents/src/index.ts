@@ -7,3 +7,4 @@ export * from "./evals.js";
 export * from "./divergence.js";
 export * from "./remote.js";
 export * from "./mcp.js";
+export * from "./diagnostics.js";

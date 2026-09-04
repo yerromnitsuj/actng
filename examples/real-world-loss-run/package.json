@@ -10,12 +10,14 @@
     "typecheck": "tsc --noEmit",
     "data:fetch": "tsx scripts/fetch-source.mts",
     "data:rebuild": "Rscript scripts/transform-source.R .cache/freclaimset2motor.rda data generated",
-    "data:refresh": "npm run data:fetch && npm run data:rebuild"
+    "data:refresh": "npm run data:fetch && npm run data:rebuild",
+    "determinism": "tsx scripts/check-determinism.mts"
   },
   "dependencies": {
     "@actuarial-ts/compliance": "*",
     "@actuarial-ts/core": "*",
     "@actuarial-ts/data": "*",
+    "@actuarial-ts/interchange": "*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

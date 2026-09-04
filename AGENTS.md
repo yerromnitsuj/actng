@@ -5,9 +5,10 @@ Open-source P&C actuarial SDK + the actuarial-interchange interop layer. npm-wor
 `@actuarial-ts/*` SDK (see the package manifests and CHANGELOG for the current
 release; core is the pure math;
 builds to dist/ via a `prepare` script — dist is gitignored, regenerated on
-`npm install`), and `examples/reserve-review` — a runnable, TESTED end-to-end
-consumer of all five packages that exists so API awkwardness surfaces here
-before it reaches users. The ActNG reserving workbench was extracted to its own
+`npm install`), and `examples/reserve-review` — a runnable, TESTED deterministic
+consumer of core, interchange, data, and compliance. Agent tools require a host
+context and are exercised by their trusted-catalog suite and the clean all-five
+packed consumer. The ActNG reserving workbench was extracted to its own
 repository on 2026-07-18 and now consumes the published packages. A third body of work
 lives alongside these: the actuarial-interchange interop layer - `interop/`
 (Python shore, frozen conformance corpus, chainladder-python sidecar),
@@ -41,7 +42,7 @@ vectors).
   `node_modules/@mastra/core/dist/**/*.d.ts` before writing agent code. The
   mastra docs MCP server can lag releases; trust order: installed types >
   npm dist-tags > docs server > training data.
-- Current (1.49) shapes used here: `createTool({ execute: async (input, context) })`
+- Current lock-tested (1.64) shapes used here: `createTool({ execute: async (input, context) })`
   with direct args; `RequestContext` from `@mastra/core/request-context`;
   `agent.stream(messages, { memory: { thread, resource }, requestContext, maxSteps })`;
   fullStream chunks are `{ type: "text-delta", delta }` and

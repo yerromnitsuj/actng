@@ -42,6 +42,19 @@ Publishing requires an account with owner/admin rights on the
 
 ## Release (per version)
 
+For `0.6.0` and later, first run the stable local candidate gate:
+
+```bash
+PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" npm run release:gate
+```
+
+It includes clean tarball consumers. After publishing—but before tagging—run
+the identical public fixture against the registry with
+`node tools/release/smoke-packed-diagnostics.mjs --source=registry --version=X.Y.Z`.
+Record the exact release-source SHA and require CI, Python conformance, and R
+conformance to pass on that SHA. Historical release records above remain the
+record of their own procedures.
+
 From the repo root, with the new version X.Y.Z:
 
 1. Bump `version` in all FIVE `packages/*/package.json` (core, interchange,

@@ -11,7 +11,7 @@ may differ; the response's integrity tag must verify against its own body.
 
 from __future__ import annotations
 
-from actuarial_interchange import parse_document
+from actuarial_interchange import GENERATOR_NAME, GENERATOR_VERSION, SPEC_VERSION, parse_document
 
 from .conftest import assert_semantically_equal, load_fixture
 
@@ -21,9 +21,9 @@ def _post_run(client, auth, method: str, body: dict):
 
 
 def _assert_envelope_matches(response_doc: dict, committed: dict) -> None:
-    assert response_doc["interchangeVersion"] == committed["interchangeVersion"]
+    assert response_doc["interchangeVersion"] == SPEC_VERSION
     assert response_doc["kind"] == committed["kind"]
-    assert response_doc["generator"] == committed["generator"]
+    assert response_doc["generator"] == {"name": GENERATOR_NAME, "version": GENERATOR_VERSION}
     assert response_doc["extensions"] == committed["extensions"]
     # createdAt differs by design (the sidecar stamps its own clock); the
     # integrity tag must be consistent with the RESPONSE body — parsing

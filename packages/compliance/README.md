@@ -1,96 +1,60 @@
 # @actuarial-ts/compliance
 
-The compliance-support layer of the actuarial-ts SDK: the part no
-calculator ships. It turns an analysis into the documentation the
-Actuarial Standards of Practice ask for.
+Documentation, judgment, provenance, and reproducibility primitives for actuarial-ts. The package is designed to support compliance work under applicable ASOPs; it neither determines compliance nor replaces the actuary’s review.
 
-- **Estimate metadata** (ASOP 43): intended purpose and measure, gross/net
-  basis, LAE treatment, and the accounting / valuation / review dates — as
-  typed, validated fields instead of tribal knowledge.
-- **Assumption ledger** (ASOPs 41/43/56): an immutable record of every
-  selection, distinguishing machine defaults from human or agent judgment;
-  judgment entries require a rationale.
-- **Disclosure generator** (ASOP 41): renders a methods-assumptions-and-data
-  appendix from the analysis itself — written to the "another qualified
-  actuary could appraise it" bar, deterministic to the byte.
-- **Model cards** (ASOP 56): intended use, specification, key assumptions,
-  known weaknesses, and sensitivities for every method the SDK ships (a
-  cross-package sync test enforces the completeness, so the registry can
-  never silently fall behind core) — the
-  "basic understanding" content an actuary relying on vendor models must
-  hold and disclose.
-- **Reproducibility bundles** (ASOP 21 / 56): canonical serialization of
-  inputs, parameters, and results with an integrity tag, so an analysis
-  re-runs identically years later for an auditor or examiner.
-- **Diagnostics provenance composition**: `createDiagnosticsProvenance`
-  snapshots formula-pack/metric versions, executable-definition metadata,
-  layer configuration, exposure basis and scale, sparse/age conventions,
-  cutoffs, caller-selected filters/groups, and caller-owned input IDs/hashes.
-- **Actual-vs-expected roll-forward**: expected emergence from the prior
-  valuation's pattern versus actual, by origin.
+```bash
+npm install @actuarial-ts/compliance@0.6.0 @actuarial-ts/core@0.6.0 @actuarial-ts/data@0.6.0 @actuarial-ts/interchange@0.6.0
+```
 
-Everything here is pure, deterministic, and browser-safe: no clock reads,
-no randomness, no node builtins. Identical inputs produce byte-identical
-documents.
+Node 20+, ESM.
 
-## Quickstart
+## Diagnostic provenance
+
+`createDiagnosticRunIdentity` accepts only an owner-authenticated, completed data-package run. It does not accept caller-restated formulas, filters, review status, or result identities.
 
 ```ts
-import { runChainLadder, runMack } from "@actuarial-ts/core";
-import {
-  createLedger,
-  recordAssumption,
-  generateDisclosure,
-} from "@actuarial-ts/compliance";
+import { createBundle, createDiagnosticRunIdentity } from "@actuarial-ts/compliance";
 
-let ledger = createLedger();
-ledger = recordAssumption(ledger, {
-  timestamp: "2026-01-05T10:05:00Z",
-  actor: "actuary",
-  field: "paid.tailFactor",
-  value: 1.02,
-  rationale: "Exponential-decay fit valid with R^2 0.97; judgmentally confirmed",
-  source: "fitted",
+if (outcome.status !== "completed") throw new Error(`diagnostics blocked at ${outcome.stage}`);
+
+const provenance = await createDiagnosticRunIdentity({
+  completedRun: outcome,
+  artifacts: [
+    { id: "loss-run", scope: "input", assurance: "sdk-computed", bytes: lossRunBytes },
+    { id: "exposures", scope: "input", assurance: "sdk-computed", bytes: exposureBytes },
+    { id: "source-archive", scope: "input", assurance: "caller-declared", algorithm: "sha-256", value: archiveSha256, byteLength: archiveByteLength },
+    { id: "transform-script", scope: "preparation", assurance: "caller-declared", algorithm: "git-sha", value: transformCommit, byteLength: 0 },
+  ],
+  lineage: [
+    { artifactId: "loss-run", inputArtifactIds: ["source-archive", "transform-script"] },
+  ],
 });
 
-const cl = runChainLadder(paidTriangle, { selected, tailFactor: 1.02 });
-const mack = runMack(paidTriangle, { selected, tailFactor: 1.02 });
-
-const markdown = generateDisclosure({
-  metadata: {
-    intendedPurpose: "Estimate unpaid claims for year-end statutory reporting",
-    intendedMeasure: { kind: "central-estimate" },
-    basis: { grossNet: "gross", laeTreatment: "dcc-only" },
-    accountingDate: "2025-12-31",
-    valuationDate: "2025-12-31",
-  },
-  methods: [
-    { methodId: "chainLadder", basisLabel: "paid", parameters: { selected, tailFactor: 1.02 }, resultSummary: { ultimate: cl.totals.ultimate, unpaid: cl.totals.unpaid } },
-    { methodId: "mack", basisLabel: "paid", resultSummary: { standardError: mack.totals.standardError } },
-  ],
-  ledger,
-  sdkVersion: "0.5.0",
-  generatedAt: "2026-01-05T10:15:00Z",
+const bundle = createBundle({
+  inputs,
+  parameters,
+  results: outcome.result,
+  sdkVersions: { ...provenance.manifest.packageVersions },
+  createdAt: "2026-09-03T00:00:00Z",
+  diagnosticRuns: [provenance],
+  wrap: { triangles: [], selections: [], results: [] },
 });
 ```
 
-Diagnostic numeric results remain independent of this package. When an audit
-record is needed, call `createDiagnosticsProvenance({ metrics, layers, ... })`
-and place the returned plain record in `createBundle(...).parameters` or an
-interchange document's `extensions`. Executable warning callbacks are excluded
-from the record; their metric definition version is retained. Hashing,
-timestamps, persistence, and signatures remain caller-owned.
+SDK-computed evidence requires actual `Uint8Array` bytes and records SHA-256 plus exact byte length. Caller-declared digests remain explicitly unverified. All evidence is synchronously validated and copied before hashing. Source, dataset fallback, external transformation, layer-comparability rationale, and fail-override references must resolve to the correct artifact scope. Lineage must have unique producers, resolve completely, be acyclic, and contain no orphan evidence.
 
-## The honest claim
+The manifest contains the complete normalized definition, preparation identity and input audit, filter, cutoffs, expected-grid identity, grouping, review identity, two-gate execution policy, artifact graph, and core/data/compliance versions. The provenance adds the authentic complete result and separate run, result-content, and run-result binding fingerprints. Creation verifies preparation integrity, regenerates review and both gates, reruns core, and compares normalized output before stamping.
 
-The ASB does not approve, certify, or endorse software, and no software can
-be "ASOP-compliant" on its own — compliance is a property of a credentialed
-actuary's work in context. This package is **designed to support the
-actuary's compliance** with ASOP Nos. 41, 43, 23, 56, 21, and 20 by generating
-the disclosures, documentation, and audit artifacts those standards call
-for. The generated documents are draft support material for the responsible
-actuary to review, edit, and adopt.
+The returned `VerifiedDiagnosticRunProvenance` is frozen and registered in private owner state. A cast, clone, or parsed JSON object cannot author a new bundle. Use `verifyDiagnosticRunIdentity(stored, sameRunAndEvidence)` to regenerate and authenticate stored provenance; it reports the first mismatching JSON path and returns regenerated authentic review text rather than trusting stored prose.
+
+Wrapped bundles include one deduplicated typed `diagnostic-definition` document per definition and require the outer SDK versions/generator to agree with every run manifest. FNV-1a/JCS tags are deterministic integrity aids, not cryptographic authentication.
+
+Material host judgments worth recording in the assumption ledger include amount basis and limit application, expense treatment, missingness, exposure timing, period convention, filters/grouping, communicated scale, and any policy that permits a failed review. Helpers never invent an actuary’s rationale.
+
+The package also provides estimate metadata, assumption ledgers, ASOP No. 41 draft disclosure generation, ASOP No. 56 model cards, actual-versus-expected roll-forward, and canonical reproducibility bundles.
+
+See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.0/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 
-Apache-2.0. Copyright 2026 Justin Morrey.
+Apache-2.0. See LICENSE and NOTICE.

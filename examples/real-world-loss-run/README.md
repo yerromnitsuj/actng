@@ -16,12 +16,18 @@ cannot:
 - exposure-based Cape Cod using insurance-years without relabeling GWP as
   earned premium; and
 - a generated draft disclosure carrying the data limitations and illustrative
-  factor selections.
+  factor selections; and
+- all six generalized casualty formulas through 22 gross/net calculation
+  instances over 210 annual cells, followed by review gates, cryptographic
+  artifact evidence, a typed interchange definition, and a compliance bundle.
 
 Run the offline example:
 
 ```bash
 npm run example -w @actuarial-ts/example-real-world-loss-run
+npm test -w @actuarial-ts/example-real-world-loss-run
+npm run typecheck -w @actuarial-ts/example-real-world-loss-run
+npm run determinism -w @actuarial-ts/example-real-world-loss-run
 ```
 
 The ordinary example reads compact committed derivatives, so installs and CI
@@ -36,6 +42,11 @@ That command verifies the source SHA-256 before writing anything and requires
 base R. See [SOURCE.md](./SOURCE.md) for every mapping and transformation
 choice, and [DATA-NOTICE.md](./DATA-NOTICE.md) for the separate Etalab data
 licence and attribution.
+
+The deterministic diagnostic run records the pinned archive, source manifest,
+and transformation script as upstream evidence for both committed derivative
+files. The determinism gate runs the complete public outcome in two clean Node
+processes and requires byte-identical canonical JSON.
 
 The all-year volume-weighted development factors and 1.0 tail are illustrative
 selections. They are recorded as judgments; the example does not recommend

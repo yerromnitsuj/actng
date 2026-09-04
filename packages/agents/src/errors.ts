@@ -43,6 +43,13 @@ export const AGENTS_ERROR_CODES = [
   "REMOTE_RESULT_INVALID",
   /** The boot self-test found an MCP-exposed probe tool that did NOT fail closed without tenant context; the MCP tenant seam is not wired up and the server must abort startup. */
   "MCP_SELF_TEST_FAILED",
+  "BAD_DIAGNOSTIC_CATALOG",
+  "UNKNOWN_DIAGNOSTIC_PRESET",
+  "UNAPPROVED_DIAGNOSTIC_INSTANCE",
+  "DIAGNOSTIC_RUN_MISMATCH",
+  "BAD_OUTPUT_SCHEMA",
+  "TOOL_INPUT_INVALID",
+  "TOOL_OUTPUT_INVALID",
 ] as const;
 
 export type AgentsErrorCode = (typeof AGENTS_ERROR_CODES)[number];

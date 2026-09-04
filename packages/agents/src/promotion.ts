@@ -408,6 +408,7 @@ function structuralCheck(
     description,
     status: findings.length > 0 ? "warning" : "pass",
     details: capDetails(findings),
+    findings: findings.map((message) => ({ code: id, message, context: {} })),
   };
 }
 
@@ -472,6 +473,7 @@ function notEvaluatedReview(reason: string): DataReviewReport {
         description: "ASOP 23-oriented triangle review",
         status: "not-evaluated",
         details: [`not evaluated: ${reason}`],
+        findings: [],
       },
     ],
     summary: { pass: 0, warning: 0, fail: 0, notEvaluated: 1 },
