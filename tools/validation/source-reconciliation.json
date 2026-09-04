@@ -15,10 +15,141 @@
       "toleranceRationale": "Paper printing precision; exact engine total SE is separately pinned.",
       "test": {
         "path": "packages/core/test/validation.test.ts",
-        "implementationId": "Mack (1993) Tables 1-3: Taylor/Ashe standard errors"
+        "implementationId": "Mack (1993) Tables 1-3: Taylor/Ashe standard errors",
+        "cases": [
+          {
+            "fullName": "Mack (1993) Table 1: Taylor/Ashe chain ladder > reproduces the published chain ladder reserves by origin and in total",
+            "assertions": 11
+          },
+          {
+            "fullName": "Mack (1993) Table 1: Taylor/Ashe chain ladder > reproduces the published development factors",
+            "assertions": 19
+          },
+          {
+            "fullName": "Mack (1993) Tables 1-3: Taylor/Ashe standard errors > pins the total standard error itself, not only its percentage",
+            "assertions": 1
+          },
+          {
+            "fullName": "Mack (1993) Tables 1-3: Taylor/Ashe standard errors > reproduces the published sigma^2 estimates including the extrapolated last value",
+            "assertions": 10
+          },
+          {
+            "fullName": "Mack (1993) Tables 1-3: Taylor/Ashe standard errors > reproduces the published standard errors as % of reserve",
+            "assertions": 10
+          },
+          {
+            "fullName": "Mack on the selected basis (selected factors + tail) > a tail strictly increases the total standard error and flags the approximation",
+            "assertions": 5
+          },
+          {
+            "fullName": "Mack on the selected basis (selected factors + tail) > agrees with the chain ladder's ultimates row for row on the same selections and tail",
+            "assertions": 21
+          },
+          {
+            "fullName": "Mack on the selected basis (selected factors + tail) > is identical to Mack (1993) when the selections ARE the volume-weighted factors and there is no tail",
+            "assertions": 21
+          },
+          {
+            "fullName": "Mack on the selected basis (selected factors + tail) > warns when a non-positive selected factor is coerced to 1.000 (parity with chain ladder)",
+            "assertions": 2
+          }
+        ],
+        "assertionCount": 100,
+        "sha256": "d521e5d0af69357f63b2a22400788675fc03eb6a099f895696f8c2cb5b155f06"
       },
-      "shores": ["typescript", "python", "r"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript",
+        "python",
+        "r"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate",
+        "test:py",
+        "R interop"
+      ],
+      "expected": {
+        "taylorAshePublished": {
+          "factors": [
+            3.49,
+            1.75,
+            1.46,
+            1.174,
+            1.104,
+            1.086,
+            1.054,
+            1.077,
+            1.018
+          ],
+          "factorTolerance": [
+            0.005,
+            0.005,
+            0.005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005
+          ],
+          "sigma2Over1000": [
+            160,
+            37.7,
+            42,
+            15.2,
+            13.7,
+            8.19,
+            0.447,
+            1.15,
+            0.447
+          ],
+          "reservesIn1000s": [
+            95,
+            470,
+            710,
+            985,
+            1419,
+            2178,
+            3920,
+            4279,
+            4626
+          ],
+          "totalReserveIn1000s": 18681,
+          "sePercent": [
+            80,
+            26,
+            19,
+            27,
+            29,
+            26,
+            22,
+            23,
+            29
+          ],
+          "totalSePercent": 13
+        },
+        "literal:2447094.8608346656": 2447094.8608346656
+      },
+      "tolerances": {
+        "toBeLessThanOrEqual:1": 1,
+        "toBeLessThanOrEqual:2": 2,
+        "toBeLessThanOrEqual:0.01": 0.01,
+        "decimalPlaces:6": 6,
+        "toBeGreaterThan:0": 0
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims.",
+        "preciseTotalStandardError": "2,447,094.8608346656 is the precise R ChainLadder crosscheck; Mack prints 2,447 thousand. Neither precision is attributed to the paper."
+      },
+      "expectedBindings": [
+        {
+          "key": "taylorAshePublished",
+          "fixture": "packages/core/test/fixtures/mack1993.ts",
+          "exportName": "taylorAshePublished"
+        }
+      ]
     },
     {
       "id": "mack-1993-mortgage",
@@ -34,10 +165,142 @@
       "toleranceRationale": "Paper printing precision; mortgage total-SE regression is mandatory.",
       "test": {
         "path": "packages/core/test/validation.test.ts",
-        "implementationId": "Mack (1993) Tables 4-6: mortgage guarantee data"
+        "implementationId": "Mack (1993) Tables 4-6: mortgage guarantee data",
+        "cases": [
+          {
+            "fullName": "Mack (1993) Tables 4-6: mortgage guarantee data > reproduces the published chain ladder reserves",
+            "assertions": 9
+          },
+          {
+            "fullName": "Mack (1993) Tables 4-6: mortgage guarantee data > reproduces the published development factors",
+            "assertions": 16
+          },
+          {
+            "fullName": "Mack (1993) Tables 4-6: mortgage guarantee data > reproduces the published sigma^2 estimates",
+            "assertions": 8
+          },
+          {
+            "fullName": "Mack (1993) Tables 4-6: mortgage guarantee data > reproduces the published standard errors as % of reserve",
+            "assertions": 10
+          }
+        ],
+        "assertionCount": 43,
+        "sha256": "d521e5d0af69357f63b2a22400788675fc03eb6a099f895696f8c2cb5b155f06"
       },
-      "shores": ["typescript", "python", "r"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript",
+        "python",
+        "r"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate",
+        "test:py",
+        "R interop"
+      ],
+      "expected": {
+        "mortgagePublished": {
+          "factors": [
+            11.1,
+            4.092,
+            1.708,
+            1.276,
+            1.139,
+            1.069,
+            1.026,
+            1.023
+          ],
+          "factorTolerance": [
+            0.05,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005
+          ],
+          "sigma2Over1000": [
+            1787,
+            977,
+            194,
+            42.8,
+            27,
+            5.57,
+            1.26,
+            0.285
+          ],
+          "reservesIn1000s": [
+            93,
+            265,
+            834,
+            1568,
+            3696,
+            3487,
+            2956,
+            1647
+          ],
+          "totalReserveIn1000s": 14547,
+          "sePercent": [
+            65,
+            53,
+            38,
+            38,
+            28,
+            37,
+            61,
+            133
+          ],
+          "totalSePercent": 26,
+          "totalStandardError": 3728870.241257798,
+          "tailFactor": 1.05,
+          "ultimatesWithTailIn1000s": [
+            2048,
+            4420,
+            5888,
+            8073,
+            7577,
+            10041,
+            5714,
+            3403,
+            1743
+          ],
+          "totalUltimateWithTailIn1000s": 48906,
+          "tailStandardError": 0.02,
+          "tailSigma": 71,
+          "standardErrorsWithTailIn1000s": [
+            107,
+            180,
+            250,
+            418,
+            670,
+            1128,
+            1377,
+            1902,
+            2293
+          ],
+          "totalStandardErrorWithTailIn1000s": 4054
+        }
+      },
+      "tolerances": {
+        "toBeLessThanOrEqual:0.01": 0.01,
+        "toBeLessThanOrEqual:1": 1,
+        "toBeLessThanOrEqual:2": 2,
+        "decimalPlaces:6": 6
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims.",
+        "preciseTotalStandardError": "3,728,870.241257798 is a deterministic SDK regression computed on the frozen Mack triangle, NOT a printed or independent source value. The independent Table 6 anchor is the separately tested 26 percent."
+      },
+      "expectedBindings": [
+        {
+          "key": "mortgagePublished",
+          "fixture": "packages/core/test/fixtures/mack1993.ts",
+          "exportName": "mortgagePublished"
+        }
+      ]
     },
     {
       "id": "mack-1999-tail",
@@ -53,10 +316,231 @@
       "toleranceRationale": "All printed amounts are in thousands; tolerance is one printed unit.",
       "test": {
         "path": "packages/core/test/validation.test.ts",
-        "implementationId": "reproduces every Mack (1999) Table 2 tail standard error and the total"
+        "implementationId": "reproduces every Mack (1999) Table 2 tail standard error and the total",
+        "cases": [
+          {
+            "fullName": "Mack (1999) Tables 1-2: mortgage data with a 1.05 tail > reproduces the published ultimates under the judgmental tail",
+            "assertions": 10
+          },
+          {
+            "fullName": "Mack on the selected basis (selected factors + tail) > reproduces every Mack (1999) Table 2 tail standard error and the total",
+            "assertions": 11
+          },
+          {
+            "fullName": "Mack on the selected basis (selected factors + tail) > reproduces the Mack (1999) published ultimates through runMack with the 1.05 tail",
+            "assertions": 10
+          }
+        ],
+        "assertionCount": 31,
+        "sha256": "d521e5d0af69357f63b2a22400788675fc03eb6a099f895696f8c2cb5b155f06"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript",
+        "python",
+        "r"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate",
+        "test:py",
+        "R interop"
+      ],
+      "expected": {
+        "mortgagePublished": {
+          "factors": [
+            11.1,
+            4.092,
+            1.708,
+            1.276,
+            1.139,
+            1.069,
+            1.026,
+            1.023
+          ],
+          "factorTolerance": [
+            0.05,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005,
+            0.0005
+          ],
+          "sigma2Over1000": [
+            1787,
+            977,
+            194,
+            42.8,
+            27,
+            5.57,
+            1.26,
+            0.285
+          ],
+          "reservesIn1000s": [
+            93,
+            265,
+            834,
+            1568,
+            3696,
+            3487,
+            2956,
+            1647
+          ],
+          "totalReserveIn1000s": 14547,
+          "sePercent": [
+            65,
+            53,
+            38,
+            38,
+            28,
+            37,
+            61,
+            133
+          ],
+          "totalSePercent": 26,
+          "totalStandardError": 3728870.241257798,
+          "tailFactor": 1.05,
+          "ultimatesWithTailIn1000s": [
+            2048,
+            4420,
+            5888,
+            8073,
+            7577,
+            10041,
+            5714,
+            3403,
+            1743
+          ],
+          "totalUltimateWithTailIn1000s": 48906,
+          "tailStandardError": 0.02,
+          "tailSigma": 71,
+          "standardErrorsWithTailIn1000s": [
+            107,
+            180,
+            250,
+            418,
+            670,
+            1128,
+            1377,
+            1902,
+            2293
+          ],
+          "totalStandardErrorWithTailIn1000s": 4054
+        },
+        "threeShoreFixture": {
+          "fixtureVersion": 1,
+          "source": "Mack (1999), The Standard Error of Chain Ladder Reserve Estimates: Recursive Calculation and Inclusion of a Tail Factor, Table 2",
+          "sourceUrl": "https://www.casact.org/sites/default/files/database/astin_vol29no2_361.pdf",
+          "triangle": "triangle.json",
+          "triangleIntegrity": "b9f295850853e964",
+          "options": {
+            "tailFactor": 1.05,
+            "tailStandardError": 0.02,
+            "tailSigma": 71
+          },
+          "publishedThousands": {
+            "ultimate": [
+              2048,
+              4420,
+              5888,
+              8073,
+              7577,
+              10041,
+              5714,
+              3403,
+              1743
+            ],
+            "standardError": [
+              107,
+              180,
+              250,
+              418,
+              670,
+              1128,
+              1377,
+              1902,
+              2293
+            ],
+            "totalUltimate": 48906,
+            "totalStandardError": 4054
+          },
+          "engine": {
+            "ultimate": [
+              2047610.25,
+              4419573.392449966,
+              5888041.060197156,
+              8072571.378518511,
+              7577085.573306875,
+              10040732.137277283,
+              5714195.291760264,
+              3402595.0128748505,
+              1742908.4553080455
+            ],
+            "standardError": [
+              106544.08997879706,
+              179976.57665396904,
+              249707.5667061802,
+              417857.0278627684,
+              670156.0285285844,
+              1127984.0605293794,
+              1377496.2336785935,
+              1901740.2910264723,
+              2293436.808639207
+            ],
+            "totalUltimate": 48905312.55169295,
+            "totalStandardError": 4053667.668029431
+          },
+          "tolerances": {
+            "engineAbsolute": 0.000001,
+            "publishedUltimateThousands": 2,
+            "publishedTotalUltimateThousands": 5,
+            "publishedStandardErrorThousands": 1
+          },
+          "pythonScope": "Native chainladder-python no-tail Mack followed by the explicit Mack (1999) terminal process/parameter variance continuation; not TailConstant variability support."
+        }
+      },
+      "tolerances": {
+        "toBeLessThanOrEqual:2": 2,
+        "toBeLessThanOrEqual:5": 5,
+        "toBeLessThanOrEqual:1": 1
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "additionalFixtures": [
+        {
+          "path": "interop/conformance/fixtures/mortgage/mack-1999-tail.json",
+          "sha256": "4ea1120d2d5743d1feeff1641fc0ded9d3724431ee77fed4fcf52f0bca3ccb21"
+        }
+      ],
+      "additionalTests": [
+        {
+          "path": "packages/core/test/mack1999TailConformance.test.ts",
+          "implementationId": "reproduces the frozen engine result and printed Table 2 precision",
+          "sha256": "f9b74cd859a76382bf0eb20e5c7319c8a5673f5af1d68dd474be405747239586",
+          "cases": [
+            {
+              "fullName": "Mack 1999 three-shore tail fixture > reproduces the frozen engine result and printed Table 2 precision",
+              "assertions": 41
+            }
+          ],
+          "assertionCount": 41
+        }
+      ],
+      "expectedBindings": [
+        {
+          "key": "mortgagePublished",
+          "fixture": "packages/core/test/fixtures/mack1993.ts",
+          "exportName": "mortgagePublished"
+        },
+        {
+          "key": "threeShoreFixture",
+          "fixture": "interop/conformance/fixtures/mortgage/mack-1999-tail.json"
+        }
+      ]
     },
     {
       "id": "mack-1994-raa-diagnostics",
@@ -72,10 +556,125 @@
       "toleranceRationale": "Exact rational results or source printing precision.",
       "test": {
         "path": "packages/core/test/diagnostics.test.ts",
-        "implementationId": "calendarYearTest pinned to Mack 1994 Appendix H"
+        "implementationId": "calendarYearTest pinned to Mack 1994 Appendix H",
+        "cases": [
+          {
+            "fullName": "calendarYearTest pinned to Mack 1994 Appendix H > reproduces the published RAA statistics",
+            "assertions": 4
+          },
+          {
+            "fullName": "factorCorrelationTest (Mack 1994, Appendix G) > flags a deliberately correlated triangle",
+            "assertions": 2
+          },
+          {
+            "fullName": "factorCorrelationTest (Mack 1994, Appendix G) > reproduces the published RAA worked example exactly",
+            "assertions": 20
+          },
+          {
+            "fullName": "factorCorrelationTest (Mack 1994, Appendix G) > returns null when the triangle is too small to test",
+            "assertions": 1
+          },
+          {
+            "fullName": "mackResiduals > satisfies the volume-weighted identity sum(residual x sqrt(C)) = 0 per column on RAA",
+            "assertions": 97
+          },
+          {
+            "fullName": "mackResiduals > yields null residuals with a warning on a zero-dispersion triangle",
+            "assertions": 2
+          }
+        ],
+        "assertionCount": 126,
+        "sha256": "7709fd77b18e8e27e9db176a8d9b478e8ffee51ec28f76611f4857cddad45670"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "raaCalendarYearPublished": {
+          "Z": 14,
+          "EZ": 12.875,
+          "VarZ": 3.9785,
+          "interval95": [
+            8.886,
+            16.864
+          ],
+          "rejected": false
+        },
+        "raaCorrelationPublished": {
+          "k": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "sumDSquared": [
+            68,
+            74,
+            20,
+            24,
+            6,
+            6,
+            0
+          ],
+          "Tk": [
+            0.19047619047619047,
+            -0.32142857142857145,
+            0.42857142857142855,
+            -0.2,
+            0.4,
+            -0.5,
+            1
+          ],
+          "weights": [
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1
+          ],
+          "T": 0.07,
+          "varT": 0.03571428571428571,
+          "bound": 0.12661809845809113,
+          "correlated": false
+        },
+        "literal:0.06956": 0.06956
+      },
+      "tolerances": {
+        "decimalPlaces:9": 9,
+        "decimalPlaces:4": 4,
+        "decimalPlaces:12": 12,
+        "decimalPlaces:3": 3,
+        "toBeGreaterThan:20": 20,
+        "toBeLessThan:1e-9": 1e-9,
+        "toBeLessThan:1": 1,
+        "toBeGreaterThanOrEqual:1": 1
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "raaCalendarYearPublished",
+          "fixture": "packages/core/test/fixtures/mack1994raa.ts",
+          "exportName": "raaCalendarYearPublished"
+        },
+        {
+          "key": "raaCorrelationPublished",
+          "fixture": "packages/core/test/fixtures/mack1994raa.ts",
+          "exportName": "raaCorrelationPublished"
+        }
+      ]
     },
     {
       "id": "mack-2000-benktander",
@@ -83,18 +682,80 @@
       "location": "Section 4 numerical example",
       "url": "https://www.actuaries.org/ASTIN/Colloquia/Porto_Cervo/Mack.pdf",
       "fixture": {
-        "path": "packages/core/test/benktander.test.ts",
-        "sha256": "4b2e6aab3d37ac7fad20c4597e03ceaa734bd417309500c108b82159f1bb7779"
+        "path": "packages/core/test/fixtures/mack2000.ts",
+        "sha256": "0f6e49b04fb335a1289e7fc624837509c6b5b688b9e83bc1932dcf47557e1de5"
       },
       "method": "Benktander-Hovinen",
       "outputs": "worked-example row and total ultimates",
       "toleranceRationale": "Source printing precision.",
       "test": {
         "path": "packages/core/test/benktander.test.ts",
-        "implementationId": "reproduces Mack (2000) Section 4's published numerical example"
+        "implementationId": "reproduces Mack (2000) Section 4's published numerical example",
+        "cases": [
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > collapses toward the chain ladder as maturity approaches (q -> 0)",
+            "assertions": 2
+          },
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > equals the credibility blend (1-q) x U_CL + q x U_BF",
+            "assertions": 10
+          },
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > is BF iterated once: U_GB = latest + (1 - 1/CDF) x U_BF, row for row",
+            "assertions": 10
+          },
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > lies between CL and BF on every row (a credibility mixture)",
+            "assertions": 20
+          },
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > reproduces Mack (2000) Section 4's published numerical example",
+            "assertions": 4
+          },
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > throws SHAPE when a BF origin is missing from the chain ladder result",
+            "assertions": 1
+          },
+          {
+            "fullName": "Benktander-Hovinen (Mack 2000) > totals are the sum of rows and carry BF's coverage (not the triangle's)",
+            "assertions": 2
+          }
+        ],
+        "assertionCount": 49,
+        "sha256": "b52d198ccc6488281a925ec11a96bf40e465bf37e9cda1429ab475321401dd46"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "literal:1": 1,
+        "literal:0.5": 0.5,
+        "mack2000Published": {
+          "ultimate": 105,
+          "reserve": 50,
+          "credibility": 0.5
+        }
+      },
+      "tolerances": {
+        "decimalPlaces:6": 6,
+        "decimalPlaces:9": 9
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "mack2000Published",
+          "fixture": "packages/core/test/fixtures/mack2000.ts",
+          "exportName": "mack2000Published"
+        }
+      ]
     },
     {
       "id": "clark-2003",
@@ -110,10 +771,255 @@
       "toleranceRationale": "Published table precision.",
       "test": {
         "path": "packages/core/test/clark.test.ts",
-        "implementationId": "Clark (2003) Cape Cod method, loglogistic truncated at 240"
+        "implementationId": "Clark (2003) Cape Cod method, loglogistic truncated at 240",
+        "cases": [
+          {
+            "fullName": "Clark (2003) Cape Cod method, loglogistic truncated at 240 (pp. 66-69) > reproduces the published dispersion sigma^2 with 52 dof",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark (2003) Cape Cod method, loglogistic truncated at 240 (pp. 66-69) > reproduces the published MLE parameters and ELR",
+            "assertions": 4
+          },
+          {
+            "fullName": "Clark (2003) Cape Cod method, loglogistic truncated at 240 (pp. 66-69) > reproduces the published per-AY spot rows",
+            "assertions": 5
+          },
+          {
+            "fullName": "Clark (2003) Cape Cod method, loglogistic truncated at 240 (pp. 66-69) > reproduces the published total reserve",
+            "assertions": 1
+          },
+          {
+            "fullName": "Clark (2003) Cape Cod method, loglogistic truncated at 240 (pp. 66-69) > reproduces the published variance table (p. 69)",
+            "assertions": 7
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated) > reproduces the published dispersion sigma^2 with 43 dof",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated) > reproduces the published MLE parameters",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated) > reproduces the published per-AY spot rows",
+            "assertions": 6
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated) > reproduces the published total reserve and ultimate",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated) > warns that untruncated reserves rely on tail extrapolation",
+            "assertions": 1
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic truncated at 240 months (pp. 64-65) > reproduces the published 1991 truncated LDF 1.1716 = G(234)/G(114)",
+            "assertions": 5
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic truncated at 240 months (pp. 64-65) > reproduces the published truncated total reserve",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark (2003) LDF method, loglogistic truncated at 240 months (pp. 64-65) > reproduces the published variance table (p. 65)",
+            "assertions": 8
+          },
+          {
+            "fullName": "Clark (2003) LDF method, Weibull (pp. 64-65) > reproduces the published MLE parameters",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark (2003) LDF method, Weibull (pp. 64-65) > reproduces the published per-AY spot rows",
+            "assertions": 5
+          },
+          {
+            "fullName": "Clark (2003) LDF method, Weibull (pp. 64-65) > reproduces the published totals",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > Cape Cod requires a positive premium for every origin",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > clarkGrowth rejects non-positive parameters",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > G is monotone increasing from 0 toward 1 for both curves",
+            "assertions": 806
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > LDF ultimates satisfy the profiled-MLE identity ULT_i = latest / G(x_i)",
+            "assertions": 10
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > rejects a truncation age inside the observed history",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > rejects quarterly triangles (annual cadence only)",
+            "assertions": 3
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > the Weibull tail is lighter than the loglogistic on the same data",
+            "assertions": 2
+          },
+          {
+            "fullName": "Clark growth-curve and method properties > truncation reduces every origin's reserve",
+            "assertions": 12
+          }
+        ],
+        "assertionCount": 895,
+        "sha256": "ffcadfc00e22613b11440ba32d840ba8e34174f9a661a85e00aeaf255019b394"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "clarkCapeCodPublished": {
+          "omega": 1.447634,
+          "theta": 48.0205,
+          "elr": 0.5978,
+          "sigma2": 61577,
+          "dof": 52,
+          "truncatedAt240": {
+            "growthAtTruncation": 0.9083,
+            "totalReserve": 29707484,
+            "processSdTotal": 1352515,
+            "parameterSdTotal": 3143967,
+            "totalSdTotal": 3422547,
+            "rows": {
+              "1991": {
+                "growthAtAge": 0.7776,
+                "reserve": 781218,
+                "processSd": 219329,
+                "parameterSd": 158913,
+                "totalSd": 270848
+              },
+              "1996": {
+                "reserve": 2624620
+              },
+              "2000": {
+                "growthAtAge": 0.0469,
+                "reserve": 7002255,
+                "parameterSd": 439441
+              }
+            }
+          }
+        },
+        "clarkLdfLoglogisticPublished": {
+          "omega": 1.434294,
+          "theta": 48.6249,
+          "sigma2": 65029,
+          "dof": 43,
+          "untruncated": {
+            "totalReserve": 35640618,
+            "totalUltimate": 69998708,
+            "rows": {
+              "1991": {
+                "growthAtAge": 0.7724,
+                "ldf": 1.2946,
+                "ultimate": 5050867,
+                "reserve": 1149404
+              },
+              "1996": {
+                "reserve": 3176268
+              },
+              "2000": {
+                "growthAtAge": 0.0474,
+                "reserve": 6917191
+              }
+            }
+          },
+          "truncatedAt240": {
+            "growthAtTruncation": 0.905,
+            "totalReserve": 28987633,
+            "totalLossesAt240": 63345723,
+            "processSdTotal": 1372966,
+            "parameterSdTotal": 4688826,
+            "totalSdTotal": 4885707,
+            "rows": {
+              "1991": {
+                "truncatedLdf": 1.1716,
+                "ultimateAt240": 4570810,
+                "reserve": 669347,
+                "processSd": 208631,
+                "parameterSd": 158088,
+                "totalSd": 261761
+              },
+              "1996": {
+                "reserve": 2523505
+              },
+              "2000": {
+                "reserve": 6227054,
+                "processSd": 636348,
+                "parameterSd": 2838890
+              }
+            }
+          }
+        },
+        "clarkLdfWeibullPublished": {
+          "omega": 1.296906,
+          "theta": 48.88453,
+          "untruncated": {
+            "totalUltimate": 55572851,
+            "totalReserve": 21214761,
+            "rows": {
+              "1991": {
+                "growthAtAge": 0.9501,
+                "reserve": 204726
+              },
+              "1996": {
+                "reserve": 1741530
+              },
+              "2000": {
+                "growthAtAge": 0.0637,
+                "reserve": 5054849
+              }
+            }
+          }
+        }
+      },
+      "tolerances": {
+        "relative:0.005": 0.005,
+        "relative:0.02": 0.02,
+        "relative:0.003": 0.003,
+        "toBeLessThanOrEqual:0.0005": 0.0005,
+        "relative:0.01": 0.01,
+        "relative:0.001": 0.001,
+        "relative:0.05": 0.05,
+        "toBeLessThan:1": 1,
+        "toBeLessThanOrEqual:1": 1,
+        "toBeGreaterThan:0.999": 0.999,
+        "relative:1e-9": 1e-9
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "clarkCapeCodPublished",
+          "fixture": "packages/core/test/fixtures/clark2003.ts",
+          "exportName": "clarkCapeCodPublished"
+        },
+        {
+          "key": "clarkLdfLoglogisticPublished",
+          "fixture": "packages/core/test/fixtures/clark2003.ts",
+          "exportName": "clarkLdfLoglogisticPublished"
+        },
+        {
+          "key": "clarkLdfWeibullPublished",
+          "fixture": "packages/core/test/fixtures/clark2003.ts",
+          "exportName": "clarkLdfWeibullPublished"
+        }
+      ]
     },
     {
       "id": "gluck-1997",
@@ -129,10 +1035,126 @@
       "toleranceRationale": "Published decimal and whole-thousand precision.",
       "test": {
         "path": "packages/core/test/elrMethods.test.ts",
-        "implementationId": "Generalized Cape Cod (Gluck 1997 decay)"
+        "implementationId": "Generalized Cape Cod (Gluck 1997 decay)",
+        "cases": [
+          {
+            "fullName": "cdf below 1 (incurred bases with case run-off) > posts an expected take-down, not an error",
+            "assertions": 3
+          },
+          {
+            "fullName": "Generalized Cape Cod (Gluck 1997 decay) > decay = 0 makes every year stand alone and reproduces the development ultimate",
+            "assertions": 14
+          },
+          {
+            "fullName": "Generalized Cape Cod (Gluck 1997 decay) > decay = 1 is byte-identical to the standard Cape Cod",
+            "assertions": 29
+          },
+          {
+            "fullName": "Generalized Cape Cod (Gluck 1997 decay) > rejects a decay outside [0, 1]",
+            "assertions": 2
+          },
+          {
+            "fullName": "Generalized Cape Cod (Gluck 1997 decay) > reproduces Gluck's Table 1 pooled pure premium at the 1992 level",
+            "assertions": 1
+          },
+          {
+            "fullName": "Generalized Cape Cod (Gluck 1997 decay) > reproduces Gluck's Table 4 BF ultimate total with D = 0.75",
+            "assertions": 1
+          },
+          {
+            "fullName": "Generalized Cape Cod (Gluck 1997 decay) > reproduces Gluck's Table 4 per-year expected pure premiums with D = 0.75",
+            "assertions": 15
+          },
+          {
+            "fullName": "runCapeCod > a fully mature origin (cdf 1) takes no expected claims",
+            "assertions": 1
+          },
+          {
+            "fullName": "runCapeCod > adjustment factors change the ELR estimation but restate back per origin",
+            "assertions": 3
+          },
+          {
+            "fullName": "runCapeCod > rejects nonsense inputs",
+            "assertions": 3
+          },
+          {
+            "fullName": "runCapeCod > reproduces the hand-computed unadjusted example to the dollar",
+            "assertions": 5
+          },
+          {
+            "fullName": "runExpectedClaims > applies the restated ELR per origin with no dependence on emerged losses",
+            "assertions": 2
+          },
+          {
+            "fullName": "runExpectedClaims > rejects a non-positive ELR",
+            "assertions": 1
+          }
+        ],
+        "assertionCount": 80,
+        "sha256": "b34743065256cbb7c9c14ba9453fc72aed3028537246e4fadfa90e91dc0269ab"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "gluckCapeCodPP1992": 1.9621,
+        "gluckGcc075PP1990OwnLevel": 1.6781,
+        "gluckGcc075PP1992": [
+          1.9586,
+          1.9246,
+          1.9676,
+          1.929,
+          1.9019,
+          1.8644,
+          1.8397,
+          1.8246,
+          1.8511,
+          1.925,
+          1.9915,
+          2.0675,
+          2.1399,
+          2.1486
+        ],
+        "gluckGcc075UltimateTotal": 38208
+      },
+      "tolerances": {
+        "decimalPlaces:12": 12,
+        "decimalPlaces:9": 9,
+        "toBeLessThan:0.001": 0.001,
+        "toBeLessThan:5": 5,
+        "decimalPlaces:6": 6
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "gluckCapeCodPP1992",
+          "fixture": "packages/core/test/fixtures/gluck1997.ts",
+          "exportName": "gluckCapeCodPP1992"
+        },
+        {
+          "key": "gluckGcc075PP1990OwnLevel",
+          "fixture": "packages/core/test/fixtures/gluck1997.ts",
+          "exportName": "gluckGcc075PP1990OwnLevel"
+        },
+        {
+          "key": "gluckGcc075PP1992",
+          "fixture": "packages/core/test/fixtures/gluck1997.ts",
+          "exportName": "gluckGcc075PP1992"
+        },
+        {
+          "key": "gluckGcc075UltimateTotal",
+          "fixture": "packages/core/test/fixtures/gluck1997.ts",
+          "exportName": "gluckGcc075UltimateTotal"
+        }
+      ]
     },
     {
       "id": "england-verrall-2002",
@@ -148,10 +1170,142 @@
       "toleranceRationale": "Tolerances reflect stochastic sampling error documented in the fixture.",
       "test": {
         "path": "packages/core/test/odpBootstrap.test.ts",
-        "implementationId": "reproduces the England (2002) Table 3 predictive distribution"
+        "implementationId": "reproduces the England (2002) Table 3 predictive distribution",
+        "cases": [
+          {
+            "fullName": "odpFit (the GLM == chain ladder identity) > fitted past incrementals reproduce the observed row sums (Poisson marginals)",
+            "assertions": 10
+          },
+          {
+            "fullName": "odpFit (the GLM == chain ladder identity) > reproduces the chain ladder on RAA too (different shape, incurred)",
+            "assertions": 1
+          },
+          {
+            "fullName": "odpFit (the GLM == chain ladder identity) > reproduces the volume-weighted chain ladder reserves exactly on Taylor/Ashe",
+            "assertions": 12
+          },
+          {
+            "fullName": "odpFit (the GLM == chain ladder identity) > uses n = I(I+1)/2 observations and p = 2I - 1 parameters on a full triangle",
+            "assertions": 3
+          },
+          {
+            "fullName": "odpFit dispersion when fitted incrementals are non-positive > counts only cells that contribute a residual toward the dispersion",
+            "assertions": 3
+          },
+          {
+            "fullName": "odpFit dispersion when fitted incrementals are non-positive > refuses a fit whose contributing cells leave no degrees of freedom",
+            "assertions": 1
+          },
+          {
+            "fullName": "runOdpBootstrap > bootstrap mean ties to the chain ladder total within the known small bias",
+            "assertions": 1
+          },
+          {
+            "fullName": "runOdpBootstrap > is deterministic under the seed",
+            "assertions": 3
+          },
+          {
+            "fullName": "runOdpBootstrap > rejects tiny simulation counts",
+            "assertions": 1
+          },
+          {
+            "fullName": "runOdpBootstrap > reproduces every per-origin prediction error in England (2002) Table 2",
+            "assertions": 9
+          },
+          {
+            "fullName": "runOdpBootstrap > reproduces its golden distribution on Taylor & Ashe",
+            "assertions": 3
+          },
+          {
+            "fullName": "runOdpBootstrap > reproduces the England (2002) Table 3 predictive distribution",
+            "assertions": 8
+          },
+          {
+            "fullName": "runOdpBootstrap > total prediction error ~16% of reserves (England 2002 Table 2)",
+            "assertions": 2
+          },
+          {
+            "fullName": "runOdpBootstrap > without process variance, simulated SE shrinks (estimation error only)",
+            "assertions": 1
+          }
+        ],
+        "assertionCount": 58,
+        "sha256": "eee4d488a1a071c165736ec507e6473038b42902ecdedc27fcccf6f9df435495"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "englandTable1ChainLadderTotal": 18681,
+        "englandTable2PredictionErrorPct": {
+          "byOrigin": {
+            "2": 117,
+            "3": 47,
+            "4": 37,
+            "5": 31,
+            "6": 27,
+            "7": 23,
+            "8": 21,
+            "9": 25,
+            "10": 44
+          },
+          "total": 16,
+          "toleranceByOrigin": 5,
+          "toleranceTotal": 1
+        },
+        "englandTable3Distribution": {
+          "observations": 1000,
+          "mean": 18688,
+          "standardDeviation": 2956,
+          "coefficientOfVariation": 0.158,
+          "skewness": 0.35,
+          "percentiles": {
+            "p50": 18532,
+            "p75": 20640,
+            "p90": 22620,
+            "p95": 23827,
+            "p99": 25967
+          },
+          "tolerance": 0.12
+        },
+        "literal:18722311.920909688": 18722311.920909688,
+        "literal:3088914.4374506595": 3088914.4374506595,
+        "literal:26963637.004859254": 26963637.004859254
+      },
+      "tolerances": {
+        "decimalPlaces:0": 0,
+        "decimalPlaces:6": 6,
+        "toBeGreaterThan:0": 0,
+        "toBeLessThan:0.02": 0.02,
+        "toBeGreaterThan:0.155": 0.155,
+        "toBeLessThan:0.175": 0.175
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "englandTable1ChainLadderTotal",
+          "fixture": "packages/core/test/fixtures/englandVerrall2002.ts",
+          "exportName": "englandTable1ChainLadderTotal"
+        },
+        {
+          "key": "englandTable2PredictionErrorPct",
+          "fixture": "packages/core/test/fixtures/englandVerrall2002.ts",
+          "exportName": "englandTable2PredictionErrorPct"
+        },
+        {
+          "key": "englandTable3Distribution",
+          "fixture": "packages/core/test/fixtures/englandVerrall2002.ts",
+          "exportName": "englandTable3Distribution"
+        }
+      ]
     },
     {
       "id": "quarg-mack-2004",
@@ -167,10 +1321,278 @@
       "toleranceRationale": "Paper states calculations used more precision than printed; absolute tolerance follows rounding.",
       "test": {
         "path": "packages/core/test/munichChainLadder.test.ts",
-        "implementationId": "reproduces every printed projected cell"
+        "implementationId": "reproduces every printed projected cell",
+        "cases": [
+          {
+            "fullName": "Munich chain ladder: degenerate inputs > collapses to the separate chain ladder (lambda = 0, with a warning) when P/I is in lockstep",
+            "assertions": 11
+          },
+          {
+            "fullName": "Munich chain ladder: degenerate inputs > skips origins with no observations in one triangle, with a warning",
+            "assertions": 2
+          },
+          {
+            "fullName": "Munich chain ladder: degenerate inputs > throws SHAPE when the triangles' origins or ages differ",
+            "assertions": 6
+          },
+          {
+            "fullName": "Munich chain ladder: degenerate inputs > throws TOO_SMALL when no development column has two paired factors",
+            "assertions": 4
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed parameters > reproduces fhat^P and fhat^I to the printed 3 decimals",
+            "assertions": 13
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed parameters > reproduces rhohat^P and rhohat^I (ratio-series Mack variances, cells - 1) to 3 decimals",
+            "assertions": 14
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed parameters > reproduces sigmahat^P and sigmahat^I (Mack denominators, pairs - 1) to 3 decimals",
+            "assertions": 13
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed parameters > reproduces the incurred-weighted qhat_s row to the printed 0.1%",
+            "assertions": 8
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed parameters > reproduces the paper's printed residual spot values",
+            "assertions": 3
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed parameters > reproduces the through-origin regression lambdas within 0.01",
+            "assertions": 2
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed projections > closes the paid/incurred gap: |MCL P/I - 1| <= |SCL P/I - 1| per year (documented AY4 slack)",
+            "assertions": 14
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed projections > falls back to Mack's sigma extrapolation (with a warning) when no manual last sigma is given",
+            "assertions": 4
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed projections > matches Figure 16's SCL anchors: AY7 paid falls ~27% short, AY6 exceeds by ~10%",
+            "assertions": 18
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed projections > reproduces every printed projected cell of both result quadrangles within 1 absolute",
+            "assertions": 42
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed projections > reproduces the MCL ultimates per accident year within 1 absolute (well under 0.5%)",
+            "assertions": 22
+          },
+          {
+            "fullName": "Munich chain ladder: Quarg-Mack (2004) printed projections > reproduces the worked first step for accident year 7 (the simultaneous recursion)",
+            "assertions": 5
+          }
+        ],
+        "assertionCount": 181,
+        "sha256": "d8358273cd18da61ff5160d12afce173658c908f69f0c5eceed774eeb311f198"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "qmPublished": {
+          "paidFactors": [
+            2.437,
+            1.131,
+            1.029,
+            1.021,
+            1.021,
+            1.014
+          ],
+          "incurredFactors": [
+            1.652,
+            1.019,
+            1,
+            1.011,
+            0.99,
+            0.996
+          ],
+          "sigmaPaid": [
+            13.456,
+            3.666,
+            0.482,
+            0.21,
+            0.479
+          ],
+          "sigmaIncurred": [
+            9.727,
+            2.544,
+            1.004,
+            0.12,
+            0.86
+          ],
+          "qRatios": [
+            0.533,
+            0.849,
+            0.928,
+            0.945,
+            0.949,
+            0.96,
+            0.98
+          ],
+          "rhoPaid": [
+            14.943,
+            4.99,
+            2.167,
+            1.619,
+            1.791,
+            0.236
+          ],
+          "rhoIncurred": [
+            5.711,
+            3.819,
+            1.918,
+            1.461,
+            1.637,
+            0.222
+          ],
+          "residualPins": {
+            "paidFactorAY1": 1.24,
+            "paidRatioAY7": 1.753,
+            "incurredRatioAY7": -1.558
+          },
+          "lambdaPaid": 0.64,
+          "lambdaIncurred": 0.44,
+          "manualLastSigma": 0.1,
+          "workedStepAY7": {
+            "mclPaidFactor": 2.768,
+            "mclIncurredFactor": 1.559,
+            "paidAge24": 5659,
+            "incurredAge24": 7828,
+            "ratioAge24": 0.723
+          },
+          "mclProjectedPaid": [
+            [],
+            [
+              2383
+            ],
+            [
+              4573,
+              4597
+            ],
+            [
+              5967,
+              6081,
+              6119
+            ],
+            [
+              4762,
+              4848,
+              4923,
+              4937
+            ],
+            [
+              4388,
+              4493,
+              4574,
+              4643,
+              4656
+            ],
+            [
+              5659,
+              6944,
+              7177,
+              7330,
+              7485,
+              7549
+            ]
+          ],
+          "mclProjectedIncurred": [
+            [],
+            [
+              2444
+            ],
+            [
+              4618,
+              4629
+            ],
+            [
+              6212,
+              6167,
+              6176
+            ],
+            [
+              4885,
+              4944,
+              4931,
+              4950
+            ],
+            [
+              4567,
+              4601,
+              4657,
+              4646,
+              4665
+            ],
+            [
+              7828,
+              7688,
+              7644,
+              7727,
+              7650,
+              7650
+            ]
+          ],
+          "mclPaidUltimates": [
+            2131,
+            2383,
+            4597,
+            6119,
+            4937,
+            4656,
+            7549
+          ],
+          "mclIncurredUltimates": [
+            2174,
+            2444,
+            4629,
+            6176,
+            4950,
+            4665,
+            7650
+          ],
+          "sclFinalRatioAY7": 0.73,
+          "sclFinalRatioAY6": 1.1
+        },
+        "literal:0.1": 0.1
+      },
+      "tolerances": {
+        "decimalPlaces:3": 3,
+        "decimalPlaces:12": 12,
+        "toBeLessThan:0.01": 0.01,
+        "toBeLessThanOrEqual:1": 1,
+        "toBeLessThan:0.005": 0.005,
+        "toBeGreaterThan:0.7": 0.7,
+        "toBeLessThan:0.76": 0.76,
+        "toBeGreaterThan:1.08": 1.08,
+        "toBeLessThan:1.12": 1.12,
+        "toBeGreaterThan:0.965": 0.965,
+        "toBeLessThan:1.005": 1.005,
+        "toBeLessThanOrEqual:0.001": 0.001,
+        "toBeGreaterThan:0.98": 0.98,
+        "decimalPlaces:9": 9
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "qmPublished",
+          "fixture": "packages/core/test/fixtures/quargMack2004.ts",
+          "exportName": "qmPublished"
+        }
+      ]
     },
     {
       "id": "merz-wuthrich-2008",
@@ -186,10 +1608,144 @@
       "toleranceRationale": "Relative tolerances follow printed whole-thousand precision.",
       "test": {
         "path": "packages/core/test/merzWuthrich.test.ts",
-        "implementationId": "Merz-Wuthrich (2008) published values"
+        "implementationId": "Merz-Wuthrich (2008) published values",
+        "cases": [
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > one-year risk never exceeds full-runoff risk, and equals it for the first open year",
+            "assertions": 11
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > reproduces Table 4's Mack full-runoff msep roots within 0.5% (total within 0.2%)",
+            "assertions": 9
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > reproduces Table 4's one-year CDR msep roots (the solvency column) within 0.5%",
+            "assertions": 8
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > reproduces Table 4's true-CDR standard deviations from the shared estimators (3.8)",
+            "assertions": 8
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > reproduces the aggregate one-year msep root 81,080 within 0.2%",
+            "assertions": 1
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > reproduces the printed development factors fhat_j to 4 decimals",
+            "assertions": 9
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > reproduces the published reserves by accident year and in total",
+            "assertions": 10
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > the aggregate one-year ratio is ~0.748 (81,080 / 108,401)",
+            "assertions": 2
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > the fully developed oldest year carries zero reserve, zero risk, null ratio",
+            "assertions": 4
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > throws SHAPE for irregular triangles (missing interior cell / data past the diagonal)",
+            "assertions": 4
+          },
+          {
+            "fullName": "Merz-Wuthrich (2008) published values > throws SHAPE for non-square triangles (the closed forms assume I = J)",
+            "assertions": 2
+          }
+        ],
+        "assertionCount": 68,
+        "sha256": "ea291280586d231402c3d4c19a9f306147b5b86f3cf6a2f57ee5c867475a8d29"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "mwPublished": {
+          "factors": [
+            1.4759,
+            1.0719,
+            1.0232,
+            1.0161,
+            1.0063,
+            1.0056,
+            1.0013,
+            1.0011
+          ],
+          "reserves": [
+            4378,
+            9348,
+            28392,
+            51444,
+            111811,
+            187084,
+            411864,
+            1433505
+          ],
+          "totalReserve": 2237826,
+          "cdrMsepRoots": [
+            567,
+            1488,
+            3923,
+            9723,
+            28443,
+            20954,
+            28119,
+            53320
+          ],
+          "totalCdrMsepRoot": 81080,
+          "mackMsepRoots": [
+            567,
+            1566,
+            4157,
+            10536,
+            30319,
+            35967,
+            45090,
+            69552
+          ],
+          "totalMackMsepRoot": 108401,
+          "trueCdrSds": [
+            395,
+            1185,
+            3395,
+            8673,
+            25877,
+            18875,
+            25822,
+            49978
+          ],
+          "totalTrueCdrSd": 65412
+        }
+      },
+      "tolerances": {
+        "decimalPlaces:4": 4,
+        "toBeLessThanOrEqual:1": 1,
+        "toBeLessThanOrEqual:2": 2,
+        "toBeLessThanOrEqual:0.002": 0.002,
+        "decimalPlaces:2": 2,
+        "toBeLessThanOrEqual:1e-9": 1e-9,
+        "decimalPlaces:6": 6,
+        "rowAbsolute": 1,
+        "rowRelative": 0.005
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "mwPublished",
+          "fixture": "packages/core/test/fixtures/merzWuthrich2008.ts",
+          "exportName": "mwPublished"
+        }
+      ]
     },
     {
       "id": "conger-nolibos-2003",
@@ -205,10 +1761,282 @@
       "toleranceRationale": "Ratios are printed to three decimals and reserves to whole thousands.",
       "test": {
         "path": "packages/core/test/ulae.test.ts",
-        "implementationId": "the exhibits' inputs tie out"
+        "implementationId": "the exhibits' inputs tie out",
+        "cases": [
+          {
+            "fullName": "ULAE ratios: Conger-Nolibos (2003) worked example > pins the paper's smallest self-contained slice (Exhibit D, 1997)",
+            "assertions": 2
+          },
+          {
+            "fullName": "ULAE ratios: Conger-Nolibos (2003) worked example > reproduces Exhibit B (classical paid-to-paid preset: basis collapses to paid losses)",
+            "assertions": 13
+          },
+          {
+            "fullName": "ULAE ratios: Conger-Nolibos (2003) worked example > reproduces Exhibit C (Kittel preset: W = M / (50% x (paid + reported)))",
+            "assertions": 7
+          },
+          {
+            "fullName": "ULAE ratios: Conger-Nolibos (2003) worked example > reproduces Exhibit D (60/40/0): W = M/B per calendar year and in total",
+            "assertions": 16
+          },
+          {
+            "fullName": "ULAE ratios: Conger-Nolibos (2003) worked example > reproduces Exhibit E (70/30/0)",
+            "assertions": 14
+          },
+          {
+            "fullName": "ULAE ratios: Conger-Nolibos (2003) worked example > reproduces Exhibit F (simplified: accident-year ultimate A substitutes for R when u3 = 0)",
+            "assertions": 14
+          },
+          {
+            "fullName": "ULAE reserve: the three forms on the worked example > reproduces Exhibit D's three reserves (expected / B-F / development)",
+            "assertions": 9
+          },
+          {
+            "fullName": "ULAE reserve: the three forms on the worked example > reproduces Exhibit E's reserves (the weight-sensitivity run)",
+            "assertions": 3
+          },
+          {
+            "fullName": "ULAE reserve: the three forms on the worked example > reproduces Exhibit F's reserves (pure-IBNR variants of the B-F form)",
+            "assertions": 2
+          },
+          {
+            "fullName": "ULAE reserve: the three forms on the worked example > reproduces Exhibits B and C reserves via the Kittel identity inputs",
+            "assertions": 2
+          },
+          {
+            "fullName": "ULAE reserve: the three forms on the worked example > satisfies the Kittel identity: B-F reserve = W* x (IBNR + 50% x case reserves)",
+            "assertions": 3
+          },
+          {
+            "fullName": "ULAE reserve: the three forms on the worked example > the exhibits' inputs tie out (fixture self-consistency)",
+            "assertions": 7
+          },
+          {
+            "fullName": "ULAE validation > expected form ignores unavailable measures (basisToDate reported as null)",
+            "assertions": 3
+          },
+          {
+            "fullName": "ULAE validation > throws BAD_LOSSES for negative monetary amounts (including negative M)",
+            "assertions": 8
+          },
+          {
+            "fullName": "ULAE validation > throws BAD_RATIO for a negative or non-finite selected W*",
+            "assertions": 4
+          },
+          {
+            "fullName": "ULAE validation > throws BAD_WEIGHTS for weights outside [0, 1], non-finite, or not summing to 1",
+            "assertions": 8
+          },
+          {
+            "fullName": "ULAE validation > throws NO_DATA for empty periods, missing weighted measures, or a non-positive development basis",
+            "assertions": 8
+          },
+          {
+            "fullName": "ULAE validation > warns when the expected-form reserve goes negative instead of masking it",
+            "assertions": 2
+          },
+          {
+            "fullName": "ULAE validation > yields a null per-period ratio (with a warning) on a zero basis - house null-safety",
+            "assertions": 3
+          }
+        ],
+        "assertionCount": 128,
+        "sha256": "2d367b9ba6ec2ce3bb1b12e068ac09e03307bca136f6d9c1409f81fd1bdf60cf"
       },
-      "shores": ["typescript"],
-      "lanes": ["npm test", "validation:source", "release:gate"]
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "release:gate"
+      ],
+      "expected": {
+        "cnExhibitB": {
+          "ratios": [
+            0.431,
+            0.33,
+            0.223,
+            0.207,
+            0.153,
+            0.145
+          ],
+          "totalRatio": 0.182,
+          "selectedW": 0.16,
+          "reserve": 41587
+        },
+        "cnExhibitC": {
+          "ratios": [
+            0.164,
+            0.134,
+            0.138,
+            0.129,
+            0.114,
+            0.114
+          ],
+          "totalRatio": 0.123,
+          "selectedW": 0.115,
+          "reserve": 29891
+        },
+        "cnExhibitD": {
+          "weights": {
+            "u1": 0.6,
+            "u2": 0.4,
+            "u3": 0
+          },
+          "bases": [
+            18156,
+            51860,
+            79496,
+            115899,
+            132290,
+            148026
+          ],
+          "ratios": [
+            0.109,
+            0.093,
+            0.108,
+            0.104,
+            0.099,
+            0.103
+          ],
+          "totalBasis": 545727,
+          "totalRatio": 0.102,
+          "selectedW": 0.1,
+          "reserves": {
+            "expected": 15516,
+            "bornhuetterFerguson": 16767,
+            "development": 17152
+          }
+        },
+        "cnExhibitE": {
+          "weights": {
+            "u1": 0.7,
+            "u2": 0.3,
+            "u3": 0
+          },
+          "bases": [
+            20417,
+            58070,
+            86347,
+            125499,
+            139992,
+            155120
+          ],
+          "ratios": [
+            0.097,
+            0.083,
+            0.099,
+            0.096,
+            0.094,
+            0.099
+          ],
+          "totalBasis": 585445,
+          "totalRatio": 0.095,
+          "selectedW": 0.1,
+          "reserves": {
+            "expected": 15516,
+            "bornhuetterFerguson": 12795,
+            "development": 12201
+          }
+        },
+        "cnExhibitF": {
+          "weights": {
+            "u1": 0.6,
+            "u2": 0.4,
+            "u3": 0
+          },
+          "accidentYearUltimates": [
+            28600,
+            79200,
+            108400,
+            156700,
+            163400,
+            177100
+          ],
+          "bases": [
+            18996,
+            53360,
+            80396,
+            117339,
+            132470,
+            148446
+          ],
+          "ratios": [
+            0.104,
+            0.09,
+            0.106,
+            0.103,
+            0.099,
+            0.103
+          ],
+          "totalBasis": 551007,
+          "totalRatio": 0.101,
+          "selectedW": 0.1,
+          "pureIbnr": {
+            "fourPercent": 7084,
+            "sixPercent": 10626
+          },
+          "reserves": {
+            "fourPercent": 16664,
+            "sixPercent": 16877
+          }
+        },
+        "cnTotals": {
+          "ulaePaid": 55824,
+          "paid": 307417,
+          "reported": 599547,
+          "reportedUltimate": 704600,
+          "ultimateLosses": 713400,
+          "ibnr": 113853,
+          "caseReserve": 292130
+        },
+        "literal:18156": 18156,
+        "literal:0.109": 0.109,
+        "literal:5": 5
+      },
+      "tolerances": {
+        "toBeLessThanOrEqual:0.5": 0.5,
+        "decimalPlaces:3": 3,
+        "decimalPlaces:9": 9,
+        "toBeLessThanOrEqual:1": 1
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": [
+        {
+          "key": "cnExhibitB",
+          "fixture": "packages/core/test/fixtures/congerNolibos2003.ts",
+          "exportName": "cnExhibitB"
+        },
+        {
+          "key": "cnExhibitC",
+          "fixture": "packages/core/test/fixtures/congerNolibos2003.ts",
+          "exportName": "cnExhibitC"
+        },
+        {
+          "key": "cnExhibitD",
+          "fixture": "packages/core/test/fixtures/congerNolibos2003.ts",
+          "exportName": "cnExhibitD"
+        },
+        {
+          "key": "cnExhibitE",
+          "fixture": "packages/core/test/fixtures/congerNolibos2003.ts",
+          "exportName": "cnExhibitE"
+        },
+        {
+          "key": "cnExhibitF",
+          "fixture": "packages/core/test/fixtures/congerNolibos2003.ts",
+          "exportName": "cnExhibitF"
+        },
+        {
+          "key": "cnTotals",
+          "fixture": "packages/core/test/fixtures/congerNolibos2003.ts",
+          "exportName": "cnTotals"
+        }
+      ]
     },
     {
       "id": "jcs-fnv-vectors",
@@ -224,16 +2052,356 @@
       "toleranceRationale": "Exact bytes; no tolerance.",
       "test": {
         "path": "packages/core/test/canonical.test.ts",
-        "implementationId": "canonicalJson vs the committed JCS vector suite"
+        "implementationId": "canonicalJson vs the committed JCS vector suite",
+        "cases": [
+          {
+            "fullName": "canonical relocation behavior (moved from compliance in 0.2.0) > fnv1a64 matches its published test vectors",
+            "assertions": 2
+          },
+          {
+            "fullName": "canonical relocation behavior (moved from compliance in 0.2.0) > sorts keys recursively and preserves array order",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonical relocation behavior (moved from compliance in 0.2.0) > throws ReservingError UNSUPPORTED_VALUE with the offending path",
+            "assertions": 3
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: array-order-preserved",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: booleans",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: empty-containers",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: exponent-boundary-1e-7",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: exponent-boundary-1e21",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: float-artifact",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: integer",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: key-sort-ascii",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: key-sort-locale-hostile-cjk",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: key-sort-locale-hostile-latin1",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: key-sort-unicode-utf16",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: large-integer-no-exponent",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: lone-surrogate-escaped",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: max-safe-integer",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: negative-decimal",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: negative-integer",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: nested-sorting",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: null",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: one-third",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: plain-decimal",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: r-as-numeric-one-ulp-regression-971257",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: r-as-numeric-one-ulp-regression-984888",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: small-decimal-no-exponent",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: string-escapes",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: triangle-like-payload",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: unicode-string",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > reproduces vector: zero-and-negative-zero",
+            "assertions": 1
+          },
+          {
+            "fullName": "canonicalJson vs the committed JCS vector suite > ships a meaningful suite",
+            "assertions": 1
+          }
+        ],
+        "assertionCount": 34,
+        "sha256": "73f18b69aeb275c474be7138216a8a139271bd5765c6790b248b84a6554b77b7"
       },
-      "shores": ["typescript", "python", "r"],
+      "shores": [
+        "typescript",
+        "python",
+        "r"
+      ],
       "lanes": [
         "npm test",
         "test:py",
         "R interop",
         "validation:source",
         "release:gate"
-      ]
+      ],
+      "expected": {
+        "fnv1a64": [
+          {
+            "text": "",
+            "hash": "cbf29ce484222325"
+          },
+          {
+            "text": "a",
+            "hash": "af63dc4c8601ec8c"
+          }
+        ]
+      },
+      "tolerances": {
+        "toBeGreaterThanOrEqual:20": 20
+      },
+      "expectationProvenance": {
+        "fixtureExports": "Transcribed source values retained in the immutable fixture; the registry supplies the executed expected values.",
+        "literalValues": "Deterministic implementation/property regression pins unless a cited printed value is named in the test. These are not additional literature claims."
+      },
+      "expectedBindings": []
+    },
+    {
+      "id": "casdatasets-freclaimset2motor",
+      "citation": "CASdatasets freclaimset2motor, immutable commit e51f30edc0b8dbfe096cad2d0967d42ce3707f63",
+      "location": "claimset and aggdata; annual derivative cells for 1995 through 2014",
+      "url": "https://raw.githubusercontent.com/dutangc/CASdatasets/e51f30edc0b8dbfe096cad2d0967d42ce3707f63/data/freclaimset2motor.rda",
+      "fixture": {
+        "path": "examples/real-world-loss-run/source-manifest.json",
+        "sha256": "3798e68b157c25f88c92cc11a429a881a1332934f34e73f317d8ce4fc48cfee3"
+      },
+      "method": "Documented gross/net source transformation, adapted claim states, static insurance-year exposures, and declarative casualty reconciliations",
+      "outputs": "All source and derivative controls; 210 cells; latest diagonals; exact 73 finding coordinate/source arrays; controlled failures of all 13 configured review rules",
+      "toleranceRationale": "Exact integer source controls, exact bytes and zero-tolerance rule checks; no sampling or rounding allowance.",
+      "test": {
+        "path": "examples/real-world-loss-run/test/example.test.ts",
+        "implementationId": "the real-world loss-run and exposure example",
+        "sha256": "8fa5a586cc5aa99cf3e93c2af596b7e8a8b7b38898b2df449d879f4d4667c4f0",
+        "cases": [
+          {
+            "fullName": "the generalized diagnostic vertical slice > runs all 22 selections and seals the exact definition, review, result, and bundle",
+            "assertions": 34
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > assembles complete 20-by-20 cumulative triangle diagonals",
+            "assertions": 2
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > is pinned to the complete source rather than a hand-picked sample",
+            "assertions": 4
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > loads all 20 exposure years without calling GWP earned premium",
+            "assertions": 3
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > makes gross-versus-net basis an explicit and consequential selection",
+            "assertions": 4
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > pins the latest net diagonals derived from the full claim histories",
+            "assertions": 2
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > renders source interpretations, limitations, and selections into the disclosure",
+            "assertions": 4
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > reports real data issues rather than presenting a falsely clean fixture",
+            "assertions": 5
+          },
+          {
+            "fullName": "the real-world loss-run and exposure example > uses insurance-year exposure as a pure-premium Cape Cod base",
+            "assertions": 2
+          }
+        ],
+        "assertionCount": 60
+      },
+      "additionalTests": [
+        {
+          "path": "examples/real-world-loss-run/test/reconciliation.test.ts",
+          "implementationId": "CASdatasets source reconciliation",
+          "sha256": "a2d5a7f9607e795fca8412b5006c4e1f78db50cfdd197fa0c2aec53446eb3e26",
+          "cases": [
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/closed-no-pay-bound and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/closed-reopen-signal and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/count-reconciliation and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/exposure-control and its fail severity blocks the default gate",
+              "assertions": 8
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/gross-incurred-latest-control and its fail severity blocks the default gate",
+              "assertions": 8
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/gross-incurred-monotonic and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/gross-paid-latest-control and its fail severity blocks the default gate",
+              "assertions": 8
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/net-incurred-latest-control and its fail severity blocks the default gate",
+              "assertions": 8
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/net-incurred-monotonic and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/net-incurred-not-above-gross and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/net-paid-latest-control and its fail severity blocks the default gate",
+              "assertions": 8
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/net-paid-not-above-gross and its fail severity blocks the default gate",
+              "assertions": 6
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > a controlled source error triggers casualty/review/positive-exposure and its fail severity blocks the default gate",
+              "assertions": 7
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > independently reconciles all source cell counts, layers, exposure years, and latest controls",
+              "assertions": 1057
+            },
+            {
+              "fullName": "CASdatasets source reconciliation > reconstructs the exact 73 finding coordinates and source arrays independently from the frozen CSV",
+              "assertions": 3
+            }
+          ],
+          "assertionCount": 1149
+        },
+        {
+          "path": "examples/real-world-loss-run/test/source-manifest.test.ts",
+          "implementationId": "committed real-world source evidence",
+          "sha256": "6e5955d3bfeb65c7927b6419f1c552e2e74155a119decc0599df3ac40c93ee0a",
+          "cases": [
+            {
+              "fullName": "committed real-world source evidence > rejects changes to bytes, row counts, and column schemas independently",
+              "assertions": 3
+            },
+            {
+              "fullName": "committed real-world source evidence > verifies a clean checkout containing only the seven committed CSVs",
+              "assertions": 3
+            }
+          ],
+          "assertionCount": 6
+        }
+      ],
+      "shores": [
+        "typescript"
+      ],
+      "lanes": [
+        "npm test",
+        "validation:source",
+        "validation:reconciliation",
+        "release:gate"
+      ],
+      "expected": {
+        "controls": {
+          "sourceRows": 1012839,
+          "distinctClaims": 750043,
+          "firstDevelopmentClaims": 735079,
+          "exposureYears": 20,
+          "exposureTotal": 4642000,
+          "triangleCells": 210,
+          "netPaid": 858912975,
+          "netIncurred": 860950725,
+          "duplicateClaimYears": 438,
+          "paidDecreaseTransitions": 1797,
+          "negativeNetCaseRecords": 27001,
+          "findings": 73
+        },
+        "sourceSha256": "4409adb022d18e24a3a0e724523706616e707c53e55f8625ce9fc122a20185d6",
+        "latestControls": {
+          "gross_paid": 1270226285,
+          "gross_incurred": 1275704235,
+          "net_paid": 858912975,
+          "net_incurred": 860950725
+        },
+        "signalCounts": {
+          "casualty/review/closed-reopen-signal": 8,
+          "casualty/review/gross-incurred-monotonic": 38,
+          "casualty/review/net-incurred-monotonic": 27
+        },
+        "findingSha256": "efa7d1c262717c2ddbc61cfa9982f8fa2c807fc51d9b1908af804c3a1a489acc"
+      },
+      "tolerances": {
+        "absolute": 0
+      },
+      "expectationProvenance": {
+        "sourceControls": "Exact independently reconciled committed derivatives of the SHA-pinned raw archive. The release rebuild reproduces every derivative without overwriting it.",
+        "findingIdentity": "Frozen result identity additionally checked against an independent direct CSV reconstruction of each source coordinate and valuation-pair decline."
+      }
     }
   ]
 }

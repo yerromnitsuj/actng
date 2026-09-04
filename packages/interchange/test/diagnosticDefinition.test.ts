@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   compileDiagnosticDefinition,
+  ReservingError,
   type DiagnosticDefinition,
 } from "@actuarial-ts/core";
 import {
@@ -12,6 +14,25 @@ import {
 } from "../src/index.js";
 
 const CREATED_AT = "2026-09-03T12:00:00.000Z";
+const hostileCorpus = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../interop/conformance/fixtures/diagnostics/hostile-boundaries.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as {
+  mutations: { id: string; value: unknown }[];
+};
+const prototypeKeys = [
+  ...hostileCorpus.mutations.flatMap((item) =>
+    item.id.startsWith("prototype-") && typeof item.value === "string"
+      ? [item.value]
+      : [],
+  ),
+  ":__proto__",
+];
 
 const definition: DiagnosticDefinition = {
   diagnosticDefinitionVersion: "1.0.0",
@@ -114,6 +135,109 @@ function authored() {
 }
 
 describe("diagnostic-definition interchange", () => {
+  it.each(prototypeKeys)(
+    "preserves the valid %s key in semantic registries and opaque extensions",
+    (key) => {
+      const portableDefinition: DiagnosticDefinition = {
+        ...definition,
+        countPopulations: [
+          {
+            ...definition.countPopulations[0]!,
+            attributes: { [key]: "retained" },
+          },
+        ],
+        exposureBases: [
+          {
+            ...definition.exposureBases[0]!,
+            attributes: { [key]: "retained" },
+          },
+        ],
+        formulas: [
+          {
+            ...definition.formulas[0]!,
+            id: key,
+            roles: { [key]: { kind: "count" }, exposure: { kind: "exposure" } },
+            numerator: { op: "role", role: key },
+          },
+        ],
+        instances: [
+          {
+            ...definition.instances[0]!,
+            id: key,
+            formulaId: key,
+            bindings: {
+              [key]: { op: "measure", measureId: "reported" },
+              exposure: { op: "measure", measureId: "exposure" },
+            },
+          },
+        ],
+      };
+      const compiled = compileDiagnosticDefinition(portableDefinition);
+      const extensions = { [key]: { [key]: "opaque" } };
+      const doc = diagnosticDefinitionToDoc(compiled, {
+        createdAt: CREATED_AT,
+        extensions,
+      });
+      expect(doc.diagnosticDefinition.definition).toEqual(compiled.definition);
+      expect(
+        Object.hasOwn(doc.diagnosticDefinition.identities.formulaById, key),
+      ).toBe(true);
+      expect(
+        Object.hasOwn(
+          doc.diagnosticDefinition.identities.calculationByInstanceId,
+          key,
+        ),
+      ).toBe(true);
+      expect(doc.extensions).toEqual(extensions);
+      const parsed = parseDocument(JSON.parse(JSON.stringify(doc))).doc;
+      expect(parsed).toEqual(doc);
+      expect(docToDiagnosticDefinition(parsed).definition.definition).toEqual(
+        compiled.definition,
+      );
+      expect(Object.isFrozen(extensions)).toBe(false);
+
+      const invalid = structuredClone(doc) as any;
+      invalid.diagnosticDefinition.definition.formulas[0].roles[key].kind =
+        "unknown-kind";
+      expect(() => parseDocument(stampIntegrity(invalid))).toThrow(
+        /schema validation/,
+      );
+    },
+  );
+
+  it("preserves prototype-name opaque envelope fields but refuses executable additions", () => {
+    const doc = authored();
+    const envelope = { ...doc, ["__proto__"]: { future: true } };
+    const parsed = parseDocument(envelope).doc;
+    expect(Object.hasOwn(parsed, "__proto__")).toBe(true);
+    expect(parsed.__proto__).toEqual({ future: true });
+    expect(
+      docToDiagnosticDefinition(envelope).definition.definitionIntegrity,
+    ).toBe(doc.diagnosticDefinition.identities.definition);
+    const executable = structuredClone(doc) as any;
+    Object.defineProperty(
+      executable.diagnosticDefinition.definition.measures[0],
+      "__proto__",
+      {
+        value: { future: true },
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      },
+    );
+    const stamped = stampIntegrity(executable);
+    expect(
+      Object.hasOwn(
+        (parseDocument(stamped).doc as any).diagnosticDefinition.definition
+          .measures[0],
+        "__proto__",
+      ),
+    ).toBe(true);
+    expect(() =>
+      docToDiagnosticDefinition(stamped, { strictness: "warn" }),
+    ).toThrow(/unsupported executable/i);
+  });
+
   it("writes 1.1.0 and round-trips to a new authentic compiled definition", () => {
     const doc = authored();
     expect(doc.interchangeVersion).toBe("1.1.0");
@@ -135,6 +259,29 @@ describe("diagnostic-definition interchange", () => {
       }),
     ).toThrow(/authentic/);
   });
+
+  it.each([
+    undefined,
+    null,
+    "wrong",
+    { createdAt: CREATED_AT, unexpected: true },
+    { createdAt: CREATED_AT, generator: null },
+    { createdAt: CREATED_AT, extensions: { callback: () => {} } },
+  ])(
+    "rejects malformed author options with a structured error: %j",
+    (options) => {
+      try {
+        diagnosticDefinitionToDoc(
+          compileDiagnosticDefinition(definition),
+          options as never,
+        );
+        expect.unreachable("malformed options must fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ReservingError);
+        expect((error as ReservingError).code).toBe("BAD_INTERCHANGE");
+      }
+    },
+  );
 
   it("snapshots author options, freezes output, and rejects malformed envelope fields", () => {
     const generator = { name: "custom", version: "1.0.0" };

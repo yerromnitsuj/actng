@@ -15,6 +15,11 @@ import { fileURLToPath } from "node:url";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { parseDocument } from "yaml";
 import ts from "typescript";
+import {
+  createPackedSnippetEnvironment,
+  snippetPolicy,
+  verifyPackedSnippets,
+} from "./packed-snippets.mjs";
 
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const inventoryPath = resolve(root, "tools/docs/documentation-inventory.json");
@@ -160,16 +165,22 @@ function parsed(
     const language = (node.lang ?? "text").toLowerCase();
     const source = node.value ?? "";
     const isPublic = PUBLIC_LANGUAGES.has(language);
+    const policy =
+      classification(path).classification === "active"
+        ? snippetPolicy({ path, ordinal, language })
+        : {
+            classification: isPublic
+              ? "reviewed-public"
+              : "reviewed-illustrative",
+            reason: "Historical fence retained as a dated source record.",
+          };
     result.push({
       path,
       heading,
       language,
       ordinal,
       sha256: hash(source),
-      classification: isPublic ? "reviewed-public" : "reviewed-illustrative",
-      reason: isPublic
-        ? "Executable/configuration example syntax-checked here and behavior-owned by its active document or linked test/example."
-        : "Non-executable output, diagram, or prose example.",
+      ...policy,
     });
     sources.set(ordinal, source);
   });
@@ -491,6 +502,23 @@ if (mode === "base") {
       fence,
       parsedByPath.get(fence.path)!.sources.get(fence.ordinal)!,
     );
+  const consumer = createPackedSnippetEnvironment();
+  try {
+    const checked = verifyPackedSnippets(
+      consumer,
+      activeFences.map((fence) => ({
+        ...fence,
+        source: parsedByPath.get(fence.path)!.sources.get(fence.ordinal)!,
+      })),
+    );
+    console.log(
+      `documentation packed consumer: ${checked.executable} executable/mixed fences; ${checked.declarations} declaration/mixed fences checked`,
+    );
+  } catch (error) {
+    failures.push(error instanceof Error ? error.message : String(error));
+  } finally {
+    consumer.cleanup();
+  }
 } else if (mode === "python") {
   const python = process.env.ACTUARIAL_TS_PYTHON ?? "python3";
   for (const fence of activeFences.filter((entry) =>
@@ -500,13 +528,13 @@ if (mode === "base") {
       python,
       [
         "-c",
-        `compile(${JSON.stringify(parsedByPath.get(fence.path)!.sources.get(fence.ordinal))}, ${JSON.stringify(fence.path)}, 'exec')`,
+        `exec(compile(${JSON.stringify(parsedByPath.get(fence.path)!.sources.get(fence.ordinal))}, ${JSON.stringify(fence.path)}, 'exec'))`,
       ],
-      { cwd: root, encoding: "utf8" },
+      { cwd: root, encoding: "utf8", timeout: 60_000 },
     );
     if (checked.status !== 0)
       failures.push(
-        `${fence.path} fence ${fence.ordinal}: Python syntax failed`,
+        `${fence.path} fence ${fence.ordinal}: Python execution failed: ${checked.stderr || checked.error?.message || "nonzero exit"}`,
       );
   }
 } else if (mode === "r") {

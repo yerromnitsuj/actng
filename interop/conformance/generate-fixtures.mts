@@ -38,7 +38,9 @@ import {
   evaluateDiagnosticReviewRules,
   prepareDiagnosticData,
   runMetricDiagnostics,
+  canonicalJson,
   type DiagnosticDefinition,
+  type DiagnosticReviewRule,
 } from "@actuarial-ts/core";
 import {
   diagnosticDefinitionToDoc,
@@ -90,14 +92,140 @@ const legacyDefinition = JSON.parse(
 const legacyCell = JSON.parse(
   readFileSync(path.join(diagnosticDir, "cell.json"), "utf8"),
 ) as { values: Record<string, number | null> };
-const calendar = compileDiagnosticDefinition(
-  docToDiagnosticDefinition(legacyDefinition).definition.definition,
-);
+const authored =
+  docToDiagnosticDefinition(legacyDefinition).definition.definition;
+const measure = (measureId: string) => ({ op: "measure" as const, measureId });
+const ruleBase = (id: string) => ({
+  id,
+  code: id,
+  description: `Conformance ${id}`,
+  severity: "warning" as const,
+  missingInput: "not-evaluated" as const,
+});
+const reviewRules: DiagnosticReviewRule[] = [
+  ...(["lt", "lte", "eq", "neq", "gte", "gt"] as const).flatMap((operator) =>
+    (["not-evaluated", "finding"] as const).map((missingInput) => ({
+      ...ruleBase(`${operator}-${missingInput}`),
+      kind: "compare" as const,
+      missingInput,
+      when: {
+        left: measure("gross-paid"),
+        operator,
+        right: measure("gross-incurred"),
+      },
+      tolerance: { absolute: 1, relative: 0 },
+    })),
+  ),
+  {
+    ...ruleBase("reconcile"),
+    kind: "reconcile",
+    actual: measure("reported"),
+    expected: {
+      op: "add",
+      terms: [
+        measure("open"),
+        measure("closed-with-pay"),
+        measure("closed-no-pay"),
+      ],
+    },
+  },
+  {
+    ...ruleBase("monotonic"),
+    kind: "monotonic",
+    expression: measure("gross-paid"),
+    direction: "nondecreasing",
+  },
+  {
+    ...ruleBase("layer-order"),
+    kind: "layer-order",
+    narrower: measure("net-paid"),
+    broader: measure("gross-paid"),
+    comparability: {
+      kind: "caller-asserted",
+      rationaleArtifactId: "source-manifest",
+    },
+  },
+  {
+    ...ruleBase("control-total"),
+    kind: "control-total",
+    expression: measure("insurance-years"),
+    expected: 200,
+    projection: { kind: "latest-valuation-per-origin" },
+    filter: { sourceGroups: ["baseline"] },
+  },
+  {
+    ...ruleBase("valuation-exposure"),
+    kind: "control-total",
+    expression: measure("current-exposure"),
+    expected: 220,
+    projection: { kind: "all-cells" },
+    filter: { sourceGroups: ["baseline"] },
+  },
+  {
+    ...ruleBase("relative-edge"),
+    kind: "compare",
+    when: {
+      left: measure("gross-paid"),
+      operator: "neq",
+      right: measure("gross-incurred"),
+    },
+    tolerance: { relative: 0.1 },
+  },
+  {
+    ...ruleBase("tolerance-overflow"),
+    kind: "compare",
+    when: {
+      left: measure("gross-paid"),
+      operator: "neq",
+      right: measure("gross-incurred"),
+    },
+    tolerance: { relative: 1e308 },
+  },
+  {
+    ...ruleBase("overflow"),
+    kind: "reconcile",
+    actual: {
+      op: "add",
+      terms: [measure("gross-paid"), measure("gross-incurred")],
+    },
+    expected: { op: "constant", value: 0 },
+  },
+  {
+    ...ruleBase("cancellation"),
+    kind: "reconcile",
+    actual: {
+      op: "add",
+      terms: [
+        measure("gross-paid"),
+        measure("gross-incurred"),
+        measure("cancellation-adjustment"),
+      ],
+    },
+    expected: { op: "constant", value: 1 },
+  },
+];
+const exposure = authored.measures.find(
+  (item) => item.id === "insurance-years",
+)!;
+const amount = authored.measures.find((item) => item.id === "gross-paid")!;
+const calendar = compileDiagnosticDefinition({
+  ...authored,
+  measures: [
+    ...authored.measures,
+    {
+      ...exposure,
+      id: "current-exposure",
+      exposureTiming: "valuation-specific",
+    },
+    { ...amount, id: "cancellation-adjustment" },
+  ],
+  reviewRules,
+});
 const createdAt = "2026-09-03T12:00:00.000Z";
 function diagnosticCorpus(
   definition: ReturnType<typeof compileDiagnosticDefinition>,
   origin: string,
-  valuation: string,
+  valuations: readonly [string, string],
 ) {
   const lossMeasures = Object.fromEntries(
     definition.definition.measures
@@ -107,27 +235,71 @@ function diagnosticCorpus(
   const exposureMeasures = definition.definition.measures.filter(
     (measure) => measure.source === "exposure",
   );
-  const cells = {
-    losses: [
+  const variants: ReadonlyArray<
+    readonly [string, Record<string, number | null>]
+  > = [
+    ["baseline", { "gross-paid": 100, "gross-incurred": 101 }],
+    [
+      "outside-edge",
+      { "gross-paid": 100, "gross-incurred": 101.00000000000001 },
+    ],
+    ["relative-edge", { "gross-paid": 90, "gross-incurred": 100 }],
+    ["missing", { "gross-paid": null, reported: null }],
+    ["overflow", { "gross-paid": 1e308, "gross-incurred": 1e308 }],
+    [
+      "cancellation",
       {
+        "gross-paid": 1e16,
+        "gross-incurred": 1,
+        "cancellation-adjustment": -1e16,
+      },
+    ],
+  ];
+  const losses = variants.flatMap(([sourceGroup, overrides]) =>
+    valuations.map((valuation, index) => {
+      const values: Record<string, number | null> = {
+        ...lossMeasures,
+        "cancellation-adjustment": 0,
+        ...overrides,
+      };
+      if (sourceGroup === "baseline" && index === 1) values["gross-paid"] = 99;
+      if (sourceGroup === "relative-edge" && index === 1)
+        values["gross-paid"] = 89.99999999999999;
+      if (sourceGroup === "missing" && index === 1) delete values.reported;
+      return {
         rowType: "aggregate",
-        recordId: "cell-1",
-        sourceGroup: "all",
+        recordId: `${sourceGroup}-${index}`,
+        sourceGroup,
         origin,
         valuation,
         complete: true,
-        measures: lossMeasures,
-      },
-    ],
-    exposures: exposureMeasures.map((measure) => ({
-      key: `${measure.id}-1`,
-      sourceGroup: "all",
-      origin,
-      ...(measure.exposureTiming === "valuation-specific" ? { valuation } : {}),
-      measureId: measure.id,
-      value: legacyCell.values[measure.id] ?? null,
-      complete: true,
-    })),
+        measures: values,
+      };
+    }),
+  );
+  const cells = {
+    losses,
+    exposures: variants.flatMap(([sourceGroup]) =>
+      exposureMeasures.flatMap((measure) =>
+        (measure.exposureTiming === "valuation-specific"
+          ? valuations
+          : [null]
+        ).map((valuation, index) => ({
+          key: `${sourceGroup}-${measure.id}-${index}`,
+          sourceGroup,
+          origin,
+          ...(valuation === null ? {} : { valuation }),
+          measureId: measure.id,
+          value:
+            sourceGroup === "missing"
+              ? null
+              : measure.exposureTiming === "valuation-specific"
+                ? 100 + 20 * index
+                : 200,
+          complete: true,
+        })),
+      ),
+    ),
   };
   const prepared = prepareDiagnosticData({ definition, ...cells });
   const result = runMetricDiagnostics({ prepared });
@@ -135,6 +307,7 @@ function diagnosticCorpus(
   return {
     cells,
     expected: {
+      canonicalDefinitionJson: canonicalJson(definition.definition),
       definitionIntegrity: definition.definitionIntegrity,
       preparationFingerprint: prepared.preparationFingerprint,
       result,
@@ -142,7 +315,7 @@ function diagnosticCorpus(
     },
   };
 }
-const calendarCorpus = diagnosticCorpus(calendar, "2025", "2025");
+const calendarCorpus = diagnosticCorpus(calendar, "2025", ["2025", "2027"]);
 write(
   diagnosticDir,
   "calendar-definition.json",
@@ -159,11 +332,17 @@ const orderedDefinition: DiagnosticDefinition = {
     ageUnit: "step",
     ageOffset: 0,
     origins: [{ label: "O1", aliases: ["origin-one"], coordinate: 0 }],
-    valuations: [{ label: "V1", aliases: ["valuation-one"], coordinate: 1 }],
+    valuations: [
+      { label: "V1", aliases: ["valuation-one"], coordinate: 1 },
+      { label: "V3", aliases: ["valuation-three"], coordinate: 4 },
+    ],
   },
 };
 const ordered = compileDiagnosticDefinition(orderedDefinition);
-const orderedCorpus = diagnosticCorpus(ordered, "origin-one", "valuation-one");
+const orderedCorpus = diagnosticCorpus(ordered, "origin-one", [
+  "valuation-one",
+  "valuation-three",
+]);
 write(
   diagnosticDir,
   "ordered-axis-definition.json",

@@ -14,7 +14,7 @@ field <- function(name) {
   if (identical(value, contract_text)) stop("R environment contract has no ", name, " field")
   value
 }
-library_path <- path.expand(field("library"))
+library_path <- path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", field("library")))
 repository <- field("repository")
 
 if (!requireNamespace("jsonlite", quietly = TRUE)) {

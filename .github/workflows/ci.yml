@@ -31,6 +31,8 @@ jobs:
           npm run smoke:packed:test
       - name: Build all workspaces
         run: npm run build
+      - name: Complete packed public declaration contract
+        run: npm run api:check
       - name: Typecheck
         run: npm run typecheck
       - name: Test

@@ -76,17 +76,33 @@ PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" npm run release:gate
 The command list is defined once in `tools/release/release-commands.json` and
 includes the full TypeScript/Python/R suites, all examples, both packed
 consumers, the source registry, every diagnostic reconciliation, and a
-byte-for-byte rebuild of the real-world source derivatives. A successful run
+byte-for-byte rebuild of the real-world source derivatives. `test:release`
+uses the ordinary workspace suites with a skip-failing reporter. The single
+paid, opt-in probabilistic model evaluation is explicitly outside release
+acceptance; all deterministic agent-tool tests and live Python/R tests remain
+mandatory. The gate also checks the complete packed declaration snapshot.
+A successful run
 from a clean commit writes ignored `.release/attestation.json` plus the five
-reviewed tarballs, bound to the Git SHA and manifest hashes.
+reviewed tarballs, bound to the Git SHA and manifest hashes, with a successful
+receipt for every phase. There is no standalone attestation-creation command.
 
-Publish only with:
+Use `ACTUARIAL_TS_PYTHON312` and `ACTUARIAL_TS_RSCRIPT` to select the required
+Python 3.12 and R 4.4.3 executables. `ACTUARIAL_TS_R_LIBRARY` optionally selects
+an isolated R package library instead of `~/.R-interop-lib`; install and check
+that library with `tools/interop/install-r-environment.R` and
+`tools/interop/check-r-environment.R` using the same environment.
+
+After the clean local gate succeeds, push its exact source commit and require
+CI, Python conformance, and R conformance to pass on that SHA. Then publish
+only with:
 
 ```bash
 PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" npm run release:publish
 ```
 
-Every package's `prepublishOnly` recreates its packed bytes and refuses before
+The publish orchestrator validates all five packages before the first write,
+then publishes the exact attested archives without rebuilding them. Every
+package's direct-workspace `prepublishOnly` recreates its packed bytes and refuses before
 contacting npm if the attestation is absent, the tree is dirty, the SHA or
 manifest changed, the versions disagree, or the tarball hash differs. After
 publishing—but before tagging—run
@@ -103,8 +119,8 @@ From the repo root, with the new version X.Y.Z:
    (`^X.Y.Z`) together — npm publishes dependency ranges AS WRITTEN
    (verified by unpacking a real tarball: a `"*"` survives into the
    manifest), so the ranges must be real. The dependency graph:
-   interchange -> core; data -> core; compliance -> core, interchange;
-   agents -> core, compliance, interchange (+ Mastra/zod peers).
+   interchange -> core; data -> core; compliance -> core, data, interchange;
+   agents -> core, data, compliance, interchange (+ Mastra/zod peers).
 2. Update CHANGELOG.md.
 
 The orchestrator publishes dependencies before consumers. Interchange publishes right
@@ -112,7 +128,8 @@ after core (it depends on core only), and BEFORE compliance and agents
 (which depend on interchange) — publishing compliance first would leave a
 consumer's `npm install` resolving an unpublished dependency.
 `publishConfig.access: "public"` is set in every manifest, so no
-`--access` flag is needed; each package's `prepack` rebuilds its dist.
+`--access` flag is needed. Ordinary packs run `prepack` to rebuild dist;
+release publication uses the immutable archives already tested and attested.
 
 ## After publishing
 

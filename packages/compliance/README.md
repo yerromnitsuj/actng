@@ -20,12 +20,12 @@ if (outcome.status !== "completed") throw new Error(`diagnostics blocked at ${ou
 const provenance = await createDiagnosticRunIdentity({
   completedRun: outcome,
   inputArtifacts: [
-    { id: "loss-run", assurance: "sdk-computed", bytes: lossRunBytes },
-    { id: "exposures", assurance: "sdk-computed", bytes: exposureBytes },
-    { id: "source-archive", assurance: "caller-declared", algorithm: "sha256", value: archiveSha256 },
+    { id: "loss-run", scope: "input", assurance: "sdk-computed", bytes: lossRunBytes },
+    { id: "exposures", scope: "input", assurance: "sdk-computed", bytes: exposureBytes },
+    { id: "source-archive", scope: "input", assurance: "caller-declared", algorithm: "sha256", value: archiveSha256 },
   ],
   preparationArtifacts: [
-    { id: "transform-script", assurance: "caller-declared", algorithm: "git-sha", value: transformCommit },
+    { id: "transform-script", scope: "preparation", assurance: "caller-declared", algorithm: "git-sha", value: transformCommit },
   ],
   preparationLineage: [
     { outputArtifactId: "loss-run", inputArtifactIds: ["source-archive"], transformationArtifactIds: ["transform-script"] },

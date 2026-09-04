@@ -7,13 +7,14 @@
     "npm run release:gate:test",
     "npm run build",
     "npm run typecheck",
-    "npm test",
+    "npm run test:release",
     "npm run validation:source",
     "npm run validation:reconciliation",
     "npm run data:fetch -w @actuarial-ts/example-real-world-loss-run",
     "npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run",
     "pytest:all",
     "R:conformance",
+    "R:mack-1999-tail",
     "R:read-document",
     "npm run crosscheck:ci",
     "npm run diagnostics:legacy:test",
@@ -33,6 +34,6 @@
     "npm run example:cl-crosscheck",
     "npm run smoke:packed",
     "npm run smoke:packed:runtime-four",
-    "node tools/release/create-attestation.mjs"
+    "npm run api:check"
   ]
 }

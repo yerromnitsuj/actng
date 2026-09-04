@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  registerSourceFile,
+  sourceExpected,
+} from "../../../tools/validation/source-contract.js";
 import { createHash } from "node:crypto";
 import { canonicalJson } from "@actuarial-ts/core";
 import {
@@ -8,31 +12,38 @@ import {
 
 const net = runRealWorldLossRunReview();
 const gross = runRealWorldLossRunReview({ basis: "gross" });
+registerSourceFile(import.meta.url);
+const sourceControls = sourceExpected<Record<string, number>>(
+  "casdatasets-freclaimset2motor",
+  "controls",
+);
 
 describe("the real-world loss-run and exposure example", () => {
   it("is pinned to the complete source rather than a hand-picked sample", () => {
-    expect(net.quality.source_claim_rows).toBe(1_012_839);
-    expect(net.quality.distinct_claim_ids).toBe(750_043);
-    expect(net.quality.source_first_development_claim_count).toBe(735_079);
+    expect(net.quality.source_claim_rows).toBe(sourceControls.sourceRows);
+    expect(net.quality.distinct_claim_ids).toBe(sourceControls.distinctClaims);
+    expect(net.quality.source_first_development_claim_count).toBe(
+      sourceControls.firstDevelopmentClaims,
+    );
     expect(net.source.sourceSha256).toBe(
-      "4409adb022d18e24a3a0e724523706616e707c53e55f8625ce9fc122a20185d6",
+      sourceExpected<string>("casdatasets-freclaimset2motor", "sourceSha256"),
     );
   });
 
   it("loads all 20 exposure years without calling GWP earned premium", () => {
-    expect(net.exposureYears).toBe(20);
-    expect(net.totalExposureUnits).toBe(4_642_000);
+    expect(net.exposureYears).toBe(sourceControls.exposureYears);
+    expect(net.totalExposureUnits).toBe(sourceControls.exposureTotal);
     expect(net.earnedPremiumRows).toBe(0);
   });
 
   it("assembles complete 20-by-20 cumulative triangle diagonals", () => {
-    expect(net.triangleCellsPerBasis).toBe(210);
+    expect(net.triangleCellsPerBasis).toBe(sourceControls.triangleCells);
     expect(net.selectedLdfs).toBe(38);
   });
 
   it("pins the latest net diagonals derived from the full claim histories", () => {
-    expect(net.paid.latest).toBe(858_912_975);
-    expect(net.incurred.latest).toBe(860_950_725);
+    expect(net.paid.latest).toBe(sourceControls.netPaid);
+    expect(net.incurred.latest).toBe(sourceControls.netIncurred);
   });
 
   it("makes gross-versus-net basis an explicit and consequential selection", () => {
@@ -48,9 +59,15 @@ describe("the real-world loss-run and exposure example", () => {
   });
 
   it("reports real data issues rather than presenting a falsely clean fixture", () => {
-    expect(net.quality.duplicate_claim_year_groups).toBe(438);
-    expect(net.quality.paid_decrease_transitions).toBe(1_797);
-    expect(net.quality.negative_net_case_records).toBe(27_001);
+    expect(net.quality.duplicate_claim_year_groups).toBe(
+      sourceControls.duplicateClaimYears,
+    );
+    expect(net.quality.paid_decrease_transitions).toBe(
+      sourceControls.paidDecreaseTransitions,
+    );
+    expect(net.quality.negative_net_case_records).toBe(
+      sourceControls.negativeNetCaseRecords,
+    );
     expect(net.dataReview.summary.warning).toBeGreaterThan(0);
     expect(net.dataReview.summary.fail).toBe(1);
   });
@@ -117,11 +134,7 @@ describe("the generalized diagnostic vertical slice", () => {
           ],
         ),
       ),
-    ).toEqual({
-      "casualty/review/closed-reopen-signal": 8,
-      "casualty/review/gross-incurred-monotonic": 38,
-      "casualty/review/net-incurred-monotonic": 27,
-    });
+    ).toEqual(sourceExpected("casdatasets-freclaimset2motor", "signalCounts"));
     const exactFindingEvidence = triggered.map((evaluation) => ({
       ruleId: evaluation.ruleId,
       scope: evaluation.scope,
@@ -131,7 +144,7 @@ describe("the generalized diagnostic vertical slice", () => {
       createHash("sha256")
         .update(canonicalJson(exactFindingEvidence))
         .digest("hex"),
-    ).toBe("efa7d1c262717c2ddbc61cfa9982f8fa2c807fc51d9b1908af804c3a1a489acc");
+    ).toBe(sourceExpected("casdatasets-freclaimset2motor", "findingSha256"));
     for (const id of [
       "casualty/review/count-reconciliation",
       "casualty/review/closed-no-pay-bound",

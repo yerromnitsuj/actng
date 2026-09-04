@@ -683,17 +683,20 @@ export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosti
     inputArtifacts: [
       {
         id: "source-archive",
+        scope: "input",
         assurance: "caller-declared",
         algorithm: "sha-256",
         value: SOURCE.sourceSha256,
       },
       {
         id: "diagnostic-snapshots",
+        scope: "input",
         assurance: "sdk-computed",
         bytes: encoder.encode(snapshotText),
       },
       {
         id: "exposures",
+        scope: "input",
         assurance: "sdk-computed",
         bytes: encoder.encode(exposureText),
       },
@@ -701,11 +704,13 @@ export async function runRealWorldDiagnosticReview(): Promise<RealWorldDiagnosti
     preparationArtifacts: [
       {
         id: "source-manifest",
+        scope: "preparation",
         assurance: "sdk-computed",
         bytes: encoder.encode(exampleFile("source-manifest.json")),
       },
       {
         id: "transform-script",
+        scope: "preparation",
         assurance: "sdk-computed",
         bytes: encoder.encode(exampleFile("scripts/transform-source.R")),
       },

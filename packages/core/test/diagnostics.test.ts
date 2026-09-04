@@ -1,11 +1,22 @@
-import { describe, expect, it } from "vitest";
-import { calendarYearTest, factorCorrelationTest, mackResiduals } from "../src/diagnostics.js";
-import { triangleFromGrid } from "../src/triangle.js";
 import {
-  raa,
-  raaCalendarYearPublished,
-  raaCorrelationPublished,
-} from "./fixtures/mack1994raa.js";
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const raaCalendarYearPublished = sourceExpected<
+  typeof import("./fixtures/mack1994raa.js").raaCalendarYearPublished
+>("mack-1994-raa-diagnostics", "raaCalendarYearPublished");
+const raaCorrelationPublished = sourceExpected<
+  typeof import("./fixtures/mack1994raa.js").raaCorrelationPublished
+>("mack-1994-raa-diagnostics", "raaCorrelationPublished");
+import { describe, expect, it } from "vitest";
+import {
+  calendarYearTest,
+  factorCorrelationTest,
+  mackResiduals,
+} from "../src/diagnostics.js";
+import { triangleFromGrid } from "../src/triangle.js";
+import { raa } from "./fixtures/mack1994raa.js";
 
 describe("factorCorrelationTest (Mack 1994, Appendix G)", () => {
   it("reproduces the published RAA worked example exactly", () => {
@@ -15,11 +26,23 @@ describe("factorCorrelationTest (Mack 1994, Appendix G)", () => {
     expect(result!.columns.length).toBe(raaCorrelationPublished.k.length);
     result!.columns.forEach((col, idx) => {
       expect(col.pairs).toBe(raaCorrelationPublished.weights[idx]! + 1);
-      expect(col.statistic).toBeCloseTo(raaCorrelationPublished.Tk[idx]!, 9);
+      expect(col.statistic).toBeCloseTo(
+        raaCorrelationPublished.Tk[idx]!,
+        sourceTolerance("mack-1994-raa-diagnostics", "decimalPlaces:9"),
+      );
     });
-    expect(result!.statistic).toBeCloseTo(0.06956, 4); // printed as .070
-    expect(result!.variance).toBeCloseTo(raaCorrelationPublished.varT, 12);
-    expect(result!.bound50).toBeCloseTo(raaCorrelationPublished.bound, 9);
+    expect(result!.statistic).toBeCloseTo(
+      sourceExpected<number>("mack-1994-raa-diagnostics", "literal:0.06956"),
+      sourceTolerance("mack-1994-raa-diagnostics", "decimalPlaces:4"),
+    ); // printed as .070
+    expect(result!.variance).toBeCloseTo(
+      raaCorrelationPublished.varT,
+      sourceTolerance("mack-1994-raa-diagnostics", "decimalPlaces:12"),
+    );
+    expect(result!.bound50).toBeCloseTo(
+      raaCorrelationPublished.bound,
+      sourceTolerance("mack-1994-raa-diagnostics", "decimalPlaces:9"),
+    );
     expect(result!.correlated).toBe(false);
   });
 
@@ -34,7 +57,7 @@ describe("factorCorrelationTest (Mack 1994, Appendix G)", () => {
       let v = 1000;
       for (let j = 0; j < rows - i; j++) {
         row.push(v);
-        v *= f - (j * 0.05 * (f - 1));
+        v *= f - j * 0.05 * (f - 1);
       }
       while (row.length < rows) row.push(null);
       values.push(row);
@@ -70,8 +93,14 @@ describe("calendarYearTest pinned to Mack 1994 Appendix H", () => {
     const result = calendarYearTest(raa);
     expect(result).not.toBeNull();
     expect(result!.totalZ).toBe(raaCalendarYearPublished.Z);
-    expect(result!.expectedTotalZ).toBeCloseTo(raaCalendarYearPublished.EZ, 3);
-    expect(result!.varianceTotalZ).toBeCloseTo(raaCalendarYearPublished.VarZ, 3);
+    expect(result!.expectedTotalZ).toBeCloseTo(
+      raaCalendarYearPublished.EZ,
+      sourceTolerance("mack-1994-raa-diagnostics", "decimalPlaces:3"),
+    );
+    expect(result!.varianceTotalZ).toBeCloseTo(
+      raaCalendarYearPublished.VarZ,
+      sourceTolerance("mack-1994-raa-diagnostics", "decimalPlaces:3"),
+    );
   });
 });
 
@@ -97,11 +126,20 @@ describe("mackResiduals", () => {
   it("satisfies the volume-weighted identity sum(residual x sqrt(C)) = 0 per column on RAA", () => {
     const result = mackResiduals(raa);
     const nonNull = result.cells.filter((c) => c.residual !== null);
-    expect(nonNull.length).toBeGreaterThan(20);
-    const byColumn = new Map<number, { residual: number; origin: string; fromAge: number }[]>();
+    expect(nonNull.length).toBeGreaterThan(
+      sourceTolerance("mack-1994-raa-diagnostics", "toBeGreaterThan:20"),
+    );
+    const byColumn = new Map<
+      number,
+      { residual: number; origin: string; fromAge: number }[]
+    >();
     for (const cell of nonNull) {
       const list = byColumn.get(cell.fromAge) ?? [];
-      list.push({ residual: cell.residual!, origin: cell.origin, fromAge: cell.fromAge });
+      list.push({
+        residual: cell.residual!,
+        origin: cell.origin,
+        fromAge: cell.fromAge,
+      });
       byColumn.set(cell.fromAge, list);
     }
     for (const [fromAge, cells] of byColumn) {
@@ -114,12 +152,25 @@ describe("mackResiduals", () => {
         weighted += cell.residual * Math.sqrt(c0);
         scale += Math.abs(cell.residual) * Math.sqrt(c0);
       }
-      expect(Math.abs(weighted)).toBeLessThan(1e-9 * Math.max(1, scale));
+      expect(Math.abs(weighted)).toBeLessThan(
+        sourceTolerance("mack-1994-raa-diagnostics", "toBeLessThan:1e-9") *
+          Math.max(
+            sourceTolerance("mack-1994-raa-diagnostics", "toBeLessThan:1"),
+            scale,
+          ),
+      );
     }
     // Calendar tags: diagonal index = origin index + column index + 1.
     for (const cell of nonNull) {
-      expect(cell.calendar).toBeGreaterThanOrEqual(1);
+      expect(cell.calendar).toBeGreaterThanOrEqual(
+        sourceTolerance(
+          "mack-1994-raa-diagnostics",
+          "toBeGreaterThanOrEqual:1",
+        ),
+      );
       expect(cell.calendar).toBeLessThanOrEqual(raa.origins.length);
     }
   });
 });
+
+registerSourceFile(import.meta.url);

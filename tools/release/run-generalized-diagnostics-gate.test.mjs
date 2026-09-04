@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -12,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sha256 } from "./release-evidence.mjs";
 
 const script = "tools/release/run-generalized-diagnostics-gate.sh";
 const node22Path = `${process.env.HOME}/.nvm/versions/node/v22.22.0/bin:${process.env.PATH}`;
@@ -37,41 +39,12 @@ test("dry run preserves every normative phase in order", () => {
     readFileSync("tools/release/release-commands.json", "utf8"),
   );
   assert.deepEqual(lines, manifest.commands);
-  assert.deepEqual(lines, [
-    "npm run version:check",
-    "npm ci",
-    "npm run version:check",
-    "npm run release:gate:test",
-    "npm run build",
-    "npm run typecheck",
-    "npm test",
-    "npm run validation:source",
-    "npm run validation:reconciliation",
-    "npm run data:fetch -w @actuarial-ts/example-real-world-loss-run",
-    "npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run",
-    "pytest:all",
-    "R:conformance",
-    "R:read-document",
-    "npm run crosscheck:ci",
-    "npm run diagnostics:legacy:test",
-    "npm run diagnostics:legacy:check -- --scope=source,declarations",
-    "npm run docs:check",
-    "npm run docs:check:py",
-    "npm run docs:check:r",
-    "npm run advisories:test",
-    "npm run advisories:check",
-    "npm run smoke:packed:test",
-    "npm run example",
-    "npm run example:real-world",
-    "npm run example:determinism",
-    "npm run example:cl-ts",
-    "npm run example:cl-py",
-    "npm run example:cl-r",
-    "npm run example:cl-crosscheck",
-    "npm run smoke:packed",
-    "npm run smoke:packed:runtime-four",
-    "node tools/release/create-attestation.mjs",
-  ]);
+  // Pin the reviewed manifest itself: deleting or reordering any phase fails,
+  // without maintaining a second divergent command array in this self-test.
+  assert.equal(
+    sha256(readFileSync("tools/release/release-commands.json")),
+    "3d3d4d03456d3bea975bbebf35864a0189c2488f638791e2709da4bc24f761f4",
+  );
 });
 test("workflow triggers and runtimes cover docs, release tooling, and the Node support split", () => {
   const python = readFileSync(".github/workflows/py-conformance.yml", "utf8");
@@ -85,6 +58,8 @@ test("workflow triggers and runtimes cover docs, release tooling, and the Node s
       "docs/**",
       "tools/docs/**",
       "tools/release/**",
+      "tools/validation/**",
+      "examples/real-world-loss-run/**",
       "CHANGELOG.md",
       "package.json",
       "package-lock.json",
@@ -101,6 +76,7 @@ test("workflow triggers and runtimes cover docs, release tooling, and the Node s
   expectText(r, 'r-version: "4.4.3"');
   expectText(r, `deriv-${rEnvironment.transitivePackages.Deriv}`);
   expectText(r, "install-r-environment.R");
+  expectText(r, "rebuild:compare");
   expectText(r, "docs:check:r");
   expectText(ci, "node-version: 22.22.0");
   expectText(ci, "node-version: 20");
@@ -126,6 +102,34 @@ test("preflight rejects an executable that only claims to be Python 3.12", () =>
     assert.match(result.stderr, /requires Python 3\.12/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+test("failed actual gate preflight invalidates old evidence, but read-only preflight does not", () => {
+  const root = mkdtempSync(join(tmpdir(), "gate-stale-evidence-"));
+  try {
+    mkdirSync(join(root, "tools/release"), { recursive: true });
+    mkdirSync(join(root, ".release"));
+    const copiedScript = join(root, script);
+    writeFileSync(copiedScript, readFileSync(script));
+    const evidence = join(root, ".release/attestation.json");
+    const fakePython = join(root, "failed-python");
+    writeFileSync(fakePython, "#!/bin/sh\nexit 1\n");
+    chmodSync(fakePython, 0o755);
+    for (const args of [["--preflight-only"], []]) {
+      writeFileSync(evidence, "old evidence");
+      const result = spawnSync("bash", [copiedScript, ...args], {
+        env: {
+          ...process.env,
+          PATH: node22Path,
+          ACTUARIAL_TS_PYTHON312: fakePython,
+        },
+        encoding: "utf8",
+      });
+      assert.notEqual(result.status, 0);
+      assert.equal(existsSync(evidence), args.length === 1);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 test("the exact R executable path, including spaces, receives both preflight calls", () => {

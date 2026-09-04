@@ -451,7 +451,19 @@
         "compliance"
       ]
     },
+    "packages/compliance/test/fixtures/diagnosticIdentityBytes.md": {
+      "classification": "historical-snapshot",
+      "reason": "Dated design, research, or immutable fixture record.",
+      "packages": []
+    },
     "packages/core/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core"
+      ]
+    },
+    "packages/core/test/AUDIT-DISPOSITION.md": {
       "classification": "active",
       "reason": "Current repository, package, example, or operator documentation.",
       "packages": [
@@ -477,11 +489,33 @@
         "interchange"
       ]
     },
+    "tools/docs/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
     "tools/interop/README.md": {
       "classification": "active",
       "reason": "Current repository, package, example, or operator documentation.",
       "packages": [
         "interchange"
+      ]
+    },
+    "tools/validation/README.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
       ]
     }
   }

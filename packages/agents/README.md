@@ -17,11 +17,11 @@ import { createDiagnosticSelectionTool } from "@actuarial-ts/agents";
 
 const tool = createDiagnosticSelectionTool({
   definition: compiledDefinition,
-  presets: [{
+  runPresets: [{
     id: "annual-review-v1",
     definitionIntegrity: compiledDefinition.definitionIntegrity,
     allowedInstanceIds: ["casualty/count/reported-frequency"],
-    execute: ({ tenant, instanceIds }) => runApprovedPreset({ tenant, instanceIds }),
+    execute: ({ tenantId, instanceIds }) => runApprovedPreset({ tenantId, instanceIds }),
   }],
 });
 ```
@@ -38,7 +38,9 @@ type DiagnosticAgentToolInput = {
 
 It cannot contain formulas, measures, count populations, amount/exposure bases, missingness, period axes, arbitrary filters, provenance, or project/tenant IDs. The executor must return owner-authenticated `VerifiedDiagnosticRunProvenance` stamped for the exact definition, preset, and sorted selection; a cached superset is rejected rather than display-filtered into an apparent run.
 
-Success returns formula/calculation/definition identities, run/result/binding fingerprints, the full review receipt (including triggered and not-evaluated rules), and one explicitly display-only projection. There is no definition-editing path; changing a basis or rule requires a separate human-governed workflow.
+Success returns `{ success: true, data: { ... } }`. The `data` object contains formula/calculation/definition identities, run/result/binding fingerprints, the full review receipt (including triggered and not-evaluated rules), and one explicitly display-only projection. `data.display.points` holds emergence or latest-diagonal points; `data.display.triangles` holds the triangle view. Display points retain reviewed metric evaluations and findings while omitting the raw aggregate `components` field. Failures remain `{ success: false, error: { code, message } }`.
+
+The v0.6.1 correction uses `runPresets` in the host catalog and `tenantId` in the host executor input. Migrate the earlier `presets`, `tenant`, flattened success fields, and `display.value` names to the contract above. There is no definition-editing path; changing a basis or rule requires a separate human-governed workflow.
 
 ## Tool boundary
 

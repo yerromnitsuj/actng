@@ -807,8 +807,9 @@ chainladder-python:
 
 - central estimates and totals agree at **1e-14..1e-16 relative** (live
   `crosscheck:ci`, Phase C), well inside the 1e-6 profile tolerance;
-- Taylor/Ashe totals tie to Mack's published unpaid **18,680,855.61** and a
-  Mack standard error of **2,447,094.86** (also the R ChainLadder SE);
+- Taylor/Ashe engine totals are unpaid **18,680,855.61** and Mack standard
+  error **2,447,094.86** (also the R ChainLadder SE); these round to Mack's
+  printed **18,681 thousand** unpaid and **2,447 thousand** standard error;
 - integrity tags survive TS→Python→TS **byte-identically**;
 - the referee closes both directions: `agree` on the aligned
   Python-authored docs, `disagree` on the deliberately misaligned

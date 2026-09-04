@@ -9,18 +9,17 @@ import { runReserveReview } from "../src/main.js";
 describe("the reserve-review example", () => {
   const out = runReserveReview();
 
-  it("reproduces Mack (1993)'s published unpaid for Taylor & Ashe", () => {
-    // Published: 18,680,856. The SDK's own tests pin this to the decimal; here
-    // we assert to the dollar, which is what an example should promise.
+  it("reproduces the Taylor & Ashe engine unpaid to the dollar", () => {
+    // The paper prints 18,681 thousand. This separately pins the engine
+    // result to the dollar rather than attributing its precision to the paper.
     expect(Math.round(out.unpaid)).toBe(18_680_856);
   });
 
   it("reproduces R ChainLadder's published Mack standard error", () => {
     // Mack (1993) Table 3 prints 2,447 thousands; R ChainLadder reports the
     // full 2,447,095, which is the figure all three shores agree on. The SDK's
-    // own validation.test.ts anchors this as a PERCENTAGE of reserve within
-    // +/-1 percentage point, so it is this example — not that test — which
-    // pins the figure to the dollar.
+    // published-value suite separately anchors paper precision and the exact
+    // pinned engine result; this example verifies the public consumer path.
     expect(Math.round(out.standardError)).toBe(2_447_095);
   });
 

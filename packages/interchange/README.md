@@ -32,7 +32,7 @@ Bundles may carry typed diagnostic definition documents under `interchange.diagn
 
 ## Interoperability
 
-The three shores share RFC 8785 vectors, frozen reserving fixtures, and the generalized casualty definition with six formulas and 22 bound instances. Python and R independently recompute definition identities and replay every formula over the same aggregate cell.
+The three shores share RFC 8785 vectors, frozen reserving fixtures, and generalized casualty definitions with six formulas and 22 bound instances. Python and R independently recompute definition identities and replay every formula and all five review-rule kinds across the calendar and ordered-axis aggregate-cell corpus, including missingness, tolerance boundaries, and overflow. The replay contract does not claim to reproduce arbitrary raw-data ingestion or selection in those languages.
 
 `crosscheck` compares two method-result documents under explicit convention profiles. Outcomes are `agree`, `disagree`, `not-comparable`, or `verified-by-value`; the referee never hides convention differences or treats mutual agreement as proof of correctness.
 

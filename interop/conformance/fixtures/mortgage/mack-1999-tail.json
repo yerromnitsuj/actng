@@ -1,0 +1,22 @@
+{
+  "fixtureVersion": 1,
+  "source": "Mack (1999), The Standard Error of Chain Ladder Reserve Estimates: Recursive Calculation and Inclusion of a Tail Factor, Table 2",
+  "sourceUrl": "https://www.casact.org/sites/default/files/database/astin_vol29no2_361.pdf",
+  "triangle": "triangle.json",
+  "triangleIntegrity": "b9f295850853e964",
+  "options": { "tailFactor": 1.05, "tailStandardError": 0.02, "tailSigma": 71 },
+  "publishedThousands": {
+    "ultimate": [2048, 4420, 5888, 8073, 7577, 10041, 5714, 3403, 1743],
+    "standardError": [107, 180, 250, 418, 670, 1128, 1377, 1902, 2293],
+    "totalUltimate": 48906,
+    "totalStandardError": 4054
+  },
+  "engine": {
+    "ultimate": [2047610.25, 4419573.392449966, 5888041.060197156, 8072571.378518511, 7577085.573306875, 10040732.137277283, 5714195.291760264, 3402595.0128748505, 1742908.4553080455],
+    "standardError": [106544.08997879706, 179976.57665396904, 249707.5667061802, 417857.0278627684, 670156.0285285844, 1127984.0605293794, 1377496.2336785935, 1901740.2910264723, 2293436.808639207],
+    "totalUltimate": 48905312.55169295,
+    "totalStandardError": 4053667.668029431
+  },
+  "tolerances": { "engineAbsolute": 0.000001, "publishedUltimateThousands": 2, "publishedTotalUltimateThousands": 5, "publishedStandardErrorThousands": 1 },
+  "pythonScope": "Native chainladder-python no-tail Mack followed by the explicit Mack (1999) terminal process/parameter variance continuation; not TailConstant variability support."
+}

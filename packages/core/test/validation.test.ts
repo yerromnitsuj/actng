@@ -1,13 +1,22 @@
+import {
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const mortgagePublished = sourceExpected<
+  typeof import("./fixtures/mack1993.js").mortgagePublished
+>("mack-1993-mortgage", "mortgagePublished");
+const mortgageTailPublished = sourceExpected<
+  typeof import("./fixtures/mack1993.js").mortgagePublished
+>("mack-1999-tail", "mortgagePublished");
+const taylorAshePublished = sourceExpected<
+  typeof import("./fixtures/mack1993.js").taylorAshePublished
+>("mack-1993-taylor-ashe", "taylorAshePublished");
 import { describe, expect, it } from "vitest";
 import { computeDevelopmentFactors } from "../src/factors.js";
 import { runChainLadder } from "../src/chainladder.js";
 import { runMack } from "../src/mack.js";
-import {
-  mortgage,
-  mortgagePublished,
-  taylorAshe,
-  taylorAshePublished,
-} from "./fixtures/mack1993.js";
+import { mortgage, taylorAshe } from "./fixtures/mack1993.js";
 import type { Triangle } from "../src/types.js";
 
 /**
@@ -50,11 +59,15 @@ describe("Mack (1993) Table 1: Taylor/Ashe chain ladder", () => {
     // Origins 2..10 (origin 1 is fully developed, reserve 0).
     reservesIn1000s.forEach((published, idx) => {
       const row = result.rows[idx + 1]!;
-      expect(Math.abs(row.unpaid / 1000 - published)).toBeLessThanOrEqual(1);
+      expect(Math.abs(row.unpaid / 1000 - published)).toBeLessThanOrEqual(
+        sourceTolerance("mack-1993-taylor-ashe", "toBeLessThanOrEqual:1"),
+      );
     });
     expect(
       Math.abs(result.totals.unpaid / 1000 - totalReserveIn1000s),
-    ).toBeLessThanOrEqual(2);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("mack-1993-taylor-ashe", "toBeLessThanOrEqual:2"),
+    );
   });
 });
 
@@ -67,7 +80,14 @@ describe("Mack (1993) Tables 1-3: Taylor/Ashe standard errors", () => {
     sigma2Over1000.forEach((published, k) => {
       const computed = result.sigmaSquared[k]! / 1000;
       expect(Math.abs(computed - published)).toBeLessThanOrEqual(
-        Math.max(0.01, published * 0.01),
+        Math.max(
+          sourceTolerance("mack-1993-taylor-ashe", "toBeLessThanOrEqual:0.01"),
+          published *
+            sourceTolerance(
+              "mack-1993-taylor-ashe",
+              "toBeLessThanOrEqual:0.01",
+            ),
+        ),
       );
     });
   });
@@ -77,11 +97,15 @@ describe("Mack (1993) Tables 1-3: Taylor/Ashe standard errors", () => {
     sePercent.forEach((published, idx) => {
       const row = result.rows[idx + 1]!;
       const pct = (row.standardError / row.reserve) * 100;
-      expect(Math.abs(pct - published)).toBeLessThanOrEqual(1);
+      expect(Math.abs(pct - published)).toBeLessThanOrEqual(
+        sourceTolerance("mack-1993-taylor-ashe", "toBeLessThanOrEqual:1"),
+      );
     });
     const totalPct =
       (result.totals.standardError / result.totals.reserve) * 100;
-    expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(1);
+    expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(
+      sourceTolerance("mack-1993-taylor-ashe", "toBeLessThanOrEqual:1"),
+    );
   });
 
   it("pins the total standard error itself, not only its percentage", () => {
@@ -89,7 +113,13 @@ describe("Mack (1993) Tables 1-3: Taylor/Ashe standard errors", () => {
     // which tolerates roughly 8% relative error — wide enough to hide a real
     // defect in the cross-covariance term, as it did. Mack (1993) Table 3
     // prints 2,447 (thousands); R ChainLadder reports 2,447,095 on this data.
-    expect(result.totals.standardError).toBeCloseTo(2_447_094.8608346656, 6);
+    expect(result.totals.standardError).toBeCloseTo(
+      sourceExpected<number>(
+        "mack-1993-taylor-ashe",
+        "literal:2447094.8608346656",
+      ),
+      sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
+    );
   });
 });
 
@@ -112,7 +142,11 @@ describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {
     sigma2Over1000.forEach((published, k) => {
       const computed = result.sigmaSquared[k]! / 1000;
       expect(Math.abs(computed - published)).toBeLessThanOrEqual(
-        Math.max(0.01, published * 0.01),
+        Math.max(
+          sourceTolerance("mack-1993-mortgage", "toBeLessThanOrEqual:0.01"),
+          published *
+            sourceTolerance("mack-1993-mortgage", "toBeLessThanOrEqual:0.01"),
+        ),
       );
     });
   });
@@ -125,11 +159,15 @@ describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {
     const { reservesIn1000s, totalReserveIn1000s } = mortgagePublished;
     reservesIn1000s.forEach((published, idx) => {
       const row = cl.rows[idx + 1]!;
-      expect(Math.abs(row.unpaid / 1000 - published)).toBeLessThanOrEqual(1);
+      expect(Math.abs(row.unpaid / 1000 - published)).toBeLessThanOrEqual(
+        sourceTolerance("mack-1993-mortgage", "toBeLessThanOrEqual:1"),
+      );
     });
     expect(
       Math.abs(cl.totals.unpaid / 1000 - totalReserveIn1000s),
-    ).toBeLessThanOrEqual(2);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("mack-1993-mortgage", "toBeLessThanOrEqual:2"),
+    );
   });
 
   it("reproduces the published standard errors as % of reserve", () => {
@@ -137,14 +175,18 @@ describe("Mack (1993) Tables 4-6: mortgage guarantee data", () => {
     sePercent.forEach((published, idx) => {
       const row = result.rows[idx + 1]!;
       const pct = (row.standardError / row.reserve) * 100;
-      expect(Math.abs(pct - published)).toBeLessThanOrEqual(1);
+      expect(Math.abs(pct - published)).toBeLessThanOrEqual(
+        sourceTolerance("mack-1993-mortgage", "toBeLessThanOrEqual:1"),
+      );
     });
     const totalPct =
       (result.totals.standardError / result.totals.reserve) * 100;
-    expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(1);
+    expect(Math.abs(totalPct - totalSePercent)).toBeLessThanOrEqual(
+      sourceTolerance("mack-1993-mortgage", "toBeLessThanOrEqual:1"),
+    );
     expect(result.totals.standardError).toBeCloseTo(
       mortgagePublished.totalStandardError,
-      6,
+      sourceTolerance("mack-1993-mortgage", "decimalPlaces:6"),
     );
   });
 });
@@ -154,19 +196,23 @@ describe("Mack (1999) Tables 1-2: mortgage data with a 1.05 tail", () => {
     const selections = volumeWeightedSelections(mortgage);
     const cl = runChainLadder(mortgage, {
       selected: selections,
-      tailFactor: mortgagePublished.tailFactor,
+      tailFactor: mortgageTailPublished.tailFactor,
     });
     const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } =
-      mortgagePublished;
+      mortgageTailPublished;
     ultimatesWithTailIn1000s.forEach((published, idx) => {
       const row = cl.rows[idx]!;
       // Mack 1999 prints ultimates rounded to 1000s; allow rounding + factor
       // print-precision slack of 2 (in 1000s).
-      expect(Math.abs(row.ultimate / 1000 - published)).toBeLessThanOrEqual(2);
+      expect(Math.abs(row.ultimate / 1000 - published)).toBeLessThanOrEqual(
+        sourceTolerance("mack-1999-tail", "toBeLessThanOrEqual:2"),
+      );
     });
     expect(
       Math.abs(cl.totals.ultimate / 1000 - totalUltimateWithTailIn1000s),
-    ).toBeLessThanOrEqual(5);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("mack-1999-tail", "toBeLessThanOrEqual:5"),
+    );
   });
 });
 
@@ -178,12 +224,18 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
       tailFactor: 1,
     });
     base.rows.forEach((row, i) => {
-      expect(selected.rows[i]!.ultimate).toBeCloseTo(row.ultimate, 6);
-      expect(selected.rows[i]!.standardError).toBeCloseTo(row.standardError, 6);
+      expect(selected.rows[i]!.ultimate).toBeCloseTo(
+        row.ultimate,
+        sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
+      );
+      expect(selected.rows[i]!.standardError).toBeCloseTo(
+        row.standardError,
+        sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
+      );
     });
     expect(selected.totals.standardError).toBeCloseTo(
       base.totals.standardError,
-      6,
+      sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
     );
   });
 
@@ -210,41 +262,49 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
 
   it("reproduces the Mack (1999) published ultimates through runMack with the 1.05 tail", () => {
     const mack = runMack(mortgage, {
-      tailFactor: mortgagePublished.tailFactor,
-      tailStandardError: mortgagePublished.tailStandardError,
-      tailSigma: mortgagePublished.tailSigma,
+      tailFactor: mortgageTailPublished.tailFactor,
+      tailStandardError: mortgageTailPublished.tailStandardError,
+      tailSigma: mortgageTailPublished.tailSigma,
     });
     const { ultimatesWithTailIn1000s, totalUltimateWithTailIn1000s } =
-      mortgagePublished;
+      mortgageTailPublished;
     ultimatesWithTailIn1000s.forEach((published, idx) => {
       expect(
         Math.abs(mack.rows[idx]!.ultimate / 1000 - published),
-      ).toBeLessThanOrEqual(2);
+      ).toBeLessThanOrEqual(
+        sourceTolerance("mack-1999-tail", "toBeLessThanOrEqual:2"),
+      );
     });
     expect(
       Math.abs(mack.totals.ultimate / 1000 - totalUltimateWithTailIn1000s),
-    ).toBeLessThanOrEqual(5);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("mack-1999-tail", "toBeLessThanOrEqual:5"),
+    );
   });
 
   it("reproduces every Mack (1999) Table 2 tail standard error and the total", () => {
     const mack = runMack(mortgage, {
-      tailFactor: mortgagePublished.tailFactor,
-      tailStandardError: mortgagePublished.tailStandardError,
-      tailSigma: mortgagePublished.tailSigma,
+      tailFactor: mortgageTailPublished.tailFactor,
+      tailStandardError: mortgageTailPublished.tailStandardError,
+      tailSigma: mortgageTailPublished.tailSigma,
     });
-    mortgagePublished.standardErrorsWithTailIn1000s.forEach(
+    mortgageTailPublished.standardErrorsWithTailIn1000s.forEach(
       (published, index) => {
         expect(
           Math.abs(mack.rows[index]!.standardError / 1000 - published),
-        ).toBeLessThanOrEqual(1);
+        ).toBeLessThanOrEqual(
+          sourceTolerance("mack-1999-tail", "toBeLessThanOrEqual:1"),
+        );
       },
     );
     expect(
       Math.abs(
         mack.totals.standardError / 1000 -
-          mortgagePublished.totalStandardErrorWithTailIn1000s,
+          mortgageTailPublished.totalStandardErrorWithTailIn1000s,
       ),
-    ).toBeLessThanOrEqual(1);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("mack-1999-tail", "toBeLessThanOrEqual:1"),
+    );
     expect(
       mack.warnings.some((warning) => warning.includes("approximate")),
     ).toBe(false);
@@ -263,10 +323,19 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
       tailFactor: 1.03,
     });
     cl.rows.forEach((row, i) => {
-      expect(mack.rows[i]!.ultimate).toBeCloseTo(row.ultimate, 6);
-      expect(mack.rows[i]!.reserve).toBeCloseTo(row.unpaid, 6);
+      expect(mack.rows[i]!.ultimate).toBeCloseTo(
+        row.ultimate,
+        sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
+      );
+      expect(mack.rows[i]!.reserve).toBeCloseTo(
+        row.unpaid,
+        sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
+      );
     });
-    expect(mack.totals.ultimate).toBeCloseTo(cl.totals.ultimate, 6);
+    expect(mack.totals.ultimate).toBeCloseTo(
+      cl.totals.ultimate,
+      sourceTolerance("mack-1993-taylor-ashe", "decimalPlaces:6"),
+    );
   });
 
   it("a tail strictly increases the total standard error and flags the approximation", () => {
@@ -277,7 +346,11 @@ describe("Mack on the selected basis (selected factors + tail)", () => {
     );
     expect(withTail.totals.reserve).toBeGreaterThan(noTail.totals.reserve);
     expect(withTail.tailFactor).toBe(1.05);
-    expect(withTail.sigmaSquaredTail).toBeGreaterThan(0);
+    expect(withTail.sigmaSquaredTail).toBeGreaterThan(
+      sourceTolerance("mack-1993-taylor-ashe", "toBeGreaterThan:0"),
+    );
     expect(withTail.warnings.some((w) => w.includes("tail step"))).toBe(true);
   });
 });
+
+registerSourceFile(import.meta.url);

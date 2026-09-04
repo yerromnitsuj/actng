@@ -14,6 +14,8 @@ on:
       - ".github/workflows/r-conformance.yml"
       - "examples/chain-ladder-r/**"
       - "examples/chain-ladder-crosscheck/**"
+      - "examples/real-world-loss-run/**"
+      - "tools/validation/**"
       - "packages/**"
       - "package-lock.json"
       - "docs/**"
@@ -30,6 +32,8 @@ on:
       - ".github/workflows/r-conformance.yml"
       - "examples/chain-ladder-r/**"
       - "examples/chain-ladder-crosscheck/**"
+      - "examples/real-world-loss-run/**"
+      - "tools/validation/**"
       - "packages/**"
       - "package-lock.json"
       - "docs/**"
@@ -79,12 +83,18 @@ jobs:
       - name: Cross-engine conformance (frozen corpus, mack1993-vw profile)
         run: |
           "$ACTUARIAL_TS_RSCRIPT" tools/interop/conformance.R
+      - name: Mack 1999 explicit tail uncertainty (frozen three-shore fixture)
+        run: '"$ACTUARIAL_TS_RSCRIPT" tools/interop/test-mack-1999-tail.R'
       - uses: actions/setup-node@v4
         with:
           node-version: 22.22.0
           cache: npm
       - name: npm ci (workspace + SDK build via prepare)
         run: npm ci
+      - name: Reproduce immutable real-world source derivatives
+        run: |
+          npm run data:fetch -w @actuarial-ts/example-real-world-loss-run
+          npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run
       - name: R-owned documentation snippets
         run: npm run docs:check:r
         env:

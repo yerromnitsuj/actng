@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DiagnosticValidationError,
   diagnosticJsonPreflight,
   diagnosticRecord,
   hasDiagnosticOwn,
@@ -10,6 +11,71 @@ import {
 } from "../src/index.js";
 
 describe("diagnostic runtime boundary primitives", () => {
+  it("preserves all structured boundary issues when snapshotting hostile values", () => {
+    const input = { first: Number.NaN, second: undefined };
+    try {
+      snapshotDiagnosticJson(input);
+      throw new Error("Expected a diagnostic validation error");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DiagnosticValidationError);
+      expect((error as DiagnosticValidationError).issues).toEqual([
+        { domain: "input", code: "invalid-json-value", path: "$.first", message: "JSON numeric value must be finite" },
+        { domain: "input", code: "invalid-json-value", path: "$.second", message: "Value is not plain JSON data" },
+      ]);
+    }
+  });
+
+  it("rejects indexed array accessors without invoking them", () => {
+    let calls = 0;
+    const input = [1];
+    Object.defineProperty(input, "0", {
+      enumerable: true,
+      get: () => { calls++; throw new Error("Array getter must not run"); },
+    });
+    expect(() => snapshotDiagnosticJson(input)).toThrowError(
+      expect.objectContaining({
+        name: "DiagnosticValidationError",
+        issues: [{
+          domain: "input", code: "invalid-json-value", path: "$[0]",
+          message: "JSON arrays may contain only indexed data properties",
+        }],
+      }),
+    );
+    expect(calls).toBe(0);
+  });
+
+  it.each([
+    { input: new (class CustomArray extends Array<number> {})(1) },
+    { input: Object.setPrototypeOf([1], { custom: true }) },
+    { input: Object.setPrototypeOf([1], null) },
+  ])("rejects nonstandard array prototypes %# with a typed issue", ({ input }) => {
+    expect(() => snapshotDiagnosticJson(input)).toThrowError(
+      expect.objectContaining({
+        name: "DiagnosticValidationError",
+        issues: [{
+          domain: "input", code: "invalid-json-value", path: "$",
+          message: "Value must use a plain object or array prototype",
+        }],
+      }),
+    );
+  });
+
+  it("rejects array method overrides before any clone can invoke them", () => {
+    const input = [1];
+    Object.defineProperty(input, "map", {
+      value: () => { throw new Error("Array method must not run"); },
+    });
+    expect(() => snapshotDiagnosticJson(input)).toThrowError(
+      expect.objectContaining({
+        name: "DiagnosticValidationError",
+        issues: [{
+          domain: "input", code: "invalid-json-value", path: "$.map",
+          message: "JSON arrays may contain only indexed data properties",
+        }],
+      }),
+    );
+  });
+
   it("treats prototype names as ordinary legal keys", () => {
     const record = diagnosticRecord<number>();
     for (const [key, value] of [

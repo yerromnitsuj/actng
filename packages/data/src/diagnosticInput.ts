@@ -27,6 +27,23 @@ import {
   type DiagnosticReviewReceipt,
 } from "./diagnosticPreparedReview.js";
 
+// Zod 3 validates but drops the literal __proto__ key while assembling records.
+// Encode every key reversibly during validation, then restore owned data keys.
+// The same adapter is exercised by the shared three-shore prototype-key corpus.
+function recordSchema<T extends z.ZodTypeAny>(value: T) {
+  return z
+    .record(
+      z.string().transform((key) => `:${key}`),
+      value,
+    )
+    .transform(
+      (record) =>
+        Object.fromEntries(
+          Object.entries(record).map(([key, item]) => [key.slice(1), item]),
+        ) as Record<string, z.output<T>>,
+    );
+}
+
 const tokenSchema = z
   .string()
   .refine(
@@ -52,7 +69,7 @@ const rawNumberSchema = z.custom<number>(
   (value) => typeof value === "number",
   "Expected number",
 );
-const measuresSchema = z.record(z.union([rawNumberSchema, z.null()]));
+const measuresSchema = recordSchema(z.union([rawNumberSchema, z.null()]));
 const lossBase = {
   recordId: tokenSchema,
   sourceGroup: tokenSchema,
@@ -117,7 +134,7 @@ const jsonSchema: z.ZodType<JsonValue> = z.lazy(() =>
     z.number().finite(),
     jsonStringSchema,
     z.array(jsonSchema),
-    z.record(jsonSchema),
+    recordSchema(jsonSchema),
   ]),
 );
 const policySchema = z
@@ -142,8 +159,8 @@ const runSchema = z
     reviewEvidence: z.unknown().nullable().optional(),
     runPresetId: tokenSchema.optional(),
     datasetArtifactId: tokenSchema.optional(),
-    groupMap: z.record(tokenSchema).optional(),
-    groupDimensions: z.record(jsonSchema).optional(),
+    groupMap: recordSchema(tokenSchema).optional(),
+    groupDimensions: recordSchema(jsonSchema).optional(),
     policy: policySchema.optional(),
   })
   .strict();
@@ -169,7 +186,7 @@ export interface DiagnosticRunInput {
   readonly filter?: DiagnosticsFilter;
   readonly completePeriodCutoffs?: readonly DiagnosticCompletePeriodCutoff[];
   readonly expectedCells?: readonly DiagnosticExpectedCell[];
-  readonly reviewEvidence?: JsonValue | null;
+  readonly reviewEvidence?: DiagnosticReviewEvidence | null;
   readonly runPresetId?: string;
   readonly datasetArtifactId?: string;
   readonly groupMap?: Readonly<Record<string, string>>;
@@ -185,7 +202,7 @@ export interface ValidatedDiagnosticRunInput {
   readonly filter: DiagnosticDeepReadonly<DiagnosticsFilter> | null;
   readonly completePeriodCutoffs: readonly DiagnosticCompletePeriodCutoff[];
   readonly expectedCells: readonly DiagnosticExpectedCell[] | null;
-  readonly reviewEvidence: JsonValue | null;
+  readonly reviewEvidence: DiagnosticDeepReadonly<DiagnosticReviewEvidence> | null;
   readonly runPresetId: string | null;
   readonly datasetArtifactId: string | null;
   readonly groupMap: Readonly<Record<string, string>>;

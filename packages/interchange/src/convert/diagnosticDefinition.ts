@@ -3,6 +3,7 @@ import {
   assertCompiledDiagnosticDefinition,
   canonicalJson,
   compileDiagnosticDefinition,
+  isDiagnosticPlainRecord,
   type CompiledDiagnosticDefinition,
 } from "@actuarial-ts/core";
 import {
@@ -12,6 +13,7 @@ import {
   type GeneratorStamp,
 } from "../envelope.js";
 import { parseDocument, type ParseDocumentOptions } from "../parse.js";
+import { snapshotInterchangeJson } from "../json.js";
 import {
   diagnosticDefinitionDocSchema,
   type DiagnosticDefinitionDoc,
@@ -23,19 +25,39 @@ export interface DiagnosticDefinitionToDocOptions {
   extensions?: Record<string, unknown>;
 }
 
+export interface DocToDiagnosticDefinitionResult {
+  readonly definition: CompiledDiagnosticDefinition;
+  readonly warnings: readonly string[];
+}
+
 export function diagnosticDefinitionToDoc(
   compiled: CompiledDiagnosticDefinition,
   options: DiagnosticDefinitionToDocOptions,
 ): DiagnosticDefinitionDoc {
   assertCompiledDiagnosticDefinition(compiled);
+  if (!isDiagnosticPlainRecord(options))
+    throw new ReservingError(
+      "BAD_INTERCHANGE",
+      "Diagnostic document options must be a plain object at $.options",
+    );
+  for (const key of Object.keys(options))
+    if (!["createdAt", "generator", "extensions"].includes(key))
+      throw new ReservingError(
+        "BAD_INTERCHANGE",
+        `Unknown diagnostic document option at $.options.${key}`,
+      );
+  const ownedOptions = snapshotInterchangeJson(options);
   const candidate = stampIntegrity<DiagnosticDefinitionDoc>({
     interchangeVersion: INTERCHANGE_SPEC_VERSION,
     kind: "diagnostic-definition",
-    generator: { ...(options.generator ?? DEFAULT_GENERATOR) },
-    createdAt: options.createdAt,
-    ...(options.extensions === undefined
+    generator:
+      ownedOptions.generator === undefined
+        ? DEFAULT_GENERATOR
+        : ownedOptions.generator,
+    createdAt: ownedOptions.createdAt,
+    ...(ownedOptions.extensions === undefined
       ? {}
-      : { extensions: structuredClone(options.extensions) }),
+      : { extensions: ownedOptions.extensions }),
     diagnosticDefinition: {
       definition: compiled.definition,
       identities: {
@@ -55,7 +77,7 @@ export function diagnosticDefinitionToDoc(
       `Invalid diagnostic-definition document${path}: ${issue?.message ?? "schema validation failed"}`,
     );
   }
-  return deepFreeze(parsed.data);
+  return deepFreeze(snapshotInterchangeJson(candidate));
 }
 
 function deepFreeze<T>(value: T): T {
@@ -84,7 +106,7 @@ function sameRecord(
 export function docToDiagnosticDefinition(
   value: unknown,
   options?: ParseDocumentOptions,
-): { definition: CompiledDiagnosticDefinition; warnings: readonly string[] } {
+): DocToDiagnosticDefinitionResult {
   const parsed = parseDocument(value, options);
   if (parsed.doc.kind !== "diagnostic-definition") {
     throw new ReservingError(

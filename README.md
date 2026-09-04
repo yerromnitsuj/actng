@@ -70,8 +70,10 @@ npm run example
   bundle verified true
 ```
 
-Those reproduce Mack (1993)'s published unpaid and R ChainLadder's published
-standard error for the Taylor & Ashe triangle. The referee runs over a genuine
+The unpaid rounds to Mack (1993)'s published 18,681 thousand; 18,680,856 is
+the engine result to the dollar, not the paper's printed precision. The
+standard error matches R ChainLadder's reported value for Taylor & Ashe.
+The referee runs over a genuine
 replay: the factors are re-derived from the document's recorded "all-wtd"
 intent, not recomputed from the same in-memory values. The source is
 [`examples/reserve-review`](examples/reserve-review/src/main.ts), and it is

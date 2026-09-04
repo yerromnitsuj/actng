@@ -4,6 +4,7 @@ import type {
   DiagnosticSourceLocation,
 } from "./diagnosticDefinitions.js";
 import type { DiagnosticMetricFinding } from "./diagnosticFormulas.js";
+import { compareDiagnosticContributions } from "./diagnosticOrdering.js";
 
 export interface DiagnosticStructuralBlocker {
   readonly code: string;
@@ -98,13 +99,7 @@ export function finalizeDiagnosticContributions(
   missingPolicy: DiagnosticMissingPolicy,
   blockers: readonly DiagnosticStructuralBlocker[] = [],
 ): DiagnosticMeasureStats {
-  const ordered = [...contributions].sort((left, right) =>
-    left.sourceId < right.sourceId
-      ? -1
-      : left.sourceId > right.sourceId
-        ? 1
-        : 0,
-  );
+  const ordered = [...contributions].sort(compareDiagnosticContributions);
   const observed = ordered.filter((item) => item.status === "observed");
   const imputed = ordered.filter((item) => item.status === "imputed-zero");
   const missing =

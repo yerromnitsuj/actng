@@ -1,5 +1,6 @@
 contract_path <- "tools/interop/r-environment.json"
-.libPaths(c(path.expand("~/.R-interop-lib"), .libPaths()))
+library_path <- path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", "~/.R-interop-lib"))
+.libPaths(c(library_path, .libPaths()))
 contract <- jsonlite::fromJSON(contract_path, simplifyVector = FALSE)
 stopifnot(identical(contract$rVersion, "4.4.3"))
 stopifnot(identical(contract$transitivePackages$Deriv, "4.2.0"))
@@ -17,7 +18,7 @@ mutated$library <- temporary_library
 jsonlite::write_json(mutated, temporary_contract, auto_unbox = TRUE, pretty = TRUE)
 canonical_before <- readBin(contract_path, "raw", file.info(contract_path)$size)
 
-plan_output <- system2(rscript, c("tools/interop/install-r-environment.R", "--contract", shQuote(temporary_contract), "--dry-run"), stdout = TRUE, stderr = TRUE, env = paste0("R_LIBS_USER=", shQuote(path.expand("~/.R-interop-lib"))))
+plan_output <- system2(rscript, c("tools/interop/install-r-environment.R", "--contract", shQuote(temporary_contract), "--dry-run"), stdout = TRUE, stderr = TRUE, env = paste0("R_LIBS_USER=", shQuote(library_path)))
 if (!identical(attr(plan_output, "status"), NULL)) stop(paste(plan_output, collapse = "\n"))
 plan <- jsonlite::fromJSON(paste(plan_output, collapse = "\n"), simplifyVector = FALSE)
 stopifnot(length(plan) == length(contract$transitivePackages) + length(contract$packages))
@@ -37,7 +38,7 @@ duplicate_output <- suppressWarnings(system2(
   c("tools/interop/install-r-environment.R", "--contract", shQuote(temporary_contract), "--dry-run"),
   stdout = TRUE,
   stderr = TRUE,
-  env = paste0("R_LIBS_USER=", shQuote(path.expand("~/.R-interop-lib")))
+  env = paste0("R_LIBS_USER=", shQuote(library_path))
 ))
 stopifnot(identical(attr(duplicate_output, "status"), 1L))
 stopifnot(any(grepl("both direct and transitive", duplicate_output, fixed = TRUE)))
@@ -46,7 +47,7 @@ stopifnot(!dir.exists(temporary_library))
 wrong_runtime <- mutated
 wrong_runtime$rVersion <- "0.0.0"
 jsonlite::write_json(wrong_runtime, temporary_contract, auto_unbox = TRUE, pretty = TRUE)
-check_output <- suppressWarnings(system2(rscript, c("tools/interop/check-r-environment.R", "--contract", shQuote(temporary_contract)), stdout = TRUE, stderr = TRUE, env = paste0("R_LIBS_USER=", shQuote(path.expand("~/.R-interop-lib")))))
+check_output <- suppressWarnings(system2(rscript, c("tools/interop/check-r-environment.R", "--contract", shQuote(temporary_contract)), stdout = TRUE, stderr = TRUE, env = paste0("R_LIBS_USER=", shQuote(library_path))))
 stopifnot(identical(attr(check_output, "status"), 1L))
 stopifnot(any(grepl("R runtime mismatch", check_output, fixed = TRUE)))
 stopifnot(!dir.exists(temporary_library))

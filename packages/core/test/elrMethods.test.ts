@@ -1,12 +1,23 @@
+import {
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const gluckCapeCodPP1992 = sourceExpected<
+  typeof import("./fixtures/gluck1997.js").gluckCapeCodPP1992
+>("gluck-1997", "gluckCapeCodPP1992");
+const gluckGcc075PP1990OwnLevel = sourceExpected<
+  typeof import("./fixtures/gluck1997.js").gluckGcc075PP1990OwnLevel
+>("gluck-1997", "gluckGcc075PP1990OwnLevel");
+const gluckGcc075PP1992 = sourceExpected<
+  typeof import("./fixtures/gluck1997.js").gluckGcc075PP1992
+>("gluck-1997", "gluckGcc075PP1992");
+const gluckGcc075UltimateTotal = sourceExpected<
+  typeof import("./fixtures/gluck1997.js").gluckGcc075UltimateTotal
+>("gluck-1997", "gluckGcc075UltimateTotal");
 import { describe, expect, it } from "vitest";
 import { runCapeCod, runExpectedClaims } from "../src/elrMethods.js";
-import {
-  gluckCapeCodPP1992,
-  gluckGcc075PP1990OwnLevel,
-  gluckGcc075PP1992,
-  gluckGcc075UltimateTotal,
-  gluckRows,
-} from "./fixtures/gluck1997.js";
+import { gluckRows } from "./fixtures/gluck1997.js";
 
 /**
  * Hand-computed Cape Cod (Stanard-Buhlmann) example in the Friedland ch. 10
@@ -25,17 +36,29 @@ describe("runCapeCod", () => {
     const usedUp = 1500 / 1.05 + 1600 / 1.25 + 1700 / 2;
     const elr = (800 + 600 + 300) / usedUp; // 1700 / 3558.5714 = 0.477719...
     const r = runCapeCod(rows);
-    expect(r.elrAtTargetLevel).toBeCloseTo(elr, 12);
+    expect(r.elrAtTargetLevel).toBeCloseTo(
+      elr,
+      sourceTolerance("gluck-1997", "decimalPlaces:12"),
+    );
     // 2024: expected ultimate = ELR x 1700; ultimate = 300 + expected x (1 - 1/2)
     const exp2024 = elr * 1700;
-    expect(r.rows[2]!.expectedUltimate).toBeCloseTo(exp2024, 9);
-    expect(r.rows[2]!.ultimate).toBeCloseTo(300 + exp2024 * 0.5, 9);
+    expect(r.rows[2]!.expectedUltimate).toBeCloseTo(
+      exp2024,
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
+    );
+    expect(r.rows[2]!.ultimate).toBeCloseTo(
+      300 + exp2024 * 0.5,
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
+    );
     // 2022 nearly mature: ultimate = 800 + ELR x 1500 x (1 - 1/1.05)
-    expect(r.rows[0]!.ultimate).toBeCloseTo(800 + elr * 1500 * (1 - 1 / 1.05), 9);
+    expect(r.rows[0]!.ultimate).toBeCloseTo(
+      800 + elr * 1500 * (1 - 1 / 1.05),
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
+    );
     // Totals foot.
     expect(r.totals.ultimate).toBeCloseTo(
       r.rows.reduce((a, x) => a + x.ultimate, 0),
-      9,
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
     );
   });
 
@@ -49,15 +72,26 @@ describe("runCapeCod", () => {
     const usedUp = (1500 * 1.15) / 1.05 + (1600 * 1.08) / 1.25 + 1700 / 2;
     const elr = (800 * 1.21 + 600 * 1.1 + 300) / usedUp;
     const r = runCapeCod(adj);
-    expect(r.elrAtTargetLevel).toBeCloseTo(elr, 12);
+    expect(r.elrAtTargetLevel).toBeCloseTo(
+      elr,
+      sourceTolerance("gluck-1997", "decimalPlaces:12"),
+    );
     // Origin-level ELR for 2022 = ELR* x premiumAdj / lossAdj.
     const elr2022 = (elr * 1.15) / 1.21;
-    expect(r.rows[0]!.elrAtOriginLevel).toBeCloseTo(elr2022, 12);
-    expect(r.rows[0]!.ultimate).toBeCloseTo(800 + elr2022 * 1500 * (1 - 1 / 1.05), 9);
+    expect(r.rows[0]!.elrAtOriginLevel).toBeCloseTo(
+      elr2022,
+      sourceTolerance("gluck-1997", "decimalPlaces:12"),
+    );
+    expect(r.rows[0]!.ultimate).toBeCloseTo(
+      800 + elr2022 * 1500 * (1 - 1 / 1.05),
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
+    );
   });
 
   it("a fully mature origin (cdf 1) takes no expected claims", () => {
-    const r = runCapeCod([{ origin: "2015", reported: 500, cdf: 1, premium: 900 }]);
+    const r = runCapeCod([
+      { origin: "2015", reported: 500, cdf: 1, premium: 900 },
+    ]);
     expect(r.rows[0]!.ultimate).toBe(500);
   });
 
@@ -93,29 +127,40 @@ describe("Generalized Cape Cod (Gluck 1997 decay)", () => {
 
   it("reproduces Gluck's Table 1 pooled pure premium at the 1992 level", () => {
     const std = runCapeCod(rows, { baseIsPurePremium: true });
-    expect(Math.abs(std.elrAtTargetLevel - gluckCapeCodPP1992)).toBeLessThan(1e-3);
+    expect(Math.abs(std.elrAtTargetLevel - gluckCapeCodPP1992)).toBeLessThan(
+      sourceTolerance("gluck-1997", "toBeLessThan:0.001"),
+    );
   });
 
   it("reproduces Gluck's Table 4 per-year expected pure premiums with D = 0.75", () => {
     const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 0.75 });
     gcc.rows.forEach((r, i) => {
-      expect(Math.abs(r.elrAtTargetLevel - gluckGcc075PP1992[i]!)).toBeLessThan(1e-3);
+      expect(Math.abs(r.elrAtTargetLevel - gluckGcc075PP1992[i]!)).toBeLessThan(
+        sourceTolerance("gluck-1997", "toBeLessThan:0.001"),
+      );
     });
     // The 1990 target restated to its own accident-year level (col 12).
     const y1990 = gcc.rows[11]!;
-    expect(Math.abs(y1990.elrAtOriginLevel - gluckGcc075PP1990OwnLevel)).toBeLessThan(1e-3);
+    expect(
+      Math.abs(y1990.elrAtOriginLevel - gluckGcc075PP1990OwnLevel),
+    ).toBeLessThan(sourceTolerance("gluck-1997", "toBeLessThan:0.001"));
   });
 
   it("reproduces Gluck's Table 4 BF ultimate total with D = 0.75", () => {
     const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 0.75 });
-    expect(Math.abs(gcc.totals.ultimate - gluckGcc075UltimateTotal)).toBeLessThan(5);
+    expect(
+      Math.abs(gcc.totals.ultimate - gluckGcc075UltimateTotal),
+    ).toBeLessThan(sourceTolerance("gluck-1997", "toBeLessThan:5"));
   });
 
   it("decay = 0 makes every year stand alone and reproduces the development ultimate", () => {
     const gcc = runCapeCod(rows, { baseIsPurePremium: true, decay: 0 });
     gcc.rows.forEach((r, i) => {
       const g = gluckRows[i]!;
-      expect(r.ultimate).toBeCloseTo(g.paidToDate * g.cdf, 6);
+      expect(r.ultimate).toBeCloseTo(
+        g.paidToDate * g.cdf,
+        sourceTolerance("gluck-1997", "decimalPlaces:6"),
+      );
     });
   });
 
@@ -129,17 +174,33 @@ describe("runExpectedClaims", () => {
   it("applies the restated ELR per origin with no dependence on emerged losses", () => {
     const r = runExpectedClaims(
       [
-        { origin: "2023", reported: 999999, cdf: 1.3, premium: 1000, lossAdj: 1.1, premiumAdj: 1.05 },
+        {
+          origin: "2023",
+          reported: 999999,
+          cdf: 1.3,
+          premium: 1000,
+          lossAdj: 1.1,
+          premiumAdj: 1.05,
+        },
         { origin: "2024", reported: 0, cdf: 2.0, premium: 1200 },
       ],
       0.65,
     );
-    expect(r.rows[0]!.ultimate).toBeCloseTo(((0.65 * 1.05) / 1.1) * 1000, 9);
-    expect(r.rows[1]!.ultimate).toBeCloseTo(0.65 * 1200, 9);
+    expect(r.rows[0]!.ultimate).toBeCloseTo(
+      ((0.65 * 1.05) / 1.1) * 1000,
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
+    );
+    expect(r.rows[1]!.ultimate).toBeCloseTo(
+      0.65 * 1200,
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
+    );
   });
   it("rejects a non-positive ELR", () => {
     expect(() =>
-      runExpectedClaims([{ origin: "x", reported: 0, cdf: 1.5, premium: 100 }], 0),
+      runExpectedClaims(
+        [{ origin: "x", reported: 0, cdf: 1.5, premium: 100 }],
+        0,
+      ),
     ).toThrowError(/positive/);
   });
 });
@@ -155,8 +216,10 @@ describe("cdf below 1 (incurred bases with case run-off)", () => {
     expect(row.ultimate).toBeLessThan(row.reported);
     expect(row.ultimate).toBeCloseTo(
       1000 + row.expectedUltimate * (1 - 1 / 0.95),
-      9,
+      sourceTolerance("gluck-1997", "decimalPlaces:9"),
     );
     expect(r.warnings.join(" ")).toMatch(/take-down/);
   });
 });
+
+registerSourceFile(import.meta.url);

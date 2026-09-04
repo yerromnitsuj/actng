@@ -76,7 +76,10 @@ export type {
   NormalizedDiagnosticReviewRuleIdentity,
   NormalizedDiagnosticSourceLocationIdentity,
   NormalizedDiagnosticToleranceIdentity,
+  NormalizedDiagnosticsFilterIdentity,
+  DiagnosticIdentityProjection,
 } from "./diagnosticIdentity.js";
+export { projectDiagnosticIdentity, normalizeDiagnosticsFilterIdentity } from "./diagnosticIdentity.js";
 export {
   CASUALTY_FORMULA_TEMPLATES,
   applyDiagnosticPresentation,
@@ -104,6 +107,7 @@ export {
   compareDiagnosticSourceLocations,
   normalizeDiagnosticSourceLocations,
 } from "./diagnosticSourceOrdering.js";
+export { compareDiagnosticIdentityValues } from "./diagnosticOrdering.js";
 export {
   auditedDiagnosticContribution,
   finalizeDiagnosticContributions,
@@ -127,12 +131,16 @@ export type {
   DiagnosticClaimObservation,
   DiagnosticCompletePeriodCutoff,
   DiagnosticExpectedCell,
+  DiagnosticExpectedCellAuditSnapshot,
+  DiagnosticExposureInputAuditSnapshot,
   DiagnosticInputAuditRecord,
   DiagnosticInputDisposition,
   DiagnosticLossInput,
+  DiagnosticLossInputAuditSnapshot,
   DiagnosticLossRecordBase,
   DiagnosticLossSnapshot,
   NormalizedDiagnosticPreparationIdentity,
+  NormalizedDiagnosticExpectedCellIdentity,
   PrepareDiagnosticDataInput,
   PreparedDiagnosticData,
   PreparedDiagnosticSourceCell,
@@ -152,6 +160,7 @@ export type {
   DiagnosticReviewEvaluationScope,
   DiagnosticReviewExpressionOverflow,
   DiagnosticReviewRuleEvaluation,
+  DiagnosticReviewRuleEvaluationBase,
   DiagnosticValuationPairReviewScope,
 } from "./diagnosticReview.js";
 export type {

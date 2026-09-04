@@ -13,7 +13,7 @@
 # tools/interop/r-environment.json).
 
 local({
-  lib <- path.expand("~/.R-interop-lib")
+  lib <- path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", "~/.R-interop-lib"))
   if (dir.exists(lib)) .libPaths(c(lib, .libPaths()))
 })
 
@@ -164,13 +164,18 @@ for (prefix in c("calendar", "ordered-axis")) {
   diagnostic_definition <- ats_parse_diagnostic_definition(file.path(diagnostic_fixture, paste0(prefix, "-definition.json")))
   diagnostic_cells <- jsonlite::fromJSON(file.path(diagnostic_fixture, paste0(prefix, "-aggregate-cells.json")), simplifyVector = FALSE)
   diagnostic_expected <- jsonlite::fromJSON(file.path(diagnostic_fixture, paste0(prefix, "-expected-output.json")), simplifyVector = FALSE)
+  if (!identical(ats_canonical_json(diagnostic_definition), diagnostic_expected$canonicalDefinitionJson)) stop("diagnostic canonical definition bytes differ")
   if (length(diagnostic_definition$formulas) != 6L || length(diagnostic_definition$instances) != 22L) stop("diagnostic conformance fixture must contain six formulas and twenty-two instances")
-  values <- diagnostic_cells$losses[[1]]$measures
-  for (item in diagnostic_cells$exposures) values[[item$measureId]] <- item$value
-  metrics <- diagnostic_expected$result$emergence[[1]]$metrics
-  for (instance_id in names(metrics)) {
-    actual <- ats_replay_diagnostic_cell(diagnostic_definition, instance_id, values)
-    expected <- metrics[[instance_id]]$calculation
+  replay_cells <- ats_diagnostic_aggregate_cells(diagnostic_definition, diagnostic_cells)
+  if (length(replay_cells) != 12L || length(diagnostic_expected$result$emergence) != 12L) stop("diagnostic corpus lost cells")
+  for (cell_index in seq_along(replay_cells)) {
+    cell <- replay_cells[[cell_index]]
+    output <- diagnostic_expected$result$emergence[[cell_index]]
+    if (!identical(c(cell$coordinate$sourceGroup, cell$coordinate$origin, cell$coordinate$valuation), c(output$group, output$origin, output$valuation))) stop("diagnostic replay coordinates differ")
+    metrics <- output$metrics
+    for (instance_id in names(metrics)) {
+      actual <- ats_replay_diagnostic_cell(diagnostic_definition, instance_id, cell$values)
+      expected <- metrics[[instance_id]]$calculation
     expected_fields <- list(numerator=expected$numerator$value,denominator=expected$denominator$value,value=expected$value)
     for (field in c("numerator", "denominator", "value")) {
       if (is.null(expected_fields[[field]])) {
@@ -179,6 +184,13 @@ for (prefix in c("calendar", "ordered-axis")) {
         stop(sprintf("diagnostic %s %s replay mismatch", instance_id, field))
       }
     }
+    }
+  }
+  replay_reviews <- ats_replay_diagnostic_reviews(diagnostic_definition, diagnostic_cells)
+  if (length(replay_reviews) != length(diagnostic_expected$reviews)) stop("diagnostic rule replay count differs")
+  for (index in seq_along(replay_reviews)) {
+    if (!identical(ats_canonical_json(replay_reviews[[index]]), ats_canonical_json(diagnostic_expected$reviews[[index]])))
+      stop(sprintf("diagnostic rule replay mismatch: %s evaluation %d\nactual: %s\nexpected: %s", prefix, index, ats_canonical_json(replay_reviews[[index]]), ats_canonical_json(diagnostic_expected$reviews[[index]])))
   }
 }
 if (!identical(ats_sort_utf16(c("\ue000", "\U00010000")), c("\U00010000", "\ue000"))) {
@@ -192,12 +204,14 @@ hostile_rejected <- tryCatch({
 }, error = function(error) grepl("unsupported diagnostic behavior", conditionMessage(error), fixed = TRUE))
 if (!hostile_rejected) stop("R shore accepted restamped unknown diagnostic behavior")
 nested_hostile <- diagnostic_definition
-nested_hostile$reviewRules[[1]]$actual$futureBehavior <- TRUE
+nested_index <- which(vapply(nested_hostile$reviewRules, function(rule) identical(rule$kind, "reconcile"), logical(1)))[[1]]
+nested_hostile$reviewRules[[nested_index]]$actual$futureBehavior <- TRUE
 nested_rejected <- tryCatch({
   ats_validate_closed_diagnostic_definition(nested_hostile)
   FALSE
 }, error = function(error) grepl("unsupported diagnostic behavior", conditionMessage(error), fixed = TRUE))
 if (!nested_rejected) stop("R shore accepted nested restamped unknown diagnostic behavior")
-cat("diagnostic-definition: identities + 22 cell replays AGREE across the R shore.\n")
+cat("diagnostic-definition: identities + 528 metric replays + all declarative rule evaluations AGREE across the R shore.\n")
+source("tools/interop/test-diagnostic-boundaries.R")
 
 if (!all_agree) quit(status = 1L, save = "no")

@@ -24,6 +24,7 @@ import type {
   DiagnosticReviewRule,
   DiagnosticRuleOperand,
   DiagnosticSourceLocation,
+  DiagnosticsFilter,
 } from "./diagnosticDefinitions.js";
 import type {
   DiagnosticClaimExpression,
@@ -31,6 +32,236 @@ import type {
   DiagnosticRoleExpression,
 } from "./diagnosticExpressions.js";
 import { normalizeDiagnosticPeriodWithAxis } from "./diagnosticPeriodAxis.js";
+import {
+  diagnosticJsonPreflight,
+  isDiagnosticPlainRecord,
+  isDiagnosticToken,
+  normalizeDiagnosticNumber,
+} from "./diagnosticRuntime.js";
+import {
+  DiagnosticValidationError,
+  type DiagnosticValidationIssue,
+} from "./types.js";
+
+export type DiagnosticIdentityProjection<T> = T extends DiagnosticSourceLocation
+  ? NormalizedDiagnosticSourceLocationIdentity
+  : T extends readonly (infer U)[]
+    ? readonly DiagnosticIdentityProjection<U>[]
+    : T extends object
+      ? { readonly [K in keyof T]: DiagnosticIdentityProjection<T[K]> }
+      : T;
+
+export interface NormalizedDiagnosticsFilterIdentity
+  extends NormalizedDiagnosticReviewFilterIdentity {
+  readonly outputGroups: readonly string[] | null;
+  readonly instanceIds: readonly string[] | null;
+}
+
+/** Validates selector shapes without interpreting periods against a definition. */
+function validateFilterIdentityInput(filter: DiagnosticsFilter): void {
+  const issues: DiagnosticValidationIssue[] = [
+    ...diagnosticJsonPreflight(filter, "configuration"),
+  ];
+  if (issues.length) throw new DiagnosticValidationError(issues);
+  if (!isDiagnosticPlainRecord(filter))
+    throw new DiagnosticValidationError([
+      {
+        domain: "configuration",
+        code: "invalid-type",
+        path: "$",
+        message: "Filter must be a plain object or null",
+      },
+    ]);
+
+  const lists = [
+    "sourceGroups", "outputGroups", "origins", "valuations", "instanceIds",
+  ];
+  const labels = [
+    "originFrom", "originThrough", "valuationFrom", "valuationThrough",
+  ];
+  const bounds = ["minDevelopmentAge", "maxDevelopmentAge"];
+  const checkToken = (value: unknown, path: string) => {
+    if (!isDiagnosticToken(value))
+      issues.push({
+        domain: "configuration",
+        code: "invalid-string",
+        path,
+        message: "Filter selectors must use nonempty token strings",
+      });
+  };
+  for (const key of Object.keys(filter).sort()) {
+    const value: unknown = filter[key];
+    const path = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key)
+      ? `$.${key}`
+      : `$[${JSON.stringify(key)}]`;
+    if (lists.includes(key)) {
+      if (!Array.isArray(value))
+        issues.push({
+          domain: "configuration",
+          code: "invalid-type",
+          path,
+          message: "Filter selector must be an array",
+        });
+      else
+        value.forEach((item, index) => checkToken(item, `${path}[${index}]`));
+    } else if (labels.includes(key)) checkToken(value, path);
+    else if (bounds.includes(key)) {
+      if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+        issues.push({
+          domain: "configuration",
+          code: "invalid-number",
+          path,
+          message: "Development-age bounds must be nonnegative safe integers",
+        });
+    } else
+      issues.push({
+        domain: "configuration",
+        code: "unknown-key",
+        path,
+        message: `Unknown filter key ${key}`,
+      });
+  }
+  if (
+    typeof filter.minDevelopmentAge === "number" &&
+    typeof filter.maxDevelopmentAge === "number" &&
+    filter.minDevelopmentAge > filter.maxDevelopmentAge
+  )
+    issues.push({
+      domain: "configuration",
+      code: "invalid-configuration",
+      path: "$",
+      message: "Minimum development age exceeds maximum",
+    });
+  if (issues.length) throw new DiagnosticValidationError(issues);
+}
+
+/** Materializes optional selectors; period aliases must already be canonical. */
+export function normalizeDiagnosticsFilterIdentity(
+  filter: DiagnosticsFilter | null,
+): NormalizedDiagnosticsFilterIdentity | null {
+  if (filter === null) return null;
+  validateFilterIdentityInput(filter);
+  return deepFreeze({
+    sourceGroups:
+      filter.sourceGroups === undefined
+        ? null
+        : sortedUnique(filter.sourceGroups),
+    outputGroups:
+      filter.outputGroups === undefined
+        ? null
+        : sortedUnique(filter.outputGroups),
+    origins: filter.origins === undefined ? null : sortedUnique(filter.origins),
+    originFrom: filter.originFrom ?? null,
+    originThrough: filter.originThrough ?? null,
+    valuations:
+      filter.valuations === undefined ? null : sortedUnique(filter.valuations),
+    valuationFrom: filter.valuationFrom ?? null,
+    valuationThrough: filter.valuationThrough ?? null,
+    minDevelopmentAge:
+      filter.minDevelopmentAge === undefined
+        ? null
+        : normalizeDiagnosticNumber(filter.minDevelopmentAge),
+    maxDevelopmentAge:
+      filter.maxDevelopmentAge === undefined
+        ? null
+        : normalizeDiagnosticNumber(filter.maxDevelopmentAge),
+    instanceIds:
+      filter.instanceIds === undefined ? null : sortedUnique(filter.instanceIds),
+  });
+}
+
+/**
+ * Owned identity copy. Source slots are schema-defined; free JSON dimensions
+ * must not be interpreted as source evidence just because a key looks similar.
+ */
+export function projectDiagnosticIdentity<T>(
+  value: T,
+): DiagnosticIdentityProjection<T> {
+  const issues = diagnosticJsonPreflight(value, "input", {
+    maxNodes: Number.MAX_SAFE_INTEGER,
+  });
+  if (issues.length) throw new DiagnosticValidationError(issues);
+  const clone = (
+    item: unknown,
+    sourceSlot = false,
+    freeJson = false,
+    path = "$",
+  ): unknown => {
+    if (item === null || typeof item !== "object")
+      return typeof item === "number" && Object.is(item, -0) ? 0 : item;
+    if (Array.isArray(item))
+      return Object.freeze(
+        item.map((child, index) =>
+          clone(child, sourceSlot, freeJson, `${path}[${index}]`),
+        ),
+      );
+    const record = item as Record<string, unknown>;
+    if (sourceSlot && typeof record.artifactId === "string") {
+      const sourceIssues = [];
+      for (const key of Object.keys(record)) {
+        const fieldPath = `${path}.${key}`;
+        if (
+          ![
+            "artifactId",
+            "sourceFile",
+            "sourceSheet",
+            "sourceRow",
+            "sourceCell",
+          ].includes(key)
+        )
+          sourceIssues.push({
+            domain: "input" as const,
+            code: "unknown-key" as const,
+            path: fieldPath,
+            message: `Unknown source-location key ${key}`,
+          });
+        else if (key === "sourceRow") {
+          if (
+            record[key] !== null &&
+            !(
+              typeof record[key] === "number" &&
+              Number.isSafeInteger(record[key]) &&
+              record[key] >= 0
+            )
+          )
+            sourceIssues.push({
+              domain: "input" as const,
+              code: "invalid-number" as const,
+              path: fieldPath,
+              message: "Source row must be a nonnegative safe integer or null",
+            });
+        } else if (
+          !(key !== "artifactId" && record[key] === null) &&
+          !isDiagnosticToken(record[key])
+        )
+          sourceIssues.push({
+            domain: "input" as const,
+            code: "invalid-string" as const,
+            path: fieldPath,
+            message: "Source location must use nonempty token strings",
+          });
+      }
+      if (sourceIssues.length)
+        throw new DiagnosticValidationError(sourceIssues);
+      return normalizeDiagnosticSourceLocation(
+        record as unknown as DiagnosticSourceLocation,
+      );
+    }
+    const result = Object.create(null) as Record<string, unknown>;
+    for (const key of Object.keys(record).sort()) {
+      const opaque =
+        freeJson || key === "groupDimensions" || key === "dimensions";
+      result[key] = clone(
+        record[key],
+        !opaque && (key === "source" || key === "sources"),
+        opaque,
+        `${path}.${key}`,
+      );
+    }
+    return Object.freeze(result);
+  };
+  return clone(value) as DiagnosticIdentityProjection<T>;
+}
 
 function compareCodeUnits(left: string, right: string): number {
   return left === right ? 0 : left < right ? -1 : 1;

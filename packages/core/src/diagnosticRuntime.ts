@@ -1,6 +1,7 @@
-import type {
-  DiagnosticValidationDomain,
-  DiagnosticValidationIssue,
+import {
+  DiagnosticValidationError,
+  type DiagnosticValidationDomain,
+  type DiagnosticValidationIssue,
 } from "./types.js";
 
 export const MAX_DIAGNOSTIC_JSON_DEPTH = 256;
@@ -147,7 +148,12 @@ export function diagnosticJsonPreflight(
       });
       continue;
     }
-    if (!Array.isArray(item) && !isDiagnosticPlainRecord(item)) {
+    const isArray = Array.isArray(item);
+    if (
+      isArray
+        ? Object.getPrototypeOf(item) !== Array.prototype
+        : !isDiagnosticPlainRecord(item)
+    ) {
       issues.push({
         domain,
         code: "invalid-json-value",
@@ -167,14 +173,43 @@ export function diagnosticJsonPreflight(
     }
     active.add(item);
     stack.push({ ...frame, exiting: true });
-    if (Array.isArray(item)) {
-      for (let index = item.length - 1; index >= 0; index--) {
-        stack.push({
-          value: item[index],
-          path: `${frame.path}[${index}]`,
-          depth: frame.depth + 1,
-          exiting: false,
+    if (isArray) {
+      for (const key of Reflect.ownKeys(item)) {
+        if (key === "length") continue;
+        const index = typeof key === "string" ? Number(key) : Number.NaN;
+        if (
+          Number.isInteger(index) && index >= 0 && index < item.length &&
+          String(index) === key
+        ) continue;
+        const path = typeof key === "symbol"
+          ? frame.path
+          : /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key)
+            ? `${frame.path}.${key}`
+            : `${frame.path}[${JSON.stringify(key)}]`;
+        issues.push({
+          domain,
+          code: "invalid-json-value",
+          path,
+          message: "JSON arrays may contain only indexed data properties",
         });
+      }
+      for (let index = item.length - 1; index >= 0; index--) {
+        const path = `${frame.path}[${index}]`;
+        const descriptor = Object.getOwnPropertyDescriptor(item, String(index));
+        if (!descriptor || !("value" in descriptor))
+          issues.push({
+            domain,
+            code: "invalid-json-value",
+            path,
+            message: "JSON arrays may contain only indexed data properties",
+          });
+        else
+          stack.push({
+            value: descriptor.value,
+            path,
+            depth: frame.depth + 1,
+            exiting: false,
+          });
       }
       continue;
     }
@@ -213,7 +248,7 @@ export function diagnosticJsonPreflight(
 /** Snapshot JSON-shaped data into owned, deeply frozen arrays/null-prototype records. */
 export function snapshotDiagnosticJson<T>(value: T): T {
   const issues = diagnosticJsonPreflight(value, "input");
-  if (issues.length > 0) throw new TypeError(issues[0]!.message);
+  if (issues.length > 0) throw new DiagnosticValidationError(issues);
   const clone = (item: unknown): unknown => {
     if (item === null || typeof item !== "object") {
       return typeof item === "number" ? normalizeDiagnosticNumber(item) : item;

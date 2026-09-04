@@ -92,7 +92,20 @@ function isIsoDate(value: string): boolean {
   const day = Number(match[3]);
   if (month < 1 || month > 12) return false;
   const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]!;
+  const daysInMonth = [
+    31,
+    leap ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ][month - 1]!;
   return day >= 1 && day <= daysInMonth;
 }
 
@@ -100,13 +113,20 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
 
-function checkDate(problems: string[], name: string, value: unknown, required: boolean): void {
+function checkDate(
+  problems: string[],
+  name: string,
+  value: unknown,
+  required: boolean,
+): void {
   if (value === undefined) {
     if (required) problems.push(`${name} is required (ISO yyyy-mm-dd)`);
     return;
   }
   if (typeof value !== "string" || !isIsoDate(value)) {
-    problems.push(`${name} must be a valid ISO date (yyyy-mm-dd); got ${JSON.stringify(value)}`);
+    problems.push(
+      `${name} must be a valid ISO date (yyyy-mm-dd); got ${JSON.stringify(value)}`,
+    );
   }
 }
 
@@ -123,7 +143,9 @@ export function validateMetadata(metadata: EstimateMetadata): string[] {
 
   if (metadata.intendedUsers !== undefined) {
     if (!Array.isArray(metadata.intendedUsers)) {
-      problems.push("intendedUsers, when provided, must be an array of non-empty strings");
+      problems.push(
+        "intendedUsers, when provided, must be an array of non-empty strings",
+      );
     } else {
       metadata.intendedUsers.forEach((user, index) => {
         if (!isNonEmptyString(user)) {
@@ -145,8 +167,15 @@ export function validateMetadata(metadata: EstimateMetadata): string[] {
     if (measure.kind === "specified-percentile") {
       const p = measure.percentile;
       if (p === undefined) {
-        problems.push('intendedMeasure.percentile is required when kind is "specified-percentile"');
-      } else if (typeof p !== "number" || !Number.isFinite(p) || p <= 0 || p >= 1) {
+        problems.push(
+          'intendedMeasure.percentile is required when kind is "specified-percentile"',
+        );
+      } else if (
+        typeof p !== "number" ||
+        !Number.isFinite(p) ||
+        p <= 0 ||
+        p >= 1
+      ) {
         problems.push(
           `intendedMeasure.percentile must be a fraction strictly between 0 and 1 (e.g. 0.75); got ${JSON.stringify(p)}`,
         );
@@ -177,8 +206,20 @@ export function validateMetadata(metadata: EstimateMetadata): string[] {
   checkDate(problems, "accountingDate", metadata.accountingDate, true);
   checkDate(problems, "valuationDate", metadata.valuationDate, true);
   checkDate(problems, "reviewDate", metadata.reviewDate, false);
+  if (
+    typeof metadata.reviewDate === "string" &&
+    isIsoDate(metadata.reviewDate) &&
+    typeof metadata.valuationDate === "string" &&
+    isIsoDate(metadata.valuationDate) &&
+    metadata.reviewDate < metadata.valuationDate
+  ) {
+    problems.push("reviewDate cannot precede valuationDate");
+  }
 
-  if (metadata.scopeNotes !== undefined && !isNonEmptyString(metadata.scopeNotes)) {
+  if (
+    metadata.scopeNotes !== undefined &&
+    !isNonEmptyString(metadata.scopeNotes)
+  ) {
     problems.push("scopeNotes, when provided, must be a non-empty string");
   }
   if (metadata.currency !== undefined && !isNonEmptyString(metadata.currency)) {

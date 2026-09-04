@@ -23,7 +23,7 @@
 # the file self-contained so `Rscript tools/interop/actuarialInterchange.R`
 # sources cleanly on its own, not only when a caller pre-sets the path.
 local({
-  lib <- path.expand("~/.R-interop-lib")
+  lib <- path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", "~/.R-interop-lib"))
   if (dir.exists(lib) && !(lib %in% .libPaths())) .libPaths(c(lib, .libPaths()))
 })
 
@@ -952,54 +952,188 @@ ats_diag_exact <- function(value, allowed, path) {
   if (!is.list(value) || is.null(names(value))) stop(sprintf("%s must be an object", path))
   unknown <- setdiff(names(value), allowed)
   if (length(unknown) > 0L) stop(sprintf("unsupported diagnostic behavior at %s.%s", path, ats_sort_utf16(unknown)[[1]]))
+  missing <- setdiff(allowed, names(value))
+  if (length(missing) > 0L) stop(sprintf("missing normalized diagnostic field at %s.%s", path, ats_sort_utf16(missing)[[1]]))
 }
 
-ats_validate_diag_expression <- function(root, reference, path) {
-  stack <- list(list(value = root, path = path, depth = 1L))
+ats_diag_token <- function(value, path) {
+  if (!is.character(value) || length(value) != 1L || is.na(value) || !nzchar(value) ||
+      grepl("^[\\x09-\\x0d ]|[\\x09-\\x0d ]$", value, perl = TRUE))
+    stop(sprintf("invalid diagnostic token at %s", path))
+}
+
+ats_diag_number <- function(value, path, nonnegative = FALSE, integer = FALSE) {
+  if (!is.numeric(value) || length(value) != 1L || !is.finite(value) ||
+      (nonnegative && value < 0) || (integer && (value != trunc(value) || abs(value) > 2^53 - 1)))
+    stop(sprintf("invalid diagnostic number at %s", path))
+}
+
+ats_diag_enum <- function(value, choices, path) {
+  if (!is.character(value) || length(value) != 1L || is.na(value) || !(value %in% choices))
+    stop(sprintf("unsupported diagnostic enum at %s", path))
+}
+
+# An environment stack avoids quadratic list slicing at the 100,000-node
+# definition boundary. Entries are removed immediately after visiting them.
+ats_diag_stack <- function(initial) {
+  entries <- new.env(hash = TRUE, parent = emptyenv())
+  entries[["1"]] <- initial
+  count <- 1L
+  list(
+    empty = function() count == 0L,
+    push = function(value) { count <<- count + 1L; entries[[as.character(count)]] <- value },
+    pop = function() {
+      key <- as.character(count); value <- entries[[key]]
+      rm(list = key, envir = entries); count <<- count - 1L
+      value
+    }
+  )
+}
+
+ats_validate_diag_scalars <- function(definition) {
+  enums <- list(
+    lossRowGrain = c("claim", "aggregate"),
+    developmentSemantics = c("cumulative", "incremental", "point-in-time", "unknown"),
+    aggregation = "sum", missing = c("unknown", "zero"), exposureTiming = c("origin-static", "valuation-specific"),
+    subject = c("claim", "claimant", "policy", "occurrence", "other", "unknown"),
+    basis = c("earned", "written", "in-force", "other", "unknown"),
+    perspective = c("gross", "net", "ceded", "other", "unknown"), treatment = c("included", "excluded", "unknown"),
+    application = c("claim", "occurrence", "policy", "source-defined"), actor = c("caller", "source"),
+    denominatorPolicy = "positive-or-null", severity = c("warning", "fail"),
+    operator = c("lt", "lte", "eq", "neq", "gte", "gt"), missingInput = c("not-evaluated", "finding"),
+    direction = c("nondecreasing", "nonincreasing"), originCadence = c("month", "quarter", "year"),
+    valuationCadence = c("month", "quarter", "year"), originAnchor = c("start", "end"), valuationAnchor = c("start", "end")
+  )
+  tokens <- c("id", "version", "unit", "currency", "basisId", "countPopulationId", "exposureBasisId", "compatibilityGroup", "outputMeasureId", "formulaId", "transformationRef", "rationaleArtifactId", "ageUnit", "label", "role", "measureId")
+  texts <- c("displayName", "description", "sourceDescription", "displayUnit", "numeratorLabel", "denominatorLabel", "code", "message")
+  for (name in c("measures", "countPopulations", "exposureBases", "amountBases", "derivedMeasures", "formulas", "instances", "reviewRules")) {
+    catalog <- definition[[name]]
+    if (!is.list(catalog) || (!is.null(names(catalog)) && length(catalog) > 0L)) stop(sprintf("diagnostic catalog must be an array at $.definition.%s", name))
+    ids <- vapply(catalog, function(item) {
+      if (!is.list(item)) stop("diagnostic catalog entry must be an object")
+      ats_diag_token(item$id, paste0("$.definition.", name, ".id")); item$id
+    }, character(1))
+    if (anyDuplicated(ids)) stop(sprintf("duplicate diagnostic catalog ID at $.definition.%s", name))
+  }
+  stack <- ats_diag_stack(list(value = definition, path = "$.definition", depth = 1L))
   nodes <- 0L
-  while (length(stack) > 0L) {
-    entry <- stack[[length(stack)]]
-    stack <- stack[-length(stack)]
+  expression_nodes <- 0L
+  while (!stack$empty()) {
+    entry <- stack$pop()
+    item <- entry$value; path <- entry$path
+    nodes <- nodes + 1L
+    if (entry$depth > 256L || nodes > 1000000L) stop(sprintf("diagnostic JSON resource limit at %s", path))
+    if (is.null(item)) next
+    if (is.character(item)) {
+      if (length(item) != 1L || is.na(item) || !validUTF8(item)) stop(sprintf("invalid diagnostic Unicode at %s", path))
+      next
+    }
+    if (is.numeric(item)) { ats_diag_number(item, path); next }
+    if (is.logical(item) && length(item) == 1L && !is.na(item)) next
+    if (!is.list(item)) stop(sprintf("non-JSON diagnostic value at %s", path))
+    if (is.null(names(item))) {
+      for (index in seq_along(item)) stack$push(list(value = item[[index]], path = sprintf("%s[%d]", path, index - 1L), depth = entry$depth + 1L))
+      next
+    }
+    registry <- any(vapply(c(".attributes", ".roles", ".bindings"), function(suffix) endsWith(path, suffix), logical(1)))
+    if (!registry && (!is.null(item[["op"]]) || (!is.null(item[["source"]]) && item[["source"]] %in% c("measure", "calculation", "constant")))) {
+      expression_nodes <- expression_nodes + 1L
+      if (expression_nodes > 100000L) stop("diagnostic definition expression node count exceeds 100000")
+    }
+    for (key in names(item)) {
+      value <- item[[key]]; current <- paste0(path, ".", key)
+      ats_diag_token(key, path)
+      if (identical(key, "attributes")) {
+        if (!is.list(value) || any(vapply(value, function(v) !is.null(v) && (is.list(v) || length(v) != 1L), logical(1)))) stop(sprintf("diagnostic attributes must contain JSON scalars at %s", current))
+        for (attribute in names(value)) ats_diag_token(attribute, current)
+      } else if (!any(vapply(c(".attributes", ".roles", ".bindings"), function(suffix) endsWith(path, suffix), logical(1)))) {
+        nullable_enum <- identical(key, "exposureTiming") || (identical(key, "developmentSemantics") && grepl("\\.roles\\.", path))
+        if (key %in% names(enums) && (!is.null(value) || !nullable_enum)) ats_diag_enum(value, enums[[key]], current)
+        if (key %in% tokens && (!is.null(value) || !(key %in% c("basisId", "countPopulationId", "exposureBasisId", "compatibilityGroup")))) ats_diag_token(value, current)
+        nullable_text <- identical(key, "sourceDescription") || (identical(key, "description") && endsWith(path, ".limitation"))
+        if (key %in% texts && !(is.null(value) && nullable_text) && (!is.character(value) || length(value) != 1L)) stop(sprintf("diagnostic text must be a string at %s", current))
+        if (!is.null(value) && key %in% c("ageOffset", "coordinate", "minDevelopmentAge", "maxDevelopmentAge")) ats_diag_number(value, current, integer = TRUE, nonnegative = !(key %in% c("ageOffset", "coordinate")))
+        if (!is.null(value) && key %in% c("attachment", "limit", "scale")) ats_diag_number(value, current, nonnegative = TRUE)
+        if (key %in% c("roles", "bindings")) {
+          if (!is.list(value) || is.null(names(value))) stop(sprintf("diagnostic role registry must be an object at %s", current))
+          for (role in names(value)) ats_diag_token(role, current)
+        }
+      }
+      stack$push(list(value = value, path = current, depth = entry$depth + 1L))
+    }
+    if (!is.null(item$aggregation)) {
+      ats_diag_enum(item$source, c("loss", "exposure", "derived"), paste0(path, ".source"))
+      ats_diag_enum(item$kind, c("count", "amount", "exposure"), paste0(path, ".kind"))
+    }
+    if (grepl("\\.roles\\.", path) && !is.null(item$kind)) ats_diag_enum(item$kind, c("count", "amount", "exposure"), paste0(path, ".kind"))
+    if (endsWith(path, ".derivation")) ats_diag_enum(item$kind, c("sdk", "external"), paste0(path, ".kind"))
+    if (endsWith(path, ".comparability")) ats_diag_enum(item$kind, c("compiler-proven", "caller-asserted"), paste0(path, ".kind"))
+    if (endsWith(path, ".projection")) ats_diag_enum(item$kind, c("valuation", "latest-valuation-per-origin", "all-cells"), paste0(path, ".kind"))
+  }
+  if (identical(definition$periodAxis$kind, "calendar")) ats_diag_enum(definition$periodAxis$ageUnit, "month", "$.definition.periodAxis.ageUnit")
+  invisible(TRUE)
+}
+
+ats_validate_diag_expression <- function(root, reference, path, wrapper = FALSE) {
+  stack <- ats_diag_stack(list(value = root, path = path, depth = if (wrapper) 2L else 1L))
+  nodes <- if (wrapper) 1L else 0L
+  while (!stack$empty()) {
+    entry <- stack$pop()
     if (entry$depth > 64L) stop(sprintf("diagnostic expression depth exceeds 64 at %s", entry$path))
     nodes <- nodes + 1L
     if (nodes > 10000L) stop(sprintf("diagnostic expression node count exceeds 10000 at %s", path))
     expression <- entry$value
+    if (!is.list(expression)) stop(sprintf("diagnostic expression must be an object at %s", entry$path))
     op <- expression$op
-    if (identical(op, reference)) {
-      ats_diag_exact(expression, c("op", if (identical(reference, "measure")) "measureId" else "role"), entry$path)
+    if (identical(op, reference) || (identical(reference, "claim") && identical(op, "measure"))) {
+      key <- if (identical(reference, "role")) "role" else "measureId"
+      ats_diag_exact(expression, c("op", key), entry$path)
+      ats_diag_token(expression[[key]], paste0(entry$path, ".", key))
+    } else if (identical(reference, "claim") && identical(op, "claim-layer")) {
+      ats_diag_exact(expression, c("op", "measureId", "attachment", "limit"), entry$path)
+      ats_diag_token(expression$measureId, paste0(entry$path, ".measureId"))
+      ats_diag_number(expression$attachment, paste0(entry$path, ".attachment"), nonnegative = TRUE)
+      if (!is.null(expression$limit)) ats_diag_number(expression$limit, paste0(entry$path, ".limit"), nonnegative = TRUE)
     } else if (identical(op, "add")) {
       ats_diag_exact(expression, c("op", "terms"), entry$path)
       if (length(expression$terms) == 0L) stop(sprintf("diagnostic add terms must be nonempty at %s", entry$path))
-      for (index in seq_along(expression$terms)) stack[[length(stack) + 1L]] <- list(value = expression$terms[[index]], path = sprintf("%s.terms[%d]", entry$path, index - 1L), depth = entry$depth + 1L)
+      for (index in seq_along(expression$terms)) stack$push(list(value = expression$terms[[index]], path = sprintf("%s.terms[%d]", entry$path, index - 1L), depth = entry$depth + 1L))
     } else if (identical(op, "subtract")) {
       ats_diag_exact(expression, c("op", "left", "right"), entry$path)
-      stack[[length(stack) + 1L]] <- list(value = expression$left, path = paste0(entry$path, ".left"), depth = entry$depth + 1L)
-      stack[[length(stack) + 1L]] <- list(value = expression$right, path = paste0(entry$path, ".right"), depth = entry$depth + 1L)
+      stack$push(list(value = expression$left, path = paste0(entry$path, ".left"), depth = entry$depth + 1L))
+      stack$push(list(value = expression$right, path = paste0(entry$path, ".right"), depth = entry$depth + 1L))
     } else stop(sprintf("unknown diagnostic expression operator '%s' at %s", op, entry$path))
   }
 }
 
 ats_validate_diag_tolerance <- function(value, path) {
   ats_diag_exact(value, c("absolute", "relative"), path)
+  for (key in names(value)) ats_diag_number(value[[key]], paste0(path, ".", key), nonnegative = TRUE)
 }
 
 ats_validate_review_operand <- function(value, path) {
-  if (identical(value$op, "constant")) ats_diag_exact(value, c("op", "value"), path)
+  if (identical(value$op, "constant")) {
+    ats_diag_exact(value, c("op", "value"), path)
+    ats_diag_number(value$value, paste0(path, ".value"))
+  }
   else ats_validate_diag_expression(value, "measure", path)
 }
 
 ats_validate_metric_operand <- function(value, path) {
   if (identical(value$source, "measure")) {
     ats_diag_exact(value, c("source", "expression"), path)
-    ats_validate_diag_expression(value$expression, "measure", paste0(path, ".expression"))
+    ats_validate_diag_expression(value$expression, "measure", paste0(path, ".expression"), wrapper = TRUE)
   } else if (identical(value$source, "calculation")) {
     ats_diag_exact(value, c("source", "field"), path)
+    ats_diag_enum(value$field, c("numerator", "denominator"), paste0(path, ".field"))
   } else if (identical(value$source, "constant")) {
     ats_diag_exact(value, c("source", "value"), path)
+    ats_diag_number(value$value, paste0(path, ".value"))
   } else stop(sprintf("unknown diagnostic rule operand source '%s' at %s", value$source, path))
 }
 
 ats_validate_closed_diagnostic_definition <- function(definition) {
+  ats_validate_diag_scalars(definition)
   ats_diag_exact(definition, c("diagnosticDefinitionVersion", "id", "version", "lossRowGrain", "measures", "countPopulations", "exposureBases", "amountBases", "derivedMeasures", "formulas", "instances", "reviewRules", "periodAxis"), "$.definition")
   for (index in seq_along(definition$measures)) ats_diag_exact(definition$measures[[index]], c("id", "displayName", "description", "source", "kind", "unit", "developmentSemantics", "aggregation", "missing", "basisId", "countPopulationId", "exposureBasisId", "exposureTiming"), sprintf("$.definition.measures[%d]", index - 1L))
   for (index in seq_along(definition$countPopulations)) ats_diag_exact(definition$countPopulations[[index]], c("id", "displayName", "subject", "unit", "description", "attributes"), sprintf("$.definition.countPopulations[%d]", index - 1L))
@@ -1025,7 +1159,7 @@ ats_validate_closed_diagnostic_definition <- function(definition) {
   for (index in seq_along(definition$derivedMeasures)) {
     item <- definition$derivedMeasures[[index]]
     ats_diag_exact(item, c("id", "outputMeasureId", "expression"), sprintf("$.definition.derivedMeasures[%d]", index - 1L))
-    ats_validate_diag_expression(item$expression, "measure", sprintf("$.definition.derivedMeasures[%d].expression", index - 1L))
+    ats_validate_diag_expression(item$expression, "claim", sprintf("$.definition.derivedMeasures[%d].expression", index - 1L))
   }
   for (index in seq_along(definition$formulas)) {
     item <- definition$formulas[[index]]
@@ -1083,10 +1217,99 @@ ats_validate_closed_diagnostic_definition <- function(definition) {
     ats_diag_exact(axis, c("kind", "id", "version", "ageUnit", "ageOffset", "origins", "valuations"), "$.definition.periodAxis")
     for (name in c("origins", "valuations")) for (index in seq_along(axis[[name]])) ats_diag_exact(axis[[name]][[index]], c("label", "aliases", "coordinate"), sprintf("$.definition.periodAxis.%s[%d]", name, index - 1L))
   } else stop(sprintf("unknown diagnostic period-axis kind '%s'", axis$kind))
+  ats_validate_diag_references(definition)
+  invisible(TRUE)
+}
+
+ats_validate_diag_references <- function(definition) {
+  measures <- setNames(definition$measures, vapply(definition$measures, `[[`, character(1), "id"))
+  formulas <- setNames(definition$formulas, vapply(definition$formulas, `[[`, character(1), "id"))
+  catalogs <- list(amount = list(field = "basisId", values = definition$amountBases),
+    count = list(field = "countPopulationId", values = definition$countPopulations),
+    exposure = list(field = "exposureBasisId", values = definition$exposureBases))
+  signatures <- lapply(measures, function(item) {
+    catalog <- catalogs[[item$kind]]
+    ids <- vapply(catalog$values, `[[`, character(1), "id")
+    if (is.null(item[[catalog$field]]) || !(item[[catalog$field]] %in% ids)) stop("unknown diagnostic semantic reference")
+    ats_select_fields(item, c("kind", "unit", "basisId", "countPopulationId", "exposureBasisId"))
+  })
+  signature <- function(expression, registry, reference) {
+    if (identical(expression$op, "constant")) return(NULL)
+    if (expression$op %in% c(reference, "claim-layer")) {
+      key <- if (identical(reference, "role")) expression$role else expression$measureId
+      if (!(key %in% names(registry))) stop("unknown diagnostic expression reference")
+      return(registry[[key]])
+    }
+    children <- if (identical(expression$op, "add")) expression$terms else list(expression$left, expression$right)
+    quantities <- lapply(children, signature, registry = registry, reference = reference)
+    if (!all(vapply(quantities, identical, logical(1), quantities[[1]]))) stop("incompatible diagnostic expression quantities")
+    quantities[[1]]
+  }
+  compatible <- function(left, right) {
+    if (!is.null(left) && !is.null(right) && !identical(left, right)) stop("incompatible diagnostic comparison quantities")
+  }
+  for (derivation in definition$derivedMeasures) {
+    if (!(derivation$outputMeasureId %in% names(measures))) stop("unknown derived diagnostic output measure")
+    # Claim derivations may construct a new amount basis from disjoint components.
+    if (!all(ats_diag_dependencies(derivation$expression) %in% names(measures))) stop("unknown derived diagnostic input measure")
+  }
+  for (instance in definition$instances) {
+    if (!(instance$formulaId %in% names(formulas))) stop("unknown diagnostic formula")
+    formula <- formulas[[instance$formulaId]]
+    if (!setequal(names(instance$bindings), names(formula$roles))) stop("diagnostic bindings must match formula roles")
+    roles <- lapply(instance$bindings, signature, registry = signatures, reference = "measure")
+    groups <- list()
+    for (role in names(roles)) {
+      contract <- formula$roles[[role]]; quantity <- roles[[role]]
+      if (!identical(quantity$kind, contract$kind)) stop("incompatible diagnostic formula role kind")
+      group <- contract$compatibilityGroup
+      if (!is.null(group)) {
+        if (group %in% names(groups)) compatible(groups[[group]], quantity)
+        groups[group] <- list(quantity)
+      }
+    }
+    calculations <- lapply(formula[c("numerator", "denominator")], signature, registry = roles, reference = "role")
+    for (rule in instance$rules) {
+      metric_operand <- function(value) {
+        if (identical(value$source, "constant")) return(NULL)
+        if (identical(value$source, "calculation")) return(calculations[[value$field]])
+        signature(value$expression, signatures, "measure")
+      }
+      compatible(metric_operand(rule$when$left), metric_operand(rule$when$right))
+    }
+  }
+  for (rule in definition$reviewRules) {
+    if (identical(rule$kind, "compare")) compatible(signature(rule$when$left, signatures, "measure"), signature(rule$when$right, signatures, "measure"))
+    else if (identical(rule$kind, "reconcile")) compatible(signature(rule$actual, signatures, "measure"), signature(rule$expected, signatures, "measure"))
+    else if (identical(rule$kind, "layer-order")) {
+      narrower <- signature(rule$narrower, signatures, "measure"); broader <- signature(rule$broader, signatures, "measure")
+      if (!identical(narrower[c("kind", "unit")], broader[c("kind", "unit")]) || !identical(narrower$kind, "amount")) stop("incompatible diagnostic layer quantities")
+    } else signature(rule$expression, signatures, "measure")
+  }
   invisible(TRUE)
 }
 
 ats_parse_diagnostic_definition <- function(path) {
+  # jsonlite may replace an unpaired escape with a warning. Inspect escape
+  # pairs before parsing so malformed UTF-16 is rejected, never repaired.
+  raw <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  chars <- strsplit(raw, "", fixed = TRUE)[[1]]
+  index <- 1L
+  while (index <= length(chars)) {
+    if (identical(chars[[index]], "\\") && index < length(chars)) {
+      if (identical(chars[[index + 1L]], "u") && index + 5L <= length(chars)) {
+        unit <- strtoi(paste(chars[(index + 2L):(index + 5L)], collapse = ""), 16L)
+        if (!is.na(unit) && (unit == 0L || (unit >= 56320L && unit <= 57343L))) stop("invalid diagnostic Unicode escape")
+        if (!is.na(unit) && unit >= 55296L && unit <= 56319L) {
+          paired <- index + 11L <= length(chars) && identical(chars[[index + 6L]], "\\") && identical(chars[[index + 7L]], "u")
+          low <- if (paired) strtoi(paste(chars[(index + 8L):(index + 11L)], collapse = ""), 16L) else NA_integer_
+          if (is.na(low) || low < 56320L || low > 57343L) stop("invalid diagnostic Unicode escape")
+          index <- index + 6L
+        }
+        index <- index + 6L
+      } else index <- index + 2L
+    } else index <- index + 1L
+  }
   doc <- ats_read_document(path)
   if (!identical(doc$kind, "diagnostic-definition")) stop("expected diagnostic-definition")
   body <- doc$diagnosticDefinition
@@ -1110,8 +1333,20 @@ ats_eval_diagnostic_expression <- function(expression, values, reference) {
   children <- if (identical(op, "add")) expression$terms else list(expression$left, expression$right)
   evaluated <- lapply(children, ats_eval_diagnostic_expression, values = values, reference = reference)
   if (any(vapply(evaluated, is.null, logical(1)))) return(NULL)
-  result <- if (identical(op, "add")) sum(unlist(evaluated)) else evaluated[[1]] - evaluated[[2]]
-  if (!is.finite(result)) NULL else result
+  result <- if (identical(op, "add")) ats_diag_sum(unlist(evaluated)) else evaluated[[1]] - evaluated[[2]]
+  if (is.null(result) || !is.finite(result)) NULL else result
+}
+
+ats_diag_sum <- function(values) {
+  total <- correction <- 0
+  for (value in values) {
+    next_total <- total + value
+    correction <- correction + if (abs(total) >= abs(value)) total - next_total + value else value - next_total + total
+    total <- next_total
+    if (!is.finite(total) || !is.finite(correction)) return(NULL)
+  }
+  value <- total + correction
+  if (is.finite(value)) value else NULL
 }
 
 ats_replay_diagnostic_cell <- function(definition, instance_id, values) {
@@ -1123,6 +1358,135 @@ ats_replay_diagnostic_cell <- function(definition, instance_id, values) {
   value <- if (is.null(numerator) || is.null(denominator) || denominator <= 0) NULL else numerator / denominator
   if (!is.null(value) && !is.finite(value)) value <- NULL
   list(numerator = numerator, denominator = denominator, value = value)
+}
+
+ats_diagnostic_aggregate_cells <- function(definition, supplied) {
+  axis <- definition$periodAxis
+  period <- function(label, side) {
+    if (identical(axis$kind, "ordered")) {
+      item <- Filter(function(item) identical(label, item$label) || label %in% unlist(item$aliases), axis[[paste0(side, "s")]])[[1]]
+      return(list(label = item$label, coordinate = item$coordinate))
+    }
+    if (!identical(axis[[paste0(side, "Cadence")]], "year")) stop("aggregate conformance replay requires annual calendar or ordered axis")
+    list(label = label, coordinate = as.numeric(label) * 12 + if (identical(axis[[paste0(side, "Anchor")]], "end")) 12 else 0)
+  }
+  output <- list(); seen <- character()
+  for (row in supplied$losses) {
+    origin <- period(row$origin, "origin"); valuation <- period(row$valuation, "valuation")
+    key <- ats_canonical_json(list(row$sourceGroup, origin$label, valuation$label))
+    if (key %in% seen || !identical(row$rowType, "aggregate") || !isTRUE(row$complete)) stop("aggregate conformance replay needs one complete row per cell")
+    seen <- c(seen, key)
+    values <- row$measures
+    for (exposure in supplied$exposures) {
+      if (identical(exposure$sourceGroup, row$sourceGroup) && identical(period(exposure$origin, "origin")$label, origin$label) &&
+          (is.null(exposure$valuation) || identical(period(exposure$valuation, "valuation")$label, valuation$label)))
+        values[exposure$measureId] <- list(exposure$value)
+    }
+    output[[length(output) + 1L]] <- list(coordinate = list(sourceGroup = row$sourceGroup, origin = origin$label,
+      valuation = valuation$label, developmentAge = valuation$coordinate - origin$coordinate + axis$ageOffset, ageUnit = axis$ageUnit), values = values)
+  }
+  ordering <- order(vapply(output, function(cell) ats_utf16be_sortkey(cell$coordinate$sourceGroup), character(1)),
+    vapply(output, function(cell) cell$coordinate$origin, character(1)),
+    vapply(output, function(cell) cell$coordinate$developmentAge, numeric(1)))
+  output[ordering]
+}
+
+# A small independent oracle over the frozen aggregate corpus. It refuses
+# ingestion/selection cases outside that corpus; this is not another SDK.
+ats_replay_diagnostic_reviews <- function(definition, supplied) {
+  cells <- ats_diagnostic_aggregate_cells(definition, supplied)
+  results <- list()
+  operand <- function(expression, values, path, coordinate) {
+    if (identical(expression$op, "constant")) return(list(value = expression$value, reasons = list(), overflows = list()))
+    if (identical(expression$op, "measure")) {
+      value <- values[[expression$measureId]]
+      return(list(value = value, reasons = if (is.null(value)) list("missing") else list(), overflows = list()))
+    }
+    parts <- if (identical(expression$op, "add")) expression$terms else list(expression$left, expression$right)
+    paths <- if (identical(expression$op, "add")) sprintf("%s/terms/%d", path, seq_along(parts) - 1L) else paste0(path, c("/left", "/right"))
+    children <- lapply(seq_along(parts), function(index) operand(parts[[index]], values, paths[[index]], coordinate))
+    reasons <- as.list(c("missing", "expression-overflow")[c("missing", "expression-overflow") %in% unlist(lapply(children, `[[`, "reasons"))])
+    overflows <- unlist(lapply(children, `[[`, "overflows"), recursive = FALSE)
+    if (is.null(overflows)) overflows <- list()
+    if (any(vapply(children, function(child) is.null(child$value), logical(1)))) return(list(value = NULL, reasons = reasons, overflows = overflows))
+    value <- if (identical(expression$op, "add")) ats_diag_sum(vapply(children, `[[`, numeric(1), "value")) else children[[1]]$value - children[[2]]$value
+    if (is.null(value) || !is.finite(value)) {
+      reasons <- as.list(unique(c(unlist(reasons), "expression-overflow")))
+      overflows[[length(overflows) + 1L]] <- list(expressionPath = path, sources = list(), coordinate = coordinate)
+      value <- NULL
+    }
+    list(value = value, reasons = reasons, overflows = overflows)
+  }
+  record <- function(rule, left, right, scope) {
+    reason_order <- c("missing", "expression-overflow")
+    reasons <- as.list(reason_order[reason_order %in% c(unlist(left$reasons), unlist(right$reasons))])
+    relation <- NULL
+    if (length(reasons) == 0L) {
+      tolerance <- rule$tolerance
+      threshold <- tolerance$absolute + tolerance$relative * max(1, abs(left$value), abs(right$value))
+      if (!is.finite(threshold)) reasons <- list("tolerance-overflow")
+      else relation <- if (abs(left$value - right$value) <= threshold) "equal" else if (left$value < right$value) "less" else "greater"
+    }
+    if (length(reasons) > 0L) {
+      status <- if (identical(rule$missingInput, "finding")) "triggered" else "not-evaluated"
+      trigger <- if (identical(status, "triggered")) { if ("missing" %in% unlist(reasons)) "missing-input" else reasons[[1]] } else NULL
+    } else {
+      if (identical(rule$kind, "compare")) {
+        matches <- c(lt = identical(relation, "less"), lte = !identical(relation, "greater"), eq = identical(relation, "equal"),
+          neq = !identical(relation, "equal"), gte = !identical(relation, "less"), gt = identical(relation, "greater"))
+        passed <- !matches[[rule$when$operator]]
+      } else if (rule$kind %in% c("reconcile", "control-total")) passed <- identical(relation, "equal")
+      else if (identical(rule$kind, "monotonic")) passed <- !identical(relation, if (identical(rule$direction, "nondecreasing")) "greater" else "less")
+      else passed <- !identical(relation, "greater")
+      status <- if (passed) "pass" else "triggered"
+      trigger <- if (passed) NULL else "predicate"
+    }
+    overflows <- c(left$overflows, right$overflows)
+    if (length(overflows) > 0L) overflows <- overflows[order(vapply(overflows, `[[`, character(1), "expressionPath"))]
+    result <- list(ruleId = rule$id, ruleKind = rule$kind, severity = rule$severity, scope = scope,
+      status = status, triggerReason = trigger, left = left$value, right = right$value, relation = relation,
+      notEvaluatedReasons = reasons, expressionOverflows = overflows)
+    if (identical(rule$kind, "layer-order")) result$comparability <- rule$comparability
+    results[[length(results) + 1L]] <<- result
+  }
+  for (index in seq_along(definition$reviewRules)) {
+    rule <- definition$reviewRules[[index]]; base <- sprintf("/reviewRules/%d", index - 1L)
+    if (identical(rule$kind, "control-total")) {
+      selected <- cells; selection <- rule$filter
+      if (!is.null(selection)) {
+        if (any(vapply(selection[setdiff(names(selection), "sourceGroups")], Negate(is.null), logical(1)))) stop("unsupported aggregate conformance selection")
+        if (!is.null(selection$sourceGroups)) selected <- Filter(function(cell) cell$coordinate$sourceGroup %in% unlist(selection$sourceGroups), selected)
+      }
+      if (identical(rule$projection$kind, "latest-valuation-per-origin")) {
+        keys <- vapply(selected, function(cell) ats_canonical_json(list(cell$coordinate$sourceGroup, cell$coordinate$origin)), character(1))
+        selected <- selected[!duplicated(keys, fromLast = TRUE)]
+      } else if (identical(rule$projection$kind, "valuation")) selected <- Filter(function(cell) identical(cell$coordinate$valuation, rule$projection$valuation), selected)
+      ids <- ats_diag_dependencies(rule$expression)
+      values <- setNames(lapply(ids, function(id) {
+        if (length(selected) == 0L || any(vapply(selected, function(cell) is.null(cell$values[[id]]), logical(1)))) NULL
+        else ats_diag_sum(vapply(selected, function(cell) cell$values[[id]], numeric(1)))
+      }), ids)
+      scope <- list(kind = "control-total", projection = rule$projection, filter = selection,
+        selectedCellCount = length(selected), selectedContributionCount = length(selected) * length(ids), sources = list())
+      record(rule, operand(rule$expression, values, paste0(base, "/expression"), NULL), list(value = rule$expected, reasons = list(), overflows = list()), scope)
+    } else if (identical(rule$kind, "monotonic")) {
+      if (length(cells) < 2L) next
+      for (cell_index in seq_len(length(cells) - 1L)) {
+        previous <- cells[[cell_index]]; current <- cells[[cell_index + 1L]]
+        if (!identical(previous$coordinate$sourceGroup, current$coordinate$sourceGroup) || !identical(previous$coordinate$origin, current$coordinate$origin)) next
+        scope <- list(kind = "valuation-pair", previous = previous$coordinate, current = current$coordinate, sources = list())
+        record(rule, operand(rule$expression, previous$values, paste0(base, "/expression"), previous$coordinate),
+          operand(rule$expression, current$values, paste0(base, "/expression"), current$coordinate), scope)
+      }
+    } else for (cell in cells) {
+      if (identical(rule$kind, "compare")) { left <- rule$when$left; right <- rule$when$right; paths <- c("/when/left", "/when/right") }
+      else if (identical(rule$kind, "reconcile")) { left <- rule$actual; right <- rule$expected; paths <- c("/actual", "/expected") }
+      else { left <- rule$narrower; right <- rule$broader; paths <- c("/narrower", "/broader") }
+      record(rule, operand(left, cell$values, paste0(base, paths[[1]]), cell$coordinate),
+        operand(right, cell$values, paste0(base, paths[[2]]), cell$coordinate), list(kind = "cell", cell = cell$coordinate, sources = list()))
+    }
+  }
+  results
 }
 
 # End of actuarialInterchange.R. Sourcing prints nothing; call ats_test_jcs().

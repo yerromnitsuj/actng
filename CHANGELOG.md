@@ -43,6 +43,10 @@ together; this file covers them all.
 - Legacy boundaries reject duplicate normalized CSV headers, impossible dates,
   conflicting claim metadata, non-finite triangle content, and invalid cap or
   index inputs. Exported agent output schemas now validate their full shapes.
+- Diagnostic agent contracts now match the specification: host `runPresets`,
+  executor `tenantId`, and successful `{ success: true, data }` envelopes.
+  Display projections use `points` or `triangles`; point views omit raw
+  aggregation components. The migration guide documents the corrected names.
 
 ### Reproducibility and published validation
 
@@ -50,11 +54,18 @@ together; this file covers them all.
   explicit acyclic lineage, SHA-256 SDK byte digests, a normalized manifest,
   and semantic read-side bundle verification that rejects fully re-stamped but
   internally inconsistent runs.
+- Artifact evidence requires explicit `input`/`preparation` scope. Identity
+  projections now materialize source-null fields and full filter selectors,
+  use the exact specification tags/payloads, and leave caller-owned execution
+  objects unfrozen. Affected 0.6.0 fingerprints must be recomputed from original
+  inputs rather than relabeled. Historical bundles retain validated recorded
+  engine versions during replay.
 - Mack (1999)'s tail-factor random error is implemented with explicit tail
   standard error and tail sigma inputs, reproducing all nine Table 2 standard
   errors and the published total of 4,054 (thousands). Exact Taylor/Ashe and
   mortgage total-SE regressions prevent broad printed percentages hiding drift.
-- A machine-readable registry makes 12 literature/integrity anchors mandatory.
+- A machine-readable registry makes literature, integrity, and real-world
+  source anchors mandatory, with runtime test/assertion accounting.
   The frozen 0.5 quarterly 110-cell golden is replayed through the generalized
   API, and every committed French motor derivative is hashed, schema-counted,
   reconciled, and rebuilt byte-for-byte from the pinned source archive.
@@ -71,6 +82,10 @@ together; this file covers them all.
   SHA and manifests. Every package's `prepublishOnly` rejects absent, stale,
   dirty, or byte-mismatched evidence; `npm run release:publish` is the single
   dependency-ordered publishing command.
+- Publication uses the exact attested tarballs. A complete packed declaration
+  snapshot catches public API drift, and applicable skipped tests fail the
+  release gate. Source rebuilds and their fault-injection guards run in release
+  automation, not only on developer machines.
 
 ## 0.6.0 — 2026-09-03
 

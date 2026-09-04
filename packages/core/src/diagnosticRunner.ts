@@ -31,6 +31,11 @@ import {
   type DiagnosticValidationIssue,
 } from "./types.js";
 import { canonicalJson } from "./canonical.js";
+import {
+  projectDiagnosticIdentity,
+  type DiagnosticIdentityProjection,
+} from "./diagnosticIdentity.js";
+import { compareDiagnosticFindings } from "./diagnosticOrdering.js";
 import { normalizeDiagnosticPeriod } from "./diagnosticPeriods.js";
 import { normalizeDiagnosticSourceLocations } from "./diagnosticSourceOrdering.js";
 import {
@@ -113,8 +118,9 @@ export interface CommonMaturityResult {
   readonly ageUnit: string;
   readonly points: readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[];
 }
-export type NormalizedDiagnosticResultIdentity =
-  DiagnosticDeepReadonly<MetricDiagnosticsResult>;
+export type NormalizedDiagnosticResultIdentity = DiagnosticIdentityProjection<
+  DiagnosticDeepReadonly<MetricDiagnosticsResult>
+>;
 
 function codeUnit(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -197,11 +203,7 @@ function mergeFindings(
     ]);
     merged.set(key, { ...(previous ?? value), sources });
   }
-  return [...merged.values()].sort(
-    (left, right) =>
-      codeUnit(left.code, right.code) ||
-      codeUnit(canonicalJson(left), canonicalJson(right)),
-  );
+  return [...merged.values()].sort(compareDiagnosticFindings);
 }
 
 export function validateDiagnosticGroupingConfiguration(
@@ -1108,5 +1110,5 @@ export function commonMaturity(
 export function getMetricDiagnosticsResultIdentity(
   result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
 ): NormalizedDiagnosticResultIdentity {
-  return deepFreeze(result);
+  return projectDiagnosticIdentity(result);
 }

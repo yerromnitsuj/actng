@@ -14,6 +14,7 @@ import type { StudyDoc } from "./schemas/study.js";
 import type { BundleDoc } from "./schemas/bundle.js";
 import type { CrosscheckReportDoc } from "./schemas/crosscheck.js";
 import type { DiagnosticDefinitionDoc } from "./schemas/diagnosticDefinition.js";
+import { snapshotInterchangeJson } from "./json.js";
 
 /**
  * `parseDocument` (spec 4.1): version-checked, schema-validated,
@@ -124,14 +125,18 @@ export function parseDocument(
     );
   }
 
-  const parsed = schema.safeParse(raw);
+  const snapshot = snapshotInterchangeJson(raw);
+  const parsed = schema.safeParse(snapshot);
   if (!parsed.success) {
     throw new ReservingError(
       "BAD_INTERCHANGE",
       `Document of kind "${String(kind)}" failed schema validation: ${formatZodError(parsed.error)}`,
     );
   }
-  const doc = parsed.data as InterchangeDocument;
+  // These wire schemas validate only: no defaults, coercions, or semantic
+  // transforms. Keep the owned input snapshot because Zod 3's passthrough
+  // object assembler otherwise drops unknown own `__proto__` properties.
+  const doc = snapshot as InterchangeDocument;
 
   const warnings: string[] = [];
   const integrity = verifyIntegrity(doc);

@@ -4,7 +4,7 @@ contract_path <- if (is.na(index)) "tools/interop/r-environment.json" else args[
 contract_text <- paste(readLines(contract_path, warn = FALSE), collapse = "\n")
 library_value <- sub('.*"library"\\s*:\\s*"([^"]+)".*', '\\1', contract_text)
 if (identical(library_value, contract_text)) stop("R environment contract has no library field")
-.libPaths(c(path.expand(library_value), .libPaths()))
+.libPaths(c(path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", library_value)), .libPaths()))
 contract <- jsonlite::fromJSON(contract_path, simplifyVector = FALSE)
 actual_r <- paste(R.version$major, R.version$minor, sep = ".")
 if (!identical(actual_r, contract$rVersion)) stop(

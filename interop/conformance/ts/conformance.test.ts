@@ -18,7 +18,14 @@ import {
   evaluateDiagnosticReviewRules,
   prepareDiagnosticData,
   runMetricDiagnostics,
+  compileDiagnosticDefinition,
+  canonicalJson,
+  type DiagnosticDefinition,
 } from "@actuarial-ts/core";
+import {
+  resourceDefinition,
+  type ResourceVector,
+} from "./diagnosticBoundaries.js";
 import { verifyBundle } from "../../../packages/compliance/src/index.js";
 import type { BundleDoc } from "../../../packages/interchange/src/index.js";
 import {
@@ -416,6 +423,7 @@ describe("diagnostic three-shore corpus", () => {
       const result = runMetricDiagnostics({ prepared });
       const reviews = evaluateDiagnosticReviewRules(prepared);
       expect({
+        canonicalDefinitionJson: canonicalJson(definition.definition),
         definitionIntegrity: definition.definitionIntegrity,
         preparationFingerprint: prepared.preparationFingerprint,
         result,
@@ -423,6 +431,111 @@ describe("diagnostic three-shore corpus", () => {
       }).toEqual(expected);
       expect(definition.definition.formulas).toHaveLength(6);
       expect(definition.definition.instances).toHaveLength(22);
+      expect(result.emergence).toHaveLength(12);
+      expect(new Set(reviews.map((item) => item.ruleKind))).toEqual(
+        new Set([
+          "compare",
+          "reconcile",
+          "monotonic",
+          "layer-order",
+          "control-total",
+        ]),
+      );
+      expect(new Set(reviews.map((item) => item.status))).toEqual(
+        new Set(["pass", "triggered", "not-evaluated"]),
+      );
     });
   }
+});
+
+describe("shared hostile diagnostic boundaries", () => {
+  const directory = path.join(FIXTURES_DIR, "diagnostics");
+  const corpus = JSON.parse(
+    readFileSync(path.join(directory, "hostile-boundaries.json"), "utf8"),
+  ) as {
+    mutations: Array<{
+      id: string;
+      path: Array<string | number>;
+      value: unknown;
+      accept: boolean;
+    }>;
+    escapedStrings: Array<{ id: string; json: string; accept: boolean }>;
+    resources: ResourceVector[];
+    expressionRoots: string[];
+    opaqueEnvelope: { field: string; value: unknown };
+  };
+  const baseline = JSON.parse(
+    readFileSync(
+      path.join(directory, "generalized-casualty", "calendar-definition.json"),
+      "utf8",
+    ),
+  ).diagnosticDefinition.definition as DiagnosticDefinition;
+  it("opaque envelope fields remain round-trippable", () => {
+    const candidate = JSON.parse(
+      readFileSync(
+        path.join(
+          directory,
+          "generalized-casualty",
+          "calendar-definition.json",
+        ),
+        "utf8",
+      ),
+    );
+    candidate[corpus.opaqueEnvelope.field] = corpus.opaqueEnvelope.value;
+    const parsed = parseDocument(candidate);
+    expect(parsed.doc[corpus.opaqueEnvelope.field]).toEqual(
+      corpus.opaqueEnvelope.value,
+    );
+    expect(() => docToDiagnosticDefinition(candidate)).not.toThrow();
+  });
+  for (const vector of corpus.mutations) {
+    it(vector.id, () => {
+      const candidate = structuredClone(baseline);
+      let target = candidate as unknown as Record<string | number, unknown>;
+      for (const key of vector.path.slice(0, -1))
+        target = target[key] as Record<string | number, unknown>;
+      Object.defineProperty(target, vector.path.at(-1)!, {
+        value: vector.value,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+      if (vector.accept)
+        expect(() => compileDiagnosticDefinition(candidate)).not.toThrow();
+      else
+        expect(() => compileDiagnosticDefinition(candidate)).toThrow(
+          expect.objectContaining({ code: "INVALID_DIAGNOSTIC_DEFINITION" }),
+        );
+    });
+  }
+  for (const vector of corpus.escapedStrings) {
+    it(vector.id, () => {
+      const candidate = { ...baseline, id: JSON.parse(vector.json) };
+      if (vector.accept)
+        expect(() => compileDiagnosticDefinition(candidate)).not.toThrow();
+      else
+        expect(() => compileDiagnosticDefinition(candidate)).toThrow(
+          expect.objectContaining({ code: "INVALID_DIAGNOSTIC_DEFINITION" }),
+        );
+    });
+  }
+  for (const vector of corpus.resources)
+    for (const root of vector.dimension === "definition"
+      ? ["definition"]
+      : corpus.expressionRoots) {
+      it(`${vector.id}/${root}`, () => {
+        const candidate = resourceDefinition(baseline, vector, root);
+        if (vector.accept)
+          expect(() => compileDiagnosticDefinition(candidate)).not.toThrow();
+        else
+          expect(() => compileDiagnosticDefinition(candidate)).toThrow(
+            expect.objectContaining({
+              code: "INVALID_DIAGNOSTIC_DEFINITION",
+              issues: expect.arrayContaining([
+                expect.objectContaining({ code: "expression-limit" }),
+              ]),
+            }),
+          );
+      });
+    }
 });

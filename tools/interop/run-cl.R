@@ -12,7 +12,7 @@
 # --tail defaults to 1 (no tail beyond the triangle's last observed age).
 
 local({
-  lib <- path.expand("~/.R-interop-lib")
+  lib <- path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", "~/.R-interop-lib"))
   if (dir.exists(lib)) .libPaths(c(lib, .libPaths()))
 })
 .this_file <- local({

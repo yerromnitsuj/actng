@@ -843,6 +843,97 @@ describe("diagnostic definition compilation", () => {
       }),
     );
   });
+
+  it("counts a metric operand wrapper in the independent depth limit", () => {
+    const leaf = {
+      op: "measure" as const,
+      measureId: countOnlyDefinition.measures[0]!.id,
+    };
+    const expression = (depth: number): any =>
+      depth === 1 ? leaf : { op: "add", terms: [expression(depth - 1)] };
+    const withDepth = (depth: number) => ({
+      ...countOnlyDefinition,
+      instances: countOnlyDefinition.instances.map((instance) => ({
+        ...instance,
+        rules: [
+          {
+            id: "depth",
+            code: "depth",
+            message: "Depth",
+            severity: "warning" as const,
+            when: {
+              left: {
+                source: "measure" as const,
+                expression: expression(depth),
+              },
+              operator: "gt" as const,
+              right: { source: "constant" as const, value: 0 },
+            },
+          },
+        ],
+      })),
+    });
+    expect(() => compileDiagnosticDefinition(withDepth(63))).not.toThrow();
+    expect(() => compileDiagnosticDefinition(withDepth(64))).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            domain: "definition",
+            code: "expression-limit",
+            message: "Expression depth exceeds 64",
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("rejects unknown review-constant behavior and null operands with structured errors", () => {
+    const review = {
+      id: "bad",
+      kind: "compare",
+      code: "bad",
+      description: "Bad",
+      severity: "fail",
+      missingInput: "not-evaluated",
+      when: {
+        left: { op: "constant", value: 1, futureBehavior: true },
+        operator: "gt",
+        right: { op: "constant", value: 0 },
+      },
+    };
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...countOnlyDefinition,
+        reviewRules: [review],
+      } as any),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            domain: "definition",
+            code: "unknown-key",
+            path: "$.reviewRules[0].when.left.futureBehavior",
+          }),
+        ]),
+      }),
+    );
+    expect(() =>
+      compileDiagnosticDefinition({
+        ...countOnlyDefinition,
+        reviewRules: [{ ...review, when: { ...review.when, left: null } }],
+      } as any),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            domain: "definition",
+            code: "invalid-type",
+            path: "$.reviewRules[0].when.left",
+          }),
+        ]),
+      }),
+    );
+  });
 });
 
 export {

@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-COMMANDS=()
-while IFS= read -r command; do COMMANDS+=("$command"); done < <(node -e 'const value=require("./tools/release/release-commands.json"); for(const command of value.commands) console.log(command)')
-if [[ "${1:-}" == "--dry-run" ]]; then printf '%s\n' "${COMMANDS[@]}"; exit 0; fi
+if [[ "${1:-}" == "--dry-run" ]]; then
+  node --input-type=module -e 'import {readCommands} from "./tools/release/release-evidence.mjs"; console.log(readCommands(process.cwd()).join("\n"))'
+  exit 0
+fi
 
 GATE_TMP=""
 GATE_PYTHON=""
@@ -54,6 +55,10 @@ if [[ "${ACTUARIAL_TS_GATE_TESTING:-}" == "1" && "${1:-}" == --cleanup-self-test
   esac
 fi
 
+# Read-only preflight leaves existing evidence untouched. Any actual new gate
+# attempt invalidates it before runtime checks, including a failed preflight.
+if [[ "${1:-}" != "--preflight-only" ]]; then rm -f .release/attestation.json; fi
+
 PYTHON312_BIN="${ACTUARIAL_TS_PYTHON312:-python3.12}"
 "$PYTHON312_BIN" -c 'import sys; v=sys.version_info[:2]; sys.exit(f"requires Python 3.12, got {sys.version}") if v != (3, 12) else print(sys.version)'
 RSCRIPT_BIN="${ACTUARIAL_TS_RSCRIPT:-Rscript}"
@@ -67,6 +72,8 @@ export ACTUARIAL_TS_RSCRIPT="$RSCRIPT_BIN"
 "$RSCRIPT_BIN" tools/interop/check-r-environment.R
 node -e 'if (process.versions.node !== "22.22.0") { console.error(`requires Node 22.22.0, got ${process.versions.node}`); process.exit(1) }'
 if [[ "${1:-}" == "--preflight-only" ]]; then exit 0; fi
+
+node --input-type=module -e 'import {cleanSourceSha,readCommands} from "./tools/release/release-evidence.mjs"; cleanSourceSha(process.cwd()); readCommands(process.cwd())'
 
 GATE_TMP="$(mktemp -d "${TMPDIR:-/tmp}/actuarial-ts-release-gate.XXXXXX")"
 GATE_PYTHON="$GATE_TMP/venv/bin/python"
@@ -93,7 +100,7 @@ for path in ("interop/sidecar/requirements.txt", "interop/sidecar/requirements-d
         if name in text and f"{name}=={wanted}" not in text:
             raise SystemExit(f"requirement pin drift: {name}=={wanted} absent from {path}")
 PY
-PYTHONPATH="$PWD/interop" "$GATE_PYTHON" -m pytest interop/sidecar/tests tools/release/test-check-sidecar-engine.py -q
+PYTHONPATH="$PWD/interop:$PWD/tools/release" "$GATE_PYTHON" -m pytest -p reject_skips interop/sidecar/tests tools/release/test-check-sidecar-engine.py tools/release/test-reject-skips.py -q
 
 SIDECAR_PORT="$("$GATE_PYTHON" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')"
 "$GATE_PYTHON" -c 'import socket,sys; s=socket.socket(); s.bind(("127.0.0.1",int(sys.argv[1]))); s.close()' "$SIDECAR_PORT"
@@ -116,15 +123,4 @@ kill -0 "$SIDECAR_PID" 2>/dev/null
 ENGINE_JSON="$(curl -sf --connect-timeout 1 --max-time 2 -H "Authorization: Bearer $SIDECAR_TOKEN" "$SIDECAR_URL/v1/engine")"
 printf '%s' "$ENGINE_JSON" | PYTHONPATH="$PWD/interop" "$GATE_PYTHON" tools/release/check-sidecar-engine.py
 
-for command in "${COMMANDS[@]}"; do
-  echo ">>> $command"
-  case "$command" in
-    "pytest:all") "$GATE_PYTHON" -m pytest interop/python/tests interop/conformance/py interop/sidecar/tests -q ;;
-    "R:conformance") "$RSCRIPT_BIN" tools/interop/conformance.R ;;
-    "R:read-document") "$RSCRIPT_BIN" tools/interop/test-read-document.R ;;
-    "npm run docs:check:py") ACTUARIAL_TS_PYTHON="$GATE_PYTHON" npm run docs:check:py ;;
-    "npm run data:fetch -w @actuarial-ts/example-real-world-loss-run") npm run data:fetch -w @actuarial-ts/example-real-world-loss-run ;;
-    "npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run") npm run rebuild:compare -w @actuarial-ts/example-real-world-loss-run ;;
-    *) bash -c "$command" ;;
-  esac
-done
+ACTUARIAL_TS_GATE_PYTHON="$GATE_PYTHON" node tools/release/execute-gate.mjs

@@ -22,6 +22,10 @@ import {
   type DiagnosticMetricInstance,
   type DiagnosticPeriodAxis,
   type DiagnosticReviewRule,
+  type DiagnosticReviewRuleEvaluationBase,
+  type DiagnosticLossInputAuditSnapshot,
+  type DiagnosticExposureInputAuditSnapshot,
+  type DiagnosticExpectedCellAuditSnapshot,
   type DiagnosticValidationError,
   type DiagnosticValidationIssue,
   type NormalizedDiagnosticCalculationScope,
@@ -40,28 +44,50 @@ describe("generalized diagnostics public API", () => {
 
   it("keeps CORE_PACKAGE_VERSION synchronized with the package manifest", () => {
     const here = dirname(fileURLToPath(import.meta.url));
-    const manifest = JSON.parse(readFileSync(join(here, "../package.json"), "utf8")) as {
+    const manifest = JSON.parse(
+      readFileSync(join(here, "../package.json"), "utf8"),
+    ) as {
       version: string;
     };
     expect(CORE_PACKAGE_VERSION).toBe(manifest.version);
   });
 
   it("exposes authored, compiled, normalized, validation, and result-stat types", () => {
-    expectTypeOf<DiagnosticMeasureDefinition>().toHaveProperty("developmentSemantics");
-    expectTypeOf<DiagnosticCountPopulationDefinition>().toHaveProperty("subject");
+    expectTypeOf<DiagnosticMeasureDefinition>().toHaveProperty(
+      "developmentSemantics",
+    );
+    expectTypeOf<DiagnosticCountPopulationDefinition>().toHaveProperty(
+      "subject",
+    );
     expectTypeOf<DiagnosticExposureBasisDefinition>().toHaveProperty("basis");
     expectTypeOf<AmountBasisDefinition>().toHaveProperty("components");
-    expectTypeOf<DiagnosticDerivedMeasureDefinition>().toHaveProperty("expression");
+    expectTypeOf<DiagnosticDerivedMeasureDefinition>().toHaveProperty(
+      "expression",
+    );
     expectTypeOf<DiagnosticFormulaTemplate>().toHaveProperty("roles");
     expectTypeOf<DiagnosticMetricInstance>().toHaveProperty("bindings");
     expectTypeOf<DiagnosticDefinition>().toHaveProperty("lossRowGrain");
-    expectTypeOf<CompiledDiagnosticDefinition>().toHaveProperty("definitionIntegrity");
+    expectTypeOf<CompiledDiagnosticDefinition>().toHaveProperty(
+      "definitionIntegrity",
+    );
     expectTypeOf<DiagnosticPeriodAxis>().toHaveProperty("kind");
     expectTypeOf<DiagnosticComparisonRule>().toHaveProperty("when");
     expectTypeOf<DiagnosticReviewRule>().toHaveProperty("kind");
+    expectTypeOf<DiagnosticReviewRuleEvaluationBase>().toHaveProperty("scope");
+    expectTypeOf<DiagnosticLossInputAuditSnapshot>().toHaveProperty("measures");
+    expectTypeOf<DiagnosticExposureInputAuditSnapshot>().toHaveProperty(
+      "value",
+    );
+    expectTypeOf<DiagnosticExpectedCellAuditSnapshot>().toHaveProperty(
+      "valuation",
+    );
     expectTypeOf<NormalizedDiagnosticFormulaIdentity>().toHaveProperty("roles");
-    expectTypeOf<NormalizedDiagnosticCalculationScope>().toHaveProperty("formulaFingerprint");
-    expectTypeOf<NormalizedDiagnosticDefinitionIdentity>().toHaveProperty("diagnosticDefinitionVersion");
+    expectTypeOf<NormalizedDiagnosticCalculationScope>().toHaveProperty(
+      "formulaFingerprint",
+    );
+    expectTypeOf<NormalizedDiagnosticDefinitionIdentity>().toHaveProperty(
+      "diagnosticDefinitionVersion",
+    );
     expectTypeOf<DiagnosticValidationError>().toHaveProperty("issues");
     expectTypeOf<DiagnosticValidationIssue>().toHaveProperty("path");
     expectTypeOf<DiagnosticMeasureStats>().toEqualTypeOf<{

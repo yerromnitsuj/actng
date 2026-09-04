@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   CASUALTY_FORMULA_TEMPLATES,
+  DiagnosticValidationError,
   compileDiagnosticDefinition,
   prepareDiagnosticData,
   type DiagnosticDefinition,
@@ -126,6 +128,218 @@ const row = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("validated diagnostic run structural and execution gates", () => {
+  const prototypeKeys = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../interop/conformance/fixtures/diagnostics/hostile-boundaries.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  )
+    .mutations.filter((item: { id: string }) =>
+      item.id.startsWith("prototype-"),
+    )
+    .map((item: { value: string }) => item.value) as string[];
+  it.each(prototypeKeys)(
+    "preserves the shared legal record key %s through validation, grouping and calculation",
+    (key) => {
+      const base = definition();
+      const inputDefinition: DiagnosticDefinition = {
+        ...base,
+        measures: base.measures.map((item) => ({ ...item, id: key })),
+        instances: base.instances.map((item) => ({
+          ...item,
+          bindings: {
+            part: { op: "measure", measureId: key },
+            whole: { op: "measure", measureId: key },
+          },
+        })),
+      };
+      const dimensions = { [key]: { [key]: { retained: true } } };
+      const validated = validateDiagnosticRunInput({
+        definition: inputDefinition,
+        losses: [row({ sourceGroup: key, measures: { [key]: 2 } })],
+        groupMap: { [key]: key },
+        groupDimensions: dimensions,
+      });
+      expect(Object.hasOwn(validated.losses[0]!.measures, key)).toBe(true);
+      expect(validated.losses[0]!.measures[key]).toBe(2);
+      expect(Object.hasOwn(validated.groupMap, key)).toBe(true);
+      expect(validated.groupDimensions).toEqual(dimensions);
+      const run = runValidatedMetricDiagnostics(validated);
+      expect(run.status).toBe("completed");
+      if (run.status !== "completed")
+        throw new Error("Valid prototype key blocked");
+      expect(run.result.emergence[0]!.group).toBe(key);
+      expect(run.result.emergence[0]!.metrics.metric!.calculation.value).toBe(
+        1,
+      );
+      expect(run.result.emergence[0]!.dimensions).toEqual(dimensions[key]);
+    },
+  );
+  it("still validates values under prototype-like record keys", () => {
+    try {
+      validateDiagnosticRunInput({
+        definition: definition(),
+        losses: [row({ measures: { ["__proto__"]: true } })],
+      });
+      throw new Error("Invalid measure value was accepted");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DiagnosticValidationError);
+      expect((error as DiagnosticValidationError).issues).toEqual([
+        {
+          domain: "input",
+          code: "invalid-type",
+          path: "$.losses[0].measures.__proto__",
+          message: "Invalid input",
+        },
+      ]);
+    }
+  });
+
+  it("checks every review-policy subset against mixed individual rule outcomes", () => {
+    const base = definition();
+    const ruleBase = {
+      kind: "compare" as const,
+      description: "Policy matrix",
+      missingInput: "not-evaluated" as const,
+    };
+    const mixed: DiagnosticDefinition = {
+      ...base,
+      reviewRules: [
+        {
+          ...ruleBase,
+          id: "pass",
+          code: "pass",
+          severity: "warning",
+          when: {
+            left: { op: "measure", measureId: "claims" },
+            operator: "lt",
+            right: { op: "constant", value: 0 },
+          },
+        },
+        {
+          ...ruleBase,
+          id: "warn",
+          code: "warn",
+          severity: "warning",
+          when: {
+            left: { op: "measure", measureId: "claims" },
+            operator: "gt",
+            right: { op: "constant", value: 0 },
+          },
+        },
+        {
+          ...ruleBase,
+          id: "fail",
+          code: "fail",
+          severity: "fail",
+          when: {
+            left: { op: "measure", measureId: "claims" },
+            operator: "gt",
+            right: { op: "constant", value: 0 },
+          },
+        },
+      ],
+    };
+    const statuses = ["pass", "warning", "not-evaluated", "fail"] as const;
+    for (let mask = 0; mask < 16; mask++) {
+      const allowedReviewStatuses = statuses.filter(
+        (_, index) => mask & (1 << index),
+      );
+      const outcome = runValidatedMetricDiagnostics(
+        validateDiagnosticRunInput({
+          definition: mixed,
+          losses: [
+            row(),
+            row({
+              recordId: "missing",
+              origin: "2023",
+              valuation: "2023",
+              measures: {},
+            }),
+          ],
+          policy: {
+            allowedReviewStatuses,
+            allowedMetricFindingSeverities: ["info", "warning", "fail"],
+            rationaleRef: "reviewed-policy-matrix",
+          },
+        }),
+      );
+      expect(outcome.review.evaluations.map((item) => item.status)).toEqual([
+        "not-evaluated",
+        "pass",
+        "not-evaluated",
+        "triggered",
+        "not-evaluated",
+        "triggered",
+      ]);
+      expect(outcome.status, `review subset ${mask}`).toBe(
+        mask === 15 ? "completed" : "blocked",
+      );
+      expect(outcome.gate.reviewGate).toBe(mask === 15 ? "passed" : "blocked");
+    }
+  });
+
+  it("checks every metric-severity policy subset after a passing review gate", () => {
+    const base = definition();
+    const metricDefinition: DiagnosticDefinition = {
+      ...base,
+      instances: base.instances.map((instance) => ({
+        ...instance,
+        rules: [
+          {
+            id: "warn",
+            code: "metric-warning",
+            message: "Warning",
+            severity: "warning",
+            when: {
+              left: { source: "constant", value: 1 },
+              operator: "gt",
+              right: { source: "constant", value: 0 },
+            },
+          },
+          {
+            id: "fail",
+            code: "metric-fail",
+            message: "Fail",
+            severity: "fail",
+            when: {
+              left: { source: "constant", value: 1 },
+              operator: "gt",
+              right: { source: "constant", value: 0 },
+            },
+          },
+        ],
+      })),
+    };
+    const severities = ["info", "warning", "fail"] as const;
+    for (let mask = 0; mask < 8; mask++) {
+      const outcome = runValidatedMetricDiagnostics(
+        validateDiagnosticRunInput({
+          definition: metricDefinition,
+          losses: [row()],
+          policy: {
+            allowedReviewStatuses: ["pass", "warning", "not-evaluated", "fail"],
+            allowedMetricFindingSeverities: severities.filter(
+              (_, index) => mask & (1 << index),
+            ),
+            rationaleRef: "reviewed-policy-matrix",
+          },
+        }),
+      );
+      expect(outcome.gate.reviewGate).toBe("passed");
+      expect(outcome.result?.findings.map((finding) => finding.code)).toEqual([
+        "metric-fail",
+        "metric-warning",
+      ]);
+      expect(outcome.status, `metric subset ${mask}`).toBe(
+        (mask & 6) === 6 ? "completed" : "blocked",
+      );
+    }
+  });
+
   it.each([
     [
       "invalid period",

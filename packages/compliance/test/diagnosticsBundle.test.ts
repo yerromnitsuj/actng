@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  CASUALTY_FORMULA_TEMPLATES,
-  type DiagnosticDefinition,
-} from "@actuarial-ts/core";
+import { getMetricDiagnosticsResultIdentity } from "@actuarial-ts/core";
 import {
   runValidatedMetricDiagnostics,
   validateDiagnosticRunInput,
@@ -19,95 +16,184 @@ import {
   verifyDiagnosticRunIdentity,
 } from "../src/index.js";
 
-const definition: DiagnosticDefinition = {
-  diagnosticDefinitionVersion: "1.0.0",
-  id: "fleet",
-  version: "1.0.0",
-  lossRowGrain: "aggregate",
-  measures: [
-    {
-      id: "reported",
-      displayName: "Reported",
-      description: "Reported claims",
-      source: "loss",
-      kind: "count",
-      unit: "claim",
-      developmentSemantics: "cumulative",
-      aggregation: "sum",
-      missing: "unknown",
-      countPopulationId: "claims",
-    },
-    {
-      id: "exposure",
-      displayName: "Exposure",
-      description: "Earned exposure",
-      source: "exposure",
-      kind: "exposure",
-      unit: "vehicle-year",
-      developmentSemantics: "point-in-time",
-      aggregation: "sum",
-      missing: "unknown",
-      exposureBasisId: "earned",
-      exposureTiming: "origin-static",
-    },
-  ],
-  countPopulations: [
-    {
-      id: "claims",
-      displayName: "Claims",
-      subject: "claim",
-      unit: "claim",
-      description: "One per claim",
-    },
-  ],
-  exposureBases: [
-    {
-      id: "earned",
-      displayName: "Earned vehicles",
-      basis: "earned",
-      unit: "vehicle-year",
-      description: "Earned vehicle years",
-    },
-  ],
-  amountBases: [],
-  derivedMeasures: [],
-  formulas: [CASUALTY_FORMULA_TEMPLATES[0]],
-  instances: [
-    {
-      id: "reported-frequency",
-      version: "1.0.0",
-      formulaId: "frequency",
-      bindings: {
-        claims: { op: "measure", measureId: "reported" },
-        exposure: { op: "measure", measureId: "exposure" },
-      },
-      presentation: {
-        displayName: "Reported frequency",
-        description: "Reported per exposure",
-        displayUnit: "claim per vehicle-year",
-        scale: 1,
-        numeratorLabel: "reported",
-        denominatorLabel: "exposure",
-      },
-      rules: [],
-    },
-  ],
-  reviewRules: [],
-  periodAxis: {
-    kind: "calendar",
-    originCadence: "year",
-    valuationCadence: "quarter",
-    originAnchor: "start",
-    valuationAnchor: "end",
-    ageUnit: "month",
-    ageOffset: 0,
-  },
-};
+import {
+  definition,
+  completedRun,
+  evidence,
+} from "./fixtures/diagnosticIdentityRun.js";
 
-function completedRun() {
-  const outcome = runValidatedMetricDiagnostics(
-    validateDiagnosticRunInput({
-      definition,
+function diagnosticBundle(
+  provenance: Awaited<ReturnType<typeof createDiagnosticRunIdentity>>,
+) {
+  return createBundle({
+    inputs: {},
+    parameters: {},
+    results: provenance.result,
+    sdkVersions: {
+      "@actuarial-ts/core": "0.6.1",
+      "@actuarial-ts/data": "0.6.1",
+      "@actuarial-ts/compliance": "0.6.1",
+    },
+    createdAt: "2026-09-03T12:00:00.000Z",
+    diagnosticRuns: [provenance],
+    wrap: { triangles: [], selections: [], results: [] },
+  });
+}
+
+function stamp(payload: Record<string, unknown>): string {
+  return `fnv1a64-jcs-v1:${fnv1a64(canonicalJson({ identityVersion: 1, ...payload }))}`;
+}
+
+function restampRun(run: any): void {
+  const { review, ...executionPolicy } = run.manifest.executionPolicy;
+  run.runFingerprint = stamp({
+    kind: "diagnostic-run",
+    manifest: {
+      ...run.manifest,
+      executionPolicy: {
+        ...executionPolicy,
+        review: {
+          body: review.identityBody,
+          reportFingerprint: review.reportFingerprint,
+        },
+      },
+    },
+  });
+  run.resultFingerprint = stamp({
+    kind: "diagnostic-result",
+    result: getMetricDiagnosticsResultIdentity(run.result),
+  });
+  run.runResultFingerprint = stamp({
+    kind: "diagnostic-run-result",
+    runFingerprint: run.runFingerprint,
+    resultFingerprint: run.resultFingerprint,
+  });
+}
+
+function restampBundle(doc: any, body: any): void {
+  doc.bundle.payload = canonicalJson(body);
+  doc.bundle.hash = fnv1a64(doc.bundle.payload);
+  doc.integrity = fnv1a64(
+    canonicalJson({ bundle: doc.bundle, interchange: doc.interchange }),
+  );
+}
+
+describe("sealed diagnostic run provenance", () => {
+  it("pins independent full-workflow identity vectors for a sourced, explicitly empty-grid run", async () => {
+    const run = completedRun({ expectedCells: [] });
+    const provenance = await createDiagnosticRunIdentity(evidence(run));
+    expect({
+      formula: provenance.definition.identities.formulaById.frequency,
+      calculation:
+        provenance.definition.identities.calculationByInstanceId[
+          "reported-frequency"
+        ],
+      definition: provenance.definition.identities.definition,
+      preparation: provenance.manifest.preparationFingerprint,
+      expectedGrid: provenance.manifest.expectedCellGridFingerprint,
+      review: provenance.review.reportFingerprint,
+      run: provenance.runFingerprint,
+      result: provenance.resultFingerprint,
+      binding: provenance.runResultFingerprint,
+    }).toEqual({
+      formula: "fnv1a64-jcs-v1:8f7ef2461fb01f41",
+      calculation: "fnv1a64-jcs-v1:b54459c9e7241fd2",
+      definition: "fnv1a64-jcs-v1:7074328075af1ef0",
+      preparation: "fnv1a64-jcs-v1:982bb1bea97984d1",
+      expectedGrid: "fnv1a64-jcs-v1:5df97dffd0ba263d",
+      review: "fnv1a64-jcs-v1:00df4f88cca38090",
+      run: "fnv1a64-jcs-v1:273310b653febde9",
+      result: "fnv1a64-jcs-v1:0b93f7451976f636",
+      binding: "fnv1a64-jcs-v1:21e8150663626470",
+    });
+  });
+
+  it("normalizes review sources and filters without changing the authentic public result reference", async () => {
+    const run = completedRun({
+      filter: { instanceIds: ["reported-frequency"] },
+      reviewEvidence: {
+        groupingAssignments: [
+          {
+            key: "fleet",
+            group: "fleet",
+            source: { artifactId: "loss-run", sourceRow: 2 },
+          },
+        ],
+        cachedFormulas: [],
+      },
+    });
+    const provenance = await createDiagnosticRunIdentity(evidence(run));
+    expect(provenance.result).toBe(run.result);
+    expect(provenance.manifest.filter).toMatchObject({
+      outputGroups: null,
+      originFrom: null,
+      instanceIds: ["reported-frequency"],
+    });
+    expect(
+      provenance.review.identityBody.evidence?.groupingAssignments[0]?.source,
+    ).toEqual({
+      artifactId: "loss-run",
+      sourceRow: 2,
+      sourceFile: null,
+      sourceSheet: null,
+      sourceCell: null,
+    });
+    expect(provenance.review.evidence?.groupingAssignments[0]?.source).toEqual({
+      artifactId: "loss-run",
+      sourceRow: 2,
+    });
+    expect(
+      verifyBundle(
+        JSON.parse(JSON.stringify(diagnosticBundle(provenance).wrapped)),
+        provenance.result,
+      ),
+    ).toMatchObject({ reproduced: true });
+  });
+  it.each([
+    { expectedCells: [] },
+    {
+      expectedCells: [
+        {
+          sourceGroup: "fleet",
+          origin: "2025",
+          valuation: "2025Q1",
+          source: { artifactId: "loss-run" },
+        },
+      ],
+    },
+    { filter: { instanceIds: [] } },
+    {
+      completePeriodCutoffs: [
+        { sourceGroup: "fleet", originThrough: "2024", valuationThrough: null },
+      ],
+    },
+    {
+      reviewEvidence: {
+        groupingAssignments: [
+          { key: "fleet", group: "fleet", source: { artifactId: "loss-run" } },
+        ],
+        cachedFormulas: [],
+      },
+    },
+    {
+      groupMap: { fleet: "constructor" },
+      groupDimensions: { constructor: { territory: "West" } },
+    },
+  ])("replays normalized preparation and context %j", async (options) => {
+    const provenance = await createDiagnosticRunIdentity(
+      evidence(completedRun(options)),
+    );
+    const bundle = diagnosticBundle(provenance);
+    expect(
+      verifyBundle(
+        JSON.parse(JSON.stringify(bundle.wrapped)),
+        provenance.result,
+      ),
+    ).toMatchObject({ reproduced: true });
+  });
+
+  it("replays non-finite audit sentinels under an explicitly justified fail-allowing policy", async () => {
+    const run = completedRun({
       losses: [
         {
           rowType: "aggregate",
@@ -116,41 +202,234 @@ function completedRun() {
           origin: "2025",
           valuation: "2025Q1",
           complete: true,
-          source: { artifactId: "loss-run", sourceRow: 2 },
-          measures: { reported: 4 },
+          source: { artifactId: "loss-run" },
+          measures: { reported: NaN },
         },
       ],
-      exposures: [
+      policy: {
+        allowedReviewStatuses: ["pass", "warning", "not-evaluated", "fail"],
+        allowedMetricFindingSeverities: ["info", "warning", "fail"],
+        rationaleRef: "rationale",
+      },
+    });
+    const provenance = await createDiagnosticRunIdentity({
+      ...evidence(run),
+      preparationArtifacts: [
         {
-          key: "e1",
-          sourceGroup: "fleet",
-          origin: "2025",
-          measureId: "exposure",
-          value: 20,
-          complete: true,
-          source: { artifactId: "exposures", sourceRow: 2 },
+          id: "rationale",
+          scope: "preparation",
+          assurance: "sdk-computed",
+          bytes: new TextEncoder().encode(
+            "Retain invalid input explicitly for review",
+          ),
         },
       ],
-      datasetArtifactId: "loss-run",
-      runPresetId: "annual-frequency-v1",
-    }),
-  );
-  if (outcome.status !== "completed")
-    throw new Error("fixture unexpectedly blocked");
-  return outcome;
-}
+    });
+    expect(
+      verifyBundle(
+        JSON.parse(JSON.stringify(diagnosticBundle(provenance).wrapped)),
+        provenance.result,
+      ),
+    ).toMatchObject({ reproduced: true });
+  });
 
-describe("sealed diagnostic run provenance", () => {
+  it("regenerates review prose without treating descriptions/details as identity", async () => {
+    const input = evidence();
+    const provenance = await createDiagnosticRunIdentity(input);
+    const candidate = structuredClone(provenance) as any;
+    candidate.review.report.checks[0].description = "Caller display text";
+    candidate.review.report.checks[0].details = ["Caller display detail"];
+    candidate.manifest.executionPolicy.review = candidate.review;
+    const verified = await verifyDiagnosticRunIdentity(candidate, input);
+    expect(verified.review.report.checks[0]!.description).toBe(
+      provenance.review.report.checks[0]!.description,
+    );
+    expect(verified.runFingerprint).toBe(provenance.runFingerprint);
+  });
+  it("uses the exact normative run, result, and binding identity payloads", async () => {
+    const provenance = await createDiagnosticRunIdentity(evidence());
+    const restamped = structuredClone(provenance);
+    restampRun(restamped);
+    expect(provenance.runFingerprint).toBe(restamped.runFingerprint);
+    expect(provenance.runResultFingerprint).toBe(
+      restamped.runResultFingerprint,
+    );
+  });
+
+  it("snapshots a verification candidate before asynchronous artifact hashing", async () => {
+    const input = evidence();
+    const provenance = await createDiagnosticRunIdentity(input);
+    const candidate = structuredClone(provenance) as any;
+    const pending = verifyDiagnosticRunIdentity(candidate, input);
+    candidate.result.emergence[0].metrics[
+      "reported-frequency"
+    ].calculation.value = 999;
+    await expect(pending).resolves.toMatchObject({
+      resultFingerprint: provenance.resultFingerprint,
+    });
+  });
+
+  it.each([
+    [
+      "numeric output",
+      (run: any) => {
+        run.result.emergence[0].metrics[
+          "reported-frequency"
+        ].calculation.value = 999;
+      },
+      '.result.emergence[0].metrics["reported-frequency"].calculation.value',
+    ],
+    [
+      "audit disposition",
+      (run: any) => {
+        run.manifest.inputAudit[0].disposition = "filter";
+      },
+      ".manifest.inputAudit[0].disposition",
+    ],
+    [
+      "review summary",
+      (run: any) => {
+        run.review.report.summary.fail = 20;
+        run.manifest.executionPolicy.review = run.review;
+      },
+      ".review.report.summary.fail",
+    ],
+    [
+      "orphan artifact",
+      (run: any) => {
+        run.manifest.inputArtifacts.push({
+          id: "orphan",
+          scope: "input",
+          assurance: "caller-declared",
+          algorithm: "git",
+          value: "abc",
+        });
+      },
+      ".manifest.inputArtifacts[2].id",
+    ],
+    [
+      "digest assurance",
+      (run: any) => {
+        run.manifest.inputArtifacts[0].assurance = "future";
+      },
+      ".manifest.inputArtifacts[0].assurance",
+    ],
+    [
+      "digest length",
+      (run: any) => {
+        run.manifest.inputArtifacts[0].byteLength = -1;
+      },
+      ".manifest.inputArtifacts[0].byteLength",
+    ],
+    [
+      "gate policy",
+      (run: any) => {
+        run.manifest.executionPolicy.gate.allowedReviewStatuses = ["pass"];
+      },
+      ".manifest.executionPolicy.gate",
+    ],
+    [
+      "unknown gate status",
+      (run: any) => {
+        run.manifest.executionPolicy.gate.allowedReviewStatuses = ["future"];
+      },
+      ".manifest.executionPolicy.gate.allowedReviewStatuses[0]",
+    ],
+    [
+      "unknown artifact scope",
+      (run: any) => {
+        run.manifest.inputArtifacts[0].scope = "future";
+      },
+      ".manifest.inputArtifacts[0].scope",
+    ],
+    [
+      "invalid replayed row",
+      (run: any) => {
+        run.manifest.inputAudit.find(
+          (item: any) => item.kind === "loss",
+        ).record.complete = "yes";
+      },
+      ".manifest.inputAudit[0].record.complete",
+    ],
+    [
+      "preparation fingerprint",
+      (run: any) => {
+        run.manifest.preparationFingerprint = "fnv1a64-jcs-v1:0000000000000000";
+        run.review.preparationFingerprint = run.manifest.preparationFingerprint;
+        run.result.preparationFingerprint = run.manifest.preparationFingerprint;
+      },
+      ".manifest.preparationFingerprint",
+    ],
+  ] as const)(
+    "rejects restamped %s corruption through semantic replay",
+    async (_name, mutate, expectedPath) => {
+      const provenance = await createDiagnosticRunIdentity(evidence());
+      const doc = structuredClone(diagnosticBundle(provenance).wrapped) as any;
+      const body = JSON.parse(doc.bundle.payload);
+      mutate(body.diagnosticRuns[0]);
+      restampRun(body.diagnosticRuns[0]);
+      restampBundle(doc, body);
+      expect(verifyBundle(doc, provenance.result)).toMatchObject({
+        reproduced: false,
+        mismatchPath: `$.diagnosticRuns[0]${expectedPath}`,
+      });
+    },
+  );
+
+  it("verifies a serialized unmodified diagnostic bundle and rejects outer generator disagreement", async () => {
+    const provenance = await createDiagnosticRunIdentity(evidence());
+    const doc = JSON.parse(
+      JSON.stringify(diagnosticBundle(provenance).wrapped),
+    );
+    expect(verifyBundle(doc, provenance.result)).toMatchObject({
+      reproduced: true,
+    });
+    doc.generator.version = "0.0.0";
+    expect(verifyBundle(doc, provenance.result)).toMatchObject({
+      reproduced: false,
+      mismatchPath: "$.generator.version",
+    });
+  });
+
+  it("verifies coherent historical package stamps using the supported algorithm", async () => {
+    const provenance = await createDiagnosticRunIdentity(evidence());
+    const doc = structuredClone(diagnosticBundle(provenance).wrapped) as any;
+    const body = JSON.parse(doc.bundle.payload);
+    const run = body.diagnosticRuns[0];
+    run.manifest.engine.packages = {
+      core: "0.6.0",
+      data: "0.6.0",
+      compliance: "0.6.0",
+    };
+    for (const name of Object.keys(body.sdkVersions))
+      body.sdkVersions[name] = "0.6.0";
+    doc.generator.version = "0.6.0";
+    for (const definitionDoc of doc.interchange.diagnosticDefinitions)
+      definitionDoc.generator.version = "0.6.0";
+    restampRun(run);
+    restampBundle(doc, body);
+    expect(verifyBundle(doc, provenance.result)).toMatchObject({
+      reproduced: true,
+    });
+    body.sdkVersions["@actuarial-ts/data"] = "0.0.0";
+    restampBundle(doc, body);
+    expect(verifyBundle(doc, provenance.result)).toMatchObject({
+      reproduced: false,
+      mismatchPath: "$.sdkVersions.@actuarial-ts/data",
+    });
+  });
   it("replays, fingerprints, freezes, verifies, and supplies typed bundle definitions", async () => {
     const run = completedRun();
     const inputArtifacts = [
       {
         id: "loss-run",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new TextEncoder().encode("loss"),
       },
       {
         id: "exposures",
+        scope: "input" as const,
         assurance: "caller-declared" as const,
         algorithm: "source-sha256",
         value: "abc",
@@ -208,11 +487,13 @@ describe("sealed diagnostic run provenance", () => {
     const inputArtifacts = [
       {
         id: "loss-run",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new TextEncoder().encode("loss"),
       },
       {
         id: "exposures",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new TextEncoder().encode("exposure"),
       },
@@ -245,11 +526,13 @@ describe("sealed diagnostic run provenance", () => {
       inputArtifacts: [
         {
           id: "loss-run",
+          scope: "input" as const,
           assurance: "sdk-computed",
           bytes: new Uint8Array([1]),
         },
         {
           id: "exposures",
+          scope: "input" as const,
           assurance: "sdk-computed",
           bytes: new Uint8Array([2]),
         },
@@ -298,18 +581,25 @@ describe("sealed diagnostic run provenance", () => {
     expect(verifyBundle(hostile, run.result)).toMatchObject({
       reproduced: false,
       mismatchPath:
-        "$.diagnosticRuns[0].result.emergence[0].metrics.reported-frequency.calculationFingerprint",
+        '$.diagnosticRuns[0].result.emergence[0].metrics["reported-frequency"].calculationFingerprint',
     });
   });
 
   it("snapshots SDK bytes before the first await and hashes that exact copy", async () => {
-    const bytes = new TextEncoder().encode("loss");
+    const backing = new TextEncoder().encode("[loss]");
+    const bytes = backing.subarray(1, 5);
     const pending = createDiagnosticRunIdentity({
       completedRun: completedRun(),
       inputArtifacts: [
-        { id: "loss-run", assurance: "sdk-computed", bytes },
+        {
+          id: "loss-run",
+          scope: "input" as const,
+          assurance: "sdk-computed",
+          bytes,
+        },
         {
           id: "exposures",
+          scope: "input" as const,
           assurance: "sdk-computed",
           bytes: new TextEncoder().encode("exposure"),
         },
@@ -331,11 +621,13 @@ describe("sealed diagnostic run provenance", () => {
     const required = [
       {
         id: "loss-run",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new Uint8Array([1]),
       },
       {
         id: "exposures",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new Uint8Array([2]),
       },
@@ -361,6 +653,7 @@ describe("sealed diagnostic run provenance", () => {
         preparationArtifacts: [
           {
             id: "orphan",
+            scope: "preparation" as const,
             assurance: "sdk-computed",
             bytes: new Uint8Array([3]),
           },
@@ -394,11 +687,13 @@ describe("sealed diagnostic run provenance", () => {
     const required = [
       {
         id: "loss-run",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new Uint8Array([1]),
       },
       {
         id: "exposures",
+        scope: "input" as const,
         assurance: "sdk-computed" as const,
         bytes: new Uint8Array([2]),
       },
@@ -408,7 +703,7 @@ describe("sealed diagnostic run provenance", () => {
         completedRun: run,
         inputArtifacts: [
           ...required,
-          { id: "bad", assurance: "future" } as never,
+          { id: "bad", scope: "input" as const, assurance: "future" } as never,
         ],
         preparationArtifacts: [],
         preparationLineage: [],
@@ -441,6 +736,7 @@ describe("sealed diagnostic run provenance", () => {
         preparationArtifacts: [
           {
             id: "loss-run",
+            scope: "preparation" as const,
             assurance: "caller-declared",
             algorithm: "git",
             value: "x",

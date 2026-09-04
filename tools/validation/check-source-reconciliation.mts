@@ -1,47 +1,79 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import ts from "typescript";
 
-const root = process.cwd();
-const registryPath = path.join(
-  root,
-  "tools/validation/source-reconciliation.json",
-);
-const registry = JSON.parse(readFileSync(registryPath, "utf8")) as {
+export interface RegisteredSourceTest {
+  path: string;
+  implementationId: string;
+  sha256: string;
+  cases: Array<{ fullName: string; assertions: number }>;
+  assertionCount: number;
+}
+export interface SourceRegistry {
   version: number;
   entries: Array<{
     id: string;
+    citation: string;
+    location: string;
+    url: string;
     fixture: { path: string; sha256: string };
-    test: { path: string; implementationId: string };
+    additionalFixtures?: Array<{ path: string; sha256: string }>;
+    expected: Record<string, unknown>;
+    expectedBindings?: Array<{
+      key: string;
+      fixture: string;
+      exportName?: string;
+    }>;
+    tolerances: Record<string, number>;
+    toleranceRationale: string;
+    test: RegisteredSourceTest;
+    additionalTests?: RegisteredSourceTest[];
     shores: string[];
     lanes: string[];
   }>;
-};
-if (registry.version !== 1 || !Array.isArray(registry.entries))
-  throw new Error("Unsupported source-reconciliation registry");
-const ids = new Set<string>();
-for (const [index, entry] of registry.entries.entries()) {
-  if (ids.has(entry.id))
-    throw new Error(`Duplicate source reconciliation id ${entry.id}`);
-  ids.add(entry.id);
-  const bytes = readFileSync(path.join(root, entry.fixture.path));
-  const actual = createHash("sha256").update(bytes).digest("hex");
-  if (actual !== entry.fixture.sha256)
-    throw new Error(
-      `${entry.id}: fixture SHA-256 changed (${actual}); review source evidence and update deliberately`,
-    );
-  const test = readFileSync(path.join(root, entry.test.path), "utf8");
-  if (!test.includes(entry.test.implementationId))
-    throw new Error(
-      `${entry.id}: test implementation ${entry.test.implementationId} is missing`,
-    );
-  for (const lane of ["npm test", "validation:source", "release:gate"])
-    if (!entry.lanes.includes(lane))
-      throw new Error(`${entry.id}: missing required lane ${lane}`);
-  if (entry.shores.length === 0)
-    throw new Error(`${entry.id}: no applicable shore declared`);
-  if (index === registry.entries.length - 1 && entry.id !== "jcs-fnv-vectors")
-    throw new Error("Registry order changed; keep stable reviewed ordering");
+}
+
+/** Independently tie executed registry expectations back to the frozen transcription. */
+export async function validateExpectedValues(
+  root = sourceRoot,
+  registry = readRegistry(root),
+): Promise<void> {
+  for (const entry of registry.entries) {
+    for (const binding of entry.expectedBindings ?? []) {
+      const filename = join(root, binding.fixture);
+      const original =
+        binding.exportName === undefined
+          ? JSON.parse(readFileSync(filename, "utf8"))
+          : (await import(pathToFileURL(filename).href))[binding.exportName];
+      if (
+        !Object.hasOwn(entry.expected, binding.key) ||
+        JSON.stringify(entry.expected[binding.key]) !== JSON.stringify(original)
+      )
+        throw new Error(
+          `${entry.id}: executed expected value ${binding.key} differs from frozen source transcription`,
+        );
+    }
+  }
+}
+export function registeredTests(
+  registry: SourceRegistry,
+): RegisteredSourceTest[] {
+  return registry.entries.flatMap((entry) => [
+    entry.test,
+    ...(entry.additionalTests ?? []),
+  ]);
+}
+export const sourceRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
+export const registryPath = "tools/validation/source-reconciliation.json";
+export function readRegistry(root = sourceRoot): SourceRegistry {
+  return JSON.parse(
+    readFileSync(join(root, registryPath), "utf8"),
+  ) as SourceRegistry;
 }
 const required = [
   "mack-1993-taylor-ashe",
@@ -56,10 +88,181 @@ const required = [
   "merz-wuthrich-2008",
   "conger-nolibos-2003",
   "jcs-fnv-vectors",
+  "casdatasets-freclaimset2motor",
 ];
-for (const id of required)
-  if (!ids.has(id))
-    throw new Error(`Missing mandatory source reconciliation ${id}`);
-console.log(
-  `source reconciliation registry: ${registry.entries.length} anchors verified`,
-);
+const sha256 = (bytes: string | Buffer) =>
+  createHash("sha256").update(bytes).digest("hex");
+
+function hasSourceRegistration(code: string): boolean {
+  const ast = ts.createSourceFile(
+    "source-test.ts",
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  let count = 0;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.getText(ast) === "registerSourceFile" &&
+      node.arguments.length === 1 &&
+      node.arguments[0]!.getText(ast) === "import.meta.url"
+    )
+      count++;
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return count === 1;
+}
+
+/** Source and assertion inventories are reviewed evidence, never regenerated by a gate. */
+export function validateRegistry(
+  root = sourceRoot,
+  registry = readRegistry(root),
+): void {
+  if (registry.version !== 1 || !Array.isArray(registry.entries))
+    throw new Error("Unsupported source-reconciliation registry");
+  const ids = registry.entries.map((entry) => entry.id);
+  if (
+    new Set(ids).size !== ids.length ||
+    required.some((id) => !ids.includes(id))
+  )
+    throw new Error("Missing or duplicate mandatory source reconciliation");
+  const allCases = new Set<string>();
+  const testPaths = new Set(registeredTests(registry).map((test) => test.path));
+  for (const entry of registry.entries) {
+    for (const field of [
+      "citation",
+      "location",
+      "url",
+      "toleranceRationale",
+    ] as const)
+      if (typeof entry[field] !== "string" || entry[field].length === 0)
+        throw new Error(`${entry.id}: missing ${field}`);
+    for (const fixture of [entry.fixture, ...(entry.additionalFixtures ?? [])])
+      if (sha256(readFileSync(join(root, fixture.path))) !== fixture.sha256)
+        throw new Error(
+          `${entry.id}: fixture SHA-256 changed; review the primary source before changing evidence`,
+        );
+    for (const implementation of [
+      entry.test,
+      ...(entry.additionalTests ?? []),
+    ]) {
+      const code = readFileSync(join(root, implementation.path), "utf8");
+      if (sha256(code) !== implementation.sha256)
+        throw new Error(
+          `${entry.id}: source assertions changed; review the assertion inventory before updating its hash`,
+        );
+      if (!hasSourceRegistration(code))
+        throw new Error(`${entry.id}: source assertion counter is missing`);
+      if (
+        !implementation.cases?.length ||
+        !implementation.cases.some((test) =>
+          test.fullName.includes(implementation.implementationId),
+        )
+      )
+        throw new Error(`${entry.id}: test implementation is missing`);
+      let assertions = 0;
+      for (const test of implementation.cases) {
+        const key = JSON.stringify([implementation.path, test.fullName]);
+        if (allCases.has(key))
+          throw new Error(
+            `${entry.id}: duplicate test implementation ${test.fullName}`,
+          );
+        allCases.add(key);
+        if (!Number.isSafeInteger(test.assertions) || test.assertions <= 0)
+          throw new Error(`${entry.id}: invalid assertion count`);
+        assertions += test.assertions;
+      }
+      if (assertions !== implementation.assertionCount)
+        throw new Error(
+          `${entry.id}: assertion count does not equal the registered cases`,
+        );
+    }
+    if (
+      !entry.expected ||
+      typeof entry.expected !== "object" ||
+      !Object.keys(entry.expected).length
+    )
+      throw new Error(`${entry.id}: expected source values are missing`);
+    if (
+      !entry.tolerances ||
+      Object.values(entry.tolerances).some(
+        (value) => !Number.isFinite(value) || value < 0,
+      )
+    )
+      throw new Error(`${entry.id}: invalid tolerance`);
+    for (const lane of ["npm test", "validation:source", "release:gate"])
+      if (!entry.lanes.includes(lane))
+        throw new Error(`${entry.id}: missing required lane ${lane}`);
+    if (!entry.shores.length)
+      throw new Error(`${entry.id}: no applicable shore declared`);
+    if (entry.shores.includes("python") && !entry.lanes.includes("test:py"))
+      throw new Error(`${entry.id}: missing Python execution lane`);
+    if (entry.shores.includes("r") && !entry.lanes.includes("R interop"))
+      throw new Error(`${entry.id}: missing R execution lane`);
+  }
+  // A source-value test cannot silently be added outside the registered lane.
+  for (const directory of [
+    "packages/core/test",
+    "examples/real-world-loss-run/test",
+  ])
+    for (const name of readdirSync(join(root, directory))) {
+      if (!name.endsWith(".test.ts")) continue;
+      const pathname = `${directory}/${name}`;
+      const code = readFileSync(join(root, pathname), "utf8");
+      const ast = ts.createSourceFile(
+        pathname,
+        code,
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      let published = false;
+      const visit = (node: ts.Node): void => {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isStringLiteral(node.arguments[0] ?? ts.factory.createNull()) &&
+          /^(it|test)(?:$|\.|\()/.test(node.expression.getText(ast))
+        ) {
+          const title = (node.arguments[0] as ts.StringLiteral).text;
+          if (
+            /published|printed|reproduces.*(?:Mack|Gluck|England|Exhibit|Table)|paper's.*(?:slice|spot)/i.test(
+              title,
+            )
+          )
+            published = true;
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(ast);
+      if (
+        (published || hasSourceRegistration(code)) &&
+        !testPaths.has(pathname)
+      )
+        throw new Error(`Unregistered published-value test file ${pathname}`);
+    }
+  const fixturePaths = new Set(
+    registry.entries.flatMap((entry) => [
+      entry.fixture.path,
+      ...(entry.additionalFixtures ?? []).map((fixture) => fixture.path),
+    ]),
+  );
+  for (const name of readdirSync(join(root, "packages/core/test/fixtures"))) {
+    if (!name.endsWith(".ts") || name === "quarterlyCasualtyV05Golden.ts")
+      continue;
+    if (!fixturePaths.has(`packages/core/test/fixtures/${name}`))
+      throw new Error(`Unregistered source fixture ${name}`);
+  }
+}
+
+if (
+  process.argv[1] &&
+  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
+) {
+  validateRegistry();
+  await validateExpectedValues();
+  const registry = readRegistry();
+  console.log(
+    `source reconciliation: ${registry.entries.length} anchors, ${registeredTests(registry).reduce((sum, test) => sum + test.cases.length, 0)} registered cases, ${registeredTests(registry).reduce((sum, test) => sum + test.assertionCount, 0)} assertions`,
+  );
+}

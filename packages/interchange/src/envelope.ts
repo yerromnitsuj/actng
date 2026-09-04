@@ -5,6 +5,7 @@ import {
   isRealIsoDate,
 } from "@actuarial-ts/core";
 import { z } from "zod";
+import { recordSchema } from "./schemas/record.js";
 
 /**
  * The interchange document envelope (spec 3.1 / 3.5).
@@ -109,7 +110,7 @@ export function envelopeShape<K extends DocumentKind>(kind: K) {
         (value) => isRealIsoDate(value.slice(0, 10)),
         "expected a real Gregorian timestamp",
       ),
-    extensions: z.record(z.unknown()).optional(),
+    extensions: recordSchema(z.unknown()).optional(),
     integrity: integritySchema,
   };
 }

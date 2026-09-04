@@ -1734,6 +1734,8 @@ export interface DiagnosticReviewExpressionOverflow {
 
 export interface DiagnosticReviewRuleEvaluationBase {
   readonly ruleId: string;
+  readonly ruleKind: DiagnosticReviewRule["kind"];
+  readonly scope: DiagnosticReviewEvaluationScope;
   readonly status: "pass" | "triggered" | "not-evaluated";
   readonly triggerReason:
     | "predicate"
@@ -3682,7 +3684,7 @@ result. Compliance therefore owns a second, normalized layer:
 export interface DiagnosticArtifactDigestBase {
   readonly id: string;
   readonly value: string;
-  readonly scope: string;
+  readonly scope: "input" | "preparation";
 }
 
 export type DiagnosticArtifactDigest = DiagnosticArtifactDigestBase &
@@ -3701,13 +3703,13 @@ export type DiagnosticArtifactDigest = DiagnosticArtifactDigestBase &
 export type DiagnosticArtifactEvidence =
   | {
       readonly id: string;
-      readonly scope: string;
+      readonly scope: "input" | "preparation";
       readonly assurance: "sdk-computed";
       readonly bytes: Uint8Array;
     }
   | {
       readonly id: string;
-      readonly scope: string;
+      readonly scope: "input" | "preparation";
       readonly assurance: "caller-declared";
       readonly algorithm: string;
       readonly value: string;
@@ -3730,11 +3732,11 @@ export interface DiagnosticRunManifest {
   readonly inputArtifacts: readonly DiagnosticArtifactDigest[];
   readonly preparationArtifacts: readonly DiagnosticArtifactDigest[];
   readonly preparationLineage: readonly DiagnosticPreparationLineage[];
-  readonly inputAudit: readonly DiagnosticInputAuditRecord[];
-  readonly filter: DiagnosticDeepReadonly<DiagnosticsFilter> | null;
+  readonly inputAudit: DiagnosticDeepReadonly<NormalizedDiagnosticPreparationIdentity["inputAudit"]>;
+  readonly filter: DiagnosticDeepReadonly<NormalizedDiagnosticPreparationIdentity["filter"]>;
   readonly groupMap: Readonly<Record<string, string>>;
   readonly groupDimensions: Readonly<Record<string, CoreDiagnosticJsonValue>>;
-  readonly completePeriodCutoffs: readonly DiagnosticCompletePeriodCutoff[];
+  readonly completePeriodCutoffs: DiagnosticDeepReadonly<NormalizedDiagnosticPreparationIdentity["completePeriodCutoffs"]>;
   readonly expectedCellGridFingerprint: string | null;
   readonly executionPolicy: {
     readonly review: DiagnosticReviewReceipt;
@@ -3763,6 +3765,7 @@ export interface DiagnosticRunProvenance extends DiagnosticRunIdentity {
   /** Complete normalized definition plus formula/calculation/definition tags. */
   readonly definition: DiagnosticDeepReadonly<DiagnosticDefinitionBody>;
   readonly manifest: DiagnosticRunManifest;
+  readonly review: DiagnosticReviewReceipt;
   readonly result: DiagnosticDeepReadonly<MetricDiagnosticsResult>;
 }
 

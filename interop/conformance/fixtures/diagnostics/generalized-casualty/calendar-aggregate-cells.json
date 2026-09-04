@@ -2,16 +2,225 @@
   "losses": [
     {
       "rowType": "aggregate",
-      "recordId": "cell-1",
-      "sourceGroup": "all",
+      "recordId": "baseline-0",
+      "sourceGroup": "baseline",
       "origin": "2025",
       "valuation": "2025",
       "complete": true,
       "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 101,
+        "gross-paid": 100,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "baseline-1",
+      "sourceGroup": "baseline",
+      "origin": "2025",
+      "valuation": "2027",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 101,
+        "gross-paid": 99,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "outside-edge-0",
+      "sourceGroup": "outside-edge",
+      "origin": "2025",
+      "valuation": "2025",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 101.00000000000001,
+        "gross-paid": 100,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "outside-edge-1",
+      "sourceGroup": "outside-edge",
+      "origin": "2025",
+      "valuation": "2027",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 101.00000000000001,
+        "gross-paid": 100,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "relative-edge-0",
+      "sourceGroup": "relative-edge",
+      "origin": "2025",
+      "valuation": "2025",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 100,
+        "gross-paid": 90,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "relative-edge-1",
+      "sourceGroup": "relative-edge",
+      "origin": "2025",
+      "valuation": "2027",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 100,
+        "gross-paid": 89.99999999999999,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "missing-0",
+      "sourceGroup": "missing",
+      "origin": "2025",
+      "valuation": "2025",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
         "closed-no-pay": 2,
         "closed-with-pay": 4,
         "gross-incurred": 800,
-        "gross-paid": 500,
+        "gross-paid": null,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": null
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "missing-1",
+      "sourceGroup": "missing",
+      "origin": "2025",
+      "valuation": "2027",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 800,
+        "gross-paid": null,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "overflow-0",
+      "sourceGroup": "overflow",
+      "origin": "2025",
+      "valuation": "2025",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 1e+308,
+        "gross-paid": 1e+308,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "overflow-1",
+      "sourceGroup": "overflow",
+      "origin": "2025",
+      "valuation": "2027",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": 0,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 1e+308,
+        "gross-paid": 1e+308,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "cancellation-0",
+      "sourceGroup": "cancellation",
+      "origin": "2025",
+      "valuation": "2025",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": -10000000000000000,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 1,
+        "gross-paid": 10000000000000000,
+        "net-incurred": 600,
+        "net-paid": 400,
+        "open": 4,
+        "reported": 10
+      }
+    },
+    {
+      "rowType": "aggregate",
+      "recordId": "cancellation-1",
+      "sourceGroup": "cancellation",
+      "origin": "2025",
+      "valuation": "2027",
+      "complete": true,
+      "measures": {
+        "cancellation-adjustment": -10000000000000000,
+        "closed-no-pay": 2,
+        "closed-with-pay": 4,
+        "gross-incurred": 1,
+        "gross-paid": 10000000000000000,
         "net-incurred": 600,
         "net-paid": 400,
         "open": 4,
@@ -21,11 +230,159 @@
   ],
   "exposures": [
     {
-      "key": "insurance-years-1",
-      "sourceGroup": "all",
+      "key": "baseline-current-exposure-0",
+      "sourceGroup": "baseline",
+      "origin": "2025",
+      "valuation": "2025",
+      "measureId": "current-exposure",
+      "value": 100,
+      "complete": true
+    },
+    {
+      "key": "baseline-current-exposure-1",
+      "sourceGroup": "baseline",
+      "origin": "2025",
+      "valuation": "2027",
+      "measureId": "current-exposure",
+      "value": 120,
+      "complete": true
+    },
+    {
+      "key": "baseline-insurance-years-0",
+      "sourceGroup": "baseline",
       "origin": "2025",
       "measureId": "insurance-years",
+      "value": 200,
+      "complete": true
+    },
+    {
+      "key": "outside-edge-current-exposure-0",
+      "sourceGroup": "outside-edge",
+      "origin": "2025",
+      "valuation": "2025",
+      "measureId": "current-exposure",
       "value": 100,
+      "complete": true
+    },
+    {
+      "key": "outside-edge-current-exposure-1",
+      "sourceGroup": "outside-edge",
+      "origin": "2025",
+      "valuation": "2027",
+      "measureId": "current-exposure",
+      "value": 120,
+      "complete": true
+    },
+    {
+      "key": "outside-edge-insurance-years-0",
+      "sourceGroup": "outside-edge",
+      "origin": "2025",
+      "measureId": "insurance-years",
+      "value": 200,
+      "complete": true
+    },
+    {
+      "key": "relative-edge-current-exposure-0",
+      "sourceGroup": "relative-edge",
+      "origin": "2025",
+      "valuation": "2025",
+      "measureId": "current-exposure",
+      "value": 100,
+      "complete": true
+    },
+    {
+      "key": "relative-edge-current-exposure-1",
+      "sourceGroup": "relative-edge",
+      "origin": "2025",
+      "valuation": "2027",
+      "measureId": "current-exposure",
+      "value": 120,
+      "complete": true
+    },
+    {
+      "key": "relative-edge-insurance-years-0",
+      "sourceGroup": "relative-edge",
+      "origin": "2025",
+      "measureId": "insurance-years",
+      "value": 200,
+      "complete": true
+    },
+    {
+      "key": "missing-current-exposure-0",
+      "sourceGroup": "missing",
+      "origin": "2025",
+      "valuation": "2025",
+      "measureId": "current-exposure",
+      "value": null,
+      "complete": true
+    },
+    {
+      "key": "missing-current-exposure-1",
+      "sourceGroup": "missing",
+      "origin": "2025",
+      "valuation": "2027",
+      "measureId": "current-exposure",
+      "value": null,
+      "complete": true
+    },
+    {
+      "key": "missing-insurance-years-0",
+      "sourceGroup": "missing",
+      "origin": "2025",
+      "measureId": "insurance-years",
+      "value": null,
+      "complete": true
+    },
+    {
+      "key": "overflow-current-exposure-0",
+      "sourceGroup": "overflow",
+      "origin": "2025",
+      "valuation": "2025",
+      "measureId": "current-exposure",
+      "value": 100,
+      "complete": true
+    },
+    {
+      "key": "overflow-current-exposure-1",
+      "sourceGroup": "overflow",
+      "origin": "2025",
+      "valuation": "2027",
+      "measureId": "current-exposure",
+      "value": 120,
+      "complete": true
+    },
+    {
+      "key": "overflow-insurance-years-0",
+      "sourceGroup": "overflow",
+      "origin": "2025",
+      "measureId": "insurance-years",
+      "value": 200,
+      "complete": true
+    },
+    {
+      "key": "cancellation-current-exposure-0",
+      "sourceGroup": "cancellation",
+      "origin": "2025",
+      "valuation": "2025",
+      "measureId": "current-exposure",
+      "value": 100,
+      "complete": true
+    },
+    {
+      "key": "cancellation-current-exposure-1",
+      "sourceGroup": "cancellation",
+      "origin": "2025",
+      "valuation": "2027",
+      "measureId": "current-exposure",
+      "value": 120,
+      "complete": true
+    },
+    {
+      "key": "cancellation-insurance-years-0",
+      "sourceGroup": "cancellation",
+      "origin": "2025",
+      "measureId": "insurance-years",
+      "value": 200,
       "complete": true
     }
   ]

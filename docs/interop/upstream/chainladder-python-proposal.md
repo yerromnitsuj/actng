@@ -93,8 +93,9 @@ sketch:
   and recomputing natively.
   Cross-engine central estimates and totals agree to **1e-14..1e-16
   relative** (well inside the 1e-6 profile tolerance); Taylor/Ashe totals
-  tie to Mack's published unpaid of 18,680,855.61 and a Mack standard
-  error of 2,447,094.86; integrity tags survive TS→Python→TS
+  are engine unpaid of 18,680,855.61 and Mack standard error of
+  2,447,094.86, rounding to the paper's 18,681 thousand and 2,447 thousand
+  respectively; integrity tags survive TS→Python→TS
   byte-identically. A deliberately misaligned run (`log-linear` sigma
   while claiming the `mack1993-vw` profile, which requires `"mack"`) is
   correctly flagged `disagree` at a 4.90% SE deviation vs the 0.5%

@@ -92,10 +92,24 @@ npm run test:py
 ```
 
 The diagnostic corpus is consumed by TypeScript, Python, and R. Each shore
-verifies the portable identities and independently replays all 22 aggregate
-cells for both a calendar and an explicitly ordered period axis. Python and R
-also prove that unknown executable behavior is rejected even after all outer
-and semantic integrity values are recomputed.
+verifies canonical definition bytes and portable identities, then independently
+replays all 22 metric instances across 12 aggregate cells on each axis (528
+metric calculations). The cases cover every comparison operator, all five
+declarative review kinds, both missing-input policies, exact absolute/relative
+tolerance edges and their nearest outside values, missing/null values,
+overflow/cancellation, both exposure timings, and ordered-axis gaps. Python and
+R reproduce the complete review evaluations, including coordinates and overflow
+paths, from the supplied cells. The narrow aggregate replay explicitly refuses
+unsupported ingestion/selection shapes rather than pretending to be another SDK.
+
+`fixtures/diagnostics/hostile-boundaries.json` defines shared semantic mutations,
+UTF-16 escapes, and compact resource descriptors. All shores expand the same
+64/65-depth and 10,000/10,001-node cases at formula, binding, claim derivation,
+review-rule, and metric-rule roots, plus the exact 100,000/100,001 definition
+budget. Prototype-like names and scalar caller attributes are positive controls.
+Unknown executable behavior is rejected even after outer and semantic integrity
+values are recomputed. Runtime-only cycles and non-JSON objects are tested in
+the languages that can represent those values.
 
 ## What each runner proves
 
@@ -164,15 +178,20 @@ statement other parties can hold us to. Do NOT regenerate them casually.
 The default generator updates only the current diagnostic corpus. Historical
 triangle fixtures require the explicit `--legacy` opt-in. Regeneration
 (`npx tsx interop/conformance/generate-fixtures.mts`, or the same command with
-`--legacy`, plus a
-pytest run to re-author the Python-authored documents — misaligned and
-`clpy-*` — if their inputs changed) is
+`--legacy`; Python-authored documents require a deliberate authoring action,
+and pytest never recreates a missing frozen file) is
 legitimate ONLY when a spec or convention change alters what the documents
 must contain — a new spec minor, a profile change (spec MAJOR), or a
 deliberate authoring-convention change — and the commit message must say
 why. The TS runner enforces this: it fails whenever the committed bytes
 stop matching a fresh authoring run, so silent drift (in either the
 fixtures or the authoring code) cannot pass CI.
+
+The 0.6.1 diagnostic-corpus expansion closes S02 in the hardening plan: the
+previous one-cell fixture could not test rule replay or numeric/resource edges.
+It changes only the new diagnostic acceptance corpus. The historical triangle,
+published-source, and original diagnostic `definition.json`/`cell.json` anchors
+remain byte-for-byte unchanged.
 
 ### Authoring provenance is PINNED, not tracked
 

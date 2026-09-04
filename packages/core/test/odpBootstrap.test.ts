@@ -1,3 +1,17 @@
+import {
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const englandTable1ChainLadderTotal = sourceExpected<
+  typeof import("./fixtures/englandVerrall2002.js").englandTable1ChainLadderTotal
+>("england-verrall-2002", "englandTable1ChainLadderTotal");
+const englandTable2PredictionErrorPct = sourceExpected<
+  typeof import("./fixtures/englandVerrall2002.js").englandTable2PredictionErrorPct
+>("england-verrall-2002", "englandTable2PredictionErrorPct");
+const englandTable3Distribution = sourceExpected<
+  typeof import("./fixtures/englandVerrall2002.js").englandTable3Distribution
+>("england-verrall-2002", "englandTable3Distribution");
 import { describe, expect, it } from "vitest";
 import { odpFit, runOdpBootstrap } from "../src/odpBootstrap.js";
 import { runChainLadder } from "../src/chainladder.js";
@@ -5,16 +19,16 @@ import { computeDevelopmentFactors } from "../src/factors.js";
 import { triangleFromGrid } from "../src/triangle.js";
 import { taylorAshe } from "./fixtures/mack1993.js";
 import { raa } from "./fixtures/mack1994raa.js";
-import {
-  englandTable1ChainLadderTotal,
-  englandTable2PredictionErrorPct,
-  englandTable3Distribution,
-} from "./fixtures/englandVerrall2002.js";
+
 import type { Triangle } from "../src/types.js";
 
-function vwReserves(tri: Triangle): { total: number; byOrigin: Map<string, number> } {
-  const selected = computeDevelopmentFactors(tri).averages.find((a) => a.spec.key === "all-wtd")!
-    .values;
+function vwReserves(tri: Triangle): {
+  total: number;
+  byOrigin: Map<string, number>;
+} {
+  const selected = computeDevelopmentFactors(tri).averages.find(
+    (a) => a.spec.key === "all-wtd",
+  )!.values;
   const cl = runChainLadder(tri, { selected, tailFactor: 1 });
   return {
     total: cl.totals.unpaid,
@@ -26,26 +40,40 @@ describe("odpFit (the GLM == chain ladder identity)", () => {
   it("reproduces the volume-weighted chain ladder reserves exactly on Taylor/Ashe", () => {
     const fit = odpFit(taylorAshe);
     const cl = vwReserves(taylorAshe);
-    expect(cl.total / 1000).toBeCloseTo(englandTable1ChainLadderTotal, 0);
+    expect(cl.total / 1000).toBeCloseTo(
+      englandTable1ChainLadderTotal,
+      sourceTolerance("england-verrall-2002", "decimalPlaces:0"),
+    );
     for (const row of fit.reserveByOrigin) {
-      expect(row.reserve).toBeCloseTo(cl.byOrigin.get(row.origin)!, 6);
+      expect(row.reserve).toBeCloseTo(
+        cl.byOrigin.get(row.origin)!,
+        sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+      );
     }
     const totalFit = fit.reserveByOrigin.reduce((a, r) => a + r.reserve, 0);
-    expect(totalFit).toBeCloseTo(cl.total, 6);
+    expect(totalFit).toBeCloseTo(
+      cl.total,
+      sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+    );
   });
 
   it("reproduces the chain ladder on RAA too (different shape, incurred)", () => {
     const fit = odpFit(raa);
     const cl = vwReserves(raa);
     const totalFit = fit.reserveByOrigin.reduce((a, r) => a + r.reserve, 0);
-    expect(totalFit).toBeCloseTo(cl.total, 6);
+    expect(totalFit).toBeCloseTo(
+      cl.total,
+      sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+    );
   });
 
   it("uses n = I(I+1)/2 observations and p = 2I - 1 parameters on a full triangle", () => {
     const fit = odpFit(taylorAshe);
     expect(fit.n).toBe(55);
     expect(fit.p).toBe(19);
-    expect(fit.phi).toBeGreaterThan(0);
+    expect(fit.phi).toBeGreaterThan(
+      sourceTolerance("england-verrall-2002", "toBeGreaterThan:0"),
+    );
   });
 
   it("fitted past incrementals reproduce the observed row sums (Poisson marginals)", () => {
@@ -61,7 +89,10 @@ describe("odpFit (the GLM == chain ladder identity)", () => {
         (a, v) => a + (v ?? 0),
         0,
       );
-      expect(fittedSum).toBeCloseTo(latest, 6);
+      expect(fittedSum).toBeCloseTo(
+        latest,
+        sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+      );
     });
   });
 });
@@ -112,7 +143,9 @@ describe("odpFit dispersion when fitted incrementals are non-positive", () => {
     // divides the sum of squares by too many degrees of freedom, which
     // UNDERSTATES phi and therefore understates reserve variability.
     expect(fit.n).toBe(contributing);
-    expect(fit.n).toBeLessThan(fit.residuals.flat().filter((r) => r !== undefined).length);
+    expect(fit.n).toBeLessThan(
+      fit.residuals.flat().filter((r) => r !== undefined).length,
+    );
     expect(fit.warnings.join(" ")).toMatch(/non-positive/);
   });
 
@@ -147,9 +180,27 @@ describe("runOdpBootstrap", () => {
     // fitted incrementals — regenerate deliberately, never to make a red test
     // green.
     const golden = runOdpBootstrap(taylorAshe, { nSims: 1000, seed: 12345 });
-    expect(golden.total.mean).toBeCloseTo(18_722_311.920909688, 6);
-    expect(golden.total.sd).toBeCloseTo(3_088_914.4374506595, 6);
-    expect(golden.total.percentiles.p99).toBeCloseTo(26_963_637.004859254, 6);
+    expect(golden.total.mean).toBeCloseTo(
+      sourceExpected<number>(
+        "england-verrall-2002",
+        "literal:18722311.920909688",
+      ),
+      sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+    );
+    expect(golden.total.sd).toBeCloseTo(
+      sourceExpected<number>(
+        "england-verrall-2002",
+        "literal:3088914.4374506595",
+      ),
+      sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+    );
+    expect(golden.total.percentiles.p99).toBeCloseTo(
+      sourceExpected<number>(
+        "england-verrall-2002",
+        "literal:26963637.004859254",
+      ),
+      sourceTolerance("england-verrall-2002", "decimalPlaces:6"),
+    );
   });
 
   it("bootstrap mean ties to the chain ladder total within the known small bias", () => {
@@ -160,7 +211,9 @@ describe("runOdpBootstrap", () => {
     // mean against the chain ladder, which is why fit.reserveByOrigin is
     // carried in the result. Allow 2%.
     const cl = vwReserves(taylorAshe);
-    expect(Math.abs(result.total.mean - cl.total) / cl.total).toBeLessThan(0.02);
+    expect(Math.abs(result.total.mean - cl.total) / cl.total).toBeLessThan(
+      sourceTolerance("england-verrall-2002", "toBeLessThan:0.02"),
+    );
   });
 
   it("total prediction error ~16% of reserves (England 2002 Table 2)", () => {
@@ -171,8 +224,12 @@ describe("runOdpBootstrap", () => {
     // 15% error in the process variance, which is the same magnitude as the
     // dispersion defect it failed to catch. 1pp still absorbs the genuine
     // methodological gap to the published figure without absorbing a defect.
-    expect(pe).toBeGreaterThan(0.155);
-    expect(pe).toBeLessThan(0.175);
+    expect(pe).toBeGreaterThan(
+      sourceTolerance("england-verrall-2002", "toBeGreaterThan:0.155"),
+    );
+    expect(pe).toBeLessThan(
+      sourceTolerance("england-verrall-2002", "toBeLessThan:0.175"),
+    );
   });
 
   it("reproduces every per-origin prediction error in England (2002) Table 2", () => {
@@ -184,19 +241,26 @@ describe("runOdpBootstrap", () => {
     for (const [origin, publishedPct] of Object.entries(byOrigin)) {
       const row = result.byOrigin.find((r) => r.origin === origin)!;
       const pct = (row.summary.sd / cl.byOrigin.get(origin)!) * 100;
-      expect(Math.abs(pct - publishedPct)).toBeLessThanOrEqual(toleranceByOrigin);
+      expect(Math.abs(pct - publishedPct)).toBeLessThanOrEqual(
+        toleranceByOrigin,
+      );
     }
   });
 
   it("reproduces the England (2002) Table 3 predictive distribution", () => {
-    const { mean, standardDeviation, percentiles, tolerance } = englandTable3Distribution;
+    const { mean, standardDeviation, percentiles, tolerance } =
+      englandTable3Distribution;
     const relative = (got: number, published: number): number =>
       Math.abs(got - published * 1000) / (published * 1000);
 
     expect(relative(result.total.mean, mean)).toBeLessThan(tolerance);
-    expect(relative(result.total.sd, standardDeviation)).toBeLessThan(tolerance);
+    expect(relative(result.total.sd, standardDeviation)).toBeLessThan(
+      tolerance,
+    );
     for (const [key, published] of Object.entries(percentiles)) {
-      expect(relative(result.total.percentiles[key]!, published)).toBeLessThan(tolerance);
+      expect(relative(result.total.percentiles[key]!, published)).toBeLessThan(
+        tolerance,
+      );
     }
 
     // Right skew: the median sits below the mean, as Table 3's skewness of
@@ -214,6 +278,10 @@ describe("runOdpBootstrap", () => {
   });
 
   it("rejects tiny simulation counts", () => {
-    expect(() => runOdpBootstrap(taylorAshe, { nSims: 10, seed: 1 })).toThrowError(/nSims/);
+    expect(() =>
+      runOdpBootstrap(taylorAshe, { nSims: 10, seed: 1 }),
+    ).toThrowError(/nSims/);
   });
 });
+
+registerSourceFile(import.meta.url);

@@ -1,11 +1,12 @@
 import type { NormalizedDiagnosticDefinitionIdentity } from "@actuarial-ts/core";
 import { z } from "zod";
 import { envelopeShape, type GeneratorStamp } from "../envelope.js";
+import { recordSchema } from "./record.js";
 
 const token = z.string().min(1);
 const finite = z.number().finite();
 const nullableToken = token.nullable();
-const attributes = z.record(z.union([z.string(), finite, z.boolean(), z.null()]));
+const attributes = recordSchema(z.union([z.string(), finite, z.boolean(), z.null()]));
 const tolerance = z.object({ absolute: finite.nonnegative(), relative: finite.nonnegative() }).passthrough();
 
 export const diagnosticMeasureExpressionSchema: z.ZodTypeAny = z.lazy(() =>
@@ -122,28 +123,28 @@ export const normalizedDiagnosticDefinitionSchema = z.object({
   derivedMeasures: z.array(z.object({ id: token, outputMeasureId: token, expression: diagnosticClaimExpressionSchema }).passthrough()),
   formulas: z.array(z.object({
     id: token, version: token,
-    roles: z.record(z.object({ kind: z.enum(["count", "amount", "exposure"]), compatibilityGroup: nullableToken, developmentSemantics: z.enum(["cumulative", "incremental", "point-in-time", "unknown"]).nullable() }).passthrough()),
+    roles: recordSchema(z.object({ kind: z.enum(["count", "amount", "exposure"]), compatibilityGroup: nullableToken, developmentSemantics: z.enum(["cumulative", "incremental", "point-in-time", "unknown"]).nullable() }).passthrough()),
     numerator: diagnosticRoleExpressionSchema, denominator: diagnosticRoleExpressionSchema,
     denominatorPolicy: z.literal("positive-or-null"),
   }).passthrough()),
   instances: z.array(z.object({
-    id: token, version: token, formulaId: token, bindings: z.record(diagnosticMeasureExpressionSchema),
+    id: token, version: token, formulaId: token, bindings: recordSchema(diagnosticMeasureExpressionSchema),
     presentation: z.object({ displayName: z.string(), description: z.string(), displayUnit: token, scale: finite.positive(), numeratorLabel: z.string(), denominatorLabel: z.string() }).passthrough(),
     rules: z.array(z.object({ id: token, code: token, message: z.string(), severity: z.enum(["warning", "fail"]), when: z.object({ left: ruleOperand, operator, right: ruleOperand, tolerance }).passthrough() }).passthrough()),
   }).passthrough()),
   reviewRules: z.array(reviewRule), periodAxis,
 }).passthrough();
 
-export interface DiagnosticDefinitionIdentities {
+export interface DiagnosticDefinitionIdentitySet {
   algorithm: "fnv1a64-jcs-v1";
-  formulaById: Record<string, string>;
-  calculationByInstanceId: Record<string, string>;
+  formulaById: Readonly<Record<string, string>>;
+  calculationByInstanceId: Readonly<Record<string, string>>;
   definition: string;
 }
 
 export interface DiagnosticDefinitionBody {
   definition: NormalizedDiagnosticDefinitionIdentity;
-  identities: DiagnosticDefinitionIdentities;
+  identities: DiagnosticDefinitionIdentitySet;
 }
 
 export interface DiagnosticDefinitionDoc {
@@ -161,8 +162,8 @@ const identityTag = z.string().regex(/^fnv1a64-jcs-v1:[0-9a-f]{16}$/);
 export const diagnosticDefinitionBodySchema: z.ZodType<DiagnosticDefinitionBody> = z.object({
   definition: normalizedDiagnosticDefinitionSchema as z.ZodType<NormalizedDiagnosticDefinitionIdentity>,
   identities: z.object({
-    algorithm: z.literal("fnv1a64-jcs-v1"), formulaById: z.record(identityTag),
-    calculationByInstanceId: z.record(identityTag), definition: identityTag,
+    algorithm: z.literal("fnv1a64-jcs-v1"), formulaById: recordSchema(identityTag),
+    calculationByInstanceId: recordSchema(identityTag), definition: identityTag,
   }).passthrough(),
 }).passthrough();
 

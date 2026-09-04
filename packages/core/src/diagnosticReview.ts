@@ -67,7 +67,7 @@ export interface DiagnosticReviewExpressionOverflow
   readonly coordinate: DiagnosticReviewCoordinate | null;
 }
 
-interface DiagnosticReviewRuleEvaluationBase {
+export interface DiagnosticReviewRuleEvaluationBase {
   readonly ruleId: string;
   readonly ruleKind: DiagnosticReviewRule["kind"];
   readonly status: "pass" | "triggered" | "not-evaluated";

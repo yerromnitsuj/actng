@@ -4,9 +4,60 @@ import {
   DiagnosticValidationError,
   compileDiagnosticDefinition,
   prepareDiagnosticData,
+  runMetricDiagnostics,
   type DiagnosticDefinition,
   type DiagnosticLossInput,
 } from "../src/index.js";
+
+it("orders prepared and result findings by their typed semantic tuple, not JSON keys", () => {
+  const base = definition();
+  const compiled = compileDiagnosticDefinition({
+    ...base,
+    measures: base.measures.filter((measure) => measure.id === "claims"),
+    periodAxis: {
+      kind: "ordered",
+      id: "ordered",
+      version: "1",
+      ageUnit: "step",
+      ageOffset: 0,
+      origins: [{ label: "origin", coordinate: 0 }],
+      valuations: [
+        { label: "a", coordinate: 2 },
+        { label: "b", coordinate: 10 },
+      ],
+    },
+  });
+  const losses = ["b", "a"].map((valuation) => ({
+    rowType: "aggregate" as const,
+    recordId: valuation,
+    sourceGroup: "all",
+    origin: "origin",
+    valuation,
+    complete: true,
+    measures: {},
+  }));
+  const prepared = prepareDiagnosticData({
+    definition: compiled,
+    losses,
+    exposures: [],
+  });
+  expect(
+    prepared.findings
+      .filter((finding) => finding.code === "diagnostic-measure-missing")
+      .map((finding) => [finding.valuation, finding.developmentAge]),
+  ).toEqual([
+    ["a", 2],
+    ["b", 10],
+  ]);
+  const result = runMetricDiagnostics({ prepared });
+  expect(result.emergence.map((point) => point.valuation)).toEqual(["a", "b"]);
+  const reverse = prepareDiagnosticData({
+    definition: compiled,
+    losses: [...losses].reverse(),
+    exposures: [],
+  });
+  expect(reverse.preparationFingerprint).toBe(prepared.preparationFingerprint);
+});
 
 function definition(
   grain: "aggregate" | "claim" = "aggregate",

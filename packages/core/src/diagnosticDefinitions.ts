@@ -782,11 +782,18 @@ function expressionSemantics(
   path: string,
   measures: ReadonlyMap<string, DiagnosticMeasureDefinition>,
   issues: DiagnosticValidationIssue[],
+  initialDepth = 1,
 ): {
   readonly measureIds: readonly string[];
   readonly signature: string | null;
 } {
-  const walked = walkDiagnosticExpression(expression, "measure", path, issues);
+  const walked = walkDiagnosticExpression(
+    expression,
+    "measure",
+    path,
+    issues,
+    initialDepth,
+  );
   const found = walked.dependencies
     .map((id) => measures.get(id))
     .filter(
@@ -2658,6 +2665,7 @@ function validateDefinition(value: unknown): DiagnosticDefinition {
               `${operandPath}.expression`,
               measureMap,
               issues,
+              2,
             );
             const operandNodes =
               1 +
@@ -3025,6 +3033,7 @@ function validateDefinition(value: unknown): DiagnosticDefinition {
     }[] = [];
     const operand = (value: unknown, path: string): void => {
       if (isPlainRecord(value) && value.op === "constant") {
+        validateAllowedKeys(value, ["op", "value"], path, issues);
         validateFinite(value.value, `${path}.value`, "Review constant", issues);
         definitionExpressionNodes++;
       } else
@@ -3199,6 +3208,7 @@ function validateDefinition(value: unknown): DiagnosticDefinition {
       right: DiagnosticReviewOperand,
       path: string,
     ): void => {
+      if (!isPlainRecord(left) || !isPlainRecord(right)) return;
       if (left.op === "constant" || right.op === "constant") return;
       const leftSignature = expressionSemantics(
         left,
@@ -3308,6 +3318,20 @@ function validateDefinition(value: unknown): DiagnosticDefinition {
   validatePeriodAxis(definition.periodAxis, issues);
   if (issues.length > 0) throw new DiagnosticValidationError(issues);
   return definition;
+}
+
+/** Internal boundary reuse: direct helpers use the compiler's exact axis contract. */
+export function validateDiagnosticPeriodAxisInput(
+  value: unknown,
+): readonly DiagnosticValidationIssue[] {
+  const preflight = diagnosticJsonPreflight(value, "configuration").map((issue) => ({
+    ...issue,
+    path: `$.periodAxis${issue.path.slice(1)}`,
+  }));
+  if (preflight.length > 0) return preflight;
+  const issues: DiagnosticValidationIssue[] = [];
+  validatePeriodAxis(value as DiagnosticPeriodAxis, issues);
+  return issues.map((issue) => ({ ...issue, domain: "configuration" as const }));
 }
 
 function optionalFromNullable<T>(value: T | null | undefined): T | undefined {

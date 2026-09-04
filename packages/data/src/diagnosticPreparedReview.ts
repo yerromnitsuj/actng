@@ -5,7 +5,10 @@ import {
   evaluateDiagnosticReviewRules,
   fnv1a64,
   compareDiagnosticSourceLocations,
+  compareDiagnosticIdentityValues,
   normalizeDiagnosticSourceLocations,
+  projectDiagnosticIdentity,
+  type DiagnosticIdentityProjection,
   type DiagnosticDeepReadonly,
   type DiagnosticMetricFinding,
   type DiagnosticReviewRuleEvaluation,
@@ -45,14 +48,14 @@ export interface DiagnosticReviewEvidence {
 export interface DiagnosticReviewIdentityBody {
   readonly definitionIntegrity: string;
   readonly preparationFingerprint: string;
-  readonly evidence: DiagnosticDeepReadonly<DiagnosticReviewEvidence> | null;
+  readonly evidence: DiagnosticIdentityProjection<DiagnosticReviewEvidence> | null;
   readonly checks: readonly {
     readonly id: string;
     readonly status: DataCheck["status"];
-    readonly findings: readonly DataFinding[];
+    readonly findings: readonly DiagnosticIdentityProjection<DataFinding>[];
   }[];
   readonly summary: DataReviewReport["summary"];
-  readonly evaluations: readonly DiagnosticReviewRuleEvaluation[];
+  readonly evaluations: readonly DiagnosticIdentityProjection<DiagnosticReviewRuleEvaluation>[];
 }
 
 export interface DiagnosticReviewReceipt {
@@ -369,14 +372,12 @@ export function validateDiagnosticReviewEvidence(
   }
   if (undefinedPaths.length > 0)
     throw new DiagnosticValidationError(
-      undefinedPaths
-        .sort()
-        .map((path) => ({
-          domain: "input",
-          code: "invalid-type",
-          path,
-          message: "Explicit undefined is not allowed",
-        })),
+      undefinedPaths.sort().map((path) => ({
+        domain: "input",
+        code: "invalid-type",
+        path,
+        message: "Explicit undefined is not allowed",
+      })),
     );
   const parsed = evidenceSchema.safeParse(value);
   if (!parsed.success) {
@@ -409,7 +410,15 @@ export function validateDiagnosticReviewEvidence(
   parsed.data.cachedFormulas.sort(
     (left, right) =>
       codeUnit(left.id, right.id) ||
-      codeUnit(canonicalJson(left), canonicalJson(right)),
+      compareOptional(
+        left.source,
+        right.source,
+        compareDiagnosticSourceLocations,
+      ) ||
+      compareDiagnosticIdentityValues(
+        [left.formula, left.cachedValue, left.declaredFormulaSource],
+        [right.formula, right.cachedValue, right.declaredFormulaSource],
+      ),
   );
   return freeze(parsed.data);
 }
@@ -462,13 +471,11 @@ export function reviewPreparedDiagnosticData(
   for (const finding of input.prepared.findings) {
     const id = codeToCheck[finding.code];
     if (id)
-      findingsByCheck
-        .get(id)!
-        .push({
-          code: finding.code,
-          message: finding.message,
-          context: findingContext(finding),
-        });
+      findingsByCheck.get(id)!.push({
+        code: finding.code,
+        message: finding.message,
+        context: findingContext(finding),
+      });
   }
 
   if (evidence) {
@@ -622,7 +629,7 @@ export function reviewPreparedDiagnosticData(
   }
 
   const report = freeze(summarizeDataChecks(checks));
-  const identityBody = freeze({
+  const identityBody = projectDiagnosticIdentity({
     definitionIntegrity: input.prepared.definition.definitionIntegrity,
     preparationFingerprint: input.prepared.preparationFingerprint,
     evidence,
@@ -641,6 +648,6 @@ export function reviewPreparedDiagnosticData(
     evaluations,
     evidence,
     identityBody,
-    reportFingerprint: `fnv1a64-jcs-v1:${fnv1a64(canonicalJson({ identityVersion: 1, kind: "diagnostic-review", review: identityBody }))}`,
+    reportFingerprint: `fnv1a64-jcs-v1:${fnv1a64(canonicalJson({ identityVersion: 1, kind: "diagnostic-review-report", review: identityBody }))}`,
   });
 }

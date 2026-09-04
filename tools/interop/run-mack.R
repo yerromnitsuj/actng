@@ -28,7 +28,7 @@
 # injected non-VW fit downgrades it to profile-less rather than overclaiming.)
 
 local({
-  lib <- path.expand("~/.R-interop-lib")
+  lib <- path.expand(Sys.getenv("ACTUARIAL_TS_R_LIBRARY", "~/.R-interop-lib"))
   if (dir.exists(lib)) .libPaths(c(lib, .libPaths()))
 })
 .this_file <- local({

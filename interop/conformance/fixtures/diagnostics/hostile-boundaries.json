@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "opaqueEnvelope": {
+    "field": "futureOpaque",
+    "value": { "futureBehavior": true }
+  },
+  "description": "Mutations of the calendar definition. Accept means semantic-reader success after identities and envelope are restamped; reject means a typed/controlled diagnostic error. This corpus deliberately distinguishes opaque interchange extensions from executable definition fields.",
+  "mutations": [
+    { "id": "null-token", "path": ["id"], "value": null, "accept": false },
+    { "id": "empty-token", "path": ["id"], "value": "", "accept": false },
+    { "id": "blank-token", "path": ["id"], "value": " ", "accept": false },
+    {
+      "id": "leading-ascii-space",
+      "path": ["id"],
+      "value": " example",
+      "accept": false
+    },
+    {
+      "id": "trailing-ascii-tab",
+      "path": ["id"],
+      "value": "example\t",
+      "accept": false
+    },
+    {
+      "id": "prototype-tostring",
+      "path": ["id"],
+      "value": "toString",
+      "accept": true
+    },
+    {
+      "id": "prototype-constructor",
+      "path": ["id"],
+      "value": "constructor",
+      "accept": true
+    },
+    {
+      "id": "prototype-proto",
+      "path": ["id"],
+      "value": "__proto__",
+      "accept": true
+    },
+    {
+      "id": "unicode-token",
+      "path": ["id"],
+      "value": "保険-é-😀",
+      "accept": true
+    },
+    {
+      "id": "negative-zero",
+      "path": ["periodAxis", "ageOffset"],
+      "value": -0.0,
+      "accept": true
+    },
+    {
+      "id": "unsafe-integer",
+      "path": ["periodAxis", "ageOffset"],
+      "value": 9007199254740992,
+      "accept": false
+    },
+    {
+      "id": "unknown-root-behavior",
+      "path": ["futureBehavior"],
+      "value": true,
+      "accept": false
+    },
+    {
+      "id": "unknown-measure-behavior",
+      "path": ["measures", 0, "futureBehavior"],
+      "value": true,
+      "accept": false
+    },
+    {
+      "id": "unknown-expression-behavior",
+      "path": ["formulas", 0, "numerator", "futureBehavior"],
+      "value": true,
+      "accept": false
+    },
+    {
+      "id": "unknown-role-behavior",
+      "path": ["formulas", 0, "roles", "amount", "futureBehavior"],
+      "value": true,
+      "accept": false
+    },
+    {
+      "id": "invalid-source-enum",
+      "path": ["measures", 0, "source"],
+      "value": "future-source",
+      "accept": false
+    },
+    {
+      "id": "invalid-development-enum",
+      "path": ["measures", 0, "developmentSemantics"],
+      "value": "future-semantics",
+      "accept": false
+    },
+    {
+      "id": "invalid-period-anchor",
+      "path": ["periodAxis", "originAnchor"],
+      "value": "middle",
+      "accept": false
+    },
+    {
+      "id": "invalid-period-unit",
+      "path": ["periodAxis", "ageUnit"],
+      "value": "year",
+      "accept": false
+    },
+    {
+      "id": "invalid-denominator-policy",
+      "path": ["formulas", 0, "denominatorPolicy"],
+      "value": "zero-is-one",
+      "accept": false
+    },
+    {
+      "id": "invalid-rule-operator",
+      "path": ["reviewRules", 0, "when", "operator"],
+      "value": "approximately",
+      "accept": false
+    },
+    {
+      "id": "negative-tolerance",
+      "path": ["reviewRules", 0, "tolerance", "absolute"],
+      "value": -1,
+      "accept": false
+    },
+    {
+      "id": "compound-attribute",
+      "path": ["amountBases", 0, "attributes", "probe"],
+      "value": { "nested": true },
+      "accept": false
+    },
+    {
+      "id": "opaque-scalar-attribute",
+      "path": ["amountBases", 0, "attributes", "operator"],
+      "value": "caller-data",
+      "accept": true
+    },
+    {
+      "id": "wrong-measure-shape",
+      "path": ["measures", 0],
+      "value": null,
+      "accept": false
+    },
+    {
+      "id": "cross-quantity-comparison",
+      "path": ["reviewRules", 0, "when", "right"],
+      "value": { "op": "measure", "measureId": "reported" },
+      "accept": false
+    },
+    {
+      "id": "unknown-measure-reference",
+      "path": ["reviewRules", 0, "when", "right"],
+      "value": { "op": "measure", "measureId": "not-declared" },
+      "accept": false
+    },
+    {
+      "id": "unknown-formula-reference",
+      "path": ["instances", 0, "formulaId"],
+      "value": "not-declared",
+      "accept": false
+    }
+  ],
+  "escapedStrings": [
+    { "id": "NUL", "json": "\"\\u0000\"", "accept": false },
+    { "id": "unpaired-high", "json": "\"\\ud800\"", "accept": false },
+    { "id": "unpaired-low", "json": "\"\\udc00\"", "accept": false },
+    { "id": "paired-surrogates", "json": "\"\\ud83d\\ude00\"", "accept": true }
+  ],
+  "resources": [
+    { "id": "depth-64", "dimension": "depth", "size": 64, "accept": true },
+    { "id": "depth-65", "dimension": "depth", "size": 65, "accept": false },
+    {
+      "id": "nodes-10000",
+      "dimension": "nodes",
+      "size": 10000,
+      "accept": true
+    },
+    {
+      "id": "nodes-10001",
+      "dimension": "nodes",
+      "size": 10001,
+      "accept": false
+    },
+    {
+      "id": "definition-100000",
+      "dimension": "definition",
+      "size": 100000,
+      "accept": true
+    },
+    {
+      "id": "definition-100001",
+      "dimension": "definition",
+      "size": 100001,
+      "accept": false
+    }
+  ],
+  "expressionRoots": [
+    "formula-numerator",
+    "formula-denominator",
+    "instance-binding",
+    "claim-derivation",
+    "review-rule",
+    "metric-rule"
+  ]
+}

@@ -6,7 +6,7 @@
     "version": "0.6.1"
   },
   "createdAt": "2026-09-03T12:00:00.000Z",
-  "integrity": "476a221a9c6951a3",
+  "integrity": "de06a8529a26b2ae",
   "diagnosticDefinition": {
     "definition": {
       "diagnosticDefinitionVersion": "1.0.0",
@@ -14,6 +14,21 @@
       "version": "1.0.0",
       "lossRowGrain": "aggregate",
       "measures": [
+        {
+          "id": "cancellation-adjustment",
+          "displayName": "gross-paid",
+          "description": "Cumulative gross-paid loss",
+          "source": "loss",
+          "kind": "amount",
+          "unit": "EUR",
+          "developmentSemantics": "cumulative",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": "gross-loss",
+          "countPopulationId": null,
+          "exposureBasisId": null,
+          "exposureTiming": null
+        },
         {
           "id": "closed-no-pay",
           "displayName": "Closed no pay",
@@ -43,6 +58,21 @@
           "countPopulationId": "adapted-source-claims",
           "exposureBasisId": null,
           "exposureTiming": null
+        },
+        {
+          "id": "current-exposure",
+          "displayName": "Insurance years",
+          "description": "Origin-year exposure supplied by aggdata.Exposure; no earned/written/in-force interpretation is inferred",
+          "source": "exposure",
+          "kind": "exposure",
+          "unit": "insurance-year",
+          "developmentSemantics": "point-in-time",
+          "aggregation": "sum",
+          "missing": "unknown",
+          "basisId": null,
+          "countPopulationId": null,
+          "exposureBasisId": "source-insurance-years",
+          "exposureTiming": "valuation-specific"
         },
         {
           "id": "gross-incurred",
@@ -1035,10 +1065,286 @@
       ],
       "reviewRules": [
         {
-          "id": "casualty/review/count-reconciliation",
-          "code": "count-reconciliation",
-          "description": "Reported count must equal open plus closed-no-pay plus closed-with-pay count",
-          "severity": "fail",
+          "id": "lt-not-evaluated",
+          "code": "lt-not-evaluated",
+          "description": "Conformance lt-not-evaluated",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "lt",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "lt-finding",
+          "code": "lt-finding",
+          "description": "Conformance lt-finding",
+          "severity": "warning",
+          "missingInput": "finding",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "lt",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "lte-not-evaluated",
+          "code": "lte-not-evaluated",
+          "description": "Conformance lte-not-evaluated",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "lte",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "lte-finding",
+          "code": "lte-finding",
+          "description": "Conformance lte-finding",
+          "severity": "warning",
+          "missingInput": "finding",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "lte",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "eq-not-evaluated",
+          "code": "eq-not-evaluated",
+          "description": "Conformance eq-not-evaluated",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "eq",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "eq-finding",
+          "code": "eq-finding",
+          "description": "Conformance eq-finding",
+          "severity": "warning",
+          "missingInput": "finding",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "eq",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "neq-not-evaluated",
+          "code": "neq-not-evaluated",
+          "description": "Conformance neq-not-evaluated",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "neq",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "neq-finding",
+          "code": "neq-finding",
+          "description": "Conformance neq-finding",
+          "severity": "warning",
+          "missingInput": "finding",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "neq",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "gte-not-evaluated",
+          "code": "gte-not-evaluated",
+          "description": "Conformance gte-not-evaluated",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "gte",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "gte-finding",
+          "code": "gte-finding",
+          "description": "Conformance gte-finding",
+          "severity": "warning",
+          "missingInput": "finding",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "gte",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "gt-not-evaluated",
+          "code": "gt-not-evaluated",
+          "description": "Conformance gt-not-evaluated",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "gt",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "gt-finding",
+          "code": "gt-finding",
+          "description": "Conformance gt-finding",
+          "severity": "warning",
+          "missingInput": "finding",
+          "tolerance": {
+            "absolute": 1,
+            "relative": 0
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "gt",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "reconcile",
+          "code": "reconcile",
+          "description": "Conformance reconcile",
+          "severity": "warning",
           "missingInput": "not-evaluated",
           "tolerance": {
             "absolute": 0,
@@ -1058,65 +1364,19 @@
               },
               {
                 "op": "measure",
-                "measureId": "closed-no-pay"
+                "measureId": "closed-with-pay"
               },
               {
                 "op": "measure",
-                "measureId": "closed-with-pay"
+                "measureId": "closed-no-pay"
               }
             ]
           }
         },
         {
-          "id": "casualty/review/closed-no-pay-bound",
-          "code": "closed-no-pay-bound",
-          "description": "Closed-no-pay count must not exceed reported count",
-          "severity": "fail",
-          "missingInput": "not-evaluated",
-          "tolerance": {
-            "absolute": 0,
-            "relative": 0
-          },
-          "kind": "compare",
-          "when": {
-            "left": {
-              "op": "measure",
-              "measureId": "closed-no-pay"
-            },
-            "operator": "gt",
-            "right": {
-              "op": "measure",
-              "measureId": "reported"
-            }
-          }
-        },
-        {
-          "id": "casualty/review/positive-exposure",
-          "code": "positive-exposure",
-          "description": "Exposure must be strictly positive",
-          "severity": "fail",
-          "missingInput": "not-evaluated",
-          "tolerance": {
-            "absolute": 0,
-            "relative": 0
-          },
-          "kind": "compare",
-          "when": {
-            "left": {
-              "op": "measure",
-              "measureId": "insurance-years"
-            },
-            "operator": "lte",
-            "right": {
-              "op": "constant",
-              "value": 0
-            }
-          }
-        },
-        {
-          "id": "casualty/review/closed-reopen-signal",
-          "code": "closed-reopen-signal",
-          "description": "Closed count must be nondecreasing across valuations",
+          "id": "monotonic",
+          "code": "monotonic",
+          "description": "Conformance monotonic",
           "severity": "warning",
           "missingInput": "not-evaluated",
           "tolerance": {
@@ -1125,53 +1385,208 @@
           },
           "kind": "monotonic",
           "expression": {
+            "op": "measure",
+            "measureId": "gross-paid"
+          },
+          "direction": "nondecreasing"
+        },
+        {
+          "id": "layer-order",
+          "code": "layer-order",
+          "description": "Conformance layer-order",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "layer-order",
+          "narrower": {
+            "op": "measure",
+            "measureId": "net-paid"
+          },
+          "broader": {
+            "op": "measure",
+            "measureId": "gross-paid"
+          },
+          "comparability": {
+            "kind": "caller-asserted",
+            "rationaleArtifactId": "source-manifest"
+          }
+        },
+        {
+          "id": "control-total",
+          "code": "control-total",
+          "description": "Conformance control-total",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "control-total",
+          "expression": {
+            "op": "measure",
+            "measureId": "insurance-years"
+          },
+          "expected": 200,
+          "filter": {
+            "sourceGroups": [
+              "baseline"
+            ],
+            "origins": null,
+            "originFrom": null,
+            "originThrough": null,
+            "valuations": null,
+            "valuationFrom": null,
+            "valuationThrough": null,
+            "minDevelopmentAge": null,
+            "maxDevelopmentAge": null
+          },
+          "projection": {
+            "kind": "latest-valuation-per-origin"
+          }
+        },
+        {
+          "id": "valuation-exposure",
+          "code": "valuation-exposure",
+          "description": "Conformance valuation-exposure",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "control-total",
+          "expression": {
+            "op": "measure",
+            "measureId": "current-exposure"
+          },
+          "expected": 220,
+          "filter": {
+            "sourceGroups": [
+              "baseline"
+            ],
+            "origins": null,
+            "originFrom": null,
+            "originThrough": null,
+            "valuations": null,
+            "valuationFrom": null,
+            "valuationThrough": null,
+            "minDevelopmentAge": null,
+            "maxDevelopmentAge": null
+          },
+          "projection": {
+            "kind": "all-cells"
+          }
+        },
+        {
+          "id": "relative-edge",
+          "code": "relative-edge",
+          "description": "Conformance relative-edge",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0.1
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "neq",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "tolerance-overflow",
+          "code": "tolerance-overflow",
+          "description": "Conformance tolerance-overflow",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 1e+308
+          },
+          "kind": "compare",
+          "when": {
+            "left": {
+              "op": "measure",
+              "measureId": "gross-paid"
+            },
+            "operator": "neq",
+            "right": {
+              "op": "measure",
+              "measureId": "gross-incurred"
+            }
+          }
+        },
+        {
+          "id": "overflow",
+          "code": "overflow",
+          "description": "Conformance overflow",
+          "severity": "warning",
+          "missingInput": "not-evaluated",
+          "tolerance": {
+            "absolute": 0,
+            "relative": 0
+          },
+          "kind": "reconcile",
+          "actual": {
             "op": "add",
             "terms": [
               {
                 "op": "measure",
-                "measureId": "closed-no-pay"
+                "measureId": "gross-paid"
               },
               {
                 "op": "measure",
-                "measureId": "closed-with-pay"
+                "measureId": "gross-incurred"
               }
             ]
           },
-          "direction": "nondecreasing"
+          "expected": {
+            "op": "constant",
+            "value": 0
+          }
         },
         {
-          "id": "casualty/review/gross-incurred-monotonic",
-          "code": "casualty/review/gross-incurred-monotonic",
-          "description": "Expression must be nondecreasing across valuations",
+          "id": "cancellation",
+          "code": "cancellation",
+          "description": "Conformance cancellation",
           "severity": "warning",
           "missingInput": "not-evaluated",
           "tolerance": {
             "absolute": 0,
             "relative": 0
           },
-          "kind": "monotonic",
-          "expression": {
-            "op": "measure",
-            "measureId": "gross-incurred"
+          "kind": "reconcile",
+          "actual": {
+            "op": "add",
+            "terms": [
+              {
+                "op": "measure",
+                "measureId": "gross-paid"
+              },
+              {
+                "op": "measure",
+                "measureId": "gross-incurred"
+              },
+              {
+                "op": "measure",
+                "measureId": "cancellation-adjustment"
+              }
+            ]
           },
-          "direction": "nondecreasing"
-        },
-        {
-          "id": "casualty/review/net-incurred-monotonic",
-          "code": "casualty/review/net-incurred-monotonic",
-          "description": "Expression must be nondecreasing across valuations",
-          "severity": "warning",
-          "missingInput": "not-evaluated",
-          "tolerance": {
-            "absolute": 0,
-            "relative": 0
-          },
-          "kind": "monotonic",
-          "expression": {
-            "op": "measure",
-            "measureId": "net-incurred"
-          },
-          "direction": "nondecreasing"
+          "expected": {
+            "op": "constant",
+            "value": 1
+          }
         }
       ],
       "periodAxis": {
@@ -1183,15 +1598,26 @@
         "origins": [
           {
             "label": "O1",
-            "aliases": ["origin-one"],
+            "aliases": [
+              "origin-one"
+            ],
             "coordinate": 0
           }
         ],
         "valuations": [
           {
             "label": "V1",
-            "aliases": ["valuation-one"],
+            "aliases": [
+              "valuation-one"
+            ],
             "coordinate": 1
+          },
+          {
+            "label": "V3",
+            "aliases": [
+              "valuation-three"
+            ],
+            "coordinate": 4
           }
         ]
       }
@@ -1230,7 +1656,7 @@
         "casualty/count/open-share-of-non-closed-no-pay": "fnv1a64-jcs-v1:010c6e65a324a44d",
         "casualty/count/reported-frequency": "fnv1a64-jcs-v1:8ffb808c9b445596"
       },
-      "definition": "fnv1a64-jcs-v1:b26132bbd22bb3b0"
+      "definition": "fnv1a64-jcs-v1:570616acfc3755b8"
     }
   }
 }

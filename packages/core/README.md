@@ -2,7 +2,7 @@
 
 Pure, framework-free P&C actuarial math for TypeScript. It includes triangles, deterministic and stochastic reserving, trends/on-leveling, limits and ILFs, discounting, and generalized definition-driven casualty diagnostics.
 
-The package is designed to support an actuary’s work under applicable ASOPs; it does not make a work product compliant and is not “ASOP-approved.” The credentialed actuary remains responsible for data, assumptions, selections, review, and communication.
+The package is designed to support the actuary's compliance with the ASOPs; it does not make a work product compliant and is not “ASOP-approved.” The credentialed actuary remains responsible for data, assumptions, selections, review, and communication.
 
 ## Install
 

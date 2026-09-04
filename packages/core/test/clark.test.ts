@@ -1,14 +1,22 @@
+import {
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const clarkCapeCodPublished = sourceExpected<
+  typeof import("./fixtures/clark2003.js").clarkCapeCodPublished
+>("clark-2003", "clarkCapeCodPublished");
+const clarkLdfLoglogisticPublished = sourceExpected<
+  typeof import("./fixtures/clark2003.js").clarkLdfLoglogisticPublished
+>("clark-2003", "clarkLdfLoglogisticPublished");
+const clarkLdfWeibullPublished = sourceExpected<
+  typeof import("./fixtures/clark2003.js").clarkLdfWeibullPublished
+>("clark-2003", "clarkLdfWeibullPublished");
 import { describe, expect, it } from "vitest";
 import { clarkGrowth, runClarkCapeCod, runClarkLdf } from "../src/clark.js";
 import { ReservingError } from "../src/types.js";
 import type { Triangle } from "../src/types.js";
-import {
-  clarkCapeCodPublished,
-  clarkLdfLoglogisticPublished,
-  clarkLdfWeibullPublished,
-  clarkOnlevelPremium,
-  clarkTriangle,
-} from "./fixtures/clark2003.js";
+import { clarkOnlevelPremium, clarkTriangle } from "./fixtures/clark2003.js";
 
 /**
  * Published-value validation against Clark (2003), Section 4 (pp. 59-69).
@@ -20,8 +28,14 @@ import {
  * the tolerances leave room for optimizer/finite-difference drift only.
  */
 
-function expectRelClose(actual: number, expected: number, relTol: number): void {
-  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(relTol * Math.abs(expected));
+function expectRelClose(
+  actual: number,
+  expected: number,
+  relTol: number,
+): void {
+  expect(Math.abs(actual - expected)).toBeLessThanOrEqual(
+    relTol * Math.abs(expected),
+  );
 }
 
 function row(result: ReturnType<typeof runClarkLdf>, origin: string) {
@@ -35,31 +49,75 @@ describe("Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated)", () => 
   const result = runClarkLdf(clarkTriangle, { curve: "loglogistic" });
 
   it("reproduces the published MLE parameters", () => {
-    expectRelClose(result.omega, published.omega, 0.005);
-    expectRelClose(result.theta, published.theta, 0.005);
+    expectRelClose(
+      result.omega,
+      published.omega,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
+    expectRelClose(
+      result.theta,
+      published.theta,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
   });
 
   it("reproduces the published dispersion sigma^2 with 43 dof", () => {
-    expectRelClose(result.sigma2, published.sigma2, 0.02);
+    expectRelClose(
+      result.sigma2,
+      published.sigma2,
+      sourceTolerance("clark-2003", "relative:0.02"),
+    );
     expect(result.dof).toBe(published.dof);
   });
 
   it("reproduces the published total reserve and ultimate", () => {
-    expectRelClose(result.totals.reserve, published.untruncated.totalReserve, 0.003);
+    expectRelClose(
+      result.totals.reserve,
+      published.untruncated.totalReserve,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
     const totalUltimate = result.rows.reduce((a, r) => a + r.ultimate, 0);
-    expectRelClose(totalUltimate, published.untruncated.totalUltimate, 0.003);
+    expectRelClose(
+      totalUltimate,
+      published.untruncated.totalUltimate,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
   });
 
   it("reproduces the published per-AY spot rows", () => {
     const r1991 = row(result, "1991");
     const pins = published.untruncated.rows;
-    expect(Math.abs(r1991.growthAtAge - pins["1991"].growthAtAge)).toBeLessThanOrEqual(0.0005);
-    expectRelClose(r1991.ultimate, pins["1991"].ultimate, 0.01);
-    expectRelClose(r1991.reserve, pins["1991"].reserve, 0.01);
-    expectRelClose(row(result, "1996").reserve, pins["1996"].reserve, 0.01);
+    expect(
+      Math.abs(r1991.growthAtAge - pins["1991"].growthAtAge),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("clark-2003", "toBeLessThanOrEqual:0.0005"),
+    );
+    expectRelClose(
+      r1991.ultimate,
+      pins["1991"].ultimate,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      r1991.reserve,
+      pins["1991"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      row(result, "1996").reserve,
+      pins["1996"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
     const r2000 = row(result, "2000");
-    expect(Math.abs(r2000.growthAtAge - pins["2000"].growthAtAge)).toBeLessThanOrEqual(0.0005);
-    expectRelClose(r2000.reserve, pins["2000"].reserve, 0.01);
+    expect(
+      Math.abs(r2000.growthAtAge - pins["2000"].growthAtAge),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("clark-2003", "toBeLessThanOrEqual:0.0005"),
+    );
+    expectRelClose(
+      r2000.reserve,
+      pins["2000"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
   });
 
   it("warns that untruncated reserves rely on tail extrapolation", () => {
@@ -70,35 +128,98 @@ describe("Clark (2003) LDF method, loglogistic (pp. 61-63, untruncated)", () => 
 describe("Clark (2003) LDF method, loglogistic truncated at 240 months (pp. 64-65)", () => {
   const published = clarkLdfLoglogisticPublished;
   const pins = published.truncatedAt240;
-  const result = runClarkLdf(clarkTriangle, { curve: "loglogistic", truncationAgeMonths: 240 });
+  const result = runClarkLdf(clarkTriangle, {
+    curve: "loglogistic",
+    truncationAgeMonths: 240,
+  });
 
   it("reproduces the published truncated total reserve", () => {
-    expectRelClose(result.totals.reserve, pins.totalReserve, 0.003);
+    expectRelClose(
+      result.totals.reserve,
+      pins.totalReserve,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
     const totalLossesAt240 = result.rows.reduce((a, r) => a + r.ultimate, 0);
-    expectRelClose(totalLossesAt240, pins.totalLossesAt240, 0.003);
+    expectRelClose(
+      totalLossesAt240,
+      pins.totalLossesAt240,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
   });
 
   it("reproduces the published 1991 truncated LDF 1.1716 = G(234)/G(114)", () => {
     const r1991 = row(result, "1991");
     // ultimate/latest is the truncated LDF for a hole-free LDF-method row.
-    expectRelClose(r1991.ultimate / r1991.latest, pins.rows["1991"].truncatedLdf, 0.001);
-    expectRelClose(r1991.ultimate, pins.rows["1991"].ultimateAt240, 0.01);
-    expectRelClose(r1991.reserve, pins.rows["1991"].reserve, 0.01);
-    expectRelClose(row(result, "1996").reserve, pins.rows["1996"].reserve, 0.01);
-    expectRelClose(row(result, "2000").reserve, pins.rows["2000"].reserve, 0.01);
+    expectRelClose(
+      r1991.ultimate / r1991.latest,
+      pins.rows["1991"].truncatedLdf,
+      sourceTolerance("clark-2003", "relative:0.001"),
+    );
+    expectRelClose(
+      r1991.ultimate,
+      pins.rows["1991"].ultimateAt240,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      r1991.reserve,
+      pins.rows["1991"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      row(result, "1996").reserve,
+      pins.rows["1996"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      row(result, "2000").reserve,
+      pins.rows["2000"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
   });
 
   it("reproduces the published variance table (p. 65)", () => {
-    expectRelClose(result.totals.processSd, pins.processSdTotal, 0.01);
-    expectRelClose(result.totals.parameterSd, pins.parameterSdTotal, 0.05);
-    expectRelClose(result.totals.totalSd, pins.totalSdTotal, 0.05);
+    expectRelClose(
+      result.totals.processSd,
+      pins.processSdTotal,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      result.totals.parameterSd,
+      pins.parameterSdTotal,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
+    expectRelClose(
+      result.totals.totalSd,
+      pins.totalSdTotal,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
     const r1991 = row(result, "1991");
-    expectRelClose(r1991.processSd, pins.rows["1991"].processSd, 0.01);
-    expectRelClose(r1991.parameterSd, pins.rows["1991"].parameterSd, 0.05);
-    expectRelClose(r1991.totalSd, pins.rows["1991"].totalSd, 0.05);
+    expectRelClose(
+      r1991.processSd,
+      pins.rows["1991"].processSd,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      r1991.parameterSd,
+      pins.rows["1991"].parameterSd,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
+    expectRelClose(
+      r1991.totalSd,
+      pins.rows["1991"].totalSd,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
     const r2000 = row(result, "2000");
-    expectRelClose(r2000.processSd, pins.rows["2000"].processSd, 0.01);
-    expectRelClose(r2000.parameterSd, pins.rows["2000"].parameterSd, 0.05);
+    expectRelClose(
+      r2000.processSd,
+      pins.rows["2000"].processSd,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      r2000.parameterSd,
+      pins.rows["2000"].parameterSd,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
   });
 });
 
@@ -107,25 +228,61 @@ describe("Clark (2003) LDF method, Weibull (pp. 64-65)", () => {
   const result = runClarkLdf(clarkTriangle, { curve: "weibull" });
 
   it("reproduces the published MLE parameters", () => {
-    expectRelClose(result.omega, published.omega, 0.005);
-    expectRelClose(result.theta, published.theta, 0.005);
+    expectRelClose(
+      result.omega,
+      published.omega,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
+    expectRelClose(
+      result.theta,
+      published.theta,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
   });
 
   it("reproduces the published totals", () => {
-    expectRelClose(result.totals.reserve, published.untruncated.totalReserve, 0.003);
+    expectRelClose(
+      result.totals.reserve,
+      published.untruncated.totalReserve,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
     const totalUltimate = result.rows.reduce((a, r) => a + r.ultimate, 0);
-    expectRelClose(totalUltimate, published.untruncated.totalUltimate, 0.003);
+    expectRelClose(
+      totalUltimate,
+      published.untruncated.totalUltimate,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
   });
 
   it("reproduces the published per-AY spot rows", () => {
     const pins = published.untruncated.rows;
     const r1991 = row(result, "1991");
-    expect(Math.abs(r1991.growthAtAge - pins["1991"].growthAtAge)).toBeLessThanOrEqual(0.0005);
-    expectRelClose(r1991.reserve, pins["1991"].reserve, 0.01);
-    expectRelClose(row(result, "1996").reserve, pins["1996"].reserve, 0.01);
+    expect(
+      Math.abs(r1991.growthAtAge - pins["1991"].growthAtAge),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("clark-2003", "toBeLessThanOrEqual:0.0005"),
+    );
+    expectRelClose(
+      r1991.reserve,
+      pins["1991"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      row(result, "1996").reserve,
+      pins["1996"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
     const r2000 = row(result, "2000");
-    expect(Math.abs(r2000.growthAtAge - pins["2000"].growthAtAge)).toBeLessThanOrEqual(0.0005);
-    expectRelClose(r2000.reserve, pins["2000"].reserve, 0.01);
+    expect(
+      Math.abs(r2000.growthAtAge - pins["2000"].growthAtAge),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("clark-2003", "toBeLessThanOrEqual:0.0005"),
+    );
+    expectRelClose(
+      r2000.reserve,
+      pins["2000"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
   });
 });
 
@@ -138,40 +295,108 @@ describe("Clark (2003) Cape Cod method, loglogistic truncated at 240 (pp. 66-69)
   });
 
   it("reproduces the published MLE parameters and ELR", () => {
-    expectRelClose(result.omega, published.omega, 0.005);
-    expectRelClose(result.theta, published.theta, 0.005);
+    expectRelClose(
+      result.omega,
+      published.omega,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
+    expectRelClose(
+      result.theta,
+      published.theta,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
     expect(result.elr).toBeDefined();
-    expectRelClose(result.elr!, published.elr, 0.005);
+    expectRelClose(
+      result.elr!,
+      published.elr,
+      sourceTolerance("clark-2003", "relative:0.005"),
+    );
   });
 
   it("reproduces the published dispersion sigma^2 with 52 dof", () => {
-    expectRelClose(result.sigma2, published.sigma2, 0.02);
+    expectRelClose(
+      result.sigma2,
+      published.sigma2,
+      sourceTolerance("clark-2003", "relative:0.02"),
+    );
     expect(result.dof).toBe(published.dof);
   });
 
   it("reproduces the published total reserve", () => {
-    expectRelClose(result.totals.reserve, pins.totalReserve, 0.003);
+    expectRelClose(
+      result.totals.reserve,
+      pins.totalReserve,
+      sourceTolerance("clark-2003", "relative:0.003"),
+    );
   });
 
   it("reproduces the published per-AY spot rows", () => {
     const r1991 = row(result, "1991");
-    expect(Math.abs(r1991.growthAtAge - pins.rows["1991"].growthAtAge)).toBeLessThanOrEqual(0.0005);
-    expectRelClose(r1991.reserve, pins.rows["1991"].reserve, 0.01);
-    expectRelClose(row(result, "1996").reserve, pins.rows["1996"].reserve, 0.01);
+    expect(
+      Math.abs(r1991.growthAtAge - pins.rows["1991"].growthAtAge),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("clark-2003", "toBeLessThanOrEqual:0.0005"),
+    );
+    expectRelClose(
+      r1991.reserve,
+      pins.rows["1991"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      row(result, "1996").reserve,
+      pins.rows["1996"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
     const r2000 = row(result, "2000");
-    expect(Math.abs(r2000.growthAtAge - pins.rows["2000"].growthAtAge)).toBeLessThanOrEqual(0.0005);
-    expectRelClose(r2000.reserve, pins.rows["2000"].reserve, 0.01);
+    expect(
+      Math.abs(r2000.growthAtAge - pins.rows["2000"].growthAtAge),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("clark-2003", "toBeLessThanOrEqual:0.0005"),
+    );
+    expectRelClose(
+      r2000.reserve,
+      pins.rows["2000"].reserve,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
   });
 
   it("reproduces the published variance table (p. 69)", () => {
-    expectRelClose(result.totals.processSd, pins.processSdTotal, 0.01);
-    expectRelClose(result.totals.parameterSd, pins.parameterSdTotal, 0.05);
-    expectRelClose(result.totals.totalSd, pins.totalSdTotal, 0.05);
+    expectRelClose(
+      result.totals.processSd,
+      pins.processSdTotal,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      result.totals.parameterSd,
+      pins.parameterSdTotal,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
+    expectRelClose(
+      result.totals.totalSd,
+      pins.totalSdTotal,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
     const r1991 = row(result, "1991");
-    expectRelClose(r1991.processSd, pins.rows["1991"].processSd, 0.01);
-    expectRelClose(r1991.parameterSd, pins.rows["1991"].parameterSd, 0.05);
-    expectRelClose(r1991.totalSd, pins.rows["1991"].totalSd, 0.05);
-    expectRelClose(row(result, "2000").parameterSd, pins.rows["2000"].parameterSd, 0.05);
+    expectRelClose(
+      r1991.processSd,
+      pins.rows["1991"].processSd,
+      sourceTolerance("clark-2003", "relative:0.01"),
+    );
+    expectRelClose(
+      r1991.parameterSd,
+      pins.rows["1991"].parameterSd,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
+    expectRelClose(
+      r1991.totalSd,
+      pins.rows["1991"].totalSd,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
+    expectRelClose(
+      row(result, "2000").parameterSd,
+      pins.rows["2000"].parameterSd,
+      sourceTolerance("clark-2003", "relative:0.05"),
+    );
   });
 });
 
@@ -187,21 +412,29 @@ describe("Clark growth-curve and method properties", () => {
       for (let x = 6; x <= 360; x += 6) {
         const value = g(x);
         expect(value).toBeGreaterThan(prev);
-        expect(value).toBeLessThan(1);
+        expect(value).toBeLessThan(
+          sourceTolerance("clark-2003", "toBeLessThan:1"),
+        );
         prev = value;
       }
       for (let x = 366; x <= 1200; x += 6) {
         const value = g(x);
         expect(value).toBeGreaterThanOrEqual(prev);
-        expect(value).toBeLessThanOrEqual(1);
+        expect(value).toBeLessThanOrEqual(
+          sourceTolerance("clark-2003", "toBeLessThanOrEqual:1"),
+        );
         prev = value;
       }
-      expect(g(1e9)).toBeGreaterThan(0.999);
+      expect(g(1e9)).toBeGreaterThan(
+        sourceTolerance("clark-2003", "toBeGreaterThan:0.999"),
+      );
     }
   });
 
   it("clarkGrowth rejects non-positive parameters", () => {
-    expect(() => clarkGrowth("loglogistic", 0, 48)).toThrowError(ReservingError);
+    expect(() => clarkGrowth("loglogistic", 0, 48)).toThrowError(
+      ReservingError,
+    );
     expect(() => clarkGrowth("weibull", 1.4, -1)).toThrowError(ReservingError);
   });
 
@@ -211,7 +444,11 @@ describe("Clark growth-curve and method properties", () => {
     // must land exactly there.
     const result = runClarkLdf(clarkTriangle, { curve: "loglogistic" });
     for (const r of result.rows) {
-      expectRelClose(r.ultimate, r.latest / r.growthAtAge, 1e-9);
+      expectRelClose(
+        r.ultimate,
+        r.latest / r.growthAtAge,
+        sourceTolerance("clark-2003", "relative:1e-9"),
+      );
     }
   });
 
@@ -225,13 +462,17 @@ describe("Clark growth-curve and method properties", () => {
       expect(r.reserve).toBeLessThan(full.rows[i]!.reserve);
     });
     expect(truncated.totals.reserve).toBeLessThan(full.totals.reserve);
-    expect(truncated.warnings.some((w) => w.includes("extrapolate"))).toBe(false);
+    expect(truncated.warnings.some((w) => w.includes("extrapolate"))).toBe(
+      false,
+    );
   });
 
   it("the Weibull tail is lighter than the loglogistic on the same data", () => {
     const loglogistic = runClarkLdf(clarkTriangle, { curve: "loglogistic" });
     const weibull = runClarkLdf(clarkTriangle, { curve: "weibull" });
-    expect(row(weibull, "1991").reserve).toBeLessThan(row(loglogistic, "1991").reserve);
+    expect(row(weibull, "1991").reserve).toBeLessThan(
+      row(loglogistic, "1991").reserve,
+    );
     expect(weibull.totals.reserve).toBeLessThan(loglogistic.totals.reserve);
   });
 
@@ -260,7 +501,10 @@ describe("Clark growth-curve and method properties", () => {
   it("rejects a truncation age inside the observed history", () => {
     let thrown: unknown;
     try {
-      runClarkLdf(clarkTriangle, { curve: "loglogistic", truncationAgeMonths: 60 });
+      runClarkLdf(clarkTriangle, {
+        curve: "loglogistic",
+        truncationAgeMonths: 60,
+      });
     } catch (err) {
       thrown = err;
     }
@@ -280,3 +524,5 @@ describe("Clark growth-curve and method properties", () => {
     expect((thrown as ReservingError).code).toBe("BAD_PREMIUM");
   });
 });
+
+registerSourceFile(import.meta.url);

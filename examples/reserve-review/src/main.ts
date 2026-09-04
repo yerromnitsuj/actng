@@ -238,8 +238,8 @@ if (process.argv[1]?.endsWith("main.ts") || process.argv[1]?.endsWith("main.js")
   console.log(`  referee         ${out.refereeVerdict}`);
   console.log(`  bundle verified ${out.bundleVerified}`);
   console.log(
-    "\nMack (1993) publishes an unpaid of 18,680,856 and, to three significant\n" +
-      "figures, a standard error of 2,447 thousands; R ChainLadder reports 2,447,095.",
+    "\nMack (1993) prints unpaid of 18,681 thousand and standard error of\n" +
+      "2,447 thousand; the engine unpaid rounds to 18,680,856 and R ChainLadder SE to 2,447,095.",
   );
 }
 /* c8 ignore stop */

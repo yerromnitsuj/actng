@@ -1,5 +1,17 @@
 import { canonicalJson, fnv1a64 } from "./canonical.js";
 import {
+  normalizeDiagnosticsFilterIdentity,
+  projectDiagnosticIdentity,
+  type DiagnosticIdentityProjection,
+  type NormalizedDiagnosticsFilterIdentity,
+  type NormalizedDiagnosticSourceLocationIdentity,
+} from "./diagnosticIdentity.js";
+import {
+  compareDiagnosticBlockers,
+  compareDiagnosticContributions,
+  compareDiagnosticFindings,
+} from "./diagnosticOrdering.js";
+import {
   assertCompiledDiagnosticDefinition,
   getCompiledDiagnosticDefinitionInternals,
   type CompiledDiagnosticDefinition,
@@ -175,14 +187,21 @@ export interface PreparedDiagnosticData {
 
 export interface NormalizedDiagnosticPreparationIdentity {
   readonly definitionIntegrity: string;
-  readonly filter: DiagnosticDeepReadonly<DiagnosticsFilter> | null;
-  readonly completePeriodCutoffs: readonly DiagnosticCompletePeriodCutoff[];
-  readonly inputAudit: readonly DiagnosticInputAuditRecord[];
-  readonly cells: readonly PreparedDiagnosticSourceCell[];
-  readonly exposures: readonly ReconciledDiagnosticExposure[];
+  readonly filter: NormalizedDiagnosticsFilterIdentity | null;
+  readonly completePeriodCutoffs: readonly DiagnosticIdentityProjection<DiagnosticCompletePeriodCutoff>[];
+  readonly inputAudit: readonly DiagnosticIdentityProjection<DiagnosticInputAuditRecord>[];
+  readonly cells: readonly DiagnosticIdentityProjection<PreparedDiagnosticSourceCell>[];
+  readonly exposures: readonly DiagnosticIdentityProjection<ReconciledDiagnosticExposure>[];
   readonly expectedCellsProvided: boolean;
-  readonly expectedCells: readonly DiagnosticExpectedCell[];
-  readonly findings: readonly DiagnosticMetricFinding[];
+  readonly expectedCells: readonly NormalizedDiagnosticExpectedCellIdentity[];
+  readonly findings: readonly DiagnosticIdentityProjection<DiagnosticMetricFinding>[];
+}
+
+export interface NormalizedDiagnosticExpectedCellIdentity {
+  readonly sourceGroup: string;
+  readonly origin: string;
+  readonly valuation: string;
+  readonly source: NormalizedDiagnosticSourceLocationIdentity | null;
 }
 
 interface NormalizedCoordinate {
@@ -406,15 +425,7 @@ function mergeFindings(
           },
     );
   }
-  return [...merged.values()].sort(
-    (left, right) =>
-      codeUnit(left.code, right.code) ||
-      codeUnit(
-        canonicalJson({ ...left, sources: [] }),
-        canonicalJson({ ...right, sources: [] }),
-      ) ||
-      codeUnit(canonicalJson(left.sources), canonicalJson(right.sources)),
-  );
+  return [...merged.values()].sort(compareDiagnosticFindings);
 }
 
 function snapshotLoss(
@@ -1915,6 +1926,7 @@ export function prepareDiagnosticData(
         .filter((measure) => measure.source === "exposure")
         .map((measure) => [measure.id, measure.exposureTiming!]),
     ),
+    definition.definition.periodAxis,
   ) as ReconciledDiagnosticExposure[];
   const exposureCohorts = new Map<string, ExposureCandidate[]>();
   for (const candidate of declaredExposureCandidates)
@@ -2219,14 +2231,8 @@ export function prepareDiagnosticData(
             blocker,
           ]),
         ).values(),
-      ].sort((left, right) =>
-        codeUnit(canonicalJson(left), canonicalJson(right)),
-      );
-      contributions[measureId]!.sort(
-        (left, right) =>
-          codeUnit(left.sourceId, right.sourceId) ||
-          codeUnit(canonicalJson(left), canonicalJson(right)),
-      );
+      ].sort(compareDiagnosticBlockers);
+      contributions[measureId]!.sort(compareDiagnosticContributions);
     }
     const components = Object.fromEntries(
       allMeasureIds.map((measureId) => {
@@ -2393,7 +2399,7 @@ export function prepareDiagnosticData(
   const normalizedFindings = mergeFindings(findings);
   const frozenCells = preparedCells.map((cell) => deepFreeze(cell));
   const cutoffValues = normalizedCutoffs.map((cutoff) => cutoff.value);
-  const identity = deepFreeze({
+  const ownedData = deepFreeze({
     definitionIntegrity: definition.definitionIntegrity,
     filter,
     completePeriodCutoffs: cutoffValues,
@@ -2404,11 +2410,20 @@ export function prepareDiagnosticData(
     expectedCells,
     findings: normalizedFindings,
   });
+  const identity: NormalizedDiagnosticPreparationIdentity =
+    projectDiagnosticIdentity({
+      ...ownedData,
+      filter: normalizeDiagnosticsFilterIdentity(filter),
+      expectedCells: expectedCells.map((cell) => ({
+        ...cell,
+        source: cell.source ?? null,
+      })),
+    });
   const preparationFingerprint = `fnv1a64-jcs-v1:${fnv1a64(canonicalJson({ identityVersion: 1, kind: "diagnostic-preparation", preparation: identity }))}`;
   const prepared = deepFreeze({
     definition,
     preparationFingerprint,
-    ...identity,
+    ...ownedData,
   }) as unknown as PreparedDiagnosticData;
   authentic.add(prepared);
   identities.set(prepared, identity);

@@ -4,9 +4,13 @@ import { validateMetadata } from "../src/metadata.js";
 
 function meta(overrides: Partial<EstimateMetadata> = {}): EstimateMetadata {
   return {
-    intendedPurpose: "Unpaid claim estimate supporting the 2025 annual statement",
+    intendedPurpose:
+      "Unpaid claim estimate supporting the 2025 annual statement",
     intendedMeasure: { kind: "central-estimate" },
-    basis: { grossNet: "net-of-reinsurance", laeTreatment: "including-all-lae" },
+    basis: {
+      grossNet: "net-of-reinsurance",
+      laeTreatment: "including-all-lae",
+    },
     accountingDate: "2025-12-31",
     valuationDate: "2025-12-31",
     ...overrides,
@@ -40,7 +44,10 @@ describe("validateMetadata", () => {
         "accountingDate",
         "valuationDate",
       ]) {
-        expect(problems.some((p) => p.includes(field)), `expected a problem naming ${field}`).toBe(true);
+        expect(
+          problems.some((p) => p.includes(field)),
+          `expected a problem naming ${field}`,
+        ).toBe(true);
       }
     });
 
@@ -61,17 +68,29 @@ describe("validateMetadata", () => {
   });
 
   describe("dates", () => {
-    it.each(["12/31/2025", "2025-13-01", "2025-02-30", "2025-1-1", "2025-00-10"])(
-      "rejects malformed or impossible accountingDate %s",
-      (bad) => {
-        const problems = validateMetadata(meta({ accountingDate: bad }));
-        expect(problems).toHaveLength(1);
-        expect(problems[0]).toContain("accountingDate");
-      },
-    );
+    it("rejects a review date before valuation and accepts equal or later dates", () => {
+      expect(validateMetadata(meta({ reviewDate: "2025-12-30" }))).toEqual([
+        "reviewDate cannot precede valuationDate",
+      ]);
+      expect(validateMetadata(meta({ reviewDate: "2025-12-31" }))).toEqual([]);
+      expect(validateMetadata(meta({ reviewDate: "2026-01-01" }))).toEqual([]);
+    });
+    it.each([
+      "12/31/2025",
+      "2025-13-01",
+      "2025-02-30",
+      "2025-1-1",
+      "2025-00-10",
+    ])("rejects malformed or impossible accountingDate %s", (bad) => {
+      const problems = validateMetadata(meta({ accountingDate: bad }));
+      expect(problems).toHaveLength(1);
+      expect(problems[0]).toContain("accountingDate");
+    });
 
     it("accepts Feb 29 in a leap year and rejects it otherwise", () => {
-      expect(validateMetadata(meta({ valuationDate: "2024-02-29" }))).toEqual([]);
+      expect(validateMetadata(meta({ valuationDate: "2024-02-29" }))).toEqual(
+        [],
+      );
       const problems = validateMetadata(meta({ valuationDate: "2025-02-29" }));
       expect(problems).toHaveLength(1);
       expect(problems[0]).toContain("valuationDate");
@@ -87,25 +106,36 @@ describe("validateMetadata", () => {
 
   describe("percentile coherence", () => {
     it("requires percentile for specified-percentile", () => {
-      const problems = validateMetadata(meta({ intendedMeasure: { kind: "specified-percentile" } }));
+      const problems = validateMetadata(
+        meta({ intendedMeasure: { kind: "specified-percentile" } }),
+      );
       expect(problems).toHaveLength(1);
       expect(problems[0]).toContain("percentile");
     });
 
     it("accepts a fractional percentile in (0, 1)", () => {
-      const m = meta({ intendedMeasure: { kind: "specified-percentile", percentile: 0.75 } });
+      const m = meta({
+        intendedMeasure: { kind: "specified-percentile", percentile: 0.75 },
+      });
       expect(validateMetadata(m)).toEqual([]);
     });
 
-    it.each([0, 1, -0.2, 1.5, Number.NaN])("rejects out-of-range percentile %s", (p) => {
-      const m = meta({ intendedMeasure: { kind: "specified-percentile", percentile: p } });
-      const problems = validateMetadata(m);
-      expect(problems).toHaveLength(1);
-      expect(problems[0]).toContain("percentile");
-    });
+    it.each([0, 1, -0.2, 1.5, Number.NaN])(
+      "rejects out-of-range percentile %s",
+      (p) => {
+        const m = meta({
+          intendedMeasure: { kind: "specified-percentile", percentile: p },
+        });
+        const problems = validateMetadata(m);
+        expect(problems).toHaveLength(1);
+        expect(problems[0]).toContain("percentile");
+      },
+    );
 
     it("rejects a percentile supplied with a non-percentile kind", () => {
-      const m = meta({ intendedMeasure: { kind: "central-estimate", percentile: 0.75 } });
+      const m = meta({
+        intendedMeasure: { kind: "central-estimate", percentile: 0.75 },
+      });
       const problems = validateMetadata(m);
       expect(problems).toHaveLength(1);
       expect(problems[0]).toContain("percentile");
@@ -122,7 +152,10 @@ describe("validateMetadata", () => {
 
     it("rejects unknown basis values", () => {
       const m = meta({
-        basis: { grossNet: "netted" as never, laeTreatment: "some-lae" as never },
+        basis: {
+          grossNet: "netted" as never,
+          laeTreatment: "some-lae" as never,
+        },
       });
       const problems = validateMetadata(m);
       expect(problems).toHaveLength(2);
@@ -133,7 +166,9 @@ describe("validateMetadata", () => {
 
   describe("optional-field shape", () => {
     it("rejects blank intendedUsers entries with their index", () => {
-      const problems = validateMetadata(meta({ intendedUsers: ["Chief Actuary", " "] }));
+      const problems = validateMetadata(
+        meta({ intendedUsers: ["Chief Actuary", " "] }),
+      );
       expect(problems).toHaveLength(1);
       expect(problems[0]).toContain("intendedUsers[1]");
     });

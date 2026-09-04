@@ -26,7 +26,11 @@
  * responsibility for compliance remains with the credentialed actuary.
  */
 
-import { canonicalJson, fnv1a64 } from "@actuarial-ts/core";
+import {
+  canonicalJson,
+  fnv1a64,
+  isDiagnosticPlainRecord,
+} from "@actuarial-ts/core";
 import {
   INTERCHANGE_SPEC_VERSION,
   diagnosticDefinitionToDoc,
@@ -38,7 +42,10 @@ import {
   StochasticResultDoc,
   TriangleDoc,
 } from "@actuarial-ts/interchange";
-import type { VerifiedDiagnosticRunProvenance } from "./diagnosticRun.js";
+import type {
+  DiagnosticRunProvenance,
+  VerifiedDiagnosticRunProvenance,
+} from "./diagnosticRun.js";
 import {
   assertVerifiedDiagnosticRunProvenance,
   serializedDiagnosticRunMismatch,
@@ -194,6 +201,12 @@ export function createBundle(
       seenBindings.add(run.runResultFingerprint);
     }
     if (input.diagnosticRuns.length > 0) {
+      if (!isDiagnosticPlainRecord(input.sdkVersions))
+        throw new ComplianceError(
+          "BAD_DIAGNOSTIC_RUN",
+          "Diagnostic bundles require a plain SDK-version map",
+          "$.sdkVersions",
+        );
       const expected = input.diagnosticRuns[0]!.manifest.engine.packages;
       for (const [runIndex, run] of input.diagnosticRuns.entries()) {
         if (
@@ -399,9 +412,8 @@ function verifyUnwrapped(
           mismatchPath: `${path}.runResultFingerprint`,
         };
       seen.add(fingerprint);
-      const packages = (
-        (run as Record<string, any>)["manifest"] as Record<string, any>
-      )["engine"]?.["packages"];
+      const packages = (run as DiagnosticRunProvenance).manifest.engine
+        .packages;
       for (const [name, shortName] of [
         ["@actuarial-ts/core", "core"],
         ["@actuarial-ts/data", "data"],
@@ -480,6 +492,20 @@ function verifyWrapped(
   const docs = (doc.interchange as { diagnosticDefinitions?: unknown })
     .diagnosticDefinitions;
   if (runs.length > 0) {
+    const packages = (runs[0] as DiagnosticRunProvenance).manifest.engine
+      .packages;
+    if (doc.generator?.name !== "@actuarial-ts/compliance")
+      return {
+        reproduced: false,
+        mismatchPath: "$.generator.name",
+        outerIntegrity,
+      };
+    if (doc.generator.version !== packages.compliance)
+      return {
+        reproduced: false,
+        mismatchPath: "$.generator.version",
+        outerIntegrity,
+      };
     if (!Array.isArray(docs))
       return {
         reproduced: false,
@@ -488,16 +514,32 @@ function verifyWrapped(
       };
     const expected = new Set(
       runs.map(
-        (run) => (run as Record<string, any>).definition.identities.definition,
+        (run) =>
+          (run as DiagnosticRunProvenance).definition.identities.definition,
       ),
     );
     const actual = new Set<string>();
     for (const [index, raw] of docs.entries()) {
       try {
-        actual.add(
-          docToDiagnosticDefinition(raw as DiagnosticDefinitionDoc).definition
-            .definitionIntegrity,
-        );
+        const document = raw as DiagnosticDefinitionDoc;
+        const integrity =
+          docToDiagnosticDefinition(document).definition.definitionIntegrity;
+        if (actual.has(integrity))
+          return {
+            reproduced: false,
+            mismatchPath: `$.interchange.diagnosticDefinitions[${index}]`,
+            outerIntegrity,
+          };
+        if (
+          document.generator.name !== doc.generator.name ||
+          document.generator.version !== doc.generator.version
+        )
+          return {
+            reproduced: false,
+            mismatchPath: `$.interchange.diagnosticDefinitions[${index}].generator`,
+            outerIntegrity,
+          };
+        actual.add(integrity);
       } catch {
         return {
           reproduced: false,

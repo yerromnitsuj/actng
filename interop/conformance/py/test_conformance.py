@@ -358,11 +358,9 @@ class TestMisalignedRun:
 
     def test_committed_misaligned_doc_exists_and_matches_a_fresh_run(self) -> None:
         document = self._author()
-        if not MISALIGNED_PATH.exists():
-            MISALIGNED_PATH.write_text(json.dumps(document.to_dict(), indent=2) + "\n")
-            pytest.skip(
-                f"authored {MISALIGNED_PATH.name}; commit it and rerun (the file is a frozen fixture)"
-            )
+        assert MISALIGNED_PATH.exists(), (
+            f"missing frozen fixture {MISALIGNED_PATH}; restore it from version control"
+        )
         committed = parse_document(load_raw("taylor-ashe", "misaligned-mack-loglinear.json"))
         assert_frozen_payload_matches(committed.payload, document.payload)
 
@@ -385,11 +383,9 @@ class TestAlignedRuns:
     def test_committed_aligned_doc_exists_and_matches_a_fresh_run(self, filename) -> None:
         document = self.CASES[filename]()
         path = FIXTURES_DIR / "taylor-ashe" / filename
-        if not path.exists():
-            path.write_text(json.dumps(document.to_dict(), indent=2) + "\n")
-            pytest.skip(
-                f"authored {filename}; commit it and rerun (the file is a frozen fixture)"
-            )
+        assert path.exists(), (
+            f"missing frozen fixture {path}; restore it from version control"
+        )
         committed = parse_document(load_raw("taylor-ashe", filename))
         assert_frozen_payload_matches(committed.payload, document.payload)
 

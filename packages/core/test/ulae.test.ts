@@ -1,3 +1,26 @@
+import {
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const cnExhibitB = sourceExpected<
+  typeof import("./fixtures/congerNolibos2003.js").cnExhibitB
+>("conger-nolibos-2003", "cnExhibitB");
+const cnExhibitC = sourceExpected<
+  typeof import("./fixtures/congerNolibos2003.js").cnExhibitC
+>("conger-nolibos-2003", "cnExhibitC");
+const cnExhibitD = sourceExpected<
+  typeof import("./fixtures/congerNolibos2003.js").cnExhibitD
+>("conger-nolibos-2003", "cnExhibitD");
+const cnExhibitE = sourceExpected<
+  typeof import("./fixtures/congerNolibos2003.js").cnExhibitE
+>("conger-nolibos-2003", "cnExhibitE");
+const cnExhibitF = sourceExpected<
+  typeof import("./fixtures/congerNolibos2003.js").cnExhibitF
+>("conger-nolibos-2003", "cnExhibitF");
+const cnTotals = sourceExpected<
+  typeof import("./fixtures/congerNolibos2003.js").cnTotals
+>("conger-nolibos-2003", "cnTotals");
 import { describe, expect, it } from "vitest";
 import { ULAE_WEIGHT_PRESETS, ulaeRatios, ulaeReserve } from "../src/ulae.js";
 import type { UlaePeriodInput } from "../src/ulae.js";
@@ -5,12 +28,6 @@ import { ReservingError } from "../src/types.js";
 import {
   cnAccidentYears,
   cnCalendarYears,
-  cnExhibitB,
-  cnExhibitC,
-  cnExhibitD,
-  cnExhibitE,
-  cnExhibitF,
-  cnTotals,
 } from "./fixtures/congerNolibos2003.js";
 
 /**
@@ -61,45 +78,85 @@ describe("ULAE ratios: Conger-Nolibos (2003) worked example", () => {
     const result = ulaeRatios(generalizedPeriods, cnExhibitD.weights);
     expect(result.rows).toHaveLength(6);
     cnExhibitD.bases.forEach((published, i) => {
-      expect(Math.abs(result.rows[i]!.basis - published)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(result.rows[i]!.basis - published)).toBeLessThanOrEqual(
+        sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+      );
     });
     cnExhibitD.ratios.forEach((published, i) => {
-      expect(result.rows[i]!.ratio!).toBeCloseTo(published, 3);
+      expect(result.rows[i]!.ratio!).toBeCloseTo(
+        published,
+        sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+      );
     });
-    expect(Math.abs(result.totals.basis - cnExhibitD.totalBasis)).toBeLessThanOrEqual(0.5);
-    expect(result.totals.ratio!).toBeCloseTo(cnExhibitD.totalRatio, 3);
+    expect(
+      Math.abs(result.totals.basis - cnExhibitD.totalBasis),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
+    expect(result.totals.ratio!).toBeCloseTo(
+      cnExhibitD.totalRatio,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+    );
     expect(result.totals.ulaePaid).toBe(cnTotals.ulaePaid);
   });
 
   it("reproduces Exhibit E (70/30/0)", () => {
     const result = ulaeRatios(generalizedPeriods, cnExhibitE.weights);
     cnExhibitE.bases.forEach((published, i) => {
-      expect(Math.abs(result.rows[i]!.basis - published)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(result.rows[i]!.basis - published)).toBeLessThanOrEqual(
+        sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+      );
     });
     cnExhibitE.ratios.forEach((published, i) => {
-      expect(result.rows[i]!.ratio!).toBeCloseTo(published, 3);
+      expect(result.rows[i]!.ratio!).toBeCloseTo(
+        published,
+        sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+      );
     });
-    expect(Math.abs(result.totals.basis - cnExhibitE.totalBasis)).toBeLessThanOrEqual(0.5);
-    expect(result.totals.ratio!).toBeCloseTo(cnExhibitE.totalRatio, 3);
+    expect(
+      Math.abs(result.totals.basis - cnExhibitE.totalBasis),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
+    expect(result.totals.ratio!).toBeCloseTo(
+      cnExhibitE.totalRatio,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+    );
   });
 
   it("reproduces Exhibit B (classical paid-to-paid preset: basis collapses to paid losses)", () => {
     const preset = ULAE_WEIGHT_PRESETS.classicalPaidToPaid;
-    const result = ulaeRatios(generalizedPeriods, preset.weights, { basis: preset.basis });
+    const result = ulaeRatios(generalizedPeriods, preset.weights, {
+      basis: preset.basis,
+    });
     cnExhibitB.ratios.forEach((published, i) => {
-      expect(result.rows[i]!.ratio!).toBeCloseTo(published, 3);
+      expect(result.rows[i]!.ratio!).toBeCloseTo(
+        published,
+        sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+      );
       expect(result.rows[i]!.basis).toBe(cnCalendarYears[i]!.P);
     });
-    expect(result.totals.ratio!).toBeCloseTo(cnExhibitB.totalRatio, 3);
+    expect(result.totals.ratio!).toBeCloseTo(
+      cnExhibitB.totalRatio,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+    );
   });
 
   it("reproduces Exhibit C (Kittel preset: W = M / (50% x (paid + reported)))", () => {
     const preset = ULAE_WEIGHT_PRESETS.kittel;
-    const result = ulaeRatios(kittelPeriods, preset.weights, { basis: preset.basis });
-    cnExhibitC.ratios.forEach((published, i) => {
-      expect(result.rows[i]!.ratio!).toBeCloseTo(published, 3);
+    const result = ulaeRatios(kittelPeriods, preset.weights, {
+      basis: preset.basis,
     });
-    expect(result.totals.ratio!).toBeCloseTo(cnExhibitC.totalRatio, 3);
+    cnExhibitC.ratios.forEach((published, i) => {
+      expect(result.rows[i]!.ratio!).toBeCloseTo(
+        published,
+        sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+      );
+    });
+    expect(result.totals.ratio!).toBeCloseTo(
+      cnExhibitC.totalRatio,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+    );
   });
 
   it("reproduces Exhibit F (simplified: accident-year ultimate A substitutes for R when u3 = 0)", () => {
@@ -112,22 +169,48 @@ describe("ULAE ratios: Conger-Nolibos (2003) worked example", () => {
     }));
     const result = ulaeRatios(simplifiedPeriods, cnExhibitF.weights);
     cnExhibitF.bases.forEach((published, i) => {
-      expect(Math.abs(result.rows[i]!.basis - published)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(result.rows[i]!.basis - published)).toBeLessThanOrEqual(
+        sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+      );
     });
     cnExhibitF.ratios.forEach((published, i) => {
-      expect(result.rows[i]!.ratio!).toBeCloseTo(published, 3);
+      expect(result.rows[i]!.ratio!).toBeCloseTo(
+        published,
+        sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+      );
     });
-    expect(Math.abs(result.totals.basis - cnExhibitF.totalBasis)).toBeLessThanOrEqual(0.5);
-    expect(result.totals.ratio!).toBeCloseTo(cnExhibitF.totalRatio, 3);
+    expect(
+      Math.abs(result.totals.basis - cnExhibitF.totalBasis),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
+    expect(result.totals.ratio!).toBeCloseTo(
+      cnExhibitF.totalRatio,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+    );
   });
 
   it("pins the paper's smallest self-contained slice (Exhibit D, 1997)", () => {
     const result = ulaeRatios(
-      [{ label: "1997", ulaePaid: 1978, reportedUltimate: 27200, paid: 4590, closedUltimate: 0 }],
+      [
+        {
+          label: "1997",
+          ulaePaid: 1978,
+          reportedUltimate: 27200,
+          paid: 4590,
+          closedUltimate: 0,
+        },
+      ],
       { u1: 0.6, u2: 0.4, u3: 0 },
     );
-    expect(result.rows[0]!.basis).toBeCloseTo(18156, 9);
-    expect(result.rows[0]!.ratio!).toBeCloseTo(0.109, 3);
+    expect(result.rows[0]!.basis).toBeCloseTo(
+      sourceExpected<number>("conger-nolibos-2003", "literal:18156"),
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
+    );
+    expect(result.rows[0]!.ratio!).toBeCloseTo(
+      sourceExpected<number>("conger-nolibos-2003", "literal:0.109"),
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:3"),
+    );
   });
 });
 
@@ -147,7 +230,11 @@ describe("ULAE reserve: the three forms on the worked example", () => {
       weights: cnExhibitD.weights,
       form: "expected",
     });
-    expect(Math.abs(expected.unpaidUlae - cnExhibitD.reserves.expected)).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(expected.unpaidUlae - cnExhibitD.reserves.expected),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
 
     const bf = ulaeReserve({
       ...base,
@@ -155,23 +242,27 @@ describe("ULAE reserve: the three forms on the worked example", () => {
       weights: cnExhibitD.weights,
       form: "bornhuetterFerguson",
     });
-    expect(Math.abs(bf.unpaidUlae - cnExhibitD.reserves.bornhuetterFerguson)).toBeLessThanOrEqual(
-      0.5,
+    expect(
+      Math.abs(bf.unpaidUlae - cnExhibitD.reserves.bornhuetterFerguson),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
     );
     // B-F form = W* x (L - B(t)).
     expect(bf.basisToDate).not.toBeNull();
     expect(bf.unpaidUlae).toBeCloseTo(
       cnExhibitD.selectedW * (cnTotals.ultimateLosses - bf.basisToDate!),
-      9,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
     );
     // Component split: opening on pure IBNR, maintaining on total unpaid.
     expect(bf.components!.opening).toBeCloseTo(
-      cnExhibitD.selectedW * 0.6 * (cnTotals.ultimateLosses - cnTotals.reportedUltimate),
-      9,
+      cnExhibitD.selectedW *
+        0.6 *
+        (cnTotals.ultimateLosses - cnTotals.reportedUltimate),
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
     );
     expect(bf.components!.maintaining).toBeCloseTo(
       cnExhibitD.selectedW * 0.4 * (cnTotals.ultimateLosses - cnTotals.paid),
-      9,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
     );
     expect(bf.components!.closing).toBe(0);
 
@@ -181,7 +272,11 @@ describe("ULAE reserve: the three forms on the worked example", () => {
       weights: cnExhibitD.weights,
       form: "development",
     });
-    expect(Math.abs(dev.unpaidUlae - cnExhibitD.reserves.development)).toBeLessThanOrEqual(0.5);
+    expect(
+      Math.abs(dev.unpaidUlae - cnExhibitD.reserves.development),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
     expect(dev.warnings.join("\n")).toContain("overly responsive");
   });
 
@@ -197,7 +292,9 @@ describe("ULAE reserve: the three forms on the worked example", () => {
         weights: cnExhibitE.weights,
         form,
       });
-      expect(Math.abs(result.unpaidUlae - published)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(result.unpaidUlae - published)).toBeLessThanOrEqual(
+        sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+      );
     }
   });
 
@@ -211,10 +308,24 @@ describe("ULAE reserve: the three forms on the worked example", () => {
       weights: ULAE_WEIGHT_PRESETS.kittel.weights,
       form: "bornhuetterFerguson",
     } as const;
-    const classical = ulaeReserve({ ...kittelInputs, selectedW: cnExhibitB.selectedW });
-    expect(Math.abs(classical.unpaidUlae - cnExhibitB.reserve)).toBeLessThanOrEqual(0.5);
-    const kittel = ulaeReserve({ ...kittelInputs, selectedW: cnExhibitC.selectedW });
-    expect(Math.abs(kittel.unpaidUlae - cnExhibitC.reserve)).toBeLessThanOrEqual(0.5);
+    const classical = ulaeReserve({
+      ...kittelInputs,
+      selectedW: cnExhibitB.selectedW,
+    });
+    expect(
+      Math.abs(classical.unpaidUlae - cnExhibitB.reserve),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
+    const kittel = ulaeReserve({
+      ...kittelInputs,
+      selectedW: cnExhibitC.selectedW,
+    });
+    expect(
+      Math.abs(kittel.unpaidUlae - cnExhibitC.reserve),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+    );
   });
 
   it("satisfies the Kittel identity: B-F reserve = W* x (IBNR + 50% x case reserves)", () => {
@@ -242,7 +353,10 @@ describe("ULAE reserve: the three forms on the worked example", () => {
       });
       const ibnr = c.L - c.reported;
       const caseReserves = c.reported - c.paid;
-      expect(result.unpaidUlae).toBeCloseTo(c.W * (ibnr + 0.5 * caseReserves), 9);
+      expect(result.unpaidUlae).toBeCloseTo(
+        c.W * (ibnr + 0.5 * caseReserves),
+        sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
+      );
     }
   });
 
@@ -260,7 +374,9 @@ describe("ULAE reserve: the three forms on the worked example", () => {
         weights: cnExhibitF.weights,
         form: "bornhuetterFerguson",
       });
-      expect(Math.abs(result.unpaidUlae - published)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(result.unpaidUlae - published)).toBeLessThanOrEqual(
+        sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:0.5"),
+      );
     }
   });
 
@@ -279,7 +395,9 @@ describe("ULAE reserve: the three forms on the worked example", () => {
     // (and the IBNR column sums to 113,852 vs the printed 113,853). The
     // fixture pins the PRINTED totals, which are internally consistent with
     // the printed case reserve and reserves.
-    expect(Math.abs(totalReported - cnTotals.reported)).toBeLessThanOrEqual(1);
+    expect(Math.abs(totalReported - cnTotals.reported)).toBeLessThanOrEqual(
+      sourceTolerance("conger-nolibos-2003", "toBeLessThanOrEqual:1"),
+    );
     expect(cnTotals.ibnr).toBe(cnTotals.ultimateLosses - cnTotals.reported);
     expect(cnTotals.caseReserve).toBe(cnTotals.reported - cnTotals.paid);
   });
@@ -296,9 +414,15 @@ describe("ULAE validation", () => {
   };
 
   it("throws BAD_WEIGHTS for weights outside [0, 1], non-finite, or not summing to 1", () => {
-    expectCode("BAD_WEIGHTS", () => ulaeRatios([okPeriod], { u1: 0.6, u2: 0.5, u3: 0 }));
-    expectCode("BAD_WEIGHTS", () => ulaeRatios([okPeriod], { u1: -0.1, u2: 1.1, u3: 0 }));
-    expectCode("BAD_WEIGHTS", () => ulaeRatios([okPeriod], { u1: Number.NaN, u2: 0.5, u3: 0.5 }));
+    expectCode("BAD_WEIGHTS", () =>
+      ulaeRatios([okPeriod], { u1: 0.6, u2: 0.5, u3: 0 }),
+    );
+    expectCode("BAD_WEIGHTS", () =>
+      ulaeRatios([okPeriod], { u1: -0.1, u2: 1.1, u3: 0 }),
+    );
+    expectCode("BAD_WEIGHTS", () =>
+      ulaeRatios([okPeriod], { u1: Number.NaN, u2: 0.5, u3: 0.5 }),
+    );
     expectCode("BAD_WEIGHTS", () =>
       ulaeReserve({
         selectedW: 0.1,
@@ -311,8 +435,12 @@ describe("ULAE validation", () => {
   });
 
   it("throws BAD_LOSSES for negative monetary amounts (including negative M)", () => {
-    expectCode("BAD_LOSSES", () => ulaeRatios([{ ...okPeriod, ulaePaid: -1 }], okWeights));
-    expectCode("BAD_LOSSES", () => ulaeRatios([{ ...okPeriod, paid: -5 }], okWeights));
+    expectCode("BAD_LOSSES", () =>
+      ulaeRatios([{ ...okPeriod, ulaePaid: -1 }], okWeights),
+    );
+    expectCode("BAD_LOSSES", () =>
+      ulaeRatios([{ ...okPeriod, paid: -5 }], okWeights),
+    );
     expectCode("BAD_LOSSES", () =>
       ulaeReserve({
         selectedW: 0.1,
@@ -392,7 +520,15 @@ describe("ULAE validation", () => {
 
   it("yields a null per-period ratio (with a warning) on a zero basis - house null-safety", () => {
     const result = ulaeRatios(
-      [{ label: "empty", ulaePaid: 10, reportedUltimate: 0, paid: 0, closedUltimate: 0 }],
+      [
+        {
+          label: "empty",
+          ulaePaid: 10,
+          reportedUltimate: 0,
+          paid: 0,
+          closedUltimate: 0,
+        },
+      ],
       okWeights,
     );
     expect(result.rows[0]!.ratio).toBeNull();
@@ -408,7 +544,10 @@ describe("ULAE validation", () => {
       weights: okWeights,
       form: "expected",
     });
-    expect(result.unpaidUlae).toBeCloseTo(-45, 9);
+    expect(result.unpaidUlae).toBeCloseTo(
+      -45,
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
+    );
     expect(result.warnings.join("\n")).toContain("negative");
   });
 
@@ -420,8 +559,13 @@ describe("ULAE validation", () => {
       weights: okWeights,
       form: "expected",
     });
-    expect(result.unpaidUlae).toBeCloseTo(5, 9);
+    expect(result.unpaidUlae).toBeCloseTo(
+      sourceExpected<number>("conger-nolibos-2003", "literal:5"),
+      sourceTolerance("conger-nolibos-2003", "decimalPlaces:9"),
+    );
     expect(result.basisToDate).toBeNull();
     expect(result.components).toBeNull();
   });
 });
+
+registerSourceFile(import.meta.url);

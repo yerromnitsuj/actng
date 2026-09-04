@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 import {
   CASUALTY_FORMULA_TEMPLATES,
   compileDiagnosticDefinition,
@@ -8,6 +12,41 @@ import {
   type DiagnosticDefinition,
 } from "../src/index.js";
 import { quarterlyCasualtyV05Golden } from "./fixtures/quarterlyCasualtyV05Golden.js";
+
+// Exact bytes recovered from v0.5.0 (f236442d6a257d6057823a1c55da0b569297b036).
+// Type-only legacy imports are erased; the frozen module contains only inputs
+// and hand-calculated expectations, with no SDK or I/O implementation.
+const legacyBytes = readFileSync(
+  new URL("./fixtures/quarterlyCasualtyV05Source.ts.txt", import.meta.url),
+);
+if (
+  createHash("sha256").update(legacyBytes).digest("hex") !==
+  "14e5648921f48782356092244db755e9abd284a02a7e053b7667cf0388931aed"
+)
+  throw new Error("The immutable v0.5.0 quarterly source fixture changed");
+const legacy = {} as {
+  quarterlyCasualtyLosses: Array<{
+    id: string;
+    group: string;
+    origin: string;
+    valuation: string;
+    measures: Record<string, number>;
+  }>;
+  quarterlyCasualtyExposures: Array<{
+    key: string;
+    group: string;
+    origin: string;
+    valuation?: string;
+    measures: { exposure: number };
+  }>;
+};
+runInNewContext(
+  ts.transpileModule(legacyBytes.toString("utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText,
+  { exports: legacy },
+  { timeout: 1000 },
+);
 
 const counts = {
   reported: "reported",
@@ -199,98 +238,34 @@ const definition: DiagnosticDefinition = {
   },
 };
 
-const values = (
-  reported: number,
-  open: number,
-  cnp: number,
-  cwp: number,
-  paid250: number,
-  incurred250: number,
-  paidPrimary: number,
-  incurredPrimary: number,
-) => ({
-  reported,
-  open,
-  cnp,
-  cwp,
-  paid250,
-  incurred250,
-  paidPrimary,
-  incurredPrimary,
-});
-const losses = [
-  [
-    "a1",
-    "fleet-a",
-    "2024Q4",
-    "2024Q4",
-    values(40, 18, 8, 14, 280000, 520000, 360000, 710000),
-  ],
-  [
-    "a2",
-    "fleet-a",
-    "2024Q4",
-    "2025Q1",
-    values(46, 13, 10, 23, 390000, 590000, 510000, 800000),
-  ],
-  [
-    "a3",
-    "fleet-a",
-    "2025Q1",
-    "2025Q1",
-    values(38, 17, 7, 14, 250000, 490000, 330000, 670000),
-  ],
-  [
-    "b1",
-    "fleet-b",
-    "2024Q4",
-    "2024Q4",
-    values(22, 9, 5, 8, 140000, 260000, 190000, 350000),
-  ],
-  [
-    "b2",
-    "fleet-b",
-    "2024Q4",
-    "2025Q1",
-    values(25, 7, 6, 12, 190000, 290000, 250000, 390000),
-  ],
-] as const;
-const exposures = [
-  {
-    key: "fleet-a-unit-2024q4",
-    sourceGroup: "fleet-a",
-    origin: "2024Q4",
-    valuation: "2024Q4",
-    measureId: "exposure",
-    value: 820000,
-    complete: true,
-  },
-  {
-    key: "fleet-a-unit-2024q4",
-    sourceGroup: "fleet-a",
-    origin: "2024Q4",
-    valuation: "2025Q1",
-    measureId: "exposure",
-    value: 820000,
-    complete: true,
-  },
-  {
-    key: "fleet-a-unit-2025q1",
-    sourceGroup: "fleet-a",
-    origin: "2025Q1",
-    measureId: "exposure",
-    value: 850000,
-    complete: true,
-  },
-  {
-    key: "fleet-b-unit-2024q4",
-    sourceGroup: "fleet-b",
-    origin: "2024Q4",
-    measureId: "exposure",
-    value: 430000,
-    complete: true,
-  },
-] as const;
+const losses = legacy.quarterlyCasualtyLosses.map(
+  (row) =>
+    [
+      row.id,
+      row.group,
+      row.origin,
+      row.valuation,
+      {
+        reported: row.measures.reportedCount!,
+        open: row.measures.openCount!,
+        cnp: row.measures.closedNoPayCount!,
+        cwp: row.measures.closedWithPayCount!,
+        paid250: row.measures.paid250!,
+        incurred250: row.measures.incurred250!,
+        paidPrimary: row.measures.paidPrimary!,
+        incurredPrimary: row.measures.incurredPrimary!,
+      },
+    ] as const,
+);
+const exposures = legacy.quarterlyCasualtyExposures.map((row) => ({
+  key: row.key,
+  sourceGroup: row.group,
+  origin: row.origin,
+  ...(row.valuation === undefined ? {} : { valuation: row.valuation }),
+  measureId: "exposure",
+  value: row.measures.exposure,
+  complete: true,
+}));
 
 const oldToNew: Readonly<Record<string, string>> = {
   "reported-frequency": "casualty/count/reported-frequency",
@@ -325,6 +300,18 @@ const oldToNew: Readonly<Record<string, string>> = {
 
 describe("v0.5 quarterly casualty migration reconciliation", () => {
   it("reproduces all 110 frozen records through generalized formulas", () => {
+    expect(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            new URL(
+              "./fixtures/quarterlyCasualtyV05Golden.ts",
+              import.meta.url,
+            ),
+          ),
+        )
+        .digest("hex"),
+    ).toBe("42e21e829de009e4b51183a9f477b0799881a703f3a2f179eeff526ec5a1fcf3");
     const compiled = compileDiagnosticDefinition(definition);
     const prepared = prepareDiagnosticData({
       definition: compiled,
@@ -346,6 +333,62 @@ describe("v0.5 quarterly casualty migration reconciliation", () => {
     expect(compiled.definition.instances).toHaveLength(22);
     expect(result.emergence).toHaveLength(5);
     expect(result.triangles).toHaveLength(44);
+    expect(
+      result.latestDiagonal.map(
+        ({ group, origin, valuation, developmentAge }) => ({
+          group,
+          origin,
+          valuation,
+          developmentAge,
+        }),
+      ),
+    ).toEqual([
+      {
+        group: "fleet-a",
+        origin: "2024-Q4",
+        valuation: "2025-Q1",
+        developmentAge: 6,
+      },
+      {
+        group: "fleet-a",
+        origin: "2025-Q1",
+        valuation: "2025-Q1",
+        developmentAge: 3,
+      },
+      {
+        group: "fleet-b",
+        origin: "2024-Q4",
+        valuation: "2025-Q1",
+        developmentAge: 6,
+      },
+    ]);
+    expect(
+      prepared.exposures.map((item) => ({
+        key: item.key,
+        status: item.status,
+        value: item.value,
+        deduplicated: item.status === "valid" ? item.deduplicated : null,
+      })),
+    ).toEqual([
+      {
+        key: "fleet-a-unit-2024q4",
+        status: "valid",
+        value: 820000,
+        deduplicated: 1,
+      },
+      {
+        key: "fleet-a-unit-2025q1",
+        status: "valid",
+        value: 850000,
+        deduplicated: 0,
+      },
+      {
+        key: "fleet-b-unit-2024q4",
+        status: "valid",
+        value: 430000,
+        deduplicated: 0,
+      },
+    ]);
     const actual = result.emergence
       .flatMap((point) =>
         Object.values(point.metrics).map((metric) => ({

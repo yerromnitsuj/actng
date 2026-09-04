@@ -103,9 +103,12 @@ export function walkDiagnosticExpression(
   kind: DiagnosticExpressionKind,
   path: string,
   issues: DiagnosticValidationIssue[],
+  initialDepth = 1,
 ): DiagnosticExpressionWalk {
   const dependencies = new Set<string>();
-  const stack: WalkFrame[] = [{ value, path, depth: 1, ancestors: [] }];
+  const stack: WalkFrame[] = [
+    { value, path, depth: initialDepth, ancestors: [] },
+  ];
   let nodeCount = 0;
   let maxDepth = 0;
   while (stack.length > 0) {

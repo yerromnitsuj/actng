@@ -1,9 +1,17 @@
+import {
+  registerSourceFile,
+  sourceExpected,
+  sourceTolerance,
+} from "../../../tools/validation/source-contract.js";
+const mwPublished = sourceExpected<
+  typeof import("./fixtures/merzWuthrich2008.js").mwPublished
+>("merz-wuthrich-2008", "mwPublished");
 import { describe, expect, it } from "vitest";
 import { extrapolateSigma2, mackEstimators } from "../src/mack.js";
 import { runMerzWuthrich } from "../src/merzWuthrich.js";
 import { ReservingError } from "../src/types.js";
 import type { Triangle } from "../src/types.js";
-import { mwPublished, mwTriangle } from "./fixtures/merzWuthrich2008.js";
+import { mwTriangle } from "./fixtures/merzWuthrich2008.js";
 
 /**
  * Published-dataset validation for Merz-Wuthrich (2008), Tables 2 and 4.
@@ -14,7 +22,11 @@ import { mwPublished, mwTriangle } from "./fixtures/merzWuthrich2008.js";
  */
 
 const result = runMerzWuthrich(mwTriangle);
-const tolerance = (published: number) => Math.max(1, 0.005 * published);
+const tolerance = (published: number) =>
+  Math.max(
+    sourceTolerance("merz-wuthrich-2008", "rowAbsolute"),
+    sourceTolerance("merz-wuthrich-2008", "rowRelative") * published,
+  );
 
 function expectShapeError(tri: Triangle): void {
   let thrown: unknown;
@@ -31,59 +43,85 @@ describe("Merz-Wuthrich (2008) published values", () => {
   it("reproduces the printed development factors fhat_j to 4 decimals", () => {
     expect(result.developmentFactors).toHaveLength(mwPublished.factors.length);
     mwPublished.factors.forEach((published, j) => {
-      expect(result.developmentFactors[j]!).toBeCloseTo(published, 4);
+      expect(result.developmentFactors[j]!).toBeCloseTo(
+        published,
+        sourceTolerance("merz-wuthrich-2008", "decimalPlaces:4"),
+      );
     });
   });
 
   it("reproduces the published reserves by accident year and in total", () => {
     expect(result.rows).toHaveLength(9);
     mwPublished.reserves.forEach((published, idx) => {
-      expect(Math.abs(result.rows[idx + 1]!.reserve - published)).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(result.rows[idx + 1]!.reserve - published),
+      ).toBeLessThanOrEqual(
+        sourceTolerance("merz-wuthrich-2008", "toBeLessThanOrEqual:1"),
+      );
     });
-    expect(Math.abs(result.totals.reserve - mwPublished.totalReserve)).toBeLessThanOrEqual(2);
+    expect(
+      Math.abs(result.totals.reserve - mwPublished.totalReserve),
+    ).toBeLessThanOrEqual(
+      sourceTolerance("merz-wuthrich-2008", "toBeLessThanOrEqual:2"),
+    );
   });
 
   it("reproduces Table 4's one-year CDR msep roots (the solvency column) within 0.5%", () => {
     mwPublished.cdrMsepRoots.forEach((published, idx) => {
-      expect(Math.abs(result.rows[idx + 1]!.cdrMsepRoot - published)).toBeLessThanOrEqual(
-        tolerance(published),
-      );
+      expect(
+        Math.abs(result.rows[idx + 1]!.cdrMsepRoot - published),
+      ).toBeLessThanOrEqual(tolerance(published));
     });
   });
 
   it("reproduces the aggregate one-year msep root 81,080 within 0.2%", () => {
     expect(
       Math.abs(result.totals.cdrMsepRoot - mwPublished.totalCdrMsepRoot),
-    ).toBeLessThanOrEqual(0.002 * mwPublished.totalCdrMsepRoot);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("merz-wuthrich-2008", "toBeLessThanOrEqual:0.002") *
+        mwPublished.totalCdrMsepRoot,
+    );
   });
 
   it("reproduces Table 4's Mack full-runoff msep roots within 0.5% (total within 0.2%)", () => {
     mwPublished.mackMsepRoots.forEach((published, idx) => {
-      expect(Math.abs(result.rows[idx + 1]!.mackMsepRoot - published)).toBeLessThanOrEqual(
-        tolerance(published),
-      );
+      expect(
+        Math.abs(result.rows[idx + 1]!.mackMsepRoot - published),
+      ).toBeLessThanOrEqual(tolerance(published));
     });
     expect(
       Math.abs(result.totals.mackMsepRoot - mwPublished.totalMackMsepRoot),
-    ).toBeLessThanOrEqual(0.002 * mwPublished.totalMackMsepRoot);
+    ).toBeLessThanOrEqual(
+      sourceTolerance("merz-wuthrich-2008", "toBeLessThanOrEqual:0.002") *
+        mwPublished.totalMackMsepRoot,
+    );
   });
 
   it("the aggregate one-year ratio is ~0.748 (81,080 / 108,401)", () => {
     expect(result.totals.oneYearRatio).not.toBeNull();
     expect(result.totals.oneYearRatio!).toBeCloseTo(
       mwPublished.totalCdrMsepRoot / mwPublished.totalMackMsepRoot,
-      2,
+      sourceTolerance("merz-wuthrich-2008", "decimalPlaces:2"),
     );
   });
 
   it("one-year risk never exceeds full-runoff risk, and equals it for the first open year", () => {
     for (const row of result.rows) {
-      expect(row.cdrMsepRoot).toBeLessThanOrEqual(row.mackMsepRoot * (1 + 1e-9));
+      expect(row.cdrMsepRoot).toBeLessThanOrEqual(
+        row.mackMsepRoot *
+          (sourceTolerance("merz-wuthrich-2008", "toBeLessThanOrEqual:1") +
+            sourceTolerance("merz-wuthrich-2008", "toBeLessThanOrEqual:1e-9")),
+      );
     }
-    expect(result.totals.cdrMsepRoot).toBeLessThanOrEqual(result.totals.mackMsepRoot);
+    expect(result.totals.cdrMsepRoot).toBeLessThanOrEqual(
+      result.totals.mackMsepRoot,
+    );
     // With one development step left (i = 1), eq. (3.17) collapses to Mack's
     // msep exactly - Table 4 prints 567 in both columns.
-    expect(result.rows[1]!.cdrMsepRoot).toBeCloseTo(result.rows[1]!.mackMsepRoot, 6);
+    expect(result.rows[1]!.cdrMsepRoot).toBeCloseTo(
+      result.rows[1]!.mackMsepRoot,
+      sourceTolerance("merz-wuthrich-2008", "decimalPlaces:6"),
+    );
   });
 
   it("the fully developed oldest year carries zero reserve, zero risk, null ratio", () => {
@@ -104,8 +142,12 @@ describe("Merz-Wuthrich (2008) published values", () => {
       let ultimate = latest;
       for (let j = I - i; j < I; j++) ultimate *= estimators.f[j]!;
       // Varhat(CDR_i|D_I)^{1/2} = Chat_{i,J} * sqrt(sjr(I-i) / C_{i,I-i}).
-      const sd = ultimate * Math.sqrt(sigma2[I - i]! / estimators.f[I - i]! ** 2 / latest);
-      expect(Math.abs(sd - published)).toBeLessThanOrEqual(tolerance(published));
+      const sd =
+        ultimate *
+        Math.sqrt(sigma2[I - i]! / estimators.f[I - i]! ** 2 / latest);
+      expect(Math.abs(sd - published)).toBeLessThanOrEqual(
+        tolerance(published),
+      );
     });
   });
 
@@ -127,3 +169,5 @@ describe("Merz-Wuthrich (2008) published values", () => {
     expectShapeError({ ...mwTriangle, values: pastDiagonal });
   });
 });
+
+registerSourceFile(import.meta.url);
