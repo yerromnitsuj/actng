@@ -43,8 +43,9 @@ test("preflight rejects an executable that only claims to be Python 3.12", () =>
 test("the exact R executable path, including spaces, receives both preflight calls", () => {
   const dir = mkdtempSync(join(tmpdir(), "gate R path ")); const log = join(dir, "calls.log");
   try {
+    const fakePython = join(dir, "python3.12"); writeFileSync(fakePython, "#!/bin/sh\nexit 0\n"); chmodSync(fakePython, 0o755);
     const fake = join(dir, "R script"); writeFileSync(fake, `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(log)}\n`); chmodSync(fake, 0o755);
-    execFileSync("bash", [script, "--preflight-only"], { env: { ...process.env, PATH: node22Path, ACTUARIAL_TS_PYTHON312: "/opt/homebrew/bin/python3.12", ACTUARIAL_TS_RSCRIPT: fake } });
+    execFileSync("bash", [script, "--preflight-only"], { env: { ...process.env, PATH: node22Path, ACTUARIAL_TS_PYTHON312: fakePython, ACTUARIAL_TS_RSCRIPT: fake } });
     assert.deepEqual(readFileSync(log, "utf8").trim().split("\n"), ["tools/interop/test-r-environment.R", "tools/interop/check-r-environment.R"]);
     const afterResolution = readFileSync(script, "utf8").split("export ACTUARIAL_TS_RSCRIPT=\"$RSCRIPT_BIN\"")[1];
     assert.doesNotMatch(afterResolution, /(^|[^_$])Rscript(?:\s|$)/m);
