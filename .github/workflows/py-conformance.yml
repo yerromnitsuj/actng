@@ -19,6 +19,7 @@ on:
       - "tools/docs/**"
       - "tools/release/**"
       - "examples/chain-ladder-python/**"
+      - "CHANGELOG.md"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/py-conformance.yml"

@@ -26,11 +26,12 @@ test("workflow triggers and runtimes cover docs, release tooling, and the Node s
   const python = readFileSync(".github/workflows/py-conformance.yml", "utf8");
   const r = readFileSync(".github/workflows/r-conformance.yml", "utf8");
   const ci = readFileSync(".github/workflows/ci.yml", "utf8");
-  for (const source of [python, r]) for (const path of ["docs/**", "tools/docs/**", "tools/release/**", "package.json", "package-lock.json"]) expectText(source, path);
+  const rEnvironment = JSON.parse(readFileSync("tools/interop/r-environment.json", "utf8"));
+  for (const source of [python, r]) for (const path of ["docs/**", "tools/docs/**", "tools/release/**", "CHANGELOG.md", "package.json", "package-lock.json"]) expectText(source, path);
   expectText(python, 'python-version: "3.10"'); expectText(python, 'python-version: "3.12"'); expectText(python, "docs:check:py");
   expectText(python, 'echo "SIDECAR_URL=http://127.0.0.1:$SIDECAR_PORT" >> "$GITHUB_ENV"');
   assert.doesNotMatch(python, /SIDECAR_URL:\s*http:\/\/127\.0\.0\.1:8091/);
-  expectText(r, 'r-version: "4.4.3"'); expectText(r, "install-r-environment.R"); expectText(r, "docs:check:r");
+  expectText(r, 'r-version: "4.4.3"'); expectText(r, `deriv-${rEnvironment.transitivePackages.Deriv}`); expectText(r, "install-r-environment.R"); expectText(r, "docs:check:r");
   expectText(ci, "node-version: 22.22.0"); expectText(ci, "node-version: 20"); expectText(ci, "--consume-manifest");
 });
 function expectText(source, value) { assert.ok(source.includes(value), `workflow omits ${value}`); }
