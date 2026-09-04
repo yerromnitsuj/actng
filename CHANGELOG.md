@@ -3,7 +3,7 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
-## Unreleased
+## 0.6.0 — 2026-09-03
 
 The complete breaking-change guide is in
 [`docs/migrations/0.6-generalized-diagnostics.md`](docs/migrations/0.6-generalized-diagnostics.md),
