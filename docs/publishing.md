@@ -1,5 +1,37 @@
 # Publishing @actuarial-ts to npm
 
+**Release record:** v0.6.1 shipped 2026-09-04 — all five packages published
+in dependency order from release-source commit
+`e016d2fa30b488e39f219b5107560a00ac9ac281`. The immutable `v0.6.1` tag points
+to that commit, and the [GitHub Release](https://github.com/yerromnitsuj/actng/releases/tag/v0.6.1)
+is published. The complete clean 34-phase release gate passed, including
+13 source anchors / 184 cases / 3,049 assertions, 94 reconciliation tests,
+the byte-identical raw-source rebuild, Python/R conformance, executable
+documentation, and both packed-consumer package sets.
+
+All seven hosted jobs passed on the exact release-source commit:
+[CI](https://github.com/yerromnitsuj/actng/actions/runs/33919077344),
+[Python](https://github.com/yerromnitsuj/actng/actions/runs/33919077296), and
+[R](https://github.com/yerromnitsuj/actng/actions/runs/33919077332).
+After registry propagation, the clean all-five registry consumer passed with
+both locked and minimum peer versions. All five registry `latest` tags are
+`0.6.1`, internal SDK dependency ranges are `^0.6.1`, and registry SRI values
+and downloaded tarball bytes match the attested archives:
+
+| Package | Verified tarball SHA-256 |
+|---|---|
+| `@actuarial-ts/core` | `a01e3a8f9268acf578d72c74c58e2a47d90881d089037672a05c8b9e6f527e41` |
+| `@actuarial-ts/interchange` | `48f1b307e6e162171564443d32d63eed25345e17959e8f8be5e683c844b79fc5` |
+| `@actuarial-ts/data` | `3e2b47b1ecac71dac4a98501af756b23494e96264c22d73f5b39fee993c2a9b3` |
+| `@actuarial-ts/compliance` | `252a0d1c6c9dfeb81082679427c8dc857b6a7deef6a16e36751b21a793c0d922` |
+| `@actuarial-ts/agents` | `2ada2775f21fe3d4a37bfa809671fc195803bf2601a1c88ec37c522ca32438bc` |
+
+The version-pinned [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md),
+[migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md),
+and [changelog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/CHANGELOG.md)
+returned HTTP 200. This completion record is a separate post-release
+documentation commit; it does not move the release tag or change the published archives.
+
 **Release record:** v0.6.0 shipped 2026-09-03 — all five packages published
 to npm in dependency order from release-source commit
 `a7f1916697f99dbfa30ffbccadec0cc37099e769`, immutable tag `v0.6.0`
@@ -108,6 +140,10 @@ manifest changed, the versions disagree, or the tarball hash differs. After
 publishing—but before tagging—run
 the identical public fixture against the registry with
 `node tools/release/smoke-packed-diagnostics.mjs --source=registry --version=X.Y.Z`.
+An accepted publication can briefly precede registry availability. If an exact
+version is temporarily missing, wait for propagation and retry read-only
+verification; do not republish an already accepted version. A fresh npm cache
+can avoid reusing pre-publication metadata during the registry-consumer check.
 Record the exact release-source SHA and require CI, Python conformance, and R
 conformance to pass on that SHA. Historical release records above remain the
 record of their own procedures.
