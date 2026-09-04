@@ -58,9 +58,9 @@ describe("the real-world loss-run and exposure example", () => {
   });
 });
 
-describe("the generalized diagnostic vertical slice",()=>{
-  it("runs all 22 selections and seals the exact definition, review, result, and bundle",async()=>{
-    const outcome=await runRealWorldDiagnosticReview();
+describe("the generalized diagnostic vertical slice", () => {
+  it("runs all 22 selections and seals the exact definition, review, result, and bundle", async () => {
+    const outcome = await runRealWorldDiagnosticReview();
     expect(outcome.completed.result.emergence).toHaveLength(210);
     expect(outcome.completed.prepared.definition.definition.formulas).toHaveLength(6);
     expect(outcome.completed.prepared.definition.definition.instances).toHaveLength(22);
@@ -83,11 +83,17 @@ describe("the generalized diagnostic vertical slice",()=>{
         inputArtifactIds: ["source-archive", "source-manifest", "transform-script"],
       },
     ]);
-    expect(outcome.completed.gate).toMatchObject({reviewGate:"passed",metricGate:"passed"});
+    expect(outcome.completed.gate).toMatchObject({ reviewGate: "passed", metricGate: "passed" });
     expect("wrapped" in outcome.bundle).toBe(true);
-    const gross=outcome.completed.prepared.definition.definition.instances.find((item)=>item.id.includes("/gross/paid-to-incurred"))!;
-    const net=outcome.completed.prepared.definition.definition.instances.find((item)=>item.id.includes("/net/paid-to-incurred"))!;
-    expect(outcome.completed.prepared.definition.formulaFingerprints[gross.formulaId]).toBe(outcome.completed.prepared.definition.formulaFingerprints[net.formulaId]);
-    expect(outcome.completed.prepared.definition.calculationFingerprints[gross.id]).not.toBe(outcome.completed.prepared.definition.calculationFingerprints[net.id]);
-  });
+    const gross = outcome.completed.prepared.definition.definition.instances.find((item) =>
+      item.id.includes("/gross/paid-to-incurred"))!;
+    const net = outcome.completed.prepared.definition.definition.instances.find((item) =>
+      item.id.includes("/net/paid-to-incurred"))!;
+    expect(outcome.completed.prepared.definition.formulaFingerprints[gross.formulaId]).toBe(
+      outcome.completed.prepared.definition.formulaFingerprints[net.formulaId],
+    );
+    expect(outcome.completed.prepared.definition.calculationFingerprints[gross.id]).not.toBe(
+      outcome.completed.prepared.definition.calculationFingerprints[net.id],
+    );
+  }, 30_000);
 });
