@@ -199,6 +199,17 @@
         "agents"
       ]
     },
+    "docs/migrations/0.7-compact-diagnostics.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
     "docs/publishing.md": {
       "classification": "active",
       "reason": "Current repository, package, example, or operator documentation.",
@@ -385,7 +396,7 @@
     },
     "docs/superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md": {
       "classification": "active",
-      "reason": "Current diagnostics contract, corrected in 0.6.1.",
+      "reason": "Retained diagnostics baseline, corrected in 0.6.1 and supplemented by the active 0.7 compact adoption and replay guides.",
       "packages": [
         "core",
         "data",

@@ -13,7 +13,10 @@ import {
 } from "@actuarial-ts/core";
 import {
   runValidatedMetricDiagnostics,
+  runValidatedMetricDiagnosticsCompact,
   validateDiagnosticRunInput,
+  validateDiagnosticRunInputCompact,
+  type CompletedCompactMetricDiagnosticsRun,
 } from "@actuarial-ts/data";
 import {
   createLedger,
@@ -227,6 +230,40 @@ export const lossRunBytes = new TextEncoder().encode(JSON.stringify(losses));
 export const exposureBytes = new TextEncoder().encode(
   JSON.stringify(exposures),
 );
+// The continuation fragments use the same teaching input as the compact guide.
+// Its first fragment independently checks both policy gates and the result;
+// these owners supply context, never replace the extracted example's calls.
+const compactExampleDefinition: DiagnosticDefinition = {
+  ...definition,
+  reviewRules: [5, 3].map((threshold) => ({
+    id: `reported-above-${threshold}`,
+    kind: "compare" as const,
+    code: "reported-threshold",
+    description: `Reported exceeds illustrative threshold ${threshold}`,
+    severity: "warning" as const,
+    missingInput: "not-evaluated" as const,
+    when: {
+      left: { op: "measure" as const, measureId: "reported" },
+      operator: "gt" as const,
+      right: { op: "constant" as const, value: threshold },
+    },
+  })),
+};
+const compactExampleOutcome = runValidatedMetricDiagnosticsCompact(
+  validateDiagnosticRunInputCompact({
+    definition: compactExampleDefinition,
+    losses,
+    exposures,
+    filter: { instanceIds: ["casualty/count/reported-frequency"] },
+    groupMap: { fleet: "all-fleet" },
+    runPresetId: "compact-documentation-v1",
+    datasetArtifactId: "loss-run",
+  }),
+);
+if (compactExampleOutcome.status !== "completed")
+  throw new Error(`Compact documentation fixture blocked at ${compactExampleOutcome.stage}`);
+export const compactCompletedRun: CompletedCompactMetricDiagnosticsRun = compactExampleOutcome;
+
 export const archiveSha256 = "0".repeat(64);
 export const transformCommit = "1".repeat(40);
 export const inputs = { losses, exposures };

@@ -3,6 +3,28 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
+## 0.7.1 — 2026-09-05
+
+### Documentation and examples
+
+- Adds a compact diagnostics adoption guide with checked examples for both
+  validation gates, compact maturity views, paged review evidence, source
+  access, artifact digests, provenance, and streamed replay verification.
+- Updates SDK/package entry points, support and contributor guidance, publishing
+  records, and Python/interchange installation and version documentation for
+  the 0.7 release family. Existing eager APIs and the 0.6 migration history
+  remain documented separately from the additive compact APIs.
+- Clarifies memory/materialization boundaries, cooperative cancellation,
+  transport versus hashing limits, and replay's requirement to retain matching
+  producing SDK versions. An unchanged replay wire version does not establish
+  cross-SDK-version verification.
+- No actuarial calculations or executable API behavior change. Package engine
+  stamps advance in lockstep, so version-stamped run/binding identities change;
+  numerical result identities and interchange/adapter versions do not.
+
+See the [compact adoption guide](docs/migrations/0.7-compact-diagnostics.md) and
+[replay reference](docs/reference/diagnostic-replay-stream.md).
+
 ## 0.7.0 — 2026-09-05
 
 ### Additive compact diagnostics and complete evidence
@@ -13,8 +35,10 @@ together; this file covers them all.
   APIs; passing, triggered, not-evaluated, structural and overflow evidence is
   retained rather than sampled or discarded.
 - Adds owner-controlled diagnostic identity documents and bounded canonical
-  text iteration/fingerprinting. These preserve the existing normalized identity
-  bytes while avoiding a required expanded audit object or archive-sized string.
+  text iteration/fingerprinting. Equivalent eager and compact runs under the
+  same SDK versions preserve normalized identity bytes while avoiding a
+  required expanded audit object or archive-sized string. SDK engine-version
+  stamps intentionally affect run and binding identities, not numerical results.
 - Reuses invocation-owned source snapshots, exact source unions, expression
   projections and preparation lookups. Source normalization/order, every review
   result, existing numerical methods and original validation budgets remain

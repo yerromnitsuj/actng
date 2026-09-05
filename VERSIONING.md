@@ -1,6 +1,7 @@
 # Versioning and stability
 
-Two version streams exist and they are deliberately independent:
+Package releases, interchange documents, diagnostic replay streams and adapter
+generator stamps have distinct version meanings. They do not advance together.
 
 ## Package versions (`@actuarial-ts/*`)
 
@@ -34,3 +35,36 @@ or replay capabilities is a spec major with a dual-read window.
 The frozen conformance corpus is the compatibility statement for the wire
 format; its update policy lives in `interop/conformance/README.md` and a
 package version bump is never grounds for regenerating it.
+
+## Diagnostic replay stream (`diagnostic-replay/1`)
+
+SDK 0.7.0 introduced a separate streamed archive in the compliance package.
+Its framing version is the integer `1`, described in the
+[replay reference](docs/reference/diagnostic-replay-stream.md). This is not a
+new interchange document kind, a `BundleDoc`, or interchange wire version 2.
+The stream reader rejects unknown framing versions; interchange's same-major
+forwarding rules do not apply to this independent format.
+
+## Python and R adapter generators
+
+The Python adapter and R recipes use generator version `0.2.0` and write
+interchange `1.1.0`. These adapter versions are independent of the five npm
+packages. An npm-only release does not republish Python/R adapters, change
+their generator stamps or add a Python/R implementation of the replay stream.
+Python installation is from the source checkout; R remains source-able recipes.
+See [Python setup](interop/python/README.md) and [R setup](tools/interop/README.md).
+
+## Version-bound diagnostic evidence
+
+Diagnostic run manifests include the executing SDK package versions. Changing
+those stamps legitimately changes the run fingerprint and its run/result
+binding, even when the numerical result is identical. The compact and eager
+paths preserve exact normalized identity bytes for equivalent runs under the
+same SDK version; this is not a promise that an archive's full identity remains
+unchanged across SDK upgrades. Framing compatibility alone does not establish
+cross-version replay compatibility. Retain the recorded SDK version with
+archived evidence and follow the verifier's actual compatibility contract.
+
+Historical fixture stamps record the versions that authored those fixtures.
+Do not update them, their canonical bytes or their expected tags as routine
+release bookkeeping.

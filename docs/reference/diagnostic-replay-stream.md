@@ -1,14 +1,18 @@
 # Compact diagnostic evidence and replay streams
 
-Introduced in SDK 0.7.0 as additive APIs, not a dataset-capacity certification. Existing eager diagnostic and interchange BundleDoc APIs are unchanged. The stream's own wire version is `diagnostic-replay/1`; interchange remains at wire version `1.1.0`.
+Introduced in SDK 0.7.0 as additive APIs; the 0.7.1 documentation update does not change their runtime contract or certify dataset capacity. Existing eager diagnostic and interchange BundleDoc APIs remain available. The stream's own wire version is `diagnostic-replay/1`; interchange remains at wire version `1.1.0`.
+
+For executable compact calculation, paging, and replay examples, start with the [0.7 compact diagnostics guide](../migrations/0.7-compact-diagnostics.md). This page specifies the host boundary and wire protocol.
 
 ## Why this format exists
 
-A large diagnostic run can have far more audit evaluations than input rows. The compact gateway retains every evaluation, finding, and source reference in private columns and dictionaries. Normal views request summaries and pages. Complete identity text is generated only when needed, without constructing an expanded audit object or one archive-sized JSON string.
+A large diagnostic run can have far more audit evaluations than input rows. The compact **review receipt** retains every review evaluation, finding, and source reference in private stores. Normal views request summaries and pages; explicit full getters and iterators still materialize complete individual records. Complete identity text is generated only when needed, without constructing an expanded review identity or one archive-sized JSON string.
+
+This does not make the whole application constant-memory: validated input arrays, prepared cells/input audit, numerical views, and metric-result findings remain retained structures. `result.findings` is not the paged `review.findings` store. A single fully materialized finding/evaluation can have many sources, and explicit eager materializers can expand the complete identity. Host retention, queueing, caches, transport limits, and realistic capacity tests remain necessary.
 
 The data gateway owns immutable input snapshots. `getCompletedCompactDiagnosticRunInput` returns that authenticated owner, not a reconstructed audit or a mutable upload object. Keeping a completed run now also keeps its original validated inputs available for replay; this is shared ownership, not another dataset copy.
 
-`digestDiagnosticArtifactChunks` hashes received bytes incrementally. `createCompactDiagnosticRunIdentity` accepts genuine completed runs and genuine computed digest receipts (or explicitly caller-declared evidence), reruns review/math, checks gates, and compares full identities before issuing provenance. Its manifest/result documents emit the exact legacy **normalized identity** bytes. They are not the old provenance DTO.
+`digestDiagnosticArtifactChunks` hashes received bytes incrementally. `createCompactDiagnosticRunIdentity` accepts genuine completed runs and genuine computed digest receipts (or explicitly caller-declared evidence), reruns review/math, checks gates, and compares full identities before issuing provenance. Digest creation is asynchronous; compact provenance creation is synchronous because source hashing is already complete. For equivalent inputs and the same SDK versions, its manifest/result documents emit the exact eager **normalized identity** bytes. They are not the old provenance DTO and cannot be passed to legacy BundleDoc authoring as a substitute.
 
 ## Host workflow
 
@@ -22,11 +26,27 @@ Artifacts shared across runs are written once. Conflicting metadata for a shared
 
 All I/O belongs to the host; the SDK has no filesystem, network, framework, or Node-specific dependency. Browser-standard `Uint8Array`, `TextEncoder`, `TextDecoder`, `AbortSignal`, `atob`, and `btoa` are used. Supply the same signal to host I/O. Cancellation is cooperative between chunks/phases, not a way to interrupt synchronous actuarial calculation; a host needing CPU interruption should isolate that work in its worker/process.
 
+Use backpressure while consuming the writer. Do not collect all chunks, concatenate an archive-sized buffer, or parse the complete archive as JSON. On failure or cancellation, close the host source/sink and discard the partial output; never advertise it as verified. The SDK closes acquired iterators when abandoning them and preserves the primary operation error if cleanup also fails. It cannot cancel a pending host read unless that producer also observes the signal, and it does not own the host's output file or download lifecycle.
+
+## SDK versions and saved replay files
+
+Keep the exact core/data/compliance package versions used to create an archive available to its verifier, preferably through the original lockfile and retained runtime. The reader regenerates the complete manifest using its installed engine versions and compares that content, not just the arithmetic. A different SDK version therefore fails the version-bearing comparison even when the numerical result is unchanged. There is no original-engine override option in this stream reader.
+
+The unchanged `diagnostic-replay/1` wire version describes frame syntax; it is **not** a promise of cross-SDK-version verification. In particular, do not assume a 0.7.0 replay will verify under the documentation-only 0.7.1 release. Retain the matching verifier instead of editing recorded engine stamps or restamping tags. Historical eager BundleDoc verification has its own engine-stamp handling; that behavior must not be inferred for this separate format.
+
 ## Required resource policy
 
 The reader requires positive safe-integer limits: `maximumEncodedBytes`, `maximumArtifacts`, `maximumRuns`, `maximumArtifactBytes`, `maximumInputDepth`, `maximumInputNodes`, `maximumInputStringUnits`, and `maximumInputTotalStringUnits`. The last two respectively bound each string and cumulative key/value text within one reconstructed input/metadata block. Encoded bytes additionally bound the entire transport. These are host resource ceilings, not a claim that any chosen dataset size has passed performance testing.
 
-Artifact producers deliver chunks of at most 64 KiB. Replay readers deliver at most 128 KiB per input chunk. Each encoded frame is at most 128 KiB. These limits govern transport granularity only: split host reads rather than lowering total dataset limits. The reader copies bounded received chunks before yielding, and rejects shared, detached, or resizable byte buffers.
+The three byte-stream boundaries have different contracts:
+
+| Boundary | Chunk and length policy |
+| --- | --- |
+| `digestDiagnosticArtifactChunks(metadata, chunks, { signal })` | Accepts larger stable `Uint8Array` chunks, hashing through bounded internal copies. Optional `expectedByteLength` checks completeness; optional `maximumByteLength` sets a total resource ceiling. Both are nonnegative safe integers, and the expected length cannot exceed the maximum. Without a maximum, the ceiling is `Number.MAX_SAFE_INTEGER`, not a practical host budget. |
+| Writer `openArtifact(artifact)` | Returns a fresh iterable/async iterable with chunks of **at most 64 KiB**. The writer compares total length and SHA-256 with the authentic digest receipt. Rechunk a source used successfully for hashing if its reads exceed this transport limit. |
+| `verifyDiagnosticReplayStream(chunks, options)` | Input chunks and individual encoded frames are each **at most 128 KiB**. Supply all eight positive safe-integer reader limits listed above; there are no default reader limits. |
+
+These chunk limits govern transport granularity only: split host reads rather than silently dropping data. They do not bound total retained inputs/results. Byte views must be genuine, stable `Uint8Array` values; shared, detached, resizable, proxied, and non-byte inputs are rejected. The writer/reader snapshot bounded received chunks before yielding so an ordinary producer may reuse its buffer after control returns to it.
 
 ## Version 1 wire contract
 

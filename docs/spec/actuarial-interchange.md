@@ -13,12 +13,17 @@ the TS/Python/R shores, the referee, the governance flows, the sidecar, and
 the MCP layer exist. Rev 2.4 adds the portable diagnostic-definition document
 and wire 1.1.0 in Section 18. Rev 2.2 adds a post-build **Field lessons** addendum
 (Section 15, changelog-style) reconciling the as-built system with this
-design; the design body below (rev 2.1) is preserved unchanged. The
-interchange wire-format version stays v1.0 (no breaking field change; the
-field lessons are corrections and confirmations, not new wire fields). Rev 2
+design. Rev 2.2's field lessons did not change its then-current wire v1.0;
+rev 2.4 subsequently introduced wire `1.1.0`, which current writers emit.
+The historical revision lessons remain below. Rev 2
 incorporated a 3-lens adversarial review (35 findings: grounding vs the
 source-verified research, internal consistency, staff-engineer + actuary
 design soundness). Grounding research lives in `docs/research/interop/`.
+
+SDK 0.7.0's [`diagnostic-replay/1`](../reference/diagnostic-replay-stream.md)
+is a separate compliance archive format, not an interchange document kind or
+a replacement for this specification. It does not change interchange `1.1.0`
+or the Python/R adapter generator version `0.2.0`.
 
 ## 0. The idea in one paragraph
 
@@ -382,10 +387,14 @@ embedded document makes the enclosing document unreadable on every shore.
   `emitJsonSchema` (build-time). New `RESERVING_ERROR_CODES`:
   `BAD_INTERCHANGE`, `UNSUPPORTED_VERSION`, `INCOHERENT_SELECTION`.
 
-### 4.2 `actuarial-interchange` (Python; new, PyPI)
+### 4.2 `actuarial-interchange` (Python source-checkout adapter)
 
-- Pure-python core (json + dataclasses; one vendored JCS serializer) with
-  `pip install actuarial-interchange[chainladder]`.
+- Pure-Python core (json + dataclasses; one vendored JCS serializer). Install
+  from the repository root with `pip install -e "interop/python[chainladder]"`;
+  these instructions do not assume a PyPI publication. The dependency-free
+  document adapter supports Python 3.10+; the complete release environment uses
+  Python 3.12 and the pinned scientific stack. See
+  [`interop/python/README.md`](../../interop/python/README.md).
 - Triangle bridge: builds `cl.Triangle` from TriangleDoc via a long
   DataFrame with explicit `cumulative=`; converts back via
   `to_frame(keepdims=True, origin_as_datetime=True)`. DELIBERATE: never
@@ -976,7 +985,8 @@ informed rather than nominal.
 
 Wire `1.1.0` adds the `diagnostic-definition` kind. This is additive within
 major version 1: existing 1.0 documents remain valid and readers continue to
-accept compatible same-major minors. Writers on the 0.6 SDK emit 1.1.0.
+accept compatible same-major minors. Writers introduced with the 0.6 SDK, and
+retained in 0.7.x, emit 1.1.0.
 
 The semantic body is `{ definition, identities }`. `definition` is the complete
 normalized executable vocabulary: measures; count populations; exposure and
@@ -1000,7 +1010,10 @@ nested document must refer to the same definition identity.
 
 The normative schemas are in `schema/interchange/1.1`. The 1.0 directory and
 frozen reserving corpus are preserved byte-for-byte. TypeScript, Python, and R
-all read/write wire 1.1.0; the three-shore conformance fixture independently
+all read/write wire 1.1.0. The original three-shore fixture independently
 recomputes six formula identities, 22 calculation identities, the definition
-identity, and 22 aggregate-cell replays. Python/R adapter generator version
-0.2.0 is independent of the lockstep npm package version 0.6.0.
+identity, and 22 aggregate-cell replays. The expanded 0.6.1 corpus retains those
+anchors and checks 528 aggregate-cell metric calculations plus complete review
+evaluations; see the [conformance guide](../../interop/conformance/README.md).
+Python/R adapter generator version 0.2.0 is independent of the lockstep npm
+package version. Python and R do not implement the separate 0.7 replay stream.

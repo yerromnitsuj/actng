@@ -1,5 +1,46 @@
 # Publishing @actuarial-ts to npm
 
+**Release record:** v0.7.0 shipped 2026-09-05 — all five packages were
+published from release-source commit
+`085b16c1d436134dd083903ecfa80c8cab2c98be`. The immutable `v0.7.0` tag
+resolves to that commit, and the
+[GitHub Release](https://github.com/yerromnitsuj/actng/releases/tag/v0.7.0)
+is published. The complete clean 34-phase release gate passed, including
+1,540 SDK/workspace tests, source reconciliation, Python/R conformance,
+executable documentation and both packed-consumer package sets.
+
+All seven hosted jobs passed on that exact release-source commit:
+[CI](https://github.com/yerromnitsuj/actng/actions/runs/33948555771),
+[Python](https://github.com/yerromnitsuj/actng/actions/runs/33948555760), and
+[R](https://github.com/yerromnitsuj/actng/actions/runs/33948555758).
+Independent registry verification completed at `2026-09-05T16:02:41Z`:
+all five `latest` tags were `0.7.0`, internal SDK ranges were `^0.7.0`,
+and downloaded archives matched the attested archives byte-for-byte, including
+their SHA-256 hashes and registry SHA-512 integrity values.
+
+| Package | Verified tarball SHA-256 |
+|---|---|
+| `@actuarial-ts/core` | `647243312be6f421c07a1c115cc8311485a95cabaea92d654de20bd590fc78f8` |
+| `@actuarial-ts/interchange` | `30eb93887b84e1c3032e8a6bfef00c6173f4c0c7aea7633c88de1de1d5c221f6` |
+| `@actuarial-ts/data` | `155585c6b65491c8f2f9f865d4dbdbd07d8c4501857535ba56ad226ce0015ba3` |
+| `@actuarial-ts/compliance` | `1769fcb6752b15322e1b27d955f390bde1bf404a639087d3ae7c7bafb1f4166d` |
+| `@actuarial-ts/agents` | `0315f297f94bac6923df99863f3e9a4fc6f5ab467cebbea297de0e48f130c05c` |
+
+The official clean all-five registry consumer passed with both lock-tested
+peers (Zod 3.25.76, Mastra core 1.64.0, Mastra MCP 1.17.3) and minimum
+supported peers (3.25.76, 1.51.0, 1.14.0 respectively). Each consumer had one
+physical copy of each SDK package and a valid dependency tree. Runtime floors
+remained Node 20 for the four framework-free packages and Node 22.13.0 for
+agents. Interchange wire remained `1.1.0`; Python/R generators remained `0.2.0`.
+
+See the version-pinned
+[streamed evidence reference](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/reference/diagnostic-replay-stream.md),
+[migration guide](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/migrations/0.6-generalized-diagnostics.md),
+and [changelog](https://github.com/yerromnitsuj/actng/blob/v0.7.0/CHANGELOG.md).
+This release adds compact diagnostics and streamed replay; it does not certify
+application memory/performance or a maximum dataset size. This post-release
+record does not move the release tag or change the published archives.
+
 **Release record:** v0.6.1 shipped 2026-09-04 — all five packages published
 in dependency order from release-source commit
 `e016d2fa30b488e39f219b5107560a00ac9ac281`. The immutable `v0.6.1` tag points
@@ -14,9 +55,10 @@ All seven hosted jobs passed on the exact release-source commit:
 [Python](https://github.com/yerromnitsuj/actng/actions/runs/33919077296), and
 [R](https://github.com/yerromnitsuj/actng/actions/runs/33919077332).
 After registry propagation, the clean all-five registry consumer passed with
-both locked and minimum peer versions. All five registry `latest` tags are
-`0.6.1`, internal SDK dependency ranges are `^0.6.1`, and registry SRI values
-and downloaded tarball bytes match the attested archives:
+both locked and minimum peer versions. At that release's verification, all five
+registry `latest` tags were `0.6.1`, internal SDK dependency ranges were
+`^0.6.1`, and registry SRI values and downloaded tarball bytes matched the
+attested archives:
 
 | Package | Verified tarball SHA-256 |
 |---|---|
@@ -157,7 +199,17 @@ From the repo root, with the new version X.Y.Z:
    manifest), so the ranges must be real. The dependency graph:
    interchange -> core; data -> core; compliance -> core, data, interchange;
    agents -> core, data, compliance, interchange (+ Mastra/zod peers).
-2. Update CHANGELOG.md.
+2. Update CHANGELOG.md, package version constants, release-version checks and
+   current installation/documentation pins. Preserve historical release
+   records and frozen fixture stamps. Review declaration changes explicitly
+   and refresh the documentation manifests with `npm run docs:manifests`;
+   neither generated inventory is a substitute for reviewing the change.
+
+Even a documentation-only package patch needs a new clean source commit and
+the complete gate above. Published archives and release tags are immutable;
+do not overwrite a released version to fix its packaged README. A later
+publication record belongs in a separate documentation commit, after registry
+and hosted verification, rather than in the already attested release source.
 
 The orchestrator publishes dependencies before consumers. Interchange publishes right
 after core (it depends on core only), and BEFORE compliance and agents
@@ -171,6 +223,7 @@ release publication uses the immutable archives already tested and attested.
 
 - Verify: `npm view @actuarial-ts/core version` and a scratch-project
   install + import smoke test.
-- Tag: `git tag vX.Y.Z && git push origin vX.Y.Z` (v0.1.0 through v0.5.0: done).
+- Tag the exact recorded release-source commit, not a later documentation
+  commit, then push that immutable tag and create its GitHub release.
 - Org hygiene (one-time, if not yet done): require 2FA for publishing in
   the org settings on npmjs.com.

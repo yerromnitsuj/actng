@@ -50,9 +50,12 @@ before a user hits the problem. If you change an exported signature, run it.
 
 ### The Python shore (optional, needed for interop work)
 
-Requires **Python >= 3.10** — `chainladder==0.9.2` and `interop/python` both
-declare it, and pip excludes them on older interpreters (macOS system python3
-is 3.9, so name the version explicitly):
+The dependency-free document adapter supports **Python >= 3.10**. The full
+local release environment uses **Python 3.12** and the pinned scientific
+dependencies below; do not confuse the base adapter's support floor with the
+sidecar's complete environment. CI separately checks the Python 3.10 base
+adapter before provisioning the optional bridge for documentation examples.
+Install the adapter from this checkout, not from an assumed PyPI publication:
 
 ```bash
 python3.12 -m venv .venv-interop
@@ -72,12 +75,16 @@ absolute `Rscript`, then run:
 
 ```bash
 export ACTUARIAL_TS_RSCRIPT="/absolute/path/to/R 4.4.3/bin/Rscript"
+export ACTUARIAL_TS_R_LIBRARY="/absolute/path/to/a/library-for-R-4.4.3"
 "$ACTUARIAL_TS_RSCRIPT" tools/interop/install-r-environment.R
 "$ACTUARIAL_TS_RSCRIPT" tools/interop/check-r-environment.R
 "$ACTUARIAL_TS_RSCRIPT" tools/interop/conformance.R
 ```
 
-See [`tools/interop/README.md`](tools/interop/README.md).
+Use the same `ACTUARIAL_TS_R_LIBRARY` for installation, checks and runs. Do not
+reuse compiled R packages from an incompatible R installation. Omitting the
+variable uses the configured default library. See
+[`tools/interop/README.md`](tools/interop/README.md).
 
 ## The rules that are load-bearing
 
@@ -114,13 +121,18 @@ deliberate decision, not by omission.
 
 ## Pull requests
 
-- Keep `npm test` and `npm run typecheck` green. CI runs two workflows: `CI`
-  (build, typecheck, test, pack-check all five packages) and
-  `Python interop conformance` (the Python shore plus the live cross-engine
-  referee against the sidecar).
-- Before proposing a `0.6` release candidate, run `npm run release:gate`; it
+- Keep `npm test` and `npm run typecheck` green. Three workflows cover the
+  repository: `CI` (SDK tests and packed consumers), `Python interop conformance`
+  (base adapter, Python shore and live sidecar referee), and `R interop conformance`
+  (the pinned R shore and live examples). The runtime-four consumer also runs
+  under Node 20; all-five work uses the pinned Node 22 runtime.
+- Before proposing any release candidate, run `npm run release:gate`; it
   composes version, documentation, legacy-surface, package, three-shore, and
   example checks under the pinned environments.
+- For documentation changes, review the actual prose and examples, refresh
+  `npm run docs:manifests`, and run the documentation checks. Published package
+  documentation changes still follow the complete release process in
+  [the publishing runbook](docs/publishing.md).
 - Add or update tests with behavior changes. For a new method, that means a
   published-value pin.
 - Explain *why* in the commit message, not just what — especially for anything

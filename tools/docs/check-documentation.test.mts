@@ -233,10 +233,33 @@ describe("actual documentation source against isolated packed packages", () => {
   }, 30_000);
   it("typechecks and executes every runnable public fence and checks declaration contracts", async () => {
     expect(await verifyPackedSnippets(environment, snippets)).toEqual({
-      executable: 13,
+      executable: 16,
       declarations: 25,
     });
   }, 120_000);
+  it("rejects drift in the documented compact maturity call", async () => {
+    const source = snippets.find(
+      (snippet) => snippet.path === "docs/migrations/0.7-compact-diagnostics.md" && snippet.ordinal === 2,
+    )!;
+    expect(source.source).toContain("sameMaturityCompact(compactCompletedRun.result, 3,");
+    await expect(verifyPackedSnippets(environment, [{
+      ...source,
+      source: source.source.replace(
+        "sameMaturityCompact(compactCompletedRun.result, 3,",
+        'sameMaturityCompact(compactCompletedRun.result, "three",',
+      ),
+    }])).rejects.toThrow(/not assignable|TS2345/);
+  }, 30_000);
+  it("rejects a wrong replay identity despite successful snippet execution", async () => {
+    const source = snippets.find(
+      (snippet) => snippet.path === "docs/migrations/0.7-compact-diagnostics.md" && snippet.ordinal === 4,
+    )!;
+    expect(source.source).toContain('id: "fleet-review"');
+    await expect(verifyPackedSnippets(environment, [{
+      ...source,
+      source: source.source.replace('id: "fleet-review"', 'id: "unexpected-run"'),
+    }])).rejects.toThrow(/AssertionError|unexpected-run/);
+  }, 30_000);
   it("rejects a changed public call that syntax-only transpilation would accept", async () => {
     const source = snippets.find(
       (snippet) => snippet.path === "README.md" && snippet.ordinal === 1,

@@ -7,8 +7,8 @@ minor receives fixes.
 
 | Version | Supported |
 |---------|-----------|
-| 0.2.x   | Yes |
-| 0.1.x   | No — upgrade to 0.2.x |
+| 0.7.x   | Yes — use the latest published patch |
+| Earlier minors | No — upgrade to 0.7.x |
 
 ## Reporting a vulnerability
 
@@ -52,6 +52,12 @@ The published packages and the code in this repository:
   property this design provides; if you need that, sign the payload.
 - **Untrusted input handling** — parsing an interchange document, triangle or
   loss run should never execute code or escape its sandbox.
+- **Compact evidence and streamed replay** — accepting forged in-memory owner
+  receipts, issuing a verified receipt for incomplete or inconsistent replay,
+  or bypassing explicit reader resource limits is in scope. SHA-256 artifact
+  and frame digests check integrity, not source authentication or signatures;
+  replacing a complete internally consistent archive is not prevented by an
+  unkeyed digest. See the [replay trust boundaries](docs/reference/diagnostic-replay-stream.md).
 
 ## What is not in scope
 

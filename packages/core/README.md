@@ -7,7 +7,7 @@ The package is designed to support the actuary's compliance with the ASOPs; it d
 ## Install
 
 ```bash
-npm install @actuarial-ts/core@0.7.0
+npm install @actuarial-ts/core@0.7.1
 ```
 
 ESM, TypeScript-first, zero runtime dependencies, Node 20+.
@@ -73,6 +73,39 @@ const prepared = prepareDiagnosticData({ definition: compiled, losses, exposures
 const result = runMetricDiagnostics({ prepared, groupMap: { fleet: "all-fleet" } });
 ```
 
+### Eager and compact paths
+
+The example above uses the retained eager APIs. The additive compact APIs,
+introduced in 0.7.0, expose the same numeric views while retaining complete audit
+and identity evidence behind authenticated owners instead of eagerly expanding
+it. Choose matching preparation, calculation, and maturity functions:
+
+| Operation | Eager | Compact |
+|---|---|---|
+| Prepare inputs | `prepareDiagnosticData` | `prepareDiagnosticDataCompact` |
+| Calculate metric views | `runMetricDiagnostics` | `runMetricDiagnosticsCompact` |
+| Select one development age | `sameMaturity` | `sameMaturityCompact` |
+| Select the latest common age across output groups | `commonMaturity` | `commonMaturityCompact` |
+
+The original maturity signatures remain unchanged; compact results use the
+separately named helpers, not casts to eager results. Development ages use the
+result's declared age unit. Review evaluations are available through
+`pageDiagnosticReviewEvaluations`, with source references separately available
+through `pageDiagnosticReviewEvaluationSources`. Passing and not-evaluated
+evaluations remain available; paging is not sampling.
+
+Use owner-controlled identity documents and `iterateDiagnosticIdentityJson`
+when complete canonical text is needed. `materializePreparedDiagnosticData` and
+`materializeMetricDiagnosticsResult` intentionally expand the eager evidence;
+they are explicit compatibility choices, not a memory-saving export path.
+Cloning or parsing an owner does not recreate its authority. Compact storage is
+not a dataset-capacity or bounded-memory guarantee for an entire application.
+
+These are lower-level calculation APIs. For a host import or analysis boundary
+that enforces both review and metric execution policy, use the validated gateway
+in `@actuarial-ts/data`. The runnable [compact adoption guide](https://github.com/yerromnitsuj/actng/blob/v0.7.1/docs/migrations/0.7-compact-diagnostics.md)
+covers the complete workflow and [streamed replay](https://github.com/yerromnitsuj/actng/blob/v0.7.1/docs/reference/diagnostic-replay-stream.md).
+
 The six built-in formulas are basis-independent. The factory creates ten count instances plus six per amount basis (`10 + 6 × basisCount`): one basis produces 16, two produce 22. A `$250K`, primary, gross, net, or ceded calculation is represented by caller-declared amount measures and a structured `AmountBasisDefinition`; it does not need a separate capped formula. Claim-level caps use `claim-layer` derivations before aggregation. Pre-limited external values record their source/transformation instead of implying the SDK recreated an unavailable claim-level operation.
 
 All metrics are ratio-of-sums: measures are aggregated at source-group/origin/valuation, groups are mapped and merged, then division happens once. Measure-local `missing: "unknown" | "zero"` is explicit. Exposure timing is either `origin-static` or `valuation-specific`. Calendar and ordered axes derive normalized origins, valuations, development ages, and units; input rows cannot assert a trusted age.
@@ -88,7 +121,7 @@ numeric exposure values. This is a bounded capacity, not an unlimited scale clai
 
 Compilation validates the whole graph atomically: IDs, sources, role types, compatibility groups, development semantics, derivation acyclicity, expression limits, rule operands, basis/population references, and period coordinates. Authentic compiled/prepared objects are owner-branded and frozen. Formula, calculation, definition, preparation, and result identities are deterministic FNV-1a/JCS integrity aids—not cryptographic signatures.
 
-See the generated [formula and instance catalog](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/migrations/0.6-generalized-diagnostics.md).
+See the generated [formula and instance catalog](https://github.com/yerromnitsuj/actng/blob/v0.7.1/docs/reference/diagnostic-formulas.md) and [0.6 migration guide](https://github.com/yerromnitsuj/actng/blob/v0.7.1/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## Main method families
 

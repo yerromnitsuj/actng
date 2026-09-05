@@ -33,7 +33,7 @@
       "heading": "The R shore (optional, needed for interop work)",
       "language": "bash",
       "ordinal": 4,
-      "sha256": "7f8d69bd6e24945c4c59f689aee1d3eb0f69a4acdbbabbd5242272fc1f0291d7",
+      "sha256": "8e75d07a7d518cab43d99ad6c7b22303e7a116fd2e51c2401146c71a050691ac",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -198,6 +198,42 @@
       "sha256": "db598519cdd02adb88cf3208f4d48b21232e83c0ee52124d2c210feffd64ac52",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
+    },
+    {
+      "path": "docs/migrations/0.7-compact-diagnostics.md",
+      "heading": "Using compact diagnostics in 0.7",
+      "language": "bash",
+      "ordinal": 1,
+      "sha256": "0ddb0dbed713b3e74cd4f0b4eadd89a6526383e596bede3b113c60f674e3f6be",
+      "classification": "syntax-only-operational",
+      "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
+    },
+    {
+      "path": "docs/migrations/0.7-compact-diagnostics.md",
+      "heading": "1. Execute and handle both blocked outcomes",
+      "language": "ts",
+      "ordinal": 2,
+      "sha256": "b959464ce5a7a3c13ace7c1486fe44663214ef28fbc154a306adb6613be52cbc",
+      "classification": "packed-executable",
+      "reason": "Exact extracted source is typechecked and executed against five installed SDK tarballs with explicit checked host setup and output assertions."
+    },
+    {
+      "path": "docs/migrations/0.7-compact-diagnostics.md",
+      "heading": "2. Read summaries, then page only the detail requested",
+      "language": "ts",
+      "ordinal": 3,
+      "sha256": "e25f0913b66d09dd19ecb121f1fc78ba487c9e89f539bbe094d85abd71d15185",
+      "classification": "packed-executable",
+      "reason": "Exact extracted source is typechecked and executed against five installed SDK tarballs with explicit checked host setup and output assertions."
+    },
+    {
+      "path": "docs/migrations/0.7-compact-diagnostics.md",
+      "heading": "3. Digest artifacts, create provenance, and verify a stream",
+      "language": "ts",
+      "ordinal": 4,
+      "sha256": "95cb11c06ea8f21b081a0d81e1e0ee59b1738a129a8e8e45a1461db3d8d574fd",
+      "classification": "packed-executable",
+      "reason": "Exact extracted source is typechecked and executed against five installed SDK tarballs with explicit checked host setup and output assertions."
     },
     {
       "path": "docs/publishing.md",
@@ -600,7 +636,7 @@
       "heading": "actuarial-interchange (Python)",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "4c79505d0ef367a3dede84811bd5c4d8921288847bc812f0ad6819ad799b5d69",
+      "sha256": "71e4d6afe2b35504ceb10faac42c0db8552e5f153de8a7823dbdb3691c6b8421",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -645,7 +681,7 @@
       "heading": "@actuarial-ts/agents",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "ca21a49ac096d7c975cbd925f8cb7d511419bd9d762f47f3e2d352a1972f5556",
+      "sha256": "eabe72396d507528ccb32fd6c8e4e893218f74490a97d7a06dfc0e96ec5cbaa4",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -672,7 +708,7 @@
       "heading": "@actuarial-ts/compliance",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "4700b3bac72ad52c463b5d096c6b31554f30febfb6cd839ba2813e3a4a52bd02",
+      "sha256": "a3e2b3f3f725cee42142dd41320ada3dad7d644227d6f71bb5b8d4945162f4c7",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -690,7 +726,7 @@
       "heading": "Install",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "221641c9c59ab378086a6ddba067f10e77e8e6ad8a451214f85b08a9d1e7c00a",
+      "sha256": "edd98611d4ec5fecdaf527d9c7050f0310ab741603ee75ca78f071528405245f",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -717,7 +753,7 @@
       "heading": "@actuarial-ts/data",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "d1f350df7e0dc66fe355fd45131f335885320390cabd5dcf090e01cf4285bff5",
+      "sha256": "ccd34b81d7b88408f1db67cf757db90b2c8a22e0fde59c2bfc6e500f8c063b75",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -735,7 +771,7 @@
       "heading": "@actuarial-ts/interchange",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "cf5515936436ef041e13d272c54cbcf264ba9001e1bc8e83a6fe6253bc9c4e9b",
+      "sha256": "ceeff022814d68ec54caeea4b9b6e1c584a2bd18bf8a10ffa7edd6f6008eec86",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },

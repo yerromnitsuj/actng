@@ -42,8 +42,8 @@ export function checkVersionSync(root) {
           );
     }
   }
-  if (version !== "0.7.0")
-    errors.push(`release version must be 0.7.0; got ${version}`);
+  if (version !== "0.7.1")
+    errors.push(`release version must be 0.7.1; got ${version}`);
   for (const name of ["core", "interchange", "data", "compliance"])
     if (manifests[name].engines?.node !== ">=20")
       errors.push(`${name} engines.node must be >=20`);
@@ -120,11 +120,13 @@ export function checkVersionSync(root) {
   for (const name of SDK_PACKAGES) {
     const readme = read(root, `packages/${name}/README.md`);
     for (const target of [
-      "diagnostic-formulas.md",
-      "0.6-generalized-diagnostics.md",
+      "docs/reference/diagnostic-formulas.md",
+      "docs/migrations/0.6-generalized-diagnostics.md",
+      "docs/migrations/0.7-compact-diagnostics.md",
+      "docs/reference/diagnostic-replay-stream.md",
     ]) {
-      const expected = `github.com/yerromnitsuj/actng/blob/v${version}/docs/`;
-      if (!readme.includes(expected) || !readme.includes(target))
+      const expected = `https://github.com/yerromnitsuj/actng/blob/v${version}/${target}`;
+      if (!readme.includes(expected))
         errors.push(`${name} README must link ${target} at tag v${version}`);
     }
   }
@@ -142,6 +144,6 @@ if (invoked) {
     process.exitCode = 1;
   } else
     console.log(
-      "version-sync: SDK 0.7.0, wire 1.1.0, and adapter 0.2.0 stamps agree",
+      "version-sync: SDK 0.7.1, wire 1.1.0, and adapter 0.2.0 stamps agree",
     );
 }

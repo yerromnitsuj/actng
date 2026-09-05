@@ -112,7 +112,7 @@ function classification(path: string) {
   if (path === SHIPPED_DIAGNOSTICS_DESIGN)
     return {
       classification: "active",
-      reason: "Current diagnostics contract, corrected in 0.6.1.",
+      reason: "Retained diagnostics baseline, corrected in 0.6.1 and supplemented by the active 0.7 compact adoption and replay guides.",
       packages: SDK_PACKAGES,
     };
   if (
@@ -350,14 +350,20 @@ for (const [path, required] of Object.entries({
   "README.md": [
     "docs/reference/diagnostic-formulas.md",
     "docs/migrations/0.6-generalized-diagnostics.md",
+    "docs/migrations/0.7-compact-diagnostics.md",
+    "docs/reference/diagnostic-replay-stream.md",
   ],
   "docs/README.md": [
     "reference/diagnostic-formulas.md",
     "migrations/0.6-generalized-diagnostics.md",
+    "migrations/0.7-compact-diagnostics.md",
+    "reference/diagnostic-replay-stream.md",
   ],
   "CHANGELOG.md": [
     "docs/reference/diagnostic-formulas.md",
     "docs/migrations/0.6-generalized-diagnostics.md",
+    "docs/migrations/0.7-compact-diagnostics.md",
+    "docs/reference/diagnostic-replay-stream.md",
   ],
 }))
   for (const destination of required)
@@ -365,8 +371,10 @@ for (const [path, required] of Object.entries({
       failures.push(`${path}: missing required inbound link to ${destination}`);
 for (const packageName of SDK_PACKAGES)
   for (const required of [
-    "diagnostic-formulas.md",
-    "0.6-generalized-diagnostics.md",
+    "reference/diagnostic-formulas.md",
+    "migrations/0.6-generalized-diagnostics.md",
+    "migrations/0.7-compact-diagnostics.md",
+    "reference/diagnostic-replay-stream.md",
   ]) {
     const readme = readFileSync(
       resolve(root, `packages/${packageName}/README.md`),
@@ -374,9 +382,8 @@ for (const packageName of SDK_PACKAGES)
     );
     if (
       !readme.includes(
-        `https://github.com/yerromnitsuj/actng/blob/v${sdkVersion}/docs/`,
-      ) ||
-      !readme.includes(required)
+        `https://github.com/yerromnitsuj/actng/blob/v${sdkVersion}/docs/${required}`,
+      )
     )
       failures.push(
         `packages/${packageName}/README.md: missing tagged ${required} link`,

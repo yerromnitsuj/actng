@@ -10,8 +10,8 @@ Five Apache-2.0 packages under the `@actuarial-ts` scope:
 |---|---|
 | [`@actuarial-ts/core`](packages/core) | Pure math: reserving, trends/limits/discounting, seeded stochastic methods, and compiled definition-driven diagnostics with separate formula, calculation, and presentation layers. |
 | [`@actuarial-ts/interchange`](packages/interchange) | Wire `1.1.0`: typed triangle/selection/result/study/bundle/crosscheck/diagnostic-definition documents, converters, integrity checks, and the cross-engine referee. |
-| [`@actuarial-ts/data`](packages/data) | Ingestion, atomic diagnostic preparation, complete input audit, declarative ASOP No. 23-oriented review, and two-gate execution. |
-| [`@actuarial-ts/compliance`](packages/compliance) | Estimate metadata, assumption ledger, disclosures/model cards, verified diagnostic run/artifact provenance, and reproducibility bundles. |
+| [`@actuarial-ts/data`](packages/data) | Ingestion, atomic diagnostic preparation, complete input audit, declarative ASOP No. 23-oriented review, and eager or compact two-gate execution with paged evidence. |
+| [`@actuarial-ts/compliance`](packages/compliance) | Estimate metadata, assumption ledger, disclosures/model cards, verified diagnostic run/artifact provenance, reproducibility bundles, and streamed diagnostic replay. |
 | [`@actuarial-ts/agents`](packages/agents) | Mastra toolkit with a hard tenant seam, exact failure envelopes, human-gated judgment, and a trusted-catalog diagnostic selection tool. |
 
 ## Why this exists
@@ -31,6 +31,30 @@ are **designed to support the actuary's compliance** with ASOP Nos. 43, 23, 41, 
 responsibility for compliance remains with the credentialed actuary. That list
 is the set the source actually supports — it was longer, and the extra
 standards had no implementation behind them.
+
+## Choose a workflow
+
+For an application consuming the published SDK, use the version-pinned install
+command in the relevant package README above. Core, data, interchange, and
+compliance require Node 20+; agents requires Node 22.13+ and the documented
+Mastra/Zod peers. Keep the SDK packages on matching versions. The repository
+example commands below run from a source checkout, not an empty consumer project.
+
+| Need | Start here |
+|---|---|
+| Reserving methods, triangles, and adjustments | [Core quick start](packages/core/README.md) and the tested [reserve review](examples/reserve-review/src/main.ts). |
+| Definition-driven diagnostics with complete materialized evidence | The retained [eager data gateway](packages/data/README.md) and [0.6 definition-model migration](docs/migrations/0.6-generalized-diagnostics.md). |
+| Diagnostic views with paged review/source evidence and streamed replay | The runnable [compact diagnostics adoption guide](docs/migrations/0.7-compact-diagnostics.md), then the [replay reference](docs/reference/diagnostic-replay-stream.md). |
+| Model-assisted selection from a host-approved catalog | [Agents](packages/agents/README.md); its current executor requires eager verified provenance, not compact provenance. |
+
+Compact diagnostics were introduced in 0.7.0 alongside the existing APIs. They
+retain complete review evidence and expose explicit pages and identity streams;
+they do not change the actuarial formulas or certify a dataset size or memory
+budget. Host applications still own I/O, access control, resource policy, and
+the lifecycle of retained inputs. `diagnostic-replay/1` is a separate compliance
+transport, not interchange `BundleDoc` or wire `1.1.0`. Preserve the original SDK
+package versions with replay evidence: an unchanged stream version does not
+guarantee verification across SDK releases, including patch releases.
 
 ## Quick taste
 
@@ -96,6 +120,9 @@ Its generalized diagnostic vertical slice uses six reusable formulas, 22
 gross/net instances, atomic data review, portable definition documents, and
 verified run provenance. See the generated [formula catalog](docs/reference/diagnostic-formulas.md)
 and the [0.6 migration guide](docs/migrations/0.6-generalized-diagnostics.md).
+This example retains the eager API; its compact source derivatives are not an
+example of the compact diagnostic gateway. Use the [compact adoption guide](docs/migrations/0.7-compact-diagnostics.md)
+for that workflow, and the [documentation index](docs/README.md) for navigation.
 
 **ActNG**, the AI-native reserving workbench this SDK grew out of, now lives in
 its own repository and consumes the published packages like any other

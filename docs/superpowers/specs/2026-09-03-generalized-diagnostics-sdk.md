@@ -8,6 +8,8 @@
 > rewritten. The implementation plan is
 > [`../plans/2026-09-03-generalized-diagnostics-sdk.md`](../plans/2026-09-03-generalized-diagnostics-sdk.md).
 
+> **0.7 additive supplement:** This remains the normative generalized-diagnostics arithmetic and eager-API baseline. SDK 0.7.0 adds distinct compact owners, review/source pages, maturity helpers, and replay streams without replacing the declarations below. See the [current compact API guide](../../migrations/0.7-compact-diagnostics.md) and [diagnostic-replay/1 contract](../../reference/diagnostic-replay-stream.md), clarified for 0.7.1. Same-version eager/compact identity parity does not make engine-version-bearing run identities or replay files version-independent.
+
 ## 1. Decisions of record
 
 The following decisions are settled for this implementation:

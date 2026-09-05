@@ -4,6 +4,10 @@
 links, generated formula reference, syntax, and public examples. Its tests also
 verify that a changed API argument, a changed declared input shape, an added
 runtime exception, and an unregistered executable fence are rejected.
+The compact guide additionally exercises both blocked outcomes, maturity views,
+separate source pages, streaming verification and cancellation. Mutation tests
+reject a changed compact public call and an incorrect replay run identity;
+continuation fixtures are checked against the first excerpt's validated input.
 
 The classifications in `public-snippet-manifest.json` distinguish evidence:
 

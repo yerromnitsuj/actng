@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import { canonicalJson, fnv1a64 } from "@actuarial-ts/core";
 import {
   runValidatedMetricDiagnosticsCompact,
   validateDiagnosticRunInputCompact,
@@ -14,7 +15,10 @@ import {
   type VerifiedCompactDiagnosticRunProvenance,
 } from "../src/index.js";
 import { definition } from "./fixtures/diagnosticIdentityRun.js";
-import { currentEmptyGridReleaseTags } from "./diagnosticReleaseTags.js";
+import {
+  currentEmptyGridReleaseTags,
+  emptyGridReleaseTags,
+} from "./diagnosticReleaseTags.js";
 
 const limits: DiagnosticReplayReadLimits = {
   maximumEncodedBytes: 16_000_000,
@@ -378,6 +382,50 @@ describe("authenticated streaming diagnostic replay", () => {
       ).rejects.toThrow(/evidence differs/);
     },
   );
+
+  it("rejects projected historical engine stamps even with coherent run tags and a fresh trailer", async () => {
+    const made = await fixture({ expectedCells: [] });
+    const chunks = await archive(made.provenance);
+    await expect(
+      verifyDiagnosticReplayStream(chunks, { limits }),
+    ).resolves.toMatchObject({
+      runs: [{ id: "analysis", ...tags(made.provenance) }],
+    });
+    const rows = frames(chunks);
+    const start = rows.findIndex((frame) => frame[1] === "manifest");
+    const end = rows.findIndex((frame) => frame[1] === "manifest-end");
+    // Small-fixture projection only, not a claimed archive from an older runtime.
+    // Numerical/result evidence stays untouched; only engine stamps and dependent
+    // tags are changed to the separately reviewed historical release values.
+    const manifest = JSON.parse(
+      rows.slice(start, end).map((frame) => String(frame[2])).join(""),
+    );
+    manifest.engine.packages = {
+      core: "0.7.0",
+      data: "0.7.0",
+      compliance: "0.7.0",
+    };
+    const text = canonicalJson(manifest);
+    const projectedRun = `fnv1a64-jcs-v1:${fnv1a64(canonicalJson({
+      identityVersion: 1,
+      kind: "diagnostic-run",
+      manifest,
+    }))}`;
+    expect(projectedRun).toBe(emptyGridReleaseTags["0.7.0"].run);
+    expect(made.provenance.resultFingerprint).toBe(
+      emptyGridReleaseTags["0.7.0"].result,
+    );
+    const fragments: Frame[] = [];
+    for (let offset = 0; offset < text.length; offset += 16_384)
+      fragments.push([0, "manifest", text.slice(offset, offset + 16_384)]);
+    rows.splice(start, end - start, ...fragments);
+    const runEnd = rows.find((frame) => frame[1] === "run-end")!;
+    runEnd[2] = projectedRun;
+    runEnd[4] = emptyGridReleaseTags["0.7.0"].binding;
+    await expect(
+      verifyDiagnosticReplayStream(restamp(rows), { limits }),
+    ).rejects.toThrow(/manifest evidence differs/);
+  });
 
   it("reruns changed raw input rather than trusting stored tags or a fresh trailer", async () => {
     const made = await fixture();

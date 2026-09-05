@@ -31,9 +31,9 @@ function diagnosticBundle(
     parameters: {},
     results: provenance.result,
     sdkVersions: {
-      "@actuarial-ts/core": "0.7.0",
-      "@actuarial-ts/data": "0.7.0",
-      "@actuarial-ts/compliance": "0.7.0",
+      "@actuarial-ts/core": "0.7.1",
+      "@actuarial-ts/data": "0.7.1",
+      "@actuarial-ts/compliance": "0.7.1",
     },
     createdAt: "2026-09-03T12:00:00.000Z",
     diagnosticRuns: [provenance],
@@ -443,9 +443,9 @@ describe("sealed diagnostic run provenance", () => {
     assertVerifiedDiagnosticRunProvenance(provenance);
     expect(provenance.result).toBe(run.result);
     expect(provenance.manifest.engine.packages).toEqual({
-      core: "0.7.0",
-      data: "0.7.0",
-      compliance: "0.7.0",
+      core: "0.7.1",
+      data: "0.7.1",
+      compliance: "0.7.1",
     });
     expect(provenance.runResultFingerprint).toMatch(/^fnv1a64-jcs-v1:/);
     expect(Object.isFrozen(provenance.definition)).toBe(true);
@@ -465,9 +465,9 @@ describe("sealed diagnostic run provenance", () => {
       parameters: {},
       results: run.result,
       sdkVersions: {
-        "@actuarial-ts/core": "0.7.0",
-        "@actuarial-ts/data": "0.7.0",
-        "@actuarial-ts/compliance": "0.7.0",
+        "@actuarial-ts/core": "0.7.1",
+        "@actuarial-ts/data": "0.7.1",
+        "@actuarial-ts/compliance": "0.7.1",
       },
       createdAt: "2026-09-03T12:00:00.000Z",
       diagnosticRuns: [provenance],
@@ -544,9 +544,9 @@ describe("sealed diagnostic run provenance", () => {
       parameters: {},
       results: run.result,
       sdkVersions: {
-        "@actuarial-ts/core": "0.7.0",
-        "@actuarial-ts/data": "0.7.0",
-        "@actuarial-ts/compliance": "0.7.0",
+        "@actuarial-ts/core": "0.7.1",
+        "@actuarial-ts/data": "0.7.1",
+        "@actuarial-ts/compliance": "0.7.1",
       },
       createdAt: "2026-09-03T12:00:00.000Z",
       diagnosticRuns: [provenance],

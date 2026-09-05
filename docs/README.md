@@ -1,8 +1,15 @@
 # Documentation index
 
+Start with the [package overview and workflow chooser](../README.md#choose-a-workflow).
+SDK 0.7.0 added compact evidence and replay without replacing the eager APIs or
+the generalized definition model. Read the adoption guide for executable usage;
+the dated implementation records below remain historical evidence.
+
 | Where | What |
 |---|---|
-| [`superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md) | **Shipped in `0.6.0` and corrected in `0.6.1`; retained as the active diagnostics contract**: formula templates, bound instances, structured populations/bases, claim derivations, mixed-cadence periods, declarative rules, definition/run/result identities, and typed interchange. |
+| [`migrations/0.7-compact-diagnostics.md`](migrations/0.7-compact-diagnostics.md) | Current compact adoption guide: executable validated runs, eager/compact distinctions, maturity selection, review/source pages, artifact evidence, and replay. |
+| [`reference/diagnostic-replay-stream.md`](reference/diagnostic-replay-stream.md) | Complete `diagnostic-replay/1` host workflow and framing contract, explicit resource limits, cancellation, evidence ownership, assurance boundaries, and SDK-version requirements. Separate from interchange wire `1.1.0`. |
+| [`superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/specs/2026-09-03-generalized-diagnostics-sdk.md) | **Shipped in `0.6.0` and corrected in `0.6.1`; retained as the base diagnostics contract alongside the additive compact guides above**: formula templates, bound instances, structured populations/bases, claim derivations, mixed-cadence periods, declarative rules, definition/run/result identities, and typed interchange. |
 | [`superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md`](superpowers/plans/2026-09-03-generalized-diagnostics-sdk.md) | **Completed through Task 20 and retained as a historical implementation record.** The plan records delivery and publication across all five packages, three interchange shores, the real-world example, documentation, packaging, and release gates. |
 | [`superpowers/plans/2026-09-04-v0.6.1-full-sdk-hardening.md`](superpowers/plans/2026-09-04-v0.6.1-full-sdk-hardening.md) | **Implemented `0.6.1` hardening record:** adversarial boundary audit, reconciliation inventory, exact source anchors, three-shore diagnostic corpus, and attested non-bypassable release gate. |
 | [`reference/diagnostic-formulas.md`](reference/diagnostic-formulas.md) | Generated six-template and casualty-instance reference; drift-checked against the public core API. |

@@ -14,6 +14,11 @@ export const emptyGridReleaseTags = {
     result: "fnv1a64-jcs-v1:0b93f7451976f636",
     binding: "fnv1a64-jcs-v1:02b3a4b76e037ff7",
   },
+  "0.7.1": {
+    run: "fnv1a64-jcs-v1:9bf7c838f44b7b10",
+    result: "fnv1a64-jcs-v1:0b93f7451976f636",
+    binding: "fnv1a64-jcs-v1:e87250ad8728c035",
+  },
 } as const;
 
 export const currentEmptyGridReleaseTags =

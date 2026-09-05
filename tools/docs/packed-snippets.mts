@@ -108,6 +108,46 @@ const recipes: Record<string, Recipe> = {
     assert:
       'assert.ok(provenance.runFingerprint); assert.equal(portableDefinition.kind, "diagnostic-definition");',
   },
+  "docs/migrations/0.7-compact-diagnostics.md#2": {
+    setup: ["definition", "losses", "exposures", "compactCompletedRun as continuationRun"],
+    assert: `
+assert.equal(compactCompletedRun.result.emergence[0]!.metrics["casualty/count/reported-frequency"]!.calculation.value, 0.2);
+assert.equal(atThreeMonths.length, 1);
+assert.equal(common.developmentAge, 3);
+assert.ok(Object.isFrozen(ownedInput));
+assert.notEqual(ownedInput.losses, losses);
+assert.deepEqual(compactCompletedRun.result.emergence, continuationRun.result.emergence);
+assert.deepEqual(ownedInput, getCompletedCompactDiagnosticRunInput(continuationRun));
+assert.equal(inspectCompactInput({ ...compactExampleInput, policy: { allowedReviewStatuses: ["pass", "not-evaluated"] } }).kind, "review-blocked");
+assert.equal(inspectCompactInput({ ...compactExampleInput, losses: losses.map(row => ({ ...row, measures: { ...row.measures, "gross-paid": 200 } })), filter: { instanceIds: ["casualty/amount/gross/paid-to-incurred"] }, policy: { allowedMetricFindingSeverities: ["info"] } }).kind, "metric-blocked");
+assert.throws(() => inspectCompactInput({ ...compactExampleInput, unexpected: true }));`,
+  },
+  "docs/migrations/0.7-compact-diagnostics.md#3": {
+    setup: ["compactCompletedRun"],
+    assert: `
+assert.equal(passing.total, 1);
+assert.equal(passing.items[0]!.ruleId, "reported-above-5");
+assert.equal(passing.nextOffset, null);
+assert.ok(evaluationSources && evaluationSources.total > 0);
+assert.ok(findings.total > 0);
+assert.ok(contextSources && contextSources.total > 0);
+assert.ok(scopeSources && scopeSources.total > 0);
+assert.equal(contextSources.items[0]!.artifactId, "loss-run");
+assert.equal(scopeSources.items[0]!.sourceRow, 2);`,
+  },
+  "docs/migrations/0.7-compact-diagnostics.md#4": {
+    setup: ["compactCompletedRun", "lossRunBytes", "exposureBytes", "transformCommit"],
+    assert: `
+assert.equal(verifiedReplay.runs.length, 1);
+assert.equal(verifiedReplay.runs[0]!.id, "fleet-review");
+assert.equal(verifiedReplay.runs[0]!.runFingerprint, compactProvenance.runFingerprint);
+assert.equal(verifiedReplay.artifacts.length, 3);
+assert.equal(inputArtifacts[0]!.byteLength, lossRunBytes.length);
+assert.ok(Object.isFrozen(verifiedReplay));
+assert.throws(() => assertVerifiedDiagnosticReplayStream({ ...verifiedReplay }));
+controller.abort(new Error("documentation cancellation"));
+await assert.rejects(async () => verifyDiagnosticReplayStream(writeDiagnosticReplayStream({ runs: [{ id: "cancelled", provenance: compactProvenance }], openArtifact: artifact => artifactChunks(artifactBytes.get(artifact.id)!), signal: controller.signal }), { limits, signal: controller.signal }), /documentation cancellation/);`,
+  },
 };
 
 /** No default TypeScript exemption: new examples require a reviewed recipe. */
