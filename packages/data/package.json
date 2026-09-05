@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/data",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Data ingestion and ASOP No. 23 support for actuarial-ts: loss/exposure preparation, atomic generalized diagnostic validation, declarative review, and triangle assembly.",
   "license": "Apache-2.0",
   "type": "module",
@@ -49,7 +49,7 @@
     "prepublishOnly": "node ../../tools/release/verify-release-attestation.mjs @actuarial-ts/data"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.6.1",
+    "@actuarial-ts/core": "^0.7.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

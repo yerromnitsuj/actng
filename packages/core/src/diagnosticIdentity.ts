@@ -1,4 +1,5 @@
 import { canonicalJson, fnv1a64 } from "./canonical.js";
+import { createDiagnosticEvidenceInterner } from "./diagnosticEvidenceIntern.js";
 import type {
   AmountBasisDefinition,
   AmountLimitation,
@@ -181,6 +182,7 @@ export function projectDiagnosticIdentity<T>(
     maxNodes: Number.MAX_SAFE_INTEGER,
   });
   if (issues.length) throw new DiagnosticValidationError(issues);
+  const sharing = createDiagnosticEvidenceInterner();
   const clone = (
     item: unknown,
     sourceSlot = false,
@@ -189,11 +191,15 @@ export function projectDiagnosticIdentity<T>(
   ): unknown => {
     if (item === null || typeof item !== "object")
       return typeof item === "number" && Object.is(item, -0) ? 0 : item;
+    const mode = freeJson ? "free" : sourceSlot ? "source" : "plain";
     if (Array.isArray(item))
-      return Object.freeze(
-        item.map((child, index) =>
-          clone(child, sourceSlot, freeJson, `${path}[${index}]`),
+      return sharing.internOwned(
+        Object.freeze(
+          item.map((child, index) =>
+            clone(child, sourceSlot, freeJson, `${path}[${index}]`),
+          ),
         ),
+        mode,
       );
     const record = item as Record<string, unknown>;
     if (sourceSlot && typeof record.artifactId === "string") {
@@ -243,8 +249,11 @@ export function projectDiagnosticIdentity<T>(
       }
       if (sourceIssues.length)
         throw new DiagnosticValidationError(sourceIssues);
-      return normalizeDiagnosticSourceLocation(
-        record as unknown as DiagnosticSourceLocation,
+      return sharing.internOwned(
+        normalizeDiagnosticSourceLocation(
+          record as unknown as DiagnosticSourceLocation,
+        ),
+        mode,
       );
     }
     const result = Object.create(null) as Record<string, unknown>;
@@ -258,7 +267,7 @@ export function projectDiagnosticIdentity<T>(
         `${path}.${key}`,
       );
     }
-    return Object.freeze(result);
+    return sharing.internOwned(Object.freeze(result), mode);
   };
   return clone(value) as DiagnosticIdentityProjection<T>;
 }

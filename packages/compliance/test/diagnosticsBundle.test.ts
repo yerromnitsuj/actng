@@ -5,6 +5,7 @@ import {
   validateDiagnosticRunInput,
 } from "@actuarial-ts/data";
 import { parseDocument } from "@actuarial-ts/interchange";
+import { currentEmptyGridReleaseTags } from "./diagnosticReleaseTags.js";
 import {
   ComplianceError,
   assertVerifiedDiagnosticRunProvenance,
@@ -30,9 +31,9 @@ function diagnosticBundle(
     parameters: {},
     results: provenance.result,
     sdkVersions: {
-      "@actuarial-ts/core": "0.6.1",
-      "@actuarial-ts/data": "0.6.1",
-      "@actuarial-ts/compliance": "0.6.1",
+      "@actuarial-ts/core": "0.7.0",
+      "@actuarial-ts/data": "0.7.0",
+      "@actuarial-ts/compliance": "0.7.0",
     },
     createdAt: "2026-09-03T12:00:00.000Z",
     diagnosticRuns: [provenance],
@@ -102,9 +103,7 @@ describe("sealed diagnostic run provenance", () => {
       preparation: "fnv1a64-jcs-v1:982bb1bea97984d1",
       expectedGrid: "fnv1a64-jcs-v1:5df97dffd0ba263d",
       review: "fnv1a64-jcs-v1:00df4f88cca38090",
-      run: "fnv1a64-jcs-v1:273310b653febde9",
-      result: "fnv1a64-jcs-v1:0b93f7451976f636",
-      binding: "fnv1a64-jcs-v1:21e8150663626470",
+      ...currentEmptyGridReleaseTags,
     });
   });
 
@@ -391,21 +390,21 @@ describe("sealed diagnostic run provenance", () => {
     });
   });
 
-  it("verifies coherent historical package stamps using the supported algorithm", async () => {
+  it.each(["0.6.0", "0.6.1"])("verifies coherent historical %s package stamps using the supported algorithm", async (version) => {
     const provenance = await createDiagnosticRunIdentity(evidence());
     const doc = structuredClone(diagnosticBundle(provenance).wrapped) as any;
     const body = JSON.parse(doc.bundle.payload);
     const run = body.diagnosticRuns[0];
     run.manifest.engine.packages = {
-      core: "0.6.0",
-      data: "0.6.0",
-      compliance: "0.6.0",
+      core: version,
+      data: version,
+      compliance: version,
     };
     for (const name of Object.keys(body.sdkVersions))
-      body.sdkVersions[name] = "0.6.0";
-    doc.generator.version = "0.6.0";
+      body.sdkVersions[name] = version;
+    doc.generator.version = version;
     for (const definitionDoc of doc.interchange.diagnosticDefinitions)
-      definitionDoc.generator.version = "0.6.0";
+      definitionDoc.generator.version = version;
     restampRun(run);
     restampBundle(doc, body);
     expect(verifyBundle(doc, provenance.result)).toMatchObject({
@@ -444,9 +443,9 @@ describe("sealed diagnostic run provenance", () => {
     assertVerifiedDiagnosticRunProvenance(provenance);
     expect(provenance.result).toBe(run.result);
     expect(provenance.manifest.engine.packages).toEqual({
-      core: "0.6.1",
-      data: "0.6.1",
-      compliance: "0.6.1",
+      core: "0.7.0",
+      data: "0.7.0",
+      compliance: "0.7.0",
     });
     expect(provenance.runResultFingerprint).toMatch(/^fnv1a64-jcs-v1:/);
     expect(Object.isFrozen(provenance.definition)).toBe(true);
@@ -466,9 +465,9 @@ describe("sealed diagnostic run provenance", () => {
       parameters: {},
       results: run.result,
       sdkVersions: {
-        "@actuarial-ts/core": "0.6.1",
-        "@actuarial-ts/data": "0.6.1",
-        "@actuarial-ts/compliance": "0.6.1",
+        "@actuarial-ts/core": "0.7.0",
+        "@actuarial-ts/data": "0.7.0",
+        "@actuarial-ts/compliance": "0.7.0",
       },
       createdAt: "2026-09-03T12:00:00.000Z",
       diagnosticRuns: [provenance],
@@ -545,9 +544,9 @@ describe("sealed diagnostic run provenance", () => {
       parameters: {},
       results: run.result,
       sdkVersions: {
-        "@actuarial-ts/core": "0.6.1",
-        "@actuarial-ts/data": "0.6.1",
-        "@actuarial-ts/compliance": "0.6.1",
+        "@actuarial-ts/core": "0.7.0",
+        "@actuarial-ts/data": "0.7.0",
+        "@actuarial-ts/compliance": "0.7.0",
       },
       createdAt: "2026-09-03T12:00:00.000Z",
       diagnosticRuns: [provenance],

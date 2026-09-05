@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/interchange",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Language-neutral actuarial-interchange documents for triangles, selections, results, studies, bundles, crosschecks, and portable diagnostic definitions across TypeScript, Python, and R.",
   "license": "Apache-2.0",
   "type": "module",
@@ -54,7 +54,7 @@
     "emit-schema": "npm run build && node --experimental-strip-types scripts/emit-schema.ts"
   },
   "dependencies": {
-    "@actuarial-ts/core": "^0.6.1",
+    "@actuarial-ts/core": "^0.7.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

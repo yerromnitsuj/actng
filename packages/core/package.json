@@ -1,6 +1,6 @@
 {
   "name": "@actuarial-ts/core",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Pure, zero-dependency P&C actuarial math for TypeScript: reserving, generalized definition-driven diagnostics, trends, limits, discounting, and seeded stochastic methods with published-value validation.",
   "license": "Apache-2.0",
   "type": "module",

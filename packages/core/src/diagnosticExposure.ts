@@ -14,11 +14,118 @@ import {
 } from "./types.js";
 import {
   diagnosticJsonPreflight,
+  diagnosticRecord,
   hasDiagnosticOwn,
   isDiagnosticPlainRecord,
   isDiagnosticToken,
   snapshotDiagnosticJson,
+  MAX_DIAGNOSTIC_JSON_DEPTH,
 } from "./diagnosticRuntime.js";
+
+// Bound the collection separately from each untrusted record. The generic
+// million-node JSON cap otherwise rejects legitimate files at ~71k–100k rows,
+// depending only on how much source provenance each observation carries.
+const MAX_EXPOSURE_OBSERVATIONS = 250_000;
+
+// JSON enumeration skips hidden properties, but the strict exposure schema
+// reads recognized own fields. Refuse hidden accessors before those reads.
+function hiddenExposureAccessorIssues(
+  value: unknown,
+  path: string,
+): DiagnosticValidationIssue[] {
+  if (!isDiagnosticPlainRecord(value)) return [];
+  const issues: DiagnosticValidationIssue[] = [];
+  for (const key of Object.getOwnPropertyNames(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    if (!descriptor.enumerable && !("value" in descriptor))
+      issues.push({
+        domain: "input",
+        code: "invalid-json-value",
+        path: propertyPath(path, key),
+        message: "JSON objects may contain only data properties",
+      });
+  }
+  return issues;
+}
+
+function exposureCollectionPreflight(
+  value: unknown,
+): readonly DiagnosticValidationIssue[] {
+  if (!Array.isArray(value)) return diagnosticJsonPreflight(value, "input");
+  if (Object.getPrototypeOf(value) !== Array.prototype)
+    return [
+      {
+        domain: "input",
+        code: "invalid-json-value",
+        path: "$",
+        message: "Value must use a plain object or array prototype",
+      },
+    ];
+  if (value.length > MAX_EXPOSURE_OBSERVATIONS)
+    return [
+      {
+        domain: "input",
+        code: "expression-limit",
+        path: "$",
+        message: `Exposure observation count exceeds ${MAX_EXPOSURE_OBSERVATIONS}`,
+      },
+    ];
+  const issues: DiagnosticValidationIssue[] = [];
+  for (const key of Reflect.ownKeys(value)) {
+    if (key === "length") continue;
+    const index = typeof key === "string" ? Number(key) : Number.NaN;
+    if (
+      Number.isInteger(index) &&
+      index >= 0 &&
+      index < value.length &&
+      String(index) === key
+    )
+      continue;
+    issues.push({
+      domain: "input",
+      code: "invalid-json-value",
+      path: typeof key === "symbol" ? "$" : propertyPath("$", key),
+      message: "JSON arrays may contain only indexed data properties",
+    });
+  }
+  for (let index = 0; index < value.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (!descriptor || !("value" in descriptor)) {
+      issues.push({
+        domain: "input",
+        code: "invalid-json-value",
+        path: `$[${index}]`,
+        message: "JSON arrays may contain only indexed data properties",
+      });
+      continue;
+    }
+    issues.push(
+      ...hiddenExposureAccessorIssues(descriptor.value, `$[${index}]`),
+    );
+    if (isDiagnosticPlainRecord(descriptor.value)) {
+      const source = Object.getOwnPropertyDescriptor(
+        descriptor.value,
+        "source",
+      );
+      if (source && "value" in source)
+        issues.push(
+          ...hiddenExposureAccessorIssues(source.value, `$[${index}].source`),
+        );
+    }
+    // The outer collection used to occupy depth 1: keep the exact depth
+    // contract, and retain the default million-node guard for each record.
+    for (const issue of diagnosticJsonPreflight(descriptor.value, "input", {
+      maxDepth: MAX_DIAGNOSTIC_JSON_DEPTH - 1,
+    }))
+      issues.push({ ...issue, path: `$[${index}]${issue.path.slice(1)}` });
+  }
+  return issues;
+}
+
+/** Only for new SDK-owned objects whose leaves have already been validated. */
+function freezeExposureRecord<T extends object>(value: T): T {
+  return Object.freeze(Object.assign(diagnosticRecord<unknown>(), value)) as T;
+}
 
 export interface DiagnosticExposureObservation {
   readonly key: string;
@@ -115,7 +222,7 @@ function validateExposureArguments(
   // Nonfinite exposure amounts are supported audited inputs. They are the
   // only non-JSON numbers permitted here; metadata still must be finite.
   const issues: DiagnosticValidationIssue[] = [
-    ...diagnosticJsonPreflight(observations, "input")
+    ...exposureCollectionPreflight(observations)
       .filter(
         (issue) =>
           !(
@@ -396,7 +503,7 @@ export function reconcileDiagnosticExposures(
     cohort.push(observation);
     cohorts.set(identity, cohort);
   }
-  return snapshotDiagnosticJson(
+  return Object.freeze(
     [...cohorts.values()]
       .map((cohort): ReconciledDiagnosticExposure => {
         const first = cohort[0]!;
@@ -404,18 +511,20 @@ export function reconcileDiagnosticExposures(
           ? timingByMeasure[first.measureId]
           : undefined;
         const audited = cohort
-          .map((item): DiagnosticExposureAuditObservation => ({
-            sourceGroup: item.sourceGroup,
-            origin: item.origin,
-            ...(item.valuation === undefined
-              ? {}
-              : { valuation: item.valuation }),
-            value: auditDiagnosticNumber(item.value),
-            complete: item.complete,
-            ...(item.source === undefined
-              ? {}
-              : { source: Object.freeze({ ...item.source }) }),
-          }))
+          .map((item): DiagnosticExposureAuditObservation =>
+            snapshotDiagnosticJson({
+              sourceGroup: item.sourceGroup,
+              origin: item.origin,
+              ...(item.valuation === undefined
+                ? {}
+                : { valuation: item.valuation }),
+              value: auditDiagnosticNumber(item.value),
+              complete: item.complete,
+              ...(item.source === undefined
+                ? {}
+                : { source: Object.freeze({ ...item.source }) }),
+            }),
+          )
           .sort(observationOrder);
         const issues: (
           "missing" | "incomplete" | "non-finite" | "duplicate" | "conflict"
@@ -432,7 +541,7 @@ export function reconcileDiagnosticExposures(
         const validStaticCopies =
           timing === "origin-static" && issues.length === 0;
         if (issues.length > 0)
-          return Object.freeze({
+          return freezeExposureRecord({
             measureId: first.measureId,
             key: first.key,
             status: "invalid",
@@ -445,8 +554,8 @@ export function reconcileDiagnosticExposures(
           throw new Error("unreachable invalid exposure state");
         const sources = normalizeDiagnosticSourceLocations(
           audited.map((item) => item.source),
-        );
-        return Object.freeze({
+        ).map((source) => snapshotDiagnosticJson(source));
+        return freezeExposureRecord({
           measureId: first.measureId,
           key: first.key,
           status: "valid",

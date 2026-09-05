@@ -8,6 +8,8 @@ import {
 } from "./diagnosticDefinitions.js";
 import type { NormalizedDiagnosticReviewFilterIdentity } from "./diagnosticIdentity.js";
 import { canonicalJson } from "./canonical.js";
+import { createDiagnosticReviewSourcePool } from "./diagnosticReviewSources.js";
+import { createDiagnosticEvidenceInterner } from "./diagnosticEvidenceIntern.js";
 import { normalizeDiagnosticPeriod } from "./diagnosticPeriods.js";
 import {
   evaluateDiagnosticMeasureExpression,
@@ -15,8 +17,15 @@ import {
 } from "./diagnosticFormulas.js";
 import {
   assertPreparedDiagnosticData,
+  assertCompactPreparedDiagnosticData,
+  type CompactPreparedDiagnosticData,
+  type PreparedDiagnosticDataContent,
   type PreparedDiagnosticData,
 } from "./diagnosticPreparation.js";
+import {
+  createCompactReviewBuilder,
+  type CompactDiagnosticReviewEvaluations,
+} from "./diagnosticReviewStore.js";
 import {
   classifyDiagnosticComparison,
   diagnosticPredicateMatches,
@@ -173,7 +182,7 @@ function expressionLeafPaths(
 }
 
 function states(
-  prepared: PreparedDiagnosticData,
+  prepared: PreparedDiagnosticDataContent,
   cell: PreparedDiagnosticData["cells"][number],
 ): Record<string, FinalizedDiagnosticMeasure> {
   const internals = getCompiledDiagnosticDefinitionInternals(
@@ -206,7 +215,8 @@ function states(
           },
           stats,
           readiness,
-          sources: cellSources(cell, [id]),
+          // Cell expressions attach complete leaf-source evidence separately.
+          // Per-measure source lists here would be discarded and rebuilt.
         },
       ];
     }),
@@ -226,7 +236,7 @@ function coordinate(
 }
 
 function coordinateFromLabels(
-  prepared: PreparedDiagnosticData,
+  prepared: PreparedDiagnosticDataContent,
   sourceGroup: string,
   originLabel: string,
   valuationLabel: string,
@@ -286,27 +296,116 @@ function cellSourcesForSelection(
   );
 }
 
-function evaluateExpression(
-  prepared: PreparedDiagnosticData,
-  cell: PreparedDiagnosticData["cells"][number],
-  expression: import("./diagnosticExpressions.js").DiagnosticMeasureExpression,
-  path: string,
-): EvaluatedOperand {
-  const result = evaluateDiagnosticMeasureExpression(
-    expression,
-    states(prepared, cell),
-    path,
-  );
-  const sources = cellSources(cell, expressionMeasureIds(expression));
+/** Compact-only, invocation-owned caches. Never retain these on a prepared cell. */
+function createCompactCellSourceReader() {
+  const pool = createDiagnosticReviewSourcePool();
+  const addCellSources = (
+    target: ReturnType<typeof pool.collection>,
+    cell: PreparedDiagnosticData["cells"][number],
+    ids: readonly string[],
+  ): void => {
+    for (const id of ids) {
+      for (const contribution of cell.contributions[id] ?? [])
+        for (const source of contribution.sources) target.add(source, true);
+      for (const blocker of cell.structuralBlockers[id] ?? [])
+        for (const source of blocker.sources) target.add(source, true);
+    }
+  };
+  const forSelection = (
+    cells: readonly PreparedDiagnosticData["cells"][number][],
+    measureId: string,
+  ): readonly DiagnosticSourceLocation[] => {
+    const target = pool.collection();
+    const ids = [measureId];
+    for (const cell of cells) addCellSources(target, cell, ids);
+    return target.finish();
+  };
+  const dependencies = new WeakMap<object, readonly string[]>();
+  const dependencyKeys = new WeakMap<object, string>();
+  const byCell = new WeakMap<
+    PreparedDiagnosticData["cells"][number],
+    Map<string, readonly DiagnosticSourceLocation[]>
+  >();
+  const measureIds = (
+    expression: import("./diagnosticExpressions.js").DiagnosticMeasureExpression,
+  ): readonly string[] => {
+    let ids = dependencies.get(expression);
+    if (!ids) {
+      ids = Object.freeze(expressionMeasureIds(expression));
+      dependencies.set(expression, ids);
+    }
+    return ids;
+  };
+  const forCell = (
+    cell: PreparedDiagnosticData["cells"][number],
+    ids: readonly string[],
+  ): readonly DiagnosticSourceLocation[] => {
+    let key = dependencyKeys.get(ids);
+    if (key === undefined) {
+      key = canonicalJson(ids);
+      dependencyKeys.set(ids, key);
+    }
+    let subsets = byCell.get(cell);
+    if (!subsets) {
+      subsets = new Map();
+      byCell.set(cell, subsets);
+    }
+    let sources = subsets.get(key);
+    if (!sources) {
+      const target = pool.collection();
+      addCellSources(target, cell, ids);
+      sources = target.finish();
+      subsets.set(key, sources);
+    }
+    return sources;
+  };
   return {
-    value: result.value,
-    reasons: result.reasons,
-    overflows: result.overflows.map((overflow) => ({
-      ...overflow,
-      coordinate: coordinate(cell),
+    ...pool,
+    measureIds,
+    forCell,
+    forSelection,
+  };
+}
+
+function createCellExpressionEvaluator(
+  prepared: PreparedDiagnosticDataContent,
+  compactSources?: ReturnType<typeof createCompactCellSourceReader>,
+) {
+  // Reuse projections across this review's rules, then release them before the
+  // receipt identity is constructed. Retaining a prepared cell must not retain
+  // this temporary bookkeeping or reuse another review's state.
+  const statesByCell = new WeakMap<
+    PreparedDiagnosticData["cells"][number],
+    Record<string, FinalizedDiagnosticMeasure>
+  >();
+  return (
+    cell: PreparedDiagnosticData["cells"][number],
+    expression: import("./diagnosticExpressions.js").DiagnosticMeasureExpression,
+    path: string,
+  ): EvaluatedOperand => {
+    let measures = statesByCell.get(cell);
+    if (!measures) {
+      measures = states(prepared, cell);
+      statesByCell.set(cell, measures);
+    }
+    const result = evaluateDiagnosticMeasureExpression(
+      expression,
+      measures,
+      path,
+    );
+    const sources = compactSources
+      ? compactSources.forCell(cell, compactSources.measureIds(expression))
+      : cellSources(cell, expressionMeasureIds(expression));
+    return {
+      value: result.value,
+      reasons: result.reasons,
+      overflows: result.overflows.map((overflow) => ({
+        ...overflow,
+        coordinate: coordinate(cell),
+        sources,
+      })),
       sources,
-    })),
-    sources,
+    };
   };
 }
 
@@ -315,7 +414,7 @@ function constant(value: number): EvaluatedOperand {
 }
 
 function evaluation(
-  prepared: PreparedDiagnosticData,
+  prepared: PreparedDiagnosticDataContent,
   rule: DiagnosticReviewRule,
   scope: DiagnosticReviewEvaluationScope,
   left: EvaluatedOperand,
@@ -458,7 +557,7 @@ function evaluation(
 }
 
 function filterCells(
-  prepared: PreparedDiagnosticData,
+  prepared: PreparedDiagnosticDataContent,
   filter: DiagnosticReviewFilter | null | undefined,
 ): readonly PreparedDiagnosticData["cells"][number][] {
   if (!filter) return prepared.cells;
@@ -524,7 +623,7 @@ function filterCells(
 }
 
 function projectedCells(
-  prepared: PreparedDiagnosticData,
+  prepared: PreparedDiagnosticDataContent,
   rule: Extract<DiagnosticReviewRule, { kind: "control-total" }>,
 ): readonly PreparedDiagnosticData["cells"][number][] {
   const selected = filterCells(prepared, rule.filter);
@@ -551,12 +650,116 @@ function projectedCells(
   );
 }
 
+/**
+ * Finish each evaluation before retaining it. All mutable descendants here
+ * were constructed by this review; frozen descendants belong to the compiled
+ * definition or an earlier finalized child and must retain their identity.
+ * The pool is local to one review and never sees prepared cells or SDK brands.
+ */
+function createEvaluationFinalizer(): (
+  value: DiagnosticReviewRuleEvaluation,
+) => DiagnosticReviewRuleEvaluation {
+  const sharing = createDiagnosticEvidenceInterner();
+  const finalizeChild = (value: unknown, sourceSlot = false): unknown => {
+    if (value === null || typeof value !== "object" || Object.isFrozen(value))
+      return value;
+    const array = Array.isArray(value);
+    for (const key of Object.keys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+      const child = finalizeChild(
+        descriptor.value,
+        array ? sourceSlot : key === "source" || key === "sources",
+      );
+      if (child !== descriptor.value)
+        Object.defineProperty(value, key, { ...descriptor, value: child });
+    }
+    return sharing.internOwned(
+      Object.freeze(value),
+      sourceSlot ? "source" : "plain",
+    );
+  };
+  return (value) => {
+    // Keep every evaluation as its original, distinct record. Only its owned
+    // children may share storage; no evaluation or array entry is removed.
+    for (const key of ["scope", "notEvaluatedReasons", "expressionOverflows"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+      const child = finalizeChild(descriptor.value);
+      if (child !== descriptor.value)
+        Object.defineProperty(value, key, { ...descriptor, value: child });
+    }
+    return Object.freeze(value);
+  };
+}
+
 /** Evaluates definition-owned semantic review rules over authenticated prepared cells. */
 export function evaluateDiagnosticReviewRules(
   prepared: PreparedDiagnosticData,
 ): readonly DiagnosticReviewRuleEvaluation[] {
   assertPreparedDiagnosticData(prepared);
   const results: DiagnosticReviewRuleEvaluation[] = [];
+  const finalizeEvaluation = createEvaluationFinalizer();
+  visitDiagnosticReviewRules(prepared, (value) => {
+    results.push(finalizeEvaluation(value));
+  });
+  return Object.freeze(results);
+}
+
+/** Keeps every evaluation in compact owned storage; no identity is computed. */
+export function evaluateDiagnosticReviewRulesCompact(
+  prepared: CompactPreparedDiagnosticData,
+): CompactDiagnosticReviewEvaluations {
+  assertCompactPreparedDiagnosticData(prepared);
+  const compactSources = createCompactCellSourceReader();
+  const builder = createCompactReviewBuilder(
+    prepared.definition.definition.reviewRules,
+    compactSources,
+  );
+  visitDiagnosticReviewRules(prepared, builder.append, compactSources);
+  return builder.finish();
+}
+
+/** One traversal and one formula implementation serve both storage contracts. */
+function visitDiagnosticReviewRules(
+  prepared: PreparedDiagnosticDataContent,
+  appendEvaluation: (value: DiagnosticReviewRuleEvaluation) => void,
+  compactSources?: ReturnType<typeof createCompactCellSourceReader>,
+): void {
+  const evaluateExpression = createCellExpressionEvaluator(
+    prepared,
+    compactSources,
+  );
+  const cellByCoordinate = new Map<
+    string,
+    PreparedDiagnosticData["cells"][number]
+  >();
+  const expectedSourcesByCoordinate = new Map<
+    string,
+    DiagnosticSourceLocation[]
+  >();
+  const coordinateKey = (
+    sourceGroup: string,
+    origin: string,
+    valuation: string,
+  ) => canonicalJson([sourceGroup, origin, valuation]);
+  // Keep the original traversal and source order; only replace repeated searches.
+  // Other rule families do not need these indices.
+  if (
+    prepared.definition.definition.reviewRules.some(
+      (rule) => rule.kind === "monotonic",
+    )
+  ) {
+    for (const cell of prepared.cells) {
+      const key = coordinateKey(cell.sourceGroup, cell.origin, cell.valuation);
+      if (!cellByCoordinate.has(key)) cellByCoordinate.set(key, cell);
+    }
+    for (const cell of prepared.expectedCells) {
+      if (!cell.source) continue;
+      const key = coordinateKey(cell.sourceGroup, cell.origin, cell.valuation);
+      const sources = expectedSourcesByCoordinate.get(key) ?? [];
+      sources.push(cell.source);
+      expectedSourcesByCoordinate.set(key, sources);
+    }
+  }
   for (const [ruleIndex, rule] of (
     prepared.definition.definition
       .reviewRules as unknown as readonly DiagnosticReviewRule[]
@@ -571,7 +774,9 @@ export function evaluateDiagnosticReviewRules(
       const sourceByMeasure = Object.fromEntries(
         measureIds.map((measureId) => [
           measureId,
-          cellSourcesForSelection(cells, measureId),
+          compactSources
+            ? compactSources.forSelection(cells, measureId)
+            : cellSourcesForSelection(cells, measureId),
         ]),
       );
       const globalStates: Record<string, FinalizedDiagnosticMeasure> =
@@ -654,9 +859,13 @@ export function evaluateDiagnosticReviewRules(
         globalStates,
         `/reviewRules/${ruleIndex}/expression`,
       );
-      const sources = uniqueSources(
-        measureIds.flatMap((measureId) => sourceByMeasure[measureId] ?? []),
-      );
+      const sources = compactSources
+        ? compactSources.union(
+            measureIds.map((measureId) => sourceByMeasure[measureId] ?? []),
+          )
+        : uniqueSources(
+            measureIds.flatMap((measureId) => sourceByMeasure[measureId] ?? []),
+          );
       const left: EvaluatedOperand = {
         value: evaluated.value,
         reasons: evaluated.reasons,
@@ -685,7 +894,7 @@ export function evaluateDiagnosticReviewRules(
         ),
         sources,
       };
-      results.push(
+      appendEvaluation(
         evaluation(
           prepared,
           rule,
@@ -725,30 +934,18 @@ export function evaluateDiagnosticReviewRules(
         for (let index = 1; index < sorted.length; index++) {
           const previousValuation = sorted[index - 1]!;
           const currentValuation = sorted[index]!;
-          const previous = prepared.cells.find(
-            (cell) =>
-              cell.sourceGroup === sourceGroup &&
-              cell.origin === origin &&
-              cell.valuation === previousValuation,
+          const previous = cellByCoordinate.get(
+            coordinateKey(sourceGroup, origin, previousValuation),
           );
-          const current = prepared.cells.find(
-            (cell) =>
-              cell.sourceGroup === sourceGroup &&
-              cell.origin === origin &&
-              cell.valuation === currentValuation,
+          const current = cellByCoordinate.get(
+            coordinateKey(sourceGroup, origin, currentValuation),
           );
           const expectedSources = (valuation: string) =>
-            prepared.expectedCells
-              .filter(
-                (cell) =>
-                  cell.sourceGroup === sourceGroup &&
-                  cell.origin === origin &&
-                  cell.valuation === valuation,
-              )
-              .flatMap((cell) => (cell.source ? [cell.source] : []));
+            expectedSourcesByCoordinate.get(
+              coordinateKey(sourceGroup, origin, valuation),
+            ) ?? [];
           const left = previous
             ? evaluateExpression(
-                prepared,
                 previous,
                 rule.expression,
                 `${basePath}/expression`,
@@ -757,11 +954,14 @@ export function evaluateDiagnosticReviewRules(
                 value: null,
                 reasons: ["missing" as const],
                 overflows: [],
-                sources: uniqueSources(expectedSources(previousValuation)),
+                sources: compactSources
+                  ? compactSources.forPreparedSources(
+                      expectedSources(previousValuation),
+                    )
+                  : uniqueSources(expectedSources(previousValuation)),
               };
           const right = current
             ? evaluateExpression(
-                prepared,
                 current,
                 rule.expression,
                 `${basePath}/expression`,
@@ -770,7 +970,11 @@ export function evaluateDiagnosticReviewRules(
                 value: null,
                 reasons: ["missing" as const],
                 overflows: [],
-                sources: uniqueSources(expectedSources(currentValuation)),
+                sources: compactSources
+                  ? compactSources.forPreparedSources(
+                      expectedSources(currentValuation),
+                    )
+                  : uniqueSources(expectedSources(currentValuation)),
               };
           const scope: DiagnosticReviewEvaluationScope = {
             kind: "valuation-pair",
@@ -790,9 +994,11 @@ export function evaluateDiagnosticReviewRules(
                   origin,
                   currentValuation,
                 ),
-            sources: uniqueSources([...left.sources, ...right.sources]),
+            sources: compactSources
+              ? compactSources.union([left.sources, right.sources])
+              : uniqueSources([...left.sources, ...right.sources]),
           };
-          results.push(
+          appendEvaluation(
             evaluation(prepared, rule, scope, left, right, (relation) =>
               rule.direction === "nondecreasing"
                 ? relation !== "greater"
@@ -803,26 +1009,49 @@ export function evaluateDiagnosticReviewRules(
       }
       continue;
     }
+    // Scope evidence is the union of this rule's expression leaves, not every
+    // measure in the cell. Constants have no source dependency.
+    const scopeDependencies = compactSources
+      ? Object.freeze(
+          [
+            ...new Set(
+              (rule.kind === "compare"
+                ? [rule.when.left, rule.when.right]
+                : rule.kind === "reconcile"
+                  ? [rule.actual, rule.expected]
+                  : [rule.narrower, rule.broader]
+              ).flatMap((expression) =>
+                expression.op === "constant"
+                  ? []
+                  : compactSources.measureIds(expression),
+              ),
+            ),
+          ].sort(codeUnit),
+        )
+      : undefined;
     for (const cell of prepared.cells) {
       const scopeFor = (
-        sources: readonly DiagnosticSourceLocation[],
+        leftSources: readonly DiagnosticSourceLocation[],
+        rightSources: readonly DiagnosticSourceLocation[],
       ): DiagnosticCellReviewScope => ({
         kind: "cell",
         cell: coordinate(cell),
-        sources: uniqueSources(sources),
+        sources: compactSources
+          ? compactSources.forCell(cell, scopeDependencies!)
+          : uniqueSources([...leftSources, ...rightSources]),
       });
       if (rule.kind === "compare") {
         const operand = (item: typeof rule.when.left, path: string) =>
           item.op === "constant"
             ? constant(item.value)
-            : evaluateExpression(prepared, cell, item, path);
+            : evaluateExpression(cell, item, path);
         const left = operand(rule.when.left, `${basePath}/when/left`);
         const right = operand(rule.when.right, `${basePath}/when/right`);
-        results.push(
+        appendEvaluation(
           evaluation(
             prepared,
             rule,
-            scopeFor([...left.sources, ...right.sources]),
+            scopeFor(left.sources, right.sources),
             left,
             right,
             (relation) =>
@@ -831,7 +1060,6 @@ export function evaluateDiagnosticReviewRules(
         );
       } else if (rule.kind === "reconcile") {
         const left = evaluateExpression(
-          prepared,
           cell,
           rule.actual,
           `${basePath}/actual`,
@@ -839,17 +1067,12 @@ export function evaluateDiagnosticReviewRules(
         const right =
           rule.expected.op === "constant"
             ? constant(rule.expected.value)
-            : evaluateExpression(
-                prepared,
-                cell,
-                rule.expected,
-                `${basePath}/expected`,
-              );
-        results.push(
+            : evaluateExpression(cell, rule.expected, `${basePath}/expected`);
+        appendEvaluation(
           evaluation(
             prepared,
             rule,
-            scopeFor([...left.sources, ...right.sources]),
+            scopeFor(left.sources, right.sources),
             left,
             right,
             (relation) => relation === "equal",
@@ -857,22 +1080,20 @@ export function evaluateDiagnosticReviewRules(
         );
       } else {
         const left = evaluateExpression(
-          prepared,
           cell,
           rule.narrower,
           `${basePath}/narrower`,
         );
         const right = evaluateExpression(
-          prepared,
           cell,
           rule.broader,
           `${basePath}/broader`,
         );
-        results.push(
+        appendEvaluation(
           evaluation(
             prepared,
             rule,
-            scopeFor([...left.sources, ...right.sources]),
+            scopeFor(left.sources, right.sources),
             left,
             right,
             (relation) => relation !== "greater",
@@ -881,17 +1102,4 @@ export function evaluateDiagnosticReviewRules(
       }
     }
   }
-  return deepFreeze(results);
-}
-
-function deepFreeze<T>(
-  value: T,
-  seen = new WeakSet<object>(),
-): DiagnosticDeepReadonly<T> {
-  if (value === null || typeof value !== "object" || seen.has(value))
-    return value as DiagnosticDeepReadonly<T>;
-  seen.add(value);
-  for (const child of Object.values(value as Record<string, unknown>))
-    deepFreeze(child, seen);
-  return Object.freeze(value) as DiagnosticDeepReadonly<T>;
 }

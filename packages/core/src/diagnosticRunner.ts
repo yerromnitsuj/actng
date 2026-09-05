@@ -22,9 +22,18 @@ import {
   type DiagnosticRuleEvaluation,
 } from "./diagnosticRules.js";
 import {
+  assertCompactPreparedDiagnosticData,
   assertPreparedDiagnosticData,
+  getCompactPreparedDiagnosticDataFingerprint,
+  type CompactPreparedDiagnosticData,
   type PreparedDiagnosticData,
+  type PreparedDiagnosticDataContent,
 } from "./diagnosticPreparation.js";
+import {
+  createDiagnosticIdentityObject,
+  createDiagnosticIdentityValue,
+  type DiagnosticIdentityDocument,
+} from "./diagnosticIdentityStream.js";
 import type { DiagnosticMeasureStats } from "./diagnosticDefinitions.js";
 import {
   DiagnosticValidationError,
@@ -50,6 +59,15 @@ export interface RunMetricDiagnosticsInput {
   readonly groupMap?: Readonly<Record<string, string>>;
   readonly groupDimensions?: Readonly<Record<string, JsonValue>>;
 }
+export interface RunMetricDiagnosticsCompactInput {
+  readonly prepared: CompactPreparedDiagnosticData;
+  readonly groupMap?: Readonly<Record<string, string>>;
+  readonly groupDimensions?: Readonly<Record<string, JsonValue>>;
+}
+type RunMetricDiagnosticsContentInput = Omit<
+  RunMetricDiagnosticsInput,
+  "prepared"
+> & { readonly prepared: PreparedDiagnosticDataContent };
 export interface DiagnosticMetricEvaluation {
   readonly instanceId: string;
   readonly instanceVersion: string;
@@ -113,6 +131,23 @@ export interface MetricDiagnosticsResult {
   readonly latestDiagonal: readonly DiagnosticEmergencePoint[];
   readonly findings: readonly DiagnosticMetricFinding[];
 }
+export type MetricDiagnosticsResultContent = Omit<
+  MetricDiagnosticsResult,
+  "preparationFingerprint"
+>;
+declare const compactMetricDiagnosticsResultBrand: unique symbol;
+/** Complete numeric views whose preparation identity is explicitly deferred. */
+export interface CompactMetricDiagnosticsResult extends MetricDiagnosticsResultContent {
+  readonly [compactMetricDiagnosticsResultBrand]: true;
+}
+const compactResultPreparations = new WeakMap<
+  object,
+  CompactPreparedDiagnosticData
+>();
+const compactResultDocuments = new WeakMap<
+  object,
+  DiagnosticIdentityDocument
+>();
 export interface CommonMaturityResult {
   readonly developmentAge: number | null;
   readonly ageUnit: string;
@@ -210,6 +245,19 @@ export function validateDiagnosticGroupingConfiguration(
   input: RunMetricDiagnosticsInput,
 ): void {
   assertPreparedDiagnosticData(input.prepared);
+  validateGroupingContent(input);
+}
+
+export function validateCompactDiagnosticGroupingConfiguration(
+  input: RunMetricDiagnosticsCompactInput,
+): void {
+  assertCompactPreparedDiagnosticData(input.prepared);
+  validateGroupingContent(input);
+}
+
+function validateGroupingContent(
+  input: RunMetricDiagnosticsContentInput,
+): void {
   const boundaryIssues: DiagnosticValidationIssue[] = [];
   for (const [value, path] of [
     [input.groupMap, "$.groupMap"],
@@ -302,7 +350,7 @@ export function validateDiagnosticGroupingConfiguration(
 }
 
 function mergeStats(
-  cells: readonly PreparedDiagnosticData["cells"][number][],
+  cells: readonly PreparedDiagnosticDataContent["cells"][number][],
   measure: { readonly id: string; readonly missing: "unknown" | "zero" },
 ): DiagnosticMeasureStats {
   const contributions = cells.flatMap(
@@ -360,7 +408,7 @@ function inferRoleExpressionMeasure(
 }
 
 function evaluatePoint(
-  prepared: PreparedDiagnosticData,
+  prepared: PreparedDiagnosticDataContent,
   components: Readonly<Record<string, DiagnosticMeasureStats>>,
   instanceId: string,
   context: {
@@ -764,7 +812,96 @@ export function runMetricDiagnostics(
   input: RunMetricDiagnosticsInput,
 ): DiagnosticDeepReadonly<MetricDiagnosticsResult> {
   validateDiagnosticGroupingConfiguration(input);
+  const { definitionIntegrity, ...content } = calculateMetricDiagnostics(input);
+  return Object.freeze({
+    definitionIntegrity,
+    preparationFingerprint: input.prepared.preparationFingerprint,
+    ...content,
+  });
+}
+
+export function runMetricDiagnosticsCompact(
+  input: RunMetricDiagnosticsCompactInput,
+): DiagnosticDeepReadonly<CompactMetricDiagnosticsResult> {
+  validateCompactDiagnosticGroupingConfiguration(input);
+  const result = calculateMetricDiagnostics(input);
+  compactResultPreparations.set(result, input.prepared);
+  return result as DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>;
+}
+
+export function assertCompactMetricDiagnosticsResult(
+  value: unknown,
+): asserts value is DiagnosticDeepReadonly<CompactMetricDiagnosticsResult> {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !compactResultPreparations.has(value)
+  )
+    throw new DiagnosticValidationError([
+      {
+        domain: "input",
+        code: "invalid-input-relationship",
+        path: "$.result",
+        message: "Compact metric diagnostics result is not authentic",
+      },
+    ]);
+}
+
+/** Explicit eager JSON bridge; it is not used during compact calculation. */
+export function materializeMetricDiagnosticsResult(
+  value: DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>,
+): DiagnosticDeepReadonly<MetricDiagnosticsResult> {
+  assertCompactMetricDiagnosticsResult(value);
+  const preparationFingerprint = getCompactPreparedDiagnosticDataFingerprint(
+    compactResultPreparations.get(value)!,
+  );
+  const { definitionIntegrity, ...content } = value;
+  return Object.freeze({
+    definitionIntegrity,
+    preparationFingerprint,
+    ...content,
+  });
+}
+
+/** Complete core-owned result identity; no normalized result copy is retained. */
+export function getCompactMetricDiagnosticsResultIdentityDocument(
+  value: DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>,
+): DiagnosticIdentityDocument {
+  assertCompactMetricDiagnosticsResult(value);
+  const previous = compactResultDocuments.get(value);
+  if (previous) return previous;
+  const document = createDiagnosticIdentityObject({
+    definitionIntegrity: createDiagnosticIdentityValue(
+      value.definitionIntegrity,
+    ),
+    preparationFingerprint: createDiagnosticIdentityValue(
+      getCompactPreparedDiagnosticDataFingerprint(
+        compactResultPreparations.get(value)!,
+      ),
+    ),
+    ageUnit: createDiagnosticIdentityValue(value.ageUnit),
+    emergence: createDiagnosticIdentityValue(value.emergence),
+    triangles: createDiagnosticIdentityValue(value.triangles),
+    latestDiagonal: createDiagnosticIdentityValue(value.latestDiagonal),
+    findings: createDiagnosticIdentityValue(value.findings),
+  });
+  compactResultDocuments.set(value, document);
+  return document;
+}
+
+function calculateMetricDiagnostics(
+  input: RunMetricDiagnosticsContentInput,
+): DiagnosticDeepReadonly<MetricDiagnosticsResultContent> {
   const prepared = input.prepared;
+  // Grouping validation has already rejected non-JSON shapes. Snapshot each
+  // group's opaque metadata once; freezing output must not freeze caller JSON.
+  const dimensionSnapshots = new WeakMap<object, JsonValue>();
+  const dimensions = new Map(
+    Object.entries(input.groupDimensions ?? {}).map(([group, value]) => [
+      group,
+      snapshotOwnedDimensions(value, dimensionSnapshots),
+    ]),
+  );
   const buckets = new Map<string, typeof prepared.cells>();
   for (const cell of prepared.cells) {
     const group =
@@ -898,10 +1035,7 @@ export function runMetricDiagnostics(
       sourceGroups: [...new Set(cells.map((cell) => cell.sourceGroup))].sort(
         codeUnit,
       ),
-      ...(input.groupDimensions &&
-      Object.prototype.hasOwnProperty.call(input.groupDimensions, group)
-        ? { dimensions: input.groupDimensions[group] }
-        : {}),
+      ...(dimensions.has(group) ? { dimensions: dimensions.get(group)! } : {}),
       origin,
       valuation,
       developmentAge: cells[0]!.developmentAge,
@@ -997,7 +1131,6 @@ export function runMetricDiagnostics(
   );
   return deepFreeze({
     definitionIntegrity: prepared.definition.definitionIntegrity,
-    preparationFingerprint: prepared.preparationFingerprint,
     ageUnit: prepared.definition.definition.periodAxis.ageUnit,
     emergence,
     triangles,
@@ -1009,8 +1142,40 @@ export function runMetricDiagnostics(
   });
 }
 
+/** Preserve free-JSON prototypes, own-key order, and -0 without source coercion. */
+function snapshotOwnedDimensions(
+  value: JsonValue,
+  snapshots: WeakMap<object, JsonValue>,
+): JsonValue {
+  if (value === null || typeof value !== "object") return value;
+  const previous = snapshots.get(value);
+  if (previous !== undefined) return previous;
+  if (Array.isArray(value)) {
+    const result = Object.freeze(
+      value.map((item) => snapshotOwnedDimensions(item, snapshots)),
+    );
+    snapshots.set(value, result);
+    return result;
+  }
+  const result = Object.create(Object.getPrototypeOf(value)) as Record<
+    string,
+    JsonValue
+  >;
+  const record = value as Readonly<Record<string, JsonValue>>;
+  for (const key of Object.keys(value))
+    Object.defineProperty(result, key, {
+      value: snapshotOwnedDimensions(record[key]!, snapshots),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  const frozen = Object.freeze(result);
+  snapshots.set(value, frozen);
+  return frozen;
+}
+
 function viewGroups(
-  result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
+  result: DiagnosticDeepReadonly<MetricDiagnosticsResultContent>,
   outputGroups: readonly string[],
   path: string,
 ): readonly string[] {
@@ -1050,6 +1215,24 @@ export function sameMaturity(
   result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
   developmentAge: number,
   outputGroups?: readonly string[],
+): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[];
+export function sameMaturity(
+  result: DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>,
+  developmentAge: number,
+  outputGroups?: readonly string[],
+): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[];
+export function sameMaturity(
+  result: DiagnosticDeepReadonly<MetricDiagnosticsResultContent>,
+  developmentAge: number,
+  outputGroups?: readonly string[],
+): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[] {
+  return sameMaturityContent(result, developmentAge, outputGroups);
+}
+
+function sameMaturityContent(
+  result: DiagnosticDeepReadonly<MetricDiagnosticsResultContent>,
+  developmentAge: number,
+  outputGroups?: readonly string[],
 ): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[] {
   if (!Number.isSafeInteger(developmentAge) || developmentAge < 0)
     throw new DiagnosticValidationError([
@@ -1073,6 +1256,14 @@ export function sameMaturity(
 
 export function commonMaturity(
   result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
+  outputGroups: readonly string[],
+): DiagnosticDeepReadonly<CommonMaturityResult>;
+export function commonMaturity(
+  result: DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>,
+  outputGroups: readonly string[],
+): DiagnosticDeepReadonly<CommonMaturityResult>;
+export function commonMaturity(
+  result: DiagnosticDeepReadonly<MetricDiagnosticsResultContent>,
   outputGroups: readonly string[],
 ): DiagnosticDeepReadonly<CommonMaturityResult> {
   const groups = viewGroups(result, outputGroups, "$.outputGroups");
@@ -1104,7 +1295,7 @@ export function commonMaturity(
     points:
       developmentAge === null
         ? []
-        : sameMaturity(result, developmentAge, groups),
+        : sameMaturityContent(result, developmentAge, groups),
   });
 }
 export function getMetricDiagnosticsResultIdentity(

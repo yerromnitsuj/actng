@@ -3,7 +3,7 @@
 Documentation, judgment, provenance, and reproducibility primitives for actuarial-ts. The package is designed to support compliance work under applicable ASOPs; it neither determines compliance nor replaces the actuary’s review.
 
 ```bash
-npm install @actuarial-ts/compliance@0.6.1 @actuarial-ts/core@0.6.1 @actuarial-ts/data@0.6.1 @actuarial-ts/interchange@0.6.1
+npm install @actuarial-ts/compliance@0.7.0 @actuarial-ts/core@0.7.0 @actuarial-ts/data@0.7.0 @actuarial-ts/interchange@0.7.0
 ```
 
 Node 20+, ESM.
@@ -59,7 +59,11 @@ Material host judgments worth recording in the assumption ledger include amount 
 
 The package also provides estimate metadata, assumption ledgers, ASOP No. 41 draft disclosure generation, ASOP No. 56 model cards, actual-versus-expected roll-forward, and canonical reproducibility bundles.
 
-See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md).
+See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/migrations/0.6-generalized-diagnostics.md).
+
+## Compact provenance and replay streams
+
+Version 0.7.0 adds separately authenticated compact provenance and a versioned replay stream. They retain complete audit evidence while avoiding archive-sized identity objects/strings; this is not a dataset-capacity certification. In the source checkout, `docs/reference/diagnostic-replay-stream.md` describes the APIs, host resource limits, wire version, independent verification, and assurance boundaries; that reference document is not part of the npm package. Existing eager provenance and interchange BundleDoc APIs remain unchanged.
 
 ## License
 

@@ -3,7 +3,7 @@
 Typed ingestion, preparation, and data-review boundaries for the actuarial-ts SDK. It supports loss-run/exposure CSVs, annual claim-development adaptation, triangle assembly, and generalized diagnostic review designed to support ASOP No. 23 work.
 
 ```bash
-npm install @actuarial-ts/data@0.6.1 @actuarial-ts/core@0.6.1
+npm install @actuarial-ts/data@0.7.0 @actuarial-ts/core@0.7.0
 ```
 
 Node 20+, ESM. Responsibility for the review and resulting actuarial work remains with the actuary.
@@ -59,7 +59,7 @@ Definitions add declarative `compare`, `reconcile`, `monotonic`, `layer-order`, 
 
 Completed outcomes are owner-branded and include the exact prepared data, review receipt, run preset, dataset artifact, grouping, result, and two-gate receipt. Compliance provenance accepts only that completed object.
 
-See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md).
+See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 

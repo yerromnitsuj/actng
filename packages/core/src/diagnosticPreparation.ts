@@ -1,5 +1,12 @@
 import { canonicalJson, fnv1a64 } from "./canonical.js";
 import {
+  createDiagnosticIdentityArray,
+  createDiagnosticIdentityObject,
+  createDiagnosticIdentityValue,
+  fingerprintDiagnosticIdentity,
+  type DiagnosticIdentityDocument,
+} from "./diagnosticIdentityStream.js";
+import {
   normalizeDiagnosticsFilterIdentity,
   projectDiagnosticIdentity,
   type DiagnosticIdentityProjection,
@@ -75,8 +82,7 @@ export interface DiagnosticLossSnapshot extends DiagnosticLossRecordBase {
 }
 
 export type DiagnosticLossInput =
-  | DiagnosticClaimObservation
-  | DiagnosticLossSnapshot;
+  DiagnosticClaimObservation | DiagnosticLossSnapshot;
 
 export interface DiagnosticCompletePeriodCutoff {
   readonly sourceGroup: string;
@@ -101,10 +107,7 @@ export interface PrepareDiagnosticDataInput {
 }
 
 export type DiagnosticInputDisposition =
-  | "invalid"
-  | "complete-period-cutoff"
-  | "filter"
-  | "retained";
+  "invalid" | "complete-period-cutoff" | "filter" | "retained";
 
 export interface DiagnosticLossInputAuditSnapshot {
   readonly recordId: string;
@@ -185,6 +188,22 @@ export interface PreparedDiagnosticData {
   readonly findings: readonly DiagnosticMetricFinding[];
 }
 
+/** Complete prepared content shared by the eager and compact execution paths. */
+export type PreparedDiagnosticDataContent = Omit<
+  PreparedDiagnosticData,
+  typeof preparedDiagnosticDataBrand | "preparationFingerprint"
+>;
+
+declare const compactPreparedDiagnosticDataBrand: unique symbol;
+/**
+ * Owned, frozen preparation without an eagerly materialized identity or hash.
+ * This is a distinct authenticated value, not an eager preparation with a
+ * missing or placeholder fingerprint.
+ */
+export interface CompactPreparedDiagnosticData extends PreparedDiagnosticDataContent {
+  readonly [compactPreparedDiagnosticDataBrand]: true;
+}
+
 export interface NormalizedDiagnosticPreparationIdentity {
   readonly definitionIntegrity: string;
   readonly filter: NormalizedDiagnosticsFilterIdentity | null;
@@ -252,6 +271,12 @@ interface PendingBlocker {
 }
 
 const authentic = new WeakSet<object>();
+const authenticCompact = new WeakSet<object>();
+const compactIdentityDocuments = new WeakMap<
+  object,
+  DiagnosticIdentityDocument
+>();
+const compactFingerprints = new WeakMap<object, string>();
 const identities = new WeakMap<
   object,
   DiagnosticDeepReadonly<NormalizedDiagnosticPreparationIdentity>
@@ -992,10 +1017,10 @@ function exposureCoordinateContext(
   return { sourceGroup: coherentSource[0], origin: coherentOrigin[0] };
 }
 
-function auditSort(
+function createAuditComparator(): (
   left: DiagnosticInputAuditRecord,
   right: DiagnosticInputAuditRecord,
-): number {
+) => number {
   const rank = { loss: 0, exposure: 1, "expected-cell": 2 } as const;
   const disposition = {
     invalid: 0,
@@ -1003,11 +1028,21 @@ function auditSort(
     filter: 2,
     retained: 3,
   } as const;
-  return (
+  // Audit snapshots are already owned and complete before sorting. Preserve the
+  // exact canonical-text ordering, but serialize each compared record once.
+  // Keep this memo local to the sort; it must not retain keys with the result.
+  const keys = new WeakMap<DiagnosticInputAuditRecord["record"], string>();
+  const key = (record: DiagnosticInputAuditRecord["record"]): string => {
+    const previous = keys.get(record);
+    if (previous !== undefined) return previous;
+    const text = canonicalJson(record);
+    keys.set(record, text);
+    return text;
+  };
+  return (left, right) =>
     rank[left.kind] - rank[right.kind] ||
-    codeUnit(canonicalJson(left.record), canonicalJson(right.record)) ||
-    disposition[left.disposition] - disposition[right.disposition]
-  );
+    codeUnit(key(left.record), key(right.record)) ||
+    disposition[left.disposition] - disposition[right.disposition];
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -1345,6 +1380,22 @@ function preparationBoundaryIssues(
 export function prepareDiagnosticData(
   input: PrepareDiagnosticDataInput,
 ): PreparedDiagnosticData {
+  return prepareDiagnosticDataInMode(input, "eager") as PreparedDiagnosticData;
+}
+
+export function prepareDiagnosticDataCompact(
+  input: PrepareDiagnosticDataInput,
+): CompactPreparedDiagnosticData {
+  return prepareDiagnosticDataInMode(
+    input,
+    "compact",
+  ) as CompactPreparedDiagnosticData;
+}
+
+function prepareDiagnosticDataInMode(
+  input: PrepareDiagnosticDataInput,
+  mode: "eager" | "compact",
+): PreparedDiagnosticData | CompactPreparedDiagnosticData {
   assertCompiledDiagnosticDefinition(
     (input as unknown as { readonly definition?: unknown } | null)?.definition,
   );
@@ -1432,6 +1483,7 @@ export function prepareDiagnosticData(
     }
     const normalized = {
       ...row,
+      ...(row.source === undefined ? {} : { source: { ...row.source } }),
       origin: origin.label,
       valuation: valuation.label,
     };
@@ -1470,6 +1522,9 @@ export function prepareDiagnosticData(
   const lossCandidates: LossCandidate[] = input.losses.map((inputRow) => ({
     row: {
       ...inputRow,
+      ...(inputRow.source === undefined
+        ? {}
+        : { source: { ...inputRow.source } }),
       measures: Object.fromEntries(
         Object.keys(inputRow.measures)
           .sort(codeUnit)
@@ -1592,7 +1647,12 @@ export function prepareDiagnosticData(
 
   const exposureCandidates: ExposureCandidate[] = input.exposures.map(
     (inputRow) => ({
-      row: { ...inputRow },
+      row: {
+        ...inputRow,
+        ...(inputRow.source === undefined
+          ? {}
+          : { source: { ...inputRow.source } }),
+      },
       snapshot: snapshotExposure(inputRow),
       disposition: selectedBySource(filter, inputRow.sourceGroup)
         ? "retained"
@@ -2015,6 +2075,14 @@ export function prepareDiagnosticData(
       derivedByRecord.get(candidate.row.recordId)!,
     );
 
+  // Exposure attachment is a coordinate join. Index the established cell order
+  // once; scanning every cell for each origin-static exposure is quadratic.
+  const cellKeysBySourceOrigin = new Map<string, string[]>();
+  for (const key of cellRows.keys()) {
+    const [sourceGroup, origin] = parseCellKey(key);
+    addToMap(cellKeysBySourceOrigin, canonicalJson([sourceGroup, origin]), key);
+  }
+
   const allMeasureIds = definition.definition.measures
     .map((measure) => measure.id)
     .sort(codeUnit);
@@ -2025,7 +2093,7 @@ export function prepareDiagnosticData(
     .filter((measure) => measure.source === "exposure")
     .sort((left, right) => codeUnit(left.id, right.id));
   const preparedCells: PreparedDiagnosticSourceCell[] = [];
-  const invalidExposureTargets = new Map<string, Set<string>>();
+  const invalidExposureMeasuresByCell = new Map<string, Set<string>>();
   for (const item of invalidExposureBlockers) {
     const targets = new Set<string>();
     for (const candidate of item.candidates) {
@@ -2039,16 +2107,17 @@ export function prepareDiagnosticData(
           ),
         );
       else
-        for (const key of cellRows.keys()) {
-          const [sourceGroup, origin] = parseCellKey(key);
-          if (
-            sourceGroup === candidate.row.sourceGroup &&
-            origin === candidate.origin.label
-          )
-            targets.add(key);
-        }
+        for (const key of cellKeysBySourceOrigin.get(
+          canonicalJson([candidate.row.sourceGroup, candidate.origin.label]),
+        ) ?? [])
+          targets.add(key);
     }
-    invalidExposureTargets.set(canonicalJson(item.finding), targets);
+    for (const key of targets) {
+      const measures =
+        invalidExposureMeasuresByCell.get(key) ?? new Set<string>();
+      measures.add(item.finding.measureId!);
+      invalidExposureMeasuresByCell.set(key, measures);
+    }
     pendingBlockers.push({
       finding: item.finding,
       measureIds: [item.finding.measureId!],
@@ -2057,21 +2126,28 @@ export function prepareDiagnosticData(
     });
   }
 
-  const validAttachmentKeys = new Map<ReconciledDiagnosticExposure, string[]>();
+  const validExposuresByCell = new Map<
+    string,
+    Extract<ReconciledDiagnosticExposure, { status: "valid" }>[]
+  >();
   for (const exposure of reconciled) {
     if (exposure.status !== "valid") continue;
     const timing = internals.measuresById.get(
       exposure.measureId,
     )!.exposureTiming;
-    const keys = [...cellRows.keys()].filter((key) => {
-      const [sourceGroup, origin, valuation] = parseCellKey(key);
-      return (
-        sourceGroup === exposure.sourceGroup &&
-        origin === exposure.origin &&
-        (timing === "origin-static" || valuation === exposure.valuation)
-      );
-    });
-    validAttachmentKeys.set(exposure, keys);
+    const coordinateKey =
+      exposure.valuation === undefined
+        ? null
+        : cellKey(exposure.sourceGroup, exposure.origin, exposure.valuation);
+    const keys =
+      timing === "origin-static"
+        ? (cellKeysBySourceOrigin.get(
+            canonicalJson([exposure.sourceGroup, exposure.origin]),
+          ) ?? [])
+        : coordinateKey !== null && cellRows.has(coordinateKey)
+          ? [coordinateKey]
+          : [];
+    for (const key of keys) addToMap(validExposuresByCell, key, exposure);
     if (keys.length === 0)
       findings.push(
         structuralFinding("exposure-without-loss", {
@@ -2084,6 +2160,14 @@ export function prepareDiagnosticData(
         }),
       );
   }
+
+  const pendingBlockersByCell = new Map<
+    string,
+    (typeof pendingBlockers)[number][]
+  >();
+  for (const pending of pendingBlockers)
+    for (const key of new Set(pending.cellKeys))
+      addToMap(pendingBlockersByCell, key, pending);
 
   for (const [key, rows] of cellRows) {
     const [sourceGroup, origin, valuation] = parseCellKey(key);
@@ -2161,22 +2245,18 @@ export function prepareDiagnosticData(
             ),
           );
       }
-    for (const exposure of reconciled)
-      if (
-        exposure.status === "valid" &&
-        validAttachmentKeys.get(exposure)?.includes(key)
-      )
-        contributions[exposure.measureId]!.push(
-          auditedDiagnosticContribution(
-            exposure.key,
-            exposure.value,
-            "unknown",
-            exposure.sources,
-            exposure.deduplicated,
-          ),
-        );
-    for (const pending of pendingBlockers) {
-      if (!pending.cellKeys.includes(key)) continue;
+    const attachedExposures = validExposuresByCell.get(key) ?? [];
+    for (const exposure of attachedExposures)
+      contributions[exposure.measureId]!.push(
+        auditedDiagnosticContribution(
+          exposure.key,
+          exposure.value,
+          "unknown",
+          exposure.sources,
+          exposure.deduplicated,
+        ),
+      );
+    for (const pending of pendingBlockersByCell.get(key) ?? []) {
       cellFindings.push(pending.finding);
       const blocker = {
         code: pending.finding.code,
@@ -2190,17 +2270,9 @@ export function prepareDiagnosticData(
     }
     for (const measure of exposureMeasures) {
       const attempted =
-        [...validAttachmentKeys.entries()].some(
-          ([exposure, keys]) =>
-            exposure.status === "valid" &&
-            exposure.measureId === measure.id &&
-            keys.includes(key),
-        ) ||
-        invalidExposureBlockers.some(
-          (item) =>
-            item.finding.measureId === measure.id &&
-            invalidExposureTargets.get(canonicalJson(item.finding))?.has(key),
-        );
+        attachedExposures.some(
+          (exposure) => exposure.measureId === measure.id,
+        ) || invalidExposureMeasuresByCell.get(key)?.has(measure.id);
       if (contributions[measure.id]!.length === 0 && !attempted) {
         const sources = normalizeSources(rows.map((row) => row.source));
         const finding = structuralFinding("loss-without-exposure", {
@@ -2374,28 +2446,22 @@ export function prepareDiagnosticData(
     )
     .map((candidate) => candidate.row);
   const audit: DiagnosticInputAuditRecord[] = [
-    ...lossCandidates.map(
-      (candidate): DiagnosticInputAuditRecord => ({
-        kind: "loss",
-        disposition: candidate.disposition,
-        record: candidate.snapshot,
-      }),
-    ),
-    ...exposureCandidates.map(
-      (candidate): DiagnosticInputAuditRecord => ({
-        kind: "exposure",
-        disposition: candidate.disposition,
-        record: candidate.snapshot,
-      }),
-    ),
-    ...expectedCandidates.map(
-      (candidate): DiagnosticInputAuditRecord => ({
-        kind: "expected-cell",
-        disposition: candidate.disposition,
-        record: candidate.snapshot,
-      }),
-    ),
-  ].sort(auditSort);
+    ...lossCandidates.map((candidate): DiagnosticInputAuditRecord => ({
+      kind: "loss",
+      disposition: candidate.disposition,
+      record: candidate.snapshot,
+    })),
+    ...exposureCandidates.map((candidate): DiagnosticInputAuditRecord => ({
+      kind: "exposure",
+      disposition: candidate.disposition,
+      record: candidate.snapshot,
+    })),
+    ...expectedCandidates.map((candidate): DiagnosticInputAuditRecord => ({
+      kind: "expected-cell",
+      disposition: candidate.disposition,
+      record: candidate.snapshot,
+    })),
+  ].sort(createAuditComparator());
   const normalizedFindings = mergeFindings(findings);
   const frozenCells = preparedCells.map((cell) => deepFreeze(cell));
   const cutoffValues = normalizedCutoffs.map((cutoff) => cutoff.value);
@@ -2410,11 +2476,29 @@ export function prepareDiagnosticData(
     expectedCells,
     findings: normalizedFindings,
   });
+  if (mode === "compact") {
+    // Every child was frozen above (the compiled definition owns its snapshot).
+    const prepared = Object.freeze({
+      definition,
+      ...ownedData,
+    }) as unknown as CompactPreparedDiagnosticData;
+    authenticCompact.add(prepared);
+    return prepared;
+  }
+  return createEagerPreparedDiagnosticData(definition, ownedData);
+}
+
+function createEagerPreparedDiagnosticData(
+  definition: CompiledDiagnosticDefinition,
+  ownedData: Omit<PreparedDiagnosticDataContent, "definition"> & {
+    readonly definitionIntegrity: string;
+  },
+): PreparedDiagnosticData {
   const identity: NormalizedDiagnosticPreparationIdentity =
     projectDiagnosticIdentity({
       ...ownedData,
-      filter: normalizeDiagnosticsFilterIdentity(filter),
-      expectedCells: expectedCells.map((cell) => ({
+      filter: normalizeDiagnosticsFilterIdentity(ownedData.filter),
+      expectedCells: ownedData.expectedCells.map((cell) => ({
         ...cell,
         source: cell.source ?? null,
       })),
@@ -2428,6 +2512,106 @@ export function prepareDiagnosticData(
   authentic.add(prepared);
   identities.set(prepared, identity);
   return prepared;
+}
+
+export function assertCompactPreparedDiagnosticData(
+  value: unknown,
+): asserts value is CompactPreparedDiagnosticData {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    !authenticCompact.has(value)
+  )
+    throw new DiagnosticValidationError([
+      {
+        domain: "input",
+        code: "invalid-input-relationship",
+        path: "$.prepared",
+        message: "Compact prepared diagnostic data is not authentic",
+      },
+    ]);
+}
+
+/**
+ * Explicit eager bridge for callers that need the legacy complete JSON shape.
+ * This materializes and hashes the full identity; compact execution never calls
+ * it implicitly, and the compact value does not retain the resulting graph.
+ */
+export function materializePreparedDiagnosticData(
+  value: CompactPreparedDiagnosticData,
+): PreparedDiagnosticData {
+  assertCompactPreparedDiagnosticData(value);
+  return createEagerPreparedDiagnosticData(value.definition, {
+    definitionIntegrity: value.definition.definitionIntegrity,
+    filter: value.filter,
+    completePeriodCutoffs: value.completePeriodCutoffs,
+    inputAudit: value.inputAudit,
+    cells: value.cells,
+    exposures: value.exposures,
+    expectedCellsProvided: value.expectedCellsProvided,
+    expectedCells: value.expectedCells,
+    findings: value.findings,
+  });
+}
+
+/**
+ * Core-owned, complete identity projection, emitted without a second retained
+ * preparation graph. A structural document is not itself actuarial authority:
+ * this factory authenticates the frozen preparation before creating one.
+ */
+export function getCompactPreparedDiagnosticDataIdentityDocument(
+  value: CompactPreparedDiagnosticData,
+): DiagnosticIdentityDocument {
+  assertCompactPreparedDiagnosticData(value);
+  const previous = compactIdentityDocuments.get(value);
+  if (previous) return previous;
+  const document = createDiagnosticIdentityObject({
+    definitionIntegrity: createDiagnosticIdentityValue(
+      value.definition.definitionIntegrity,
+    ),
+    filter: createDiagnosticIdentityValue(
+      normalizeDiagnosticsFilterIdentity(value.filter),
+    ),
+    completePeriodCutoffs: createDiagnosticIdentityValue(
+      value.completePeriodCutoffs,
+    ),
+    inputAudit: createDiagnosticIdentityValue(value.inputAudit),
+    cells: createDiagnosticIdentityValue(value.cells),
+    exposures: createDiagnosticIdentityValue(value.exposures),
+    expectedCellsProvided: createDiagnosticIdentityValue(
+      value.expectedCellsProvided,
+    ),
+    expectedCells: createDiagnosticIdentityArray(
+      value.expectedCells.length,
+      (index) => {
+        const cell = value.expectedCells[index]!;
+        return createDiagnosticIdentityObject({
+          sourceGroup: createDiagnosticIdentityValue(cell.sourceGroup),
+          origin: createDiagnosticIdentityValue(cell.origin),
+          valuation: createDiagnosticIdentityValue(cell.valuation),
+          source: createDiagnosticIdentityValue(cell.source ?? null),
+        });
+      },
+    ),
+    findings: createDiagnosticIdentityValue(value.findings),
+  });
+  compactIdentityDocuments.set(value, document);
+  return document;
+}
+
+/** Compute the exact legacy preparation tag on explicit evidence access only. */
+export function getCompactPreparedDiagnosticDataFingerprint(
+  value: CompactPreparedDiagnosticData,
+): string {
+  assertCompactPreparedDiagnosticData(value);
+  const previous = compactFingerprints.get(value);
+  if (previous) return previous;
+  const tag = fingerprintDiagnosticIdentity(
+    getCompactPreparedDiagnosticDataIdentityDocument(value),
+    { kind: "diagnostic-preparation", property: "preparation" },
+  );
+  compactFingerprints.set(value, tag);
+  return tag;
 }
 
 export function assertPreparedDiagnosticData(

@@ -3,7 +3,7 @@
 Mastra tools and human-gated workflows for actuarial-ts. It is an orchestration boundary around the other four packages, not an autonomous actuary.
 
 ```bash
-npm install @actuarial-ts/agents@0.6.1 @actuarial-ts/core@0.6.1 @actuarial-ts/data@0.6.1 @actuarial-ts/interchange@0.6.1 @actuarial-ts/compliance@0.6.1 @mastra/core@^1.51.0 @mastra/mcp@^1.14.0 zod@^3.25.76
+npm install @actuarial-ts/agents@0.7.0 @actuarial-ts/core@0.7.0 @actuarial-ts/data@0.7.0 @actuarial-ts/interchange@0.7.0 @actuarial-ts/compliance@0.7.0 @mastra/core@^1.51.0 @mastra/mcp@^1.14.0 zod@^3.25.76
 ```
 
 Requires Node 22.13+. Peer ranges are `@mastra/core >=1.51.0 <2`, `@mastra/mcp >=1.14.0 <2`, and Zod `^3.25.76`.
@@ -54,7 +54,7 @@ In 0.6 the public `DefinedActuarialTool<TInput, TOutput>` execute accepts raw `z
 
 The package’s offline test suite covers trusted catalog selection, direct/Mastra-shaped execution, tenant failure, once-only transforms, provenance coherence, judgment gates, remote sidecar behavior, promotion, and golden-prompt tool selection.
 
-See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/migrations/0.6-generalized-diagnostics.md).
+See the [formula catalog](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/reference/diagnostic-formulas.md) and [migration guide](https://github.com/yerromnitsuj/actng/blob/v0.7.0/docs/migrations/0.6-generalized-diagnostics.md).
 
 ## License
 

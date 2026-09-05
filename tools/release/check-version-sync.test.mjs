@@ -34,7 +34,7 @@ test("a single-package drift is rejected", () => {
       cpSync(resolve(root, path), resolve(temp, path), { recursive: true });
     const path = resolve(temp, "packages/core/package.json");
     const manifest = JSON.parse(readFileSync(path, "utf8"));
-    manifest.version = "0.6.2";
+    manifest.version = "0.7.1";
     writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
     assert.ok(
       checkVersionSync(temp).some((message) => message.includes("version")),

@@ -1,6 +1,7 @@
 export * from "./types.js";
 export * from "./util.js";
 export * from "./canonical.js";
+export * from "./diagnosticIdentityStream.js";
 export * from "./version.js";
 export {
   MAX_DIAGNOSTIC_JSON_DEPTH,
@@ -122,12 +123,18 @@ export {
   reconcileDiagnosticExposures,
 } from "./diagnosticExposure.js";
 export {
+  assertCompactPreparedDiagnosticData,
   assertPreparedDiagnosticData,
   getPreparedDiagnosticDataIdentity,
+  getCompactPreparedDiagnosticDataIdentityDocument,
+  getCompactPreparedDiagnosticDataFingerprint,
+  materializePreparedDiagnosticData,
   prepareDiagnosticData,
+  prepareDiagnosticDataCompact,
   verifyPreparedDiagnosticDataIntegrity,
 } from "./diagnosticPreparation.js";
 export type {
+  CompactPreparedDiagnosticData,
   DiagnosticClaimObservation,
   DiagnosticCompletePeriodCutoff,
   DiagnosticExpectedCell,
@@ -143,16 +150,41 @@ export type {
   NormalizedDiagnosticExpectedCellIdentity,
   PrepareDiagnosticDataInput,
   PreparedDiagnosticData,
+  PreparedDiagnosticDataContent,
   PreparedDiagnosticSourceCell,
 } from "./diagnosticPreparation.js";
 export {
+  assertCompactMetricDiagnosticsResult,
   commonMaturity,
   getMetricDiagnosticsResultIdentity,
+  getCompactMetricDiagnosticsResultIdentityDocument,
   runMetricDiagnostics,
+  runMetricDiagnosticsCompact,
+  materializeMetricDiagnosticsResult,
   sameMaturity,
   validateDiagnosticGroupingConfiguration,
+  validateCompactDiagnosticGroupingConfiguration,
 } from "./diagnosticRunner.js";
-export { evaluateDiagnosticReviewRules } from "./diagnosticReview.js";
+export { evaluateDiagnosticReviewRules, evaluateDiagnosticReviewRulesCompact } from "./diagnosticReview.js";
+export {
+  assertCompactDiagnosticReviewEvaluations,
+  getDiagnosticReviewEvaluation,
+  getDiagnosticReviewEvaluationSummary,
+  getCompactDiagnosticReviewEvaluationsIdentityDocument,
+  iterateDiagnosticReviewEvaluations,
+  pageDiagnosticReviewEvaluations,
+  pageDiagnosticReviewEvaluationSources,
+} from "./diagnosticReviewStore.js";
+export type {
+  CompactDiagnosticReviewEvaluations,
+  CompactDiagnosticReviewRuleSummary,
+  DiagnosticReviewEffectiveStatus,
+  DiagnosticReviewEvaluationQuery,
+  DiagnosticReviewEvaluationSummary,
+  DiagnosticReviewPage,
+  DiagnosticReviewSourceQuery,
+  DiagnosticReviewStatusCounts,
+} from "./diagnosticReviewStore.js";
 export type {
   DiagnosticCellReviewScope,
   DiagnosticControlTotalReviewScope,
@@ -165,13 +197,16 @@ export type {
 } from "./diagnosticReview.js";
 export type {
   CommonMaturityResult,
+  CompactMetricDiagnosticsResult,
   DiagnosticEmergencePoint,
   DiagnosticMetricEvaluation,
   DiagnosticMetricTriangle,
   DiagnosticMetricTriangleCell,
   MetricDiagnosticsResult,
+  MetricDiagnosticsResultContent,
   NormalizedDiagnosticResultIdentity,
   RunMetricDiagnosticsInput,
+  RunMetricDiagnosticsCompactInput,
 } from "./diagnosticRunner.js";
 export type {
   DiagnosticAuditedNumericValue,

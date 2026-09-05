@@ -3,6 +3,52 @@
 All notable changes to the actuarial-ts SDK. The packages version
 together; this file covers them all.
 
+## 0.7.0 — 2026-09-05
+
+### Additive compact diagnostics and complete evidence
+
+- Adds authenticated compact preparation, validation and execution APIs alongside
+  the existing eager diagnostic APIs. Complete review evaluations and findings
+  use private column/dictionary storage with summary, paging and source-access
+  APIs; passing, triggered, not-evaluated, structural and overflow evidence is
+  retained rather than sampled or discarded.
+- Adds owner-controlled diagnostic identity documents and bounded canonical
+  text iteration/fingerprinting. These preserve the existing normalized identity
+  bytes while avoiding a required expanded audit object or archive-sized string.
+- Reuses invocation-owned source snapshots, exact source unions, expression
+  projections and preparation lookups. Source normalization/order, every review
+  result, existing numerical methods and original validation budgets remain
+  unchanged. No dataset-size or application memory/performance certification is
+  implied by the compact representation.
+
+### Streamed artifact evidence and replay
+
+- Adds incremental artifact hashing and authenticated compact provenance.
+  Computed evidence is tied to actual retained artifact bytes; caller-declared
+  evidence remains explicitly distinguished. Genuine completed runs retain their
+  original validated input owner for reproducible replay.
+- Adds the versioned `diagnostic-replay/1` stream writer and independent reader.
+  The reader reconstructs one run at a time, revalidates and recalculates it,
+  checks complete artifact/lineage evidence, and compares full normalized
+  manifest/result identity text before issuing a verified receipt. Re-stamped
+  hashes alone do not establish verification.
+- Requires explicit host resource limits and supports cooperative cancellation
+  between chunks/phases. Transport fragments are bounded; host file/network I/O
+  remains outside the pure SDK. Digests establish internal integrity, not source
+  authentication, signatures, actuarial correctness or FIPS certification.
+
+### Compatibility and release metadata
+
+- All five npm packages and their internal dependency ranges move in lockstep
+  to `0.7.0`. These are additive APIs: existing eager diagnostics/provenance,
+  quarterly definitions and actuarial calculations are preserved.
+- The replay stream is a separate format, not a replacement for interchange
+  `BundleDoc`. Interchange wire version remains `1.1.0`; the Python and R adapter
+  versions remain `0.2.0`, with existing runtime/peer support floors unchanged.
+- Documents the full host workflow, evidence ownership, replay framing,
+  resource policy and assurance boundaries in
+  [`docs/reference/diagnostic-replay-stream.md`](docs/reference/diagnostic-replay-stream.md).
+
 ## 0.6.1 — 2026-09-04
 
 ### Diagnostics correctness
