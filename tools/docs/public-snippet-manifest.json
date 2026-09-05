@@ -42,7 +42,7 @@
       "heading": "Quick taste",
       "language": "ts",
       "ordinal": 1,
-      "sha256": "3b6f5ce3d142c7e75bb5905c3ea3cd99d0f0826fe94b297f7c9a4d0575d56c92",
+      "sha256": "abbc2a243664d4dbe05a2922b9e8b6f195201001b0117c40df69e3cda613532d",
       "classification": "packed-executable",
       "reason": "Exact extracted source is typechecked and executed against five installed SDK tarballs with explicit checked host setup and output assertions."
     },
@@ -645,7 +645,7 @@
       "heading": "@actuarial-ts/agents",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "19b3ee8c3bb768dd09d0b10c39972aa56df3f46d789a2ae8f2d1a752b3eeab88",
+      "sha256": "ca21a49ac096d7c975cbd925f8cb7d511419bd9d762f47f3e2d352a1972f5556",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -672,7 +672,7 @@
       "heading": "@actuarial-ts/compliance",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "dc57db3b9e1d93e38923eaca6a7721f7edb2520794df9fa14de354fb0b2cef35",
+      "sha256": "4700b3bac72ad52c463b5d096c6b31554f30febfb6cd839ba2813e3a4a52bd02",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -690,7 +690,7 @@
       "heading": "Install",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "8ae3abe1916014a00ac650c890ad629e0752e5fa8934722389813ce604267d15",
+      "sha256": "221641c9c59ab378086a6ddba067f10e77e8e6ad8a451214f85b08a9d1e7c00a",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -717,7 +717,7 @@
       "heading": "@actuarial-ts/data",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "98b65171fff6ce2fcd090b4b478a75ce032dadddac698cd941d84296e66f5607",
+      "sha256": "d1f350df7e0dc66fe355fd45131f335885320390cabd5dcf090e01cf4285bff5",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },
@@ -735,7 +735,7 @@
       "heading": "@actuarial-ts/interchange",
       "language": "bash",
       "ordinal": 1,
-      "sha256": "86b307995589f206740e017fad585dc3e497fc387448259c8f0e9abc0d1cd24f",
+      "sha256": "cf5515936436ef041e13d272c54cbcf264ba9001e1bc8e83a6fe6253bc9c4e9b",
       "classification": "syntax-only-operational",
       "reason": "Operational install, configuration, and publication commands receive shell syntax checks only; documentation verification must never perform their side effects."
     },

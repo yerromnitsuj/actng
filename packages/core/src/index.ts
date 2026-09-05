@@ -156,12 +156,14 @@ export type {
 export {
   assertCompactMetricDiagnosticsResult,
   commonMaturity,
+  commonMaturityCompact,
   getMetricDiagnosticsResultIdentity,
   getCompactMetricDiagnosticsResultIdentityDocument,
   runMetricDiagnostics,
   runMetricDiagnosticsCompact,
   materializeMetricDiagnosticsResult,
   sameMaturity,
+  sameMaturityCompact,
   validateDiagnosticGroupingConfiguration,
   validateCompactDiagnosticGroupingConfiguration,
 } from "./diagnosticRunner.js";

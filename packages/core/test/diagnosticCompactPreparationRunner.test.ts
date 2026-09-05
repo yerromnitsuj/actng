@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import * as canonical from "../src/canonical.js";
 import * as identity from "../src/diagnosticIdentity.js";
 import {
@@ -8,6 +8,7 @@ import {
   assertCompactPreparedDiagnosticData,
   assertPreparedDiagnosticData,
   commonMaturity,
+  commonMaturityCompact,
   compareDiagnosticIdentityDocuments,
   compileDiagnosticDefinition,
   fingerprintDiagnosticIdentity,
@@ -24,10 +25,15 @@ import {
   runMetricDiagnostics,
   runMetricDiagnosticsCompact,
   sameMaturity,
+  sameMaturityCompact,
   validateCompactDiagnosticGroupingConfiguration,
   validateDiagnosticGroupingConfiguration,
   type DiagnosticDefinition,
+  type DiagnosticDeepReadonly,
+  type DiagnosticEmergencePoint,
   type DiagnosticLossInput,
+  type CommonMaturityResult,
+  type MetricDiagnosticsResult,
   type PrepareDiagnosticDataInput,
 } from "../src/index.js";
 
@@ -217,14 +223,57 @@ describe("compact diagnostic preparation and runner", () => {
     expect(eagerResult.emergence).toBe(compactResult.emergence);
     expect(eagerResult.triangles).toBe(compactResult.triangles);
     expect(eagerResult.latestDiagonal[0]).toBe(compactResult.latestDiagonal[0]);
-    expect(sameMaturity(compactResult, 12)).toEqual(
+    expect(sameMaturityCompact(compactResult, 12)).toEqual(
       sameMaturity(legacyResult, 12),
     );
-    expect(commonMaturity(compactResult, ["a", "b"])).toEqual(
+    expect(commonMaturityCompact(compactResult, ["a", "b"])).toEqual(
       commonMaturity(legacyResult, ["a", "b"]),
     );
     expect(Object.hasOwn(compact, "preparationFingerprint")).toBe(false);
     expect(Object.hasOwn(compactResult, "preparationFingerprint")).toBe(false);
+  });
+
+  it("preserves the exact eager maturity function contracts alongside compact helpers", () => {
+    expectTypeOf<typeof sameMaturity>().toEqualTypeOf<
+      (
+        result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
+        developmentAge: number,
+        outputGroups?: readonly string[],
+      ) => readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[]
+    >();
+    expectTypeOf<typeof commonMaturity>().toEqualTypeOf<
+      (
+        result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
+        outputGroups: readonly string[],
+      ) => DiagnosticDeepReadonly<CommonMaturityResult>
+    >();
+    const authored = input();
+    const prepared = prepareDiagnosticData(authored);
+    const result = runMetricDiagnostics({ prepared });
+    const compact = runMetricDiagnosticsCompact({
+      prepared: prepareDiagnosticDataCompact(authored),
+    });
+    for (const groups of [undefined, [], ["b", "a", "b"]]) {
+      for (const age of [0, 12, 24, 999])
+        expect(sameMaturityCompact(compact, age, groups)).toEqual(
+          sameMaturity(result, age, groups),
+        );
+      if (groups !== undefined)
+        expect(commonMaturityCompact(compact, groups)).toEqual(
+          commonMaturity(result, groups),
+        );
+    }
+    expect(result.preparationFingerprint).toBe(prepared.preparationFingerprint);
+    expect(Object.hasOwn(compact, "preparationFingerprint")).toBe(false);
+    expect(() => sameMaturityCompact(compact, -1)).toThrow(
+      /nonnegative safe integer/,
+    );
+    expect(() => sameMaturityCompact(compact, 12, ["missing"])).toThrow(
+      /Unknown output group/,
+    );
+    expect(() => commonMaturityCompact(compact, [" "])).toThrow(
+      /nonempty token/,
+    );
   });
 
   it("authenticates compact values separately and rejects structural copies", () => {

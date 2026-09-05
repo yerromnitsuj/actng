@@ -1215,14 +1215,13 @@ export function sameMaturity(
   result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
   developmentAge: number,
   outputGroups?: readonly string[],
-): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[];
-export function sameMaturity(
+): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[] {
+  return sameMaturityContent(result, developmentAge, outputGroups);
+}
+
+/** Select compact numeric views without materializing preparation identity. */
+export function sameMaturityCompact(
   result: DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>,
-  developmentAge: number,
-  outputGroups?: readonly string[],
-): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[];
-export function sameMaturity(
-  result: DiagnosticDeepReadonly<MetricDiagnosticsResultContent>,
   developmentAge: number,
   outputGroups?: readonly string[],
 ): readonly DiagnosticDeepReadonly<DiagnosticEmergencePoint>[] {
@@ -1257,12 +1256,19 @@ function sameMaturityContent(
 export function commonMaturity(
   result: DiagnosticDeepReadonly<MetricDiagnosticsResult>,
   outputGroups: readonly string[],
-): DiagnosticDeepReadonly<CommonMaturityResult>;
-export function commonMaturity(
+): DiagnosticDeepReadonly<CommonMaturityResult> {
+  return commonMaturityContent(result, outputGroups);
+}
+
+/** Select compact numeric views without materializing preparation identity. */
+export function commonMaturityCompact(
   result: DiagnosticDeepReadonly<CompactMetricDiagnosticsResult>,
   outputGroups: readonly string[],
-): DiagnosticDeepReadonly<CommonMaturityResult>;
-export function commonMaturity(
+): DiagnosticDeepReadonly<CommonMaturityResult> {
+  return commonMaturityContent(result, outputGroups);
+}
+
+function commonMaturityContent(
   result: DiagnosticDeepReadonly<MetricDiagnosticsResultContent>,
   outputGroups: readonly string[],
 ): DiagnosticDeepReadonly<CommonMaturityResult> {

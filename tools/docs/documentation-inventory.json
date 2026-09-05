@@ -221,6 +221,17 @@
         "agents"
       ]
     },
+    "docs/reference/diagnostic-replay-stream.md": {
+      "classification": "active",
+      "reason": "Current repository, package, example, or operator documentation.",
+      "packages": [
+        "core",
+        "data",
+        "interchange",
+        "compliance",
+        "agents"
+      ]
+    },
     "docs/research/interop/chainladder-python-api.md": {
       "classification": "historical-snapshot",
       "reason": "Dated design, research, or immutable fixture record.",

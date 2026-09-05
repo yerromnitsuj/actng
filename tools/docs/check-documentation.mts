@@ -22,6 +22,11 @@ import {
 } from "./packed-snippets.mjs";
 
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const sdkVersion = (
+  JSON.parse(readFileSync(resolve(root, "packages/core/package.json"), "utf8")) as {
+    version: string;
+  }
+).version;
 const inventoryPath = resolve(root, "tools/docs/documentation-inventory.json");
 const snippetsPath = resolve(root, "tools/docs/public-snippet-manifest.json");
 const mode =
@@ -369,7 +374,7 @@ for (const packageName of SDK_PACKAGES)
     );
     if (
       !readme.includes(
-        "https://github.com/yerromnitsuj/actng/blob/v0.6.1/docs/",
+        `https://github.com/yerromnitsuj/actng/blob/v${sdkVersion}/docs/`,
       ) ||
       !readme.includes(required)
     )
