@@ -1,5 +1,47 @@
 # Publishing @actuarial-ts to npm
 
+**Release record:** v0.7.1 shipped 2026-09-05 — all five packages were
+published from release-source commit
+`21a32493df982fc353b40b041676e014db0bcef1`. The immutable `v0.7.1` tag
+resolves to that commit, and the
+[GitHub Release](https://github.com/yerromnitsuj/actng/releases/tag/v0.7.1)
+is published. This documentation-focused patch completes the compact API
+guides introduced in 0.7.0; actuarial calculations and API signatures do not
+change. Package engine stamps advance together, so retain matching SDK
+versions when verifying archived replay evidence.
+
+The complete clean 34-phase release gate passed, including 1,542 SDK/workspace
+tests, source reconciliation, three-shore conformance and both packed-consumer
+package sets. Documentation verification covered 16 executable/mixed examples,
+25 declaration/mixed contracts and 18 governance/mutation tests. All seven
+hosted jobs passed on the same release-source commit:
+[CI](https://github.com/yerromnitsuj/actng/actions/runs/33980400029),
+[Python](https://github.com/yerromnitsuj/actng/actions/runs/33980400060), and
+[R](https://github.com/yerromnitsuj/actng/actions/runs/33980400038).
+
+After publication, independent registry verification found all five `latest`
+tags at `0.7.1` and internal ranges at `^0.7.1`. Downloaded archives matched
+the attested local archives byte-for-byte, including SHA-256 and registry
+SHA-512 integrity. Packaged READMEs matched the reviewed files, npm's displayed
+READMEs were updated, and all four tagged guide links returned HTTP 200.
+
+| Package | Verified tarball SHA-256 |
+|---|---|
+| `@actuarial-ts/core` | `af29cb1e1b440417e73be7b8862038ca6a0a93776f334ae7753ec76374337f55` |
+| `@actuarial-ts/interchange` | `032852818772626f6a79a4e868fe980a347386c4f63d2aee566b953cd9239cc4` |
+| `@actuarial-ts/data` | `e7ec81f7d998dcaec583e1a88cda1b04e36b6a807d4eaa03f640509be134bbe8` |
+| `@actuarial-ts/compliance` | `78bc964b4ba64ead82275bb7028479a4c6bf433db4c43263e9580b0a7a9dd7fe` |
+| `@actuarial-ts/agents` | `0fd412fd579aa22a7ff375d44298b3a1545bce7df4d834e3cba3022632b05fc4` |
+
+The clean all-five registry consumer passed with both lock-tested and minimum
+supported peers, exactly one physical copy of each SDK package and a valid
+dependency tree. Node floors, peer ranges, interchange wire `1.1.0` and
+Python/R generator version `0.2.0` remain unchanged. Start with the
+[compact guide](https://github.com/yerromnitsuj/actng/blob/v0.7.1/docs/migrations/0.7-compact-diagnostics.md)
+and [replay reference](https://github.com/yerromnitsuj/actng/blob/v0.7.1/docs/reference/diagnostic-replay-stream.md).
+This post-release record does not move the release tag or modify published
+archives; the attested source remains the commit above.
+
 **Release record:** v0.7.0 shipped 2026-09-05 — all five packages were
 published from release-source commit
 `085b16c1d436134dd083903ecfa80c8cab2c98be`. The immutable `v0.7.0` tag
